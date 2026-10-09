@@ -3,7 +3,7 @@
 Generada a partir del catalogo real (`has_table_privilege`,
 `information_schema.column_privileges`, `pg_policies`,
 `information_schema.triggers`, `pg_proc`) despues de aplicar las migraciones
-hasta `20261010000000_ajustes_supervision_agenda`. Fuente para los guards
+hasta `20261011000000_cierre_fase_bd` (cierre de la fase de BD). Fuente para los guards
 del prompt 02 y para la tesis. Si una migracion cambia GRANTs, politicas,
 triggers o funciones, esta matriz se actualiza en el mismo cambio. Cada fila
 tiene al menos un caso en `backend/prisma/tests/seguridad_bd.sql`.
@@ -64,6 +64,15 @@ vaciados, irreversible) al llegar la fecha efectiva de una baja o al vencer
 la gracia sin baja. Una cuenta cerrada no se modifica (23001). Nunca se
 desactiva al ultimo ADMIN activo (23514).
 
+**Decisiones aceptadas al cierre de la fase (01g)**: la baja de un supervisor
+con practicantes activos se bloquea hasta `cambiar_supervisor` (55000); la
+conformidad tacita a las 48 h es configurable (`plazo_oposicion_horas`) y
+queda pendiente de validacion legal (`consentimiento.md`); el margen entre dos
+citas con margenes distintos es el promedio; una baja que dejaria al centro
+sin ADMIN queda pendiente y la API alerta; el recalculo de `rut_hmac` ante
+compromiso es un job manual de la API (runbook); reactivar un practicante
+son dos pasos que la UI une.
+
 **Bandeja del supervisor (minimo necesario)**: `derivaciones_pendientes()`
 entrega motivo, edad y tipo de atencion de todas las derivaciones pendientes
 del centro (no solo de sus practicantes): es lo minimo para decidir si
@@ -86,6 +95,7 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A+C | GESTION / PROFESIONAL / PRACTICANTE / PACIENTE | `usuarios` | UPDATE | su fila; solo `email`, `nombre`, `telefono` (cifrado), `password_hash` | GRANT por columna + `usuarios_update` + trigger `usuarios_campos_protegidos` (42501) |
 | A+C | ADMIN | `usuarios` | UPDATE `activo` false -> true | dentro de la gracia (cuenta no cerrada) | trigger `usuarios_ciclo_cuenta` (fija `desactivado_en`) |
 | A+C | todos (incluso dueño) | `usuarios` | UPDATE de cuenta cerrada / desactivar al ultimo ADMIN | ninguna | trigger `usuarios_ciclo_cuenta` (23001 / 23514) + CHECK `usuarios_cuenta_cerrada_vacia` |
+| A+C | ADMIN | `usuarios` | UPDATE `activo` -> false de si mismo | ninguna (lo desactiva otro ADMIN o su baja) | trigger `usuarios_ciclo_cuenta` (23514 `usuarios_admin_no_se_desactiva`) |
 | A+C | no ADMIN | `usuarios` | INSERT | ninguna | `usuarios_insert` |
 | A+C | todos | `usuarios` | INSERT/UPDATE con rol GESTION | solo si `rol_gestion_habilitado` | trigger `usuarios_gestion_requiere_habilitacion` (23514) |
 | A+C | todos | `usuarios` | INSERT/UPDATE | PACIENTE <-> `paciente_id` (1:1) | CHECK `usuarios_paciente_solo_rol_paciente` + UNIQUE |
@@ -151,7 +161,7 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | todos (incluso dueño) | `avisos_consentimiento` | INSERT, UPDATE, DELETE | solo via `cambiar_supervisor`, `responder_aviso_consentimiento`, `cerrar_avisos_vencidos`; se responde una vez | sin GRANT + trigger `avisos_consentimiento_append_only` (23001) |
 | B | todos (autenticados) | `tipos_sesion` | SELECT | todos | GRANT + `tipos_sesion_select` |
 | B | PROFESIONAL / PRACTICANTE / ADMIN | `tipos_sesion` | INSERT | propuestas propias (no ADMIN: siempre PROPUESTO) | GRANT + `tipos_sesion_insert` + trigger `tipos_sesion_protegidos` |
-| B | ADMIN | `tipos_sesion` | UPDATE | aprobar, rechazar, desactivar; nunca DELETE | GRANT + `tipos_sesion_update` + trigger (`aprobado_por` = quien decide) |
+| B | ADMIN | `tipos_sesion` | UPDATE | aprobar, rechazar, desactivar; nunca DELETE | GRANT + `tipos_sesion_update` + trigger (`revisado_por`/`revisado_en` = quien y cuando decide) |
 | A | todos | `evoluciones` | INSERT | solo con tipo de sesion APROBADO y activo | trigger `evoluciones_tipo_sesion_aprobado` (23514) |
 | A | ADMIN | `revisiones_retencion` | SELECT, INSERT | propias (`revisado_por` = yo); motivo obligatorio; PURGAR solo pasados 15 años; append-only | GRANT + `revisiones_retencion_*` + triggers (23514 / 23001) |
 | A | ADMIN | `consultas_retencion` | SELECT | todas; las escribe `fichas_sobre_retencion()`; append-only | GRANT + `consultas_retencion_select` |
@@ -173,7 +183,7 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A+C | PACIENTE | `citas` | SELECT | sus citas | `citas_select` |
 | A+C | todos | `citas` | INSERT, UPDATE | box solo si PRESENCIAL; sin solapamiento CONFIRMADA por profesional (ambas modalidades) ni por box (solo presencial), incluso con citas que el contexto no ve | CHECK `citas_espacio_segun_modalidad` (23514) + `EXCLUDE` `citas_no_solapamiento_*` (23P01) |
 | A+C | todos | `citas` | INSERT, UPDATE a CONFIRMADA | margen de traslado entre distinta modalidad del mismo profesional (margen fijado al confirmar; ambos sentidos) | trigger `citas_margen_fijado` + `EXCLUDE` `citas_margen_traslado` (23P01) |
-| A+C | todos | `citas` | INSERT, UPDATE | `enlace_online` solo en ONLINE | CHECK `citas_enlace_solo_online` (23514) |
+| A+C | todos | `citas` | INSERT, UPDATE | `enlace_online` solo en ONLINE y cifrado (CLINICO) | CHECK `citas_enlace_solo_online` + `citas_cifrado` (23514) |
 | A+C | todos | `citas` | INSERT, UPDATE a CONFIRMADA | dentro de la disponibilidad de su modalidad y fuera de bloqueos de agenda | trigger `citas_agenda_valida` (23514) |
 | A+C | todos | `citas` | INSERT, UPDATE | paciente menor exige adulto responsable | trigger `citas_menor_requiere_adulto_responsable` (23514) |
 | A+C | todos | `citas` | DELETE | ninguna (cancelar = `estado`) | sin GRANT |

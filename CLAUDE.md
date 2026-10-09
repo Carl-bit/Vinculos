@@ -140,6 +140,25 @@ Endpoint nuevo:
 - Errores: 23P01/23505/55000/23001 -> 409, 23514 -> 422, 42501 -> 403/404, P0002 -> 404.
 - Guard `@Roles` segun la matriz; acceso a datos clinicos registra en `accesos_ficha`.
 
+## API (detalle en `docs/seguridad/requisitos_02_apis.md`)
+- Conexion: solo `DATABASE_URL` (app_user). Nunca credenciales de migracion en runtime.
+- Toda consulta dentro de la transaccion del interceptor, que empieza con `set_config` de `app.current_usuario_id` y `app.current_rol`. Excepciones: login (`credenciales_login`) y jobs (contexto de sistema documentado).
+- Nombres de otros usuarios solo via `directorio_interno`, `mi_equipo_tratante` o `perfiles_publicos`; nunca `include` de Prisma.
+- Escrituras con reglas de estado solo via funciones SECURITY DEFINER.
+- `createMany` o `$executeRaw` donde el `RETURNING` falle por RLS.
+- Campos cifrados segun `registro.ts`; ids de esas filas los genera la API; nunca loguear valores descifrados.
+- Validacion de formato (RUT con DV, telefono, etc.) en DTOs.
+- Errores: el filtro envuelve el `$transaction` completo (errores al COMMIT); tabla SQLSTATE -> HTTP de requisitos_02_apis.md.
+- Cada endpoint: guard segun `matriz_permisos.md` + test de integracion por rol.
+- Jobs idempotentes y con `pg_advisory_lock` (una sola instancia corriendo).
+- Fuente de verdad: si un prompt contradice la matriz o requisitos_02_apis.md, manda la BD; reportar la contradiccion.
+
+## Formato de entrega de cada fase
+1. Archivos creados y modificados.
+2. Tests: unitarios, integracion y `backend/prisma/tests/correr_tests_bd.sh` (resultado real, no supuesto).
+3. Cambios en docs (matriz, requisitos, estado de fase).
+4. Decisiones pendientes y lo que no se pudo probar (y por que).
+
 ## Al generar codigo
 Antes de escribir, revisar que la entidad/endpoint no rompa una regla de esta
 lista. Si una tarea pedida contradice una regla no negociable, avisar antes de

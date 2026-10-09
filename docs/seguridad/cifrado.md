@@ -51,6 +51,7 @@ compara ese registro con las columnas bytea reales de la BD.
 | Telefonos (usuarios, pacientes, adultos responsables) | Contacto directo, permite ubicar a la persona. |
 | Datos bancarios del profesional (banco, tipo y numero de cuenta, titular) | Financiero. |
 | `evoluciones.notas`, `supervision_comentarios.texto`, `derivaciones.motivo`/`detalle` | Contenido clinico en texto libre. |
+| `citas.enlace_online` | Da acceso a una sesion clinica en curso. `citas` conserva su DEFAULT de id: el enlace se genera con la cita ya creada. |
 | Copia de autoria (`evoluciones.autor_*`) y emisor de boletas | Identifican al profesional en documentos de retencion legal. |
 
 | No se cifra | Por que |

@@ -1,7 +1,8 @@
 # Requisitos de la BD para 02_apis
 
-Lo que la API (prompt `02_apis.md`) debe respetar para no romper lo que la BD
-ya garantiza. Consolidado hasta 01f. Permisos por rol: `matriz_permisos.md`.
+Lo que la API (prompts 02a-02h, ver `prompts/00_index.md`) debe respetar para
+no romper lo que la BD ya garantiza. Consolidado hasta 01g (cierre de la fase
+de BD: `docs/bd/estado_fase_bd.md`). Permisos por rol: `matriz_permisos.md`.
 Cifrado: `cifrado.md`. Operacion de llaves: `runbooks_llaves.md`.
 Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.md`.
 
@@ -135,6 +136,14 @@ DTOs (`class-validator`), antes de cifrar:
     hasta `cambiar_supervisor` (55000).
   - La UI muestra la fecha de cierre (`desactivado_en` + gracia) y advierte
     antes de desactivar al ultimo ADMIN (la BD lo impide igual).
+  - Un ADMIN nunca se desactiva a si mismo (23514
+    `usuarios_admin_no_se_desactiva`): lo hace otro ADMIN o su baja.
+  - Si `procesar_bajas()` deja una baja sin procesar porque el centro
+    quedaria sin ADMIN, la API alerta a los ADMIN (la baja sigue pendiente y
+    se reintenta en cada corrida).
+  - Reactivar un practicante son dos pasos en BD (`cambiar_supervisor` si su
+    supervision cerro, luego `otorgar_acceso_practicante`); la UI los une en
+    una sola accion.
 - Al escribir una evolucion, la API arma la **copia de autoria** con los
   datos actuales del autor (nombre de `usuarios`, RUT de
   `profesional_datos_privados`, registro de `profesional_trayectoria`) y la
@@ -146,8 +155,9 @@ DTOs (`class-validator`), antes de cifrar:
 - **Tipos de sesion** (`tipos_sesion`): la evolucion lleva `tipo_sesion_id`
   de un tipo APROBADO y activo (si no, 23514). PROFESIONAL/PRACTICANTE
   proponen (quedan PROPUESTO aunque envien otro estado); solo ADMIN aprueba,
-  rechaza o desactiva (nunca DELETE). La UI de evolucion solo lista los
-  aprobados y activos; la de ADMIN muestra la cola de propuestos.
+  rechaza o desactiva (nunca DELETE); `revisado_por`/`revisado_en` registran
+  quien y cuando aprobo o rechazo. La UI de evolucion solo lista los aprobados
+  y activos; la de ADMIN muestra la cola de propuestos.
 
 ## 6. Perfil profesional y cobro
 
@@ -198,9 +208,12 @@ DTOs (`class-validator`), antes de cifrar:
     `citas_en_conflicto_margen(profesional)` para reprogramar y avisar al
     paciente.
   - Editan el margen: el propio profesional y ADMIN/GESTION.
-- **Enlace online**: `citas.enlace_online` solo en citas ONLINE (CHECK). Lo
-  genera la API al confirmar una cita online (proveedor de videollamada por
-  definir) y lo envia al paciente; nunca en presenciales.
+- **Enlace online**: `citas.enlace_online` solo en citas ONLINE (CHECK) y
+  **cifrado** (bytea, CLINICO, en `registro.ts`; AAD `citas:enlace_online:<id>`).
+  La API lo genera con la cita ya creada (id conocido), con expiracion, y lo
+  envia al paciente; nunca en presenciales ni en logs.
+- El margen requerido entre dos citas con margenes distintos es el promedio
+  de ambos (cada cita guarda el vigente al confirmarse).
 - Disponibilidad y bloqueos: los edita el propio y ADMIN/GESTION. El bloqueo
   BAJA lo crea `iniciar_baja_profesional` y la API no lo toca.
 - Huecos libres para agendar o para el portal: `disponibilidad_publica(id,

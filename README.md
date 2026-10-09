@@ -23,7 +23,8 @@ frontend/                 Next.js App Router (portal publico SSR/SSG + backoffic
 design-system/vinculos/   MASTER.md de ui-ux-pro-max + overrides por pagina
 design-reference/         export HTML del handoff de Claude Design (si se usa esa via)
 infra/                    docker-compose por silo + Traefik compartido
-0N_*.md                   prompts de generacion (ver 00_index.md)
+docs/                     seguridad (matriz, cifrado, runbooks) y estado de fases
+prompts/                  prompts de generacion (ver prompts/00_index.md)
 ```
 
 ## Levantar en local
@@ -35,8 +36,8 @@ cp infra/.env.example infra/.env
 cp backend/.env.example backend/.env
 (cd backend && npm install)
 # BORRA la BD de desarrollo y la recrea: down -v, up db (healthy), migrate
-# deploy, contraseña de app_user, seed. El override de dev expone el 5432
-# solo en 127.0.0.1.
+# deploy, contraseña de app_user, seed, llaves de desarrollo. El override de
+# dev expone el 5432 solo en 127.0.0.1. (Requiere Docker.)
 sh infra/scripts/reset_dev.sh
 
 # 2. Backend (se conecta como app_user: sujeto a RLS)
@@ -70,8 +71,9 @@ contraseña de `app_user` en cada `up`; la API arranca despues y solo recibe
 
 ## Estado
 
-Esqueleto generado. Pendiente, en este orden (ver [`00_index.md`](00_index.md)):
+Orden y detalle en [`prompts/00_index.md`](prompts/00_index.md).
 
-- [ ] `01_bd.md` — schema Prisma, constraint EXCLUDE, politicas RLS, seed
-- [ ] `02_apis.md` — 5 modulos NestJS, RolesGuard, RlsInterceptor, filtro 409
-- [ ] `03_front.md` — portal publico + backoffice desde el handoff de diseño
+- [x] Fase de BD (01 a 01g) — ver [`docs/bd/estado_fase_bd.md`](docs/bd/estado_fase_bd.md)
+- [ ] API (02a a 02h)
+- [ ] Pruebas de integracion y estres (04)
+- [ ] Front (03)
