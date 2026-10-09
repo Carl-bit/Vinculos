@@ -1,0 +1,22 @@
+# Fin de linea LF en el repo y en el checkout de todo lo que corre en Linux
+# (contenedores Docker, Lightsail). Sin esto, con core.autocrlf=true en Windows
+# los .sh quedan con CRLF y fallan dentro del contenedor ("\r: not found").
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.sql text eol=lf
+*.prisma text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

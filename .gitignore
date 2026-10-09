@@ -1,0 +1,47 @@
+# Dependencias y builds
+node_modules/
+dist/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Variables de entorno: nunca se suben (contraseñas de BD, JWT). Solo los ejemplos.
+.env
+.env.*
+!.env.example
+
+# Llaves de cada silo y de desarrollo (KEK, partes de recuperacion). Nunca en git.
+infra/secrets/
+# Red de seguridad por si se copian fuera de infra/secrets/.
+*.shamir
+partes_entregar*/
+recuperacion_tmp/
+kek
+kek.*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Respaldos de BD: contienen datos de pacientes (aunque esten cifrados).
+*.dump
+*.backup
+*.sql.gz
+*.sql.zst
+*.tar.gz
+
+# Logs
+*.log
+npm-debug.log*
+
+# Configuracion personal de herramientas y editores
+.claude/settings.local.json
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

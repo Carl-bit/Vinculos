@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+coverage
+*.log
+*.tsbuildinfo
+
+# Variables: las publicas entran como build args (ver infra/docker-compose.yml).
+.env
+.env.*
+!.env.example
+*.pem
+*.key

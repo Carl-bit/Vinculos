@@ -1,0 +1,1123 @@
+// Schema del silo. Un cliente = una DB = este mismo schema desplegado aparte.
+// NO hay tenant_id: el aislamiento es fisico (contenedor + DB), no logico.
+//
+// Lo que Prisma no expresa vive en SQL crudo dentro de prisma/migrations/:
+//   - 20261005000000_init: tablas, enums, FKs y la extension btree_gist.
+//   - 20261005000100_reglas_dominio: EXCLUDE USING gist (citas), CHECKs,
+//     triggers (no-delete clinico, evoluciones append-only, menor de edad),
+//     rol de aplicacion `app_user` y politicas RLS.
+//   - 20261006000000_endurecimiento_rls: app_user como rol LOGIN de la API,
+//     FORCE RLS, politica RESTRICTIVE de acceso vigente, auditoria
+//     `accesos_ficha` y rol/funciones de reportes `app_reportes`.
+//   - 20261007000000_roles_y_rls_completa: catalogo de roles final (GESTION,
+//     PACIENTE), configuracion_centro, RLS en usuarios/citas/pagos/
+//     adultos_responsables, derivaciones con oferta secuencial (funciones
+//     SECURITY DEFINER) e indices unicos parciales.
+//   - 20261008000000_directorio_practicantes_bajas: catalogo tipos_atencion,
+//     perfiles publicos y directorio (funciones), RLS en todas las tablas
+//     restantes, supervisiones, consentimientos, bitacora de accesos de
+//     practicantes, bajas y ajustes a derivaciones.
+//   - 20261009000000_cifrado_perfil_agenda_consentimiento: columnas cifradas
+//     (bytea, cifra la API), llaves y contingencia, cuentas de un solo periodo,
+//     perfil/tarifas/cobro, agenda por modalidad, consentimiento por derivacion
+//     y evoluciones estructuradas.
+//   - 20261010000000_ajustes_supervision_agenda: cambio de supervisor con
+//     avisos al paciente, cierre de cuentas con gracia (ADMIN/GESTION incluidos),
+//     catalogo tipos_sesion, disponibilidad en minutos, revision de retencion y
+//     margen de traslado entre modalidades.
+//
+// Cifrado: los campos `Bytes` marcados "cifrado" los cifra la API con
+// AES-256-GCM (backend/src/common/crypto/, registro.ts lista todos). AAD =
+// tabla:columna:id_fila, por eso esas filas no tienen default de id: lo genera
+// la API. `*_hmac` = indice ciego (HMAC-SHA256 del valor normalizado).
+//
+// Categoria de seguridad de cada tabla (A/B/C):
+// docs/seguridad/criterio_clasificacion.md.
+//
+// Convencion: modelos/campos en camelCase en TS, tablas/columnas en snake_case
+// via @map/@@map. Todo "profesional_id" apunta a usuarios.id (Nucleo), no a
+// profesionales: asi Fichas y Agenda dependen solo del Nucleo, no de Equipo.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+// url: rol de la API (app_user, sin superusuario ni BYPASSRLS, sujeto a RLS).
+// directUrl: rol dueño (vinculos_owner), solo migraciones y seed. La API en
+// runtime no lo recibe.
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("MIGRATION_DATABASE_URL")
+  extensions = [btree_gist]
+}
+
+// ============================================================================
+// 1. Nucleo
+// ============================================================================
+
+/// Una sola fila (id = true, CHECK). La crea la migracion; la API solo la lee
+/// y ADMIN la actualiza. Trigger: no se puede apagar rol_gestion_habilitado con
+/// usuarios GESTION activos.
+model ConfiguracionCentro {
+  id                            Boolean     @id @default(true)
+  rolGestionHabilitado          Boolean     @default(false) @map("rol_gestion_habilitado")
+  plazoRespuestaDerivacionHoras Int         @default(24) @map("plazo_respuesta_derivacion_horas")
+  modeloCobro                   ModeloCobro @default(CENTRO) @map("modelo_cobro")
+  plazoConsentimientoHoras      Int         @default(48) @map("plazo_consentimiento_horas")
+  plazoOposicionHoras           Int         @default(48) @map("plazo_oposicion_horas")
+  diasGraciaCierre              Int         @default(30) @map("dias_gracia_cierre")
+  /// Minutos minimos entre citas de distinta modalidad del mismo profesional.
+  margenTrasladoMin             Int         @default(30) @map("margen_traslado_min")
+  updatedAt                     DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("configuracion_centro")
+}
+
+/// ADMIN: configuracion, usuarios, reportes, derivaciones (no crea) y todo lo
+///   de GESTION. Clinico: solo metadata de fichas.
+/// GESTION: agenda, datos administrativos de pacientes, pagos, adultos
+///   responsables. Nunca clinico. Solo con configuracion_centro.rol_gestion_habilitado.
+/// PROFESIONAL: sus pacientes, evoluciones, crea derivaciones.
+/// PRACTICANTE: solo pacientes asignados, acceso con expiracion.
+/// PACIENTE: su registro, sus citas, sus pagos, sus adultos responsables.
+enum Rol {
+  ADMIN
+  GESTION
+  PROFESIONAL
+  PRACTICANTE
+  PACIENTE
+
+  @@map("rol")
+}
+
+/// CHECK (migracion cruda): fecha_expiracion_acceso es obligatoria si y solo si
+/// rol = PRACTICANTE; paciente_id es obligatorio si y solo si rol = PACIENTE.
+/// Una cuenta = un periodo de trabajo. Desactivada (desactivado_en) se puede
+/// reactivar dentro de configuracion_centro.dias_gracia_cierre; procesar_bajas
+/// la cierra (cerrada_en) al cumplirse la baja o la gracia, vaciando nombre,
+/// email, hash y telefono. Cerrada no cambia mas: quien vuelve recibe cuenta
+/// nueva. Nunca el ultimo ADMIN activo se desactiva. Nunca se borra.
+model Usuario {
+  id                    String    @id @db.Uuid
+  email                 String?   @unique
+  passwordHash          String?   @map("password_hash")
+  /// Nombre interno (equipo y backoffice). El nombre del portal publico es
+  /// profesionales.nombre_publico.
+  nombre                String?
+  /// cifrado (IDENTIFICACION)
+  telefono              Bytes?
+  cerradaEn             DateTime? @map("cerrada_en") @db.Timestamptz(6)
+  desactivadoEn         DateTime? @map("desactivado_en") @db.Timestamptz(6)
+  rol                   Rol
+  activo                Boolean   @default(true)
+  fechaExpiracionAcceso DateTime? @map("fecha_expiracion_acceso") @db.Timestamptz(6)
+  pacienteId            String?   @unique @map("paciente_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  paciente                   Paciente?                    @relation("UsuarioPaciente", fields: [pacienteId], references: [id], onDelete: Restrict)
+  perfilProfesional          Profesional?
+  perfilPracticante          Practicante?
+  pacientes                  Paciente[]                   @relation("PacienteProfesional")
+  evolucionesAutor           Evolucion[]
+  derivacionesOrigen         Derivacion[]                 @relation("DerivacionOrigen")
+  candidaturasDerivacion     DerivacionCandidato[]
+  citas                      Cita[]
+  bloqueosTemporales         BloqueoTemporal[]
+  historialAccesos           HistorialAccesoPracticante[] @relation("HistorialPracticante")
+  accionesAccesos            HistorialAccesoPracticante[] @relation("HistorialActor")
+  arriendos                  Arriendo[]
+  accesosFicha               AccesoFicha[]
+  derivacionesCreadas        Derivacion[]                 @relation("DerivacionCreadaPor")
+  tiposAtencion              ProfesionalTipoAtencion[]
+  supervisionesRecibidas     Supervision[]                @relation("SupervisionPracticante")
+  supervisionesDadas         Supervision[]                @relation("SupervisionSupervisor")
+  comentariosSupervision     SupervisionComentario[]
+  baja                       Baja?                        @relation("BajaUsuario")
+  bajasIniciadas             Baja[]                       @relation("BajaIniciadaPor")
+  bloqueosComoProfesional    BloqueoTemporal[]            @relation("BloqueoTemporalProfesional")
+  candidatosPropuestos       DerivacionCandidato[]        @relation("CandidatoPropuestoPor")
+  trayectoria                ProfesionalTrayectoria[]     @relation("TrayectoriaProfesional")
+  trayectoriasVerificadas    ProfesionalTrayectoria[]     @relation("TrayectoriaVerificadaPor")
+  datosPrivados              ProfesionalDatosPrivados?
+  tarifas                    Tarifa[]
+  disponibilidad             DisponibilidadProfesional[]
+  bloqueosAgenda             BloqueoAgenda[]
+  consentimientosPracticante Consentimiento[]             @relation("ConsentimientoPracticante")
+  consentimientosSupervisor  Consentimiento[]             @relation("ConsentimientoSupervisor")
+  consentimientosSolicitados Consentimiento[]             @relation("ConsentimientoSolicitadoPor")
+  consentimientosRespondidos Consentimiento[]             @relation("ConsentimientoRespondidoPor")
+  consentimientosRevocados   Consentimiento[]             @relation("ConsentimientoRevocadoPor")
+  tiposSesionPropuestos      TipoSesion[]                 @relation("TipoSesionPropuestoPor")
+  tiposSesionAprobados       TipoSesion[]                 @relation("TipoSesionAprobadoPor")
+  avisosSupervisorAnterior   AvisoConsentimiento[]        @relation("AvisoSupervisorAnterior")
+  avisosSupervisorNuevo      AvisoConsentimiento[]        @relation("AvisoSupervisorNuevo")
+  avisosRespondidos          AvisoConsentimiento[]        @relation("AvisoRespondidoPor")
+  revisionesRetencion        RevisionRetencion[]
+  consultasRetencion         ConsultaRetencion[]
+
+  @@map("usuarios")
+}
+
+enum AccionAcceso {
+  OTORGADO
+  REVOCADO
+  EXPIRADO
+
+  @@map("accion_acceso")
+}
+
+/// Bitacora append-only de accesos de practicantes (Nucleo). Solo la escriben
+/// otorgar_acceso_practicante / revocar_acceso_practicante (ADMIN, actor_id) y
+/// procesar_bajas (EXPIRADO, actor_id nulo), en la misma transaccion que
+/// actualiza usuarios. Trigger bloquea UPDATE/DELETE incluso al dueño.
+model HistorialAccesoPracticante {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  practicanteId   String       @map("practicante_id") @db.Uuid
+  actorId         String?      @map("actor_id") @db.Uuid
+  accion          AccionAcceso
+  fechaExpiracion DateTime?    @map("fecha_expiracion") @db.Timestamptz(6)
+  motivo          String?
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  practicante Usuario  @relation("HistorialPracticante", fields: [practicanteId], references: [id], onDelete: Restrict)
+  actor       Usuario? @relation("HistorialActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([practicanteId, createdAt])
+  @@map("historial_accesos_practicante")
+}
+
+/// Baja de un PROFESIONAL o PRACTICANTE (una por usuario). La crea
+/// iniciar_baja_profesional (ADMIN); procesar_bajas desactiva al usuario en la
+/// fecha efectiva y fija procesada_en.
+model Baja {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId     String    @unique @map("usuario_id") @db.Uuid
+  fechaEfectiva DateTime  @map("fecha_efectiva") @db.Timestamptz(6)
+  iniciadaPorId String    @map("iniciada_por_id") @db.Uuid
+  iniciadaEn    DateTime  @default(now()) @map("iniciada_en") @db.Timestamptz(6)
+  procesadaEn   DateTime? @map("procesada_en") @db.Timestamptz(6)
+
+  usuario     Usuario @relation("BajaUsuario", fields: [usuarioId], references: [id], onDelete: Restrict)
+  iniciadaPor Usuario @relation("BajaIniciadaPor", fields: [iniciadaPorId], references: [id], onDelete: Restrict)
+
+  @@map("bajas")
+}
+
+enum CategoriaLlave {
+  IDENTIFICACION
+  CLINICO
+  FINANCIERO
+  HMAC
+
+  @@map("categoria_llave")
+}
+
+enum TipoEventoLlaves {
+  APROVISIONAMIENTO
+  ROTACION
+  VERIFICACION
+  FALLO_CANARIO
+  RESTAURACION
+  SIMULACRO
+  CAMBIO_CUSTODIO
+  COMPROMISO
+
+  @@map("tipo_evento_llaves")
+}
+
+/// DEKs del silo (categoria A). Cada version envuelta dos veces: con la KEK
+/// operacional (dek_por_kek) y con la llave publica de recuperacion
+/// (dek_por_recuperacion). canario = valor conocido cifrado con esa DEK. La API
+/// lee solo via llaves_vigentes(); escriben los scripts de infra/scripts/llaves.
+/// Nunca DELETE; UPDATE solo activa/retirada_en y re-envoltura (trigger).
+model LlaveDatos {
+  id                 String         @id @db.Uuid
+  categoria          CategoriaLlave
+  version            Int
+  activa             Boolean        @default(false)
+  dekPorKek          Bytes          @map("dek_por_kek")
+  dekPorRecuperacion Bytes          @map("dek_por_recuperacion")
+  huellaKek          String         @map("huella_kek")
+  canario            Bytes
+  creadaEn           DateTime       @default(now()) @map("creada_en") @db.Timestamptz(6)
+  retiradaEn         DateTime?      @map("retirada_en") @db.Timestamptz(6)
+
+  @@unique([categoria, version])
+  @@map("llaves_datos")
+}
+
+/// Quien custodia cada parte (1-3) de la llave privada de recuperacion. Nunca
+/// guarda la parte. Solo el operador de la plataforma (sin GRANT a app_user).
+model CustodioLlave {
+  id       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parte    Int       @db.SmallInt
+  custodio String
+  rol      String
+  desde    DateTime  @default(now()) @db.Timestamptz(6)
+  hasta    DateTime? @db.Timestamptz(6)
+
+  @@map("custodios_llave")
+}
+
+/// Bitacora append-only de operaciones con llaves (incluso para el dueño).
+model EventoLlaves {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo       TipoEventoLlaves
+  detalle    String?
+  actor      String
+  ocurridoEn DateTime         @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  @@map("eventos_llaves")
+}
+
+// ============================================================================
+// 2. Fichas y Pacientes
+// Tablas clinicas: sin DELETE real (trigger + sin GRANT DELETE al rol app).
+// RLS activa en pacientes, fichas_clinicas y evoluciones.
+// ============================================================================
+
+model Paciente {
+  id              String    @id @db.Uuid
+  nombre          String
+  apellido        String
+  /// cifrado (IDENTIFICACION); busqueda por rut_hmac
+  rut             Bytes?
+  rutHmac         Bytes?    @unique @map("rut_hmac")
+  fechaNacimiento DateTime  @map("fecha_nacimiento") @db.Date
+  email           String?
+  /// cifrado (IDENTIFICACION)
+  telefono        Bytes?
+  profesionalId   String    @map("profesional_id") @db.Uuid
+  /// Seudonimo estable y aleatorio para supervision (no derivable del id).
+  codigoSeudonimo String    @unique @default(dbgenerated("generar_codigo_seudonimo()")) @map("codigo_seudonimo")
+  /// Lo fija la derivacion aceptada (o el alta).
+  tipoAtencionId  String?   @map("tipo_atencion_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  profesional         Usuario             @relation("PacienteProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  usuario             Usuario?            @relation("UsuarioPaciente")
+  tipoAtencion        TipoAtencion?       @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
+  adultosResponsables AdultoResponsable[]
+  consentimientos     Consentimiento[]
+  fichaClinica        FichaClinica?
+  citas               Cita[]
+  accesosFicha        AccesoFicha[]
+
+  @@index([profesionalId])
+  @@map("pacientes")
+}
+
+model AdultoResponsable {
+  id         String   @id @db.Uuid
+  pacienteId String   @map("paciente_id") @db.Uuid
+  nombre     String
+  parentesco String?
+  /// cifrado (IDENTIFICACION)
+  telefono   Bytes?
+  email      String?
+  /// cifrado (IDENTIFICACION); no unico: un adulto puede responder por varios pacientes
+  rut        Bytes?
+  rutHmac    Bytes?   @map("rut_hmac")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  paciente               Paciente              @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  consentimientos        Consentimiento[]      @relation("ConsentimientoAdulto")
+  avisosRespondidos      AvisoConsentimiento[]
+  revocacionesComoAdulto Consentimiento[]      @relation("ConsentimientoRevocadoAdulto")
+
+  @@index([pacienteId])
+  @@index([rutHmac])
+  @@map("adultos_responsables")
+}
+
+/// Solo metadata (apertura, numero). Todo contenido clinico vive en
+/// `evoluciones`; por eso la politica RLS de esta tabla si incluye a ADMIN
+/// y la de `evoluciones` no. Retencion >= 15 años: se cumple porque nunca se
+/// borra (no hay purga automatica).
+model FichaClinica {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId    String   @unique @map("paciente_id") @db.Uuid
+  fechaApertura DateTime @default(now()) @map("fecha_apertura") @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  paciente            Paciente            @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  evoluciones         Evolucion[]
+  derivaciones        Derivacion[]
+  accesosFicha        AccesoFicha[]
+  revisionesRetencion RevisionRetencion[]
+
+  @@map("fichas_clinicas")
+}
+
+enum EstadoTipoSesion {
+  PROPUESTO
+  APROBADO
+  RECHAZADO
+
+  @@map("estado_tipo_sesion")
+}
+
+/// Catalogo (B) de tipos de sesion. PROFESIONAL/PRACTICANTE proponen; solo
+/// ADMIN aprueba o rechaza (aprobado_por = quien decidio). Sin DELETE: se
+/// desactiva. Una evolucion solo usa tipos APROBADOS y activos (trigger).
+model TipoSesion {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre         String           @unique
+  descripcion    String?
+  estado         EstadoTipoSesion @default(PROPUESTO)
+  propuestoPorId String           @map("propuesto_por_id") @db.Uuid
+  aprobadoPorId  String?          @map("aprobado_por_id") @db.Uuid
+  activo         Boolean          @default(true)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  propuestoPor Usuario     @relation("TipoSesionPropuestoPor", fields: [propuestoPorId], references: [id], onDelete: Restrict)
+  aprobadoPor  Usuario?    @relation("TipoSesionAprobadoPor", fields: [aprobadoPorId], references: [id], onDelete: Restrict)
+  evoluciones  Evolucion[]
+
+  @@map("tipos_sesion")
+}
+
+/// Cualitativo, sin escala numerica.
+enum NivelRiesgo {
+  NINGUNO
+  BAJO
+  MEDIO
+  ALTO
+
+  @@map("nivel_riesgo")
+}
+
+/// Append-only: trigger bloquea UPDATE y DELETE. Una correccion es una fila
+/// nueva con `corrige_a_id` apuntando a la evolucion corregida. Copia de
+/// autoria (nombre, RUT, registro del autor al escribir, cifrados): sobrevive
+/// al cierre de la cuenta del profesional. Las intervenciones se agregan en la
+/// misma transaccion que la evolucion.
+model Evolucion {
+  id             String      @id @db.Uuid
+  fichaClinicaId String      @map("ficha_clinica_id") @db.Uuid
+  autorId        String      @map("autor_id") @db.Uuid
+  /// cifrado (CLINICO)
+  notas          Bytes
+  /// cifrado (IDENTIFICACION), copia de autoria
+  autorNombre    Bytes       @map("autor_nombre")
+  /// cifrado (IDENTIFICACION), copia de autoria
+  autorRut       Bytes       @map("autor_rut")
+  /// cifrado (IDENTIFICACION), copia de autoria (registro Superintendencia)
+  autorRegistro  Bytes       @map("autor_registro")
+  tipoSesionId   String      @map("tipo_sesion_id") @db.Uuid
+  estadoAvanceId String?     @map("estado_avance_id") @db.Uuid
+  nivelRiesgo    NivelRiesgo @map("nivel_riesgo")
+  corrigeAId     String?     @unique @map("corrige_a_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  fichaClinica           FichaClinica            @relation(fields: [fichaClinicaId], references: [id], onDelete: Restrict)
+  autor                  Usuario                 @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  corrigeA               Evolucion?              @relation("CorreccionEvolucion", fields: [corrigeAId], references: [id], onDelete: Restrict)
+  corregidaPor           Evolucion?              @relation("CorreccionEvolucion")
+  estadoAvance           EstadoAvance?           @relation(fields: [estadoAvanceId], references: [id], onDelete: Restrict)
+  tipoSesion             TipoSesion              @relation(fields: [tipoSesionId], references: [id], onDelete: Restrict)
+  comentariosSupervision SupervisionComentario[]
+  intervenciones         EvolucionIntervencion[]
+
+  @@index([fichaClinicaId, createdAt])
+  @@map("evoluciones")
+}
+
+enum EstadoDerivacion {
+  PENDIENTE
+  ESPERANDO_CONSENTIMIENTO
+  ACEPTADA
+  SIN_ASIGNAR
+  CANCELADA
+  CERRADA
+
+  @@map("estado_derivacion")
+}
+
+enum EstadoCandidato {
+  EN_ESPERA
+  OFRECIDA
+  ACEPTADA
+  RECHAZADA
+  EXPIRADA
+  OMITIDA
+  RECHAZADO_POR_PACIENTE
+
+  @@map("estado_candidato")
+}
+
+/// Unico camino para que otro profesional atienda una ficha. Oferta
+/// secuencial a `derivacion_candidatos`; al aceptar, el aceptante pasa a ser
+/// el tratante (pacientes.profesional_id) y el origen pierde acceso. La ficha
+/// es una sola: no se copia nada; evoluciones.autor_id deja registrado quien
+/// escribio cada periodo. Solo se modifica via funciones SECURITY DEFINER
+/// (crear_derivacion, responder_derivacion, ...); nunca se borra.
+/// Indice unico parcial (migracion cruda): una sola derivacion abierta
+/// (PENDIENTE, ESPERANDO_CONSENTIMIENTO o SIN_ASIGNAR) por ficha.
+model Derivacion {
+  id                  String           @id @db.Uuid
+  fichaClinicaId      String           @map("ficha_clinica_id") @db.Uuid
+  profesionalOrigenId String           @map("profesional_origen_id") @db.Uuid
+  /// cifrado (CLINICO)
+  motivo              Bytes
+  tipoAtencionId      String           @map("tipo_atencion_id") @db.Uuid
+  /// cifrado (CLINICO)
+  detalle             Bytes?
+  /// = origen, o quien la creo de oficio (ADMIN o supervisor).
+  creadaPorId         String           @map("creada_por_id") @db.Uuid
+  motivoCierre        String?          @map("motivo_cierre")
+  estado              EstadoDerivacion @default(PENDIENTE)
+  fecha               DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  fichaClinica      FichaClinica          @relation(fields: [fichaClinicaId], references: [id], onDelete: Restrict)
+  profesionalOrigen Usuario               @relation("DerivacionOrigen", fields: [profesionalOrigenId], references: [id], onDelete: Restrict)
+  tipoAtencion      TipoAtencion          @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
+  creadaPor         Usuario               @relation("DerivacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  candidatos        DerivacionCandidato[]
+  consentimientos   Consentimiento[]
+
+  @@index([fichaClinicaId])
+  @@index([profesionalOrigenId])
+  @@map("derivaciones")
+}
+
+/// Lista ordenada de candidatos de una derivacion. Indices unicos parciales
+/// (migracion cruda): maximo una OFRECIDA y una ACEPTADA por derivacion, y una
+/// fila activa (EN_ESPERA/OFRECIDA/ACEPTADA) por profesional; un reintegro es
+/// una fila nueva.
+model DerivacionCandidato {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  derivacionId   String          @map("derivacion_id") @db.Uuid
+  profesionalId  String          @map("profesional_id") @db.Uuid
+  orden          Int
+  estado         EstadoCandidato @default(EN_ESPERA)
+  ofrecidaEn     DateTime?       @map("ofrecida_en") @db.Timestamptz(6)
+  venceEn        DateTime?       @map("vence_en") @db.Timestamptz(6)
+  respondidoEn   DateTime?       @map("respondido_en") @db.Timestamptz(6)
+  /// ADMIN o supervisor que propuso al practicante (o quien agrego al candidato).
+  propuestoPorId String?         @map("propuesto_por_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  derivacion   Derivacion @relation(fields: [derivacionId], references: [id], onDelete: Restrict)
+  profesional  Usuario    @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+  propuestoPor Usuario?   @relation("CandidatoPropuestoPor", fields: [propuestoPorId], references: [id], onDelete: Restrict)
+
+  @@unique([derivacionId, orden])
+  @@index([derivacionId, profesionalId])
+  @@index([profesionalId, estado])
+  @@map("derivacion_candidatos")
+}
+
+/// Auditoria de accesos a datos clinicos. Append-only: trigger bloquea UPDATE y
+/// DELETE, el rol de la API solo tiene SELECT/INSERT. La llena la API (los
+/// SELECT no disparan triggers) y las funciones de derivacion. La RLS solo deja
+/// insertar filas propias (usuario_id y rol = contexto de la transaccion) y
+/// leer a ADMIN.
+model AccesoFicha {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  rol        Rol
+  pacienteId String   @map("paciente_id") @db.Uuid
+  fichaId    String?  @map("ficha_id") @db.Uuid
+  recurso    String
+  accion     String
+  ocurridoEn DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  usuario  Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  paciente Paciente      @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  ficha    FichaClinica? @relation(fields: [fichaId], references: [id], onDelete: Restrict)
+
+  @@index([pacienteId, ocurridoEn])
+  @@index([usuarioId, ocurridoEn])
+  @@map("accesos_ficha")
+}
+
+enum TipoConsentimiento {
+  ATENCION_CON_PRACTICANTE_SUPERVISADO
+
+  @@map("tipo_consentimiento")
+}
+
+enum OtorganteConsentimiento {
+  PACIENTE
+  ADULTO_RESPONSABLE
+
+  @@map("otorgante_consentimiento")
+}
+
+enum EstadoConsentimiento {
+  SOLICITADO
+  ACEPTADO
+  RECHAZADO
+  VENCIDO
+  REVOCADO
+
+  @@map("estado_consentimiento")
+}
+
+/// Consentimiento para atencion con practicante supervisado. Nombra al
+/// practicante y al supervisor: si cambia cualquiera deja de estar vigente
+/// (vigente = ACEPTADO con ese practicante y su supervisor vigente). Solo se
+/// escribe via funciones (solicitud al aceptar la derivacion o
+/// solicitar_consentimiento; responder_consentimiento; revocar_consentimiento).
+/// Nunca DELETE.
+model Consentimiento {
+  id                          String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId                  String                   @map("paciente_id") @db.Uuid
+  tipo                        TipoConsentimiento
+  practicanteId               String                   @map("practicante_id") @db.Uuid
+  supervisorId                String                   @map("supervisor_id") @db.Uuid
+  derivacionId                String?                  @map("derivacion_id") @db.Uuid
+  estado                      EstadoConsentimiento     @default(SOLICITADO)
+  solicitadoPorId             String                   @map("solicitado_por_id") @db.Uuid
+  solicitadoEn                DateTime                 @default(now()) @map("solicitado_en") @db.Timestamptz(6)
+  venceEn                     DateTime                 @map("vence_en") @db.Timestamptz(6)
+  versionDocumento            String?                  @map("version_documento")
+  otorgadoPorTipo             OtorganteConsentimiento? @map("otorgado_por_tipo")
+  adultoResponsableId         String?                  @map("adulto_responsable_id") @db.Uuid
+  respondidoPorId             String?                  @map("respondido_por_id") @db.Uuid
+  respondidoEn                DateTime?                @map("respondido_en") @db.Timestamptz(6)
+  respaldoDocumentoRef        String?                  @map("respaldo_documento_ref")
+  revocadoEn                  DateTime?                @map("revocado_en") @db.Timestamptz(6)
+  revocadoPorId               String?                  @map("revocado_por_id") @db.Uuid
+  revocadoPorTipo             OtorganteConsentimiento? @map("revocado_por_tipo")
+  revocadoAdultoResponsableId String?                  @map("revocado_adulto_responsable_id") @db.Uuid
+  respaldoRevocacionRef       String?                  @map("respaldo_revocacion_ref")
+
+  paciente                  Paciente              @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  practicante               Usuario               @relation("ConsentimientoPracticante", fields: [practicanteId], references: [id], onDelete: Restrict)
+  supervisor                Usuario               @relation("ConsentimientoSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict)
+  derivacion                Derivacion?           @relation(fields: [derivacionId], references: [id], onDelete: Restrict)
+  solicitadoPor             Usuario               @relation("ConsentimientoSolicitadoPor", fields: [solicitadoPorId], references: [id], onDelete: Restrict)
+  adultoResponsable         AdultoResponsable?    @relation("ConsentimientoAdulto", fields: [adultoResponsableId], references: [id], onDelete: Restrict)
+  respondidoPor             Usuario?              @relation("ConsentimientoRespondidoPor", fields: [respondidoPorId], references: [id], onDelete: Restrict)
+  revocadoPor               Usuario?              @relation("ConsentimientoRevocadoPor", fields: [revocadoPorId], references: [id], onDelete: Restrict)
+  revocadoAdultoResponsable AdultoResponsable?    @relation("ConsentimientoRevocadoAdulto", fields: [revocadoAdultoResponsableId], references: [id], onDelete: Restrict)
+  avisos                    AvisoConsentimiento[]
+
+  @@index([pacienteId])
+  @@index([practicanteId])
+  @@map("consentimientos")
+}
+
+enum TipoAvisoConsentimiento {
+  CAMBIO_SUPERVISOR
+
+  @@map("tipo_aviso_consentimiento")
+}
+
+enum RespuestaAviso {
+  SIN_RESPUESTA
+  CONFORME
+  OPOSICION
+
+  @@map("respuesta_aviso")
+}
+
+/// Aviso al paciente (se informa quien supervisa). Append-only salvo responder
+/// una vez. Sin respuesta al vencer = CONFORME tacito (job, sin respondido_por).
+/// OPOSICION revoca el consentimiento. Solo se escribe via funciones.
+model AvisoConsentimiento {
+  id                   String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  consentimientoId     String                   @map("consentimiento_id") @db.Uuid
+  tipo                 TipoAvisoConsentimiento
+  supervisorAnteriorId String                   @map("supervisor_anterior_id") @db.Uuid
+  supervisorNuevoId    String                   @map("supervisor_nuevo_id") @db.Uuid
+  notificadoEn         DateTime                 @default(now()) @map("notificado_en") @db.Timestamptz(6)
+  venceEn              DateTime                 @map("vence_en") @db.Timestamptz(6)
+  respuesta            RespuestaAviso           @default(SIN_RESPUESTA)
+  respondidoEn         DateTime?                @map("respondido_en") @db.Timestamptz(6)
+  respondidoPorId      String?                  @map("respondido_por_id") @db.Uuid
+  otorgadoPorTipo      OtorganteConsentimiento? @map("otorgado_por_tipo")
+  adultoResponsableId  String?                  @map("adulto_responsable_id") @db.Uuid
+  respaldoDocumentoRef String?                  @map("respaldo_documento_ref")
+
+  consentimiento     Consentimiento     @relation(fields: [consentimientoId], references: [id], onDelete: Restrict)
+  supervisorAnterior Usuario            @relation("AvisoSupervisorAnterior", fields: [supervisorAnteriorId], references: [id], onDelete: Restrict)
+  supervisorNuevo    Usuario            @relation("AvisoSupervisorNuevo", fields: [supervisorNuevoId], references: [id], onDelete: Restrict)
+  respondidoPor      Usuario?           @relation("AvisoRespondidoPor", fields: [respondidoPorId], references: [id], onDelete: Restrict)
+  adultoResponsable  AdultoResponsable? @relation(fields: [adultoResponsableId], references: [id], onDelete: Restrict)
+
+  @@index([consentimientoId])
+  @@map("avisos_consentimiento")
+}
+
+enum DecisionRetencion {
+  CONSERVAR
+  PURGAR
+
+  @@map("decision_retencion")
+}
+
+/// Revision de una ficha que supera 15 años desde la ultima atencion (A,
+/// append-only). Solo ADMIN. PURGAR solo registra la decision: la purga real
+/// es manual y fuera de alcance.
+model RevisionRetencion {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fichaId       String            @map("ficha_id") @db.Uuid
+  revisadoPorId String            @map("revisado_por_id") @db.Uuid
+  revisadoEn    DateTime          @default(now()) @map("revisado_en") @db.Timestamptz(6)
+  decision      DecisionRetencion
+  motivo        String
+
+  ficha       FichaClinica @relation(fields: [fichaId], references: [id], onDelete: Restrict)
+  revisadoPor Usuario      @relation(fields: [revisadoPorId], references: [id], onDelete: Restrict)
+
+  @@index([fichaId])
+  @@map("revisiones_retencion")
+}
+
+/// Auditoria de cada consulta a fichas_sobre_retencion() (A, append-only).
+model ConsultaRetencion {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  consultadoEn DateTime @default(now()) @map("consultado_en") @db.Timestamptz(6)
+  fichas       Int
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@map("consultas_retencion")
+}
+
+/// Comentario del supervisor sobre una evolucion de su practicante.
+/// Append-only. Observa, no aprueba (no hay visto bueno). Es registro del
+/// paciente: lo leen el tratante actual y el supervisor mientras supervise.
+model SupervisionComentario {
+  id           String   @id @db.Uuid
+  evolucionId  String   @map("evolucion_id") @db.Uuid
+  supervisorId String   @map("supervisor_id") @db.Uuid
+  /// cifrado (CLINICO)
+  texto        Bytes
+  creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  evolucion  Evolucion @relation(fields: [evolucionId], references: [id], onDelete: Restrict)
+  supervisor Usuario   @relation(fields: [supervisorId], references: [id], onDelete: Restrict)
+
+  @@index([evolucionId])
+  @@map("supervision_comentarios")
+}
+
+/// Catalogo (B): ADMIN escribe, sin DELETE (se desactiva).
+model Intervencion {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String   @unique
+  descripcion String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  evoluciones EvolucionIntervencion[]
+
+  @@map("intervenciones")
+}
+
+/// Catalogo (B) cualitativo, sin escala numerica: ADMIN escribe, sin DELETE.
+model EstadoAvance {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String   @unique
+  descripcion String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  evoluciones Evolucion[]
+
+  @@map("estados_avance")
+}
+
+/// Intervenciones de una evolucion (A). Append-only, en la misma transaccion.
+model EvolucionIntervencion {
+  evolucionId    String @map("evolucion_id") @db.Uuid
+  intervencionId String @map("intervencion_id") @db.Uuid
+
+  evolucion    Evolucion    @relation(fields: [evolucionId], references: [id], onDelete: Restrict)
+  intervencion Intervencion @relation(fields: [intervencionId], references: [id], onDelete: Restrict)
+
+  @@id([evolucionId, intervencionId])
+  @@index([intervencionId])
+  @@map("evolucion_intervenciones")
+}
+
+// ============================================================================
+// 3. Agenda y Espacios
+// Fuente de verdad anti-choque: EXCLUDE USING gist sobre
+// tstzrange(inicio, fin) por espacio y por profesional (migracion cruda).
+// ============================================================================
+
+/// POR_REPROGRAMAR: el tratante se fue o cambio y la cita no se pudo
+/// mantener; no ocupa box ni horario (fuera del EXCLUDE).
+enum EstadoCita {
+  CONFIRMADA
+  CANCELADA
+  POR_REPROGRAMAR
+
+  @@map("estado_cita")
+}
+
+/// Modalidad de una cita o de un bloque de disponibilidad.
+enum ModalidadAtencion {
+  PRESENCIAL
+  ONLINE
+
+  @@map("modalidad_atencion")
+}
+
+enum MotivoBloqueoAgenda {
+  VACACIONES
+  LICENCIA
+  PERSONAL
+  BAJA
+
+  @@map("motivo_bloqueo_agenda")
+}
+
+model Espacio {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre    String   @unique
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  citas              Cita[]
+  bloqueosTemporales BloqueoTemporal[]
+
+  @@map("espacios")
+}
+
+/// Rango [inicio, fin). Se usan dos columnas timestamptz en vez de tstzrange
+/// porque Prisma no soporta tipos range; el EXCLUDE arma el rango con
+/// tstzrange(inicio, fin, '[)'), asi una cita que termina 10:00 no choca con
+/// otra que empieza 10:00. espacio_id solo si es PRESENCIAL (CHECK); el
+/// EXCLUDE por box aplica solo a presenciales, el por profesional a ambas.
+/// Trigger: dentro de la disponibilidad de su modalidad y fuera de bloqueos.
+model Cita {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  espacioId         String?           @map("espacio_id") @db.Uuid
+  modalidad         ModalidadAtencion @default(PRESENCIAL)
+  /// Fijado al confirmar (margen vigente del profesional). EXCLUDE
+  /// citas_margen_traslado: distinta modalidad necesita ese margen.
+  margenTrasladoMin Int               @default(0) @map("margen_traslado_min") @db.SmallInt
+  /// Solo ONLINE (CHECK). Lo genera la API.
+  enlaceOnline      String?           @map("enlace_online")
+  profesionalId     String            @map("profesional_id") @db.Uuid
+  pacienteId        String            @map("paciente_id") @db.Uuid
+  inicio            DateTime          @db.Timestamptz(6)
+  fin               DateTime          @db.Timestamptz(6)
+  estado            EstadoCita        @default(CONFIRMADA)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  espacio     Espacio? @relation(fields: [espacioId], references: [id], onDelete: Restrict)
+  profesional Usuario  @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  pagos       Pago[]
+
+  @@index([pacienteId])
+  @@map("citas")
+}
+
+/// Soft-lock de UX con TTL. No participa del EXCLUDE ni lo reemplaza.
+/// inicio/fin: el slot que el admin tiene abierto en pantalla. Retiene siempre
+/// al profesional y el box solo si es presencial.
+model BloqueoTemporal {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  espacioId     String?           @map("espacio_id") @db.Uuid
+  usuarioId     String            @map("usuario_id") @db.Uuid
+  profesionalId String            @map("profesional_id") @db.Uuid
+  modalidad     ModalidadAtencion @default(PRESENCIAL)
+  inicio        DateTime          @db.Timestamptz(6)
+  fin           DateTime          @db.Timestamptz(6)
+  expiraEn      DateTime          @map("expira_en") @db.Timestamptz(6)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  espacio     Espacio? @relation(fields: [espacioId], references: [id], onDelete: Cascade)
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  profesional Usuario  @relation("BloqueoTemporalProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+
+  @@index([espacioId, expiraEn])
+  @@map("bloqueos_temporales")
+}
+
+/// Disponibilidad semanal en minutos desde la medianoche de Chile (0-1440;
+/// 1440 = fin del dia). Se convierte con minuto_local(). Edita el propio y
+/// ADMIN/GESTION. Otros: disponibilidad_publica().
+model DisponibilidadProfesional {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId String            @map("profesional_id") @db.Uuid
+  /// ISO: 1 = lunes ... 7 = domingo
+  diaSemana     Int               @map("dia_semana") @db.SmallInt
+  inicioMin     Int               @map("inicio_min") @db.SmallInt
+  finMin        Int               @map("fin_min") @db.SmallInt
+  modalidad     ModalidadAtencion
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profesional Usuario @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+
+  @@index([profesionalId])
+  @@map("disponibilidad_profesional")
+}
+
+/// Bloqueo de agenda (fin nulo = indefinido). El motivo no se expone a otros.
+/// BAJA solo lo crea iniciar_baja_profesional.
+model BloqueoAgenda {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId String              @map("profesional_id") @db.Uuid
+  inicio        DateTime            @db.Timestamptz(6)
+  fin           DateTime?           @db.Timestamptz(6)
+  motivo        MotivoBloqueoAgenda
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profesional Usuario @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+
+  @@index([profesionalId, inicio])
+  @@map("bloqueos_agenda")
+}
+
+// ============================================================================
+// 4. Equipo (RR.HH. y Perfiles). Extiende usuarios 1:1 (PK = usuario_id).
+// ============================================================================
+
+enum Modalidad {
+  PRESENCIAL
+  ONLINE
+  MIXTA
+
+  @@map("modalidad")
+}
+
+/// Catalogo (categoria B): todo autenticado lee, solo ADMIN escribe. Nunca se
+/// borra: se desactiva.
+model TipoAtencion {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre      String   @unique
+  descripcion String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profesionales ProfesionalTipoAtencion[]
+  derivaciones  Derivacion[]
+  pacientes     Paciente[]
+  tarifas       Tarifa[]
+
+  @@map("tipos_atencion")
+}
+
+/// Tipos de atencion que ofrece cada profesional (N:M, categoria B).
+model ProfesionalTipoAtencion {
+  profesionalId  String   @map("profesional_id") @db.Uuid
+  tipoAtencionId String   @map("tipo_atencion_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profesional  Usuario      @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+  tipoAtencion TipoAtencion @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
+
+  @@id([profesionalId, tipoAtencionId])
+  @@index([tipoAtencionId])
+  @@map("profesional_tipos_atencion")
+}
+
+/// Perfil autogestionado (categoria A+C): la fila completa la leen
+/// ADMIN/GESTION y el propio; lo publico sale por perfiles_publicos(), solo con
+/// perfil_publico = true. Encender perfil_publico solo lo hace el propio y
+/// exige tarifa general vigente (trigger fija la fecha de consentimiento).
+model Profesional {
+  usuarioId                 String    @id @map("usuario_id") @db.Uuid
+  especialidad              String
+  enfoques                  String[]  @default([])
+  modalidad                 Modalidad
+  /// Solo cuenta con configuracion_centro.modelo_cobro = MIXTO.
+  cobroDirecto              Boolean   @default(false) @map("cobro_directo")
+  /// Nulo = usa configuracion_centro.margen_traslado_min.
+  margenTrasladoMin         Int?      @map("margen_traslado_min")
+  nombrePublico             String?   @map("nombre_publico")
+  bio                       String?
+  fotoUrl                   String?   @map("foto_url")
+  perfilPublico             Boolean   @default(false) @map("perfil_publico")
+  perfilPublicoConsentidoEn DateTime? @map("perfil_publico_consentido_en") @db.Timestamptz(6)
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@map("profesionales")
+}
+
+enum TipoTrayectoria {
+  TITULO
+  POSTITULO
+  DIPLOMADO
+  MAGISTER
+  DOCTORADO
+  OTRO
+
+  @@map("tipo_trayectoria")
+}
+
+/// Trayectoria (A). Edita el propio (cualquier cambio quita la verificacion);
+/// solo ADMIN verifica. Publico: solo titulos verificados.
+model ProfesionalTrayectoria {
+  id                       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId            String          @map("profesional_id") @db.Uuid
+  tipo                     TipoTrayectoria
+  titulo                   String
+  institucion              String
+  anio                     Int
+  registroSuperintendencia String?         @map("registro_superintendencia")
+  documentoRespaldoUrl     String?         @map("documento_respaldo_url")
+  verificado               Boolean         @default(false)
+  verificadoPorId          String?         @map("verificado_por_id") @db.Uuid
+  verificadoEn             DateTime?       @map("verificado_en") @db.Timestamptz(6)
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profesional   Usuario  @relation("TrayectoriaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  verificadoPor Usuario? @relation("TrayectoriaVerificadaPor", fields: [verificadoPorId], references: [id], onDelete: Restrict)
+
+  @@index([profesionalId])
+  @@map("profesional_trayectoria")
+}
+
+/// Datos privados (A, todo cifrado FINANCIERO salvo rut IDENTIFICACION).
+/// Edita el propio; leen el propio y ADMIN/GESTION. El PACIENTE solo via
+/// datos_pago_profesional() con cobro directo.
+model ProfesionalDatosPrivados {
+  usuarioId    String   @id @map("usuario_id") @db.Uuid
+  rut          Bytes?
+  rutHmac      Bytes?   @unique @map("rut_hmac")
+  banco        Bytes?
+  tipoCuenta   Bytes?   @map("tipo_cuenta")
+  numeroCuenta Bytes?   @map("numero_cuenta")
+  titular      Bytes?
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@map("profesional_datos_privados")
+}
+
+/// Tarifas (A) en CLP, fijadas por el propio. Historial: una fila nueva
+/// reemplaza a la anterior desde vigente_desde; sin UPDATE ni DELETE. Tipo y
+/// modalidad nulos = tarifa general (obligatoria para publicar el perfil).
+model Tarifa {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId  String             @map("profesional_id") @db.Uuid
+  tipoAtencionId String?            @map("tipo_atencion_id") @db.Uuid
+  modalidad      ModalidadAtencion?
+  monto          Int
+  vigenteDesde   DateTime           @default(now()) @map("vigente_desde") @db.Timestamptz(6)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profesional  Usuario       @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+  tipoAtencion TipoAtencion? @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
+
+  @@index([profesionalId, vigenteDesde])
+  @@map("tarifas")
+}
+
+model Practicante {
+  usuarioId            String   @id @map("usuario_id") @db.Uuid
+  fechaInicio          DateTime @map("fecha_inicio") @db.Date
+  fechaTerminoPractica DateTime @map("fecha_termino_practica") @db.Date
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@map("practicantes")
+}
+
+/// Supervision de un practicante por un PROFESIONAL activo. [desde, hasta),
+/// hasta nulo = abierta. EXCLUDE (migracion cruda): una vigente por
+/// practicante. Sin supervision vigente el practicante no tiene acceso.
+model Supervision {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  practicanteId String    @map("practicante_id") @db.Uuid
+  supervisorId  String    @map("supervisor_id") @db.Uuid
+  desde         DateTime  @default(now()) @db.Timestamptz(6)
+  hasta         DateTime? @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  practicante Usuario @relation("SupervisionPracticante", fields: [practicanteId], references: [id], onDelete: Restrict)
+  supervisor  Usuario @relation("SupervisionSupervisor", fields: [supervisorId], references: [id], onDelete: Restrict)
+
+  @@index([practicanteId])
+  @@index([supervisorId])
+  @@map("supervisiones")
+}
+
+// ============================================================================
+// 5. Cobros. Montos en CLP (enteros).
+// ============================================================================
+
+enum ModeloCobro {
+  CENTRO
+  DIRECTO
+  MIXTO
+
+  @@map("modelo_cobro")
+}
+
+enum MedioPago {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA_DEBITO
+  TARJETA_CREDITO
+
+  @@map("medio_pago")
+}
+
+model Arriendo {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId      String   @map("profesional_id") @db.Uuid
+  monto              Int
+  porcentajeComision Decimal  @map("porcentaje_comision") @db.Decimal(5, 2)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profesional Usuario @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+
+  @@index([profesionalId])
+  @@map("arriendos")
+}
+
+model Pago {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  citaId    String    @map("cita_id") @db.Uuid
+  monto     Int
+  medioPago MedioPago @map("medio_pago")
+  fecha     DateTime  @default(now()) @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  cita   Cita    @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  boleta Boleta?
+
+  @@index([citaId])
+  @@map("pagos")
+}
+
+/// pdf_url nulo = boleta aun no generada. Copia del emisor (cifrada) al
+/// emitir: documento tributario de retencion, sobrevive al cierre de cuenta.
+model Boleta {
+  id           String   @id @db.Uuid
+  pagoId       String   @unique @map("pago_id") @db.Uuid
+  numero       String   @unique
+  pdfUrl       String?  @map("pdf_url")
+  /// cifrado (IDENTIFICACION)
+  emisorNombre Bytes    @map("emisor_nombre")
+  /// cifrado (IDENTIFICACION)
+  emisorRut    Bytes    @map("emisor_rut")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  pago Pago @relation(fields: [pagoId], references: [id], onDelete: Restrict)
+
+  @@map("boletas")
+}

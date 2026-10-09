@@ -1,0 +1,43 @@
+/**
+ * Registro unico de campos cifrados. Toda columna bytea cifrada de la BD esta
+ * aqui (y solo aqui): la extension de Prisma (02) cifra/descifra segun esta
+ * lista, y el test de "sin texto plano" la recorre. AAD = tabla:columna:id.
+ * Campos `*_hmac` no van aqui: son indices ciegos (Llavero.hmacRut).
+ */
+import type { CategoriaLlave } from './cifrado';
+
+export interface CampoCifrado {
+  modelo: string;
+  campo: string;
+  tabla: string;
+  columna: string;
+  categoria: Exclude<CategoriaLlave, 'HMAC'>;
+  /** Columna de la fila usada como id en el AAD. */
+  id: string;
+}
+
+export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
+  { modelo: 'Usuario', campo: 'telefono', tabla: 'usuarios', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'Paciente', campo: 'rut', tabla: 'pacientes', columna: 'rut', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'Paciente', campo: 'telefono', tabla: 'pacientes', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'AdultoResponsable', campo: 'rut', tabla: 'adultos_responsables', columna: 'rut', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'AdultoResponsable', campo: 'telefono', tabla: 'adultos_responsables', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'Evolucion', campo: 'notas', tabla: 'evoluciones', columna: 'notas', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'Evolucion', campo: 'autorNombre', tabla: 'evoluciones', columna: 'autor_nombre', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'Evolucion', campo: 'autorRut', tabla: 'evoluciones', columna: 'autor_rut', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'Evolucion', campo: 'autorRegistro', tabla: 'evoluciones', columna: 'autor_registro', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'SupervisionComentario', campo: 'texto', tabla: 'supervision_comentarios', columna: 'texto', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'Derivacion', campo: 'motivo', tabla: 'derivaciones', columna: 'motivo', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'Derivacion', campo: 'detalle', tabla: 'derivaciones', columna: 'detalle', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'Boleta', campo: 'emisorNombre', tabla: 'boletas', columna: 'emisor_nombre', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'Boleta', campo: 'emisorRut', tabla: 'boletas', columna: 'emisor_rut', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'ProfesionalDatosPrivados', campo: 'rut', tabla: 'profesional_datos_privados', columna: 'rut', categoria: 'IDENTIFICACION', id: 'usuario_id' },
+  { modelo: 'ProfesionalDatosPrivados', campo: 'banco', tabla: 'profesional_datos_privados', columna: 'banco', categoria: 'FINANCIERO', id: 'usuario_id' },
+  { modelo: 'ProfesionalDatosPrivados', campo: 'tipoCuenta', tabla: 'profesional_datos_privados', columna: 'tipo_cuenta', categoria: 'FINANCIERO', id: 'usuario_id' },
+  { modelo: 'ProfesionalDatosPrivados', campo: 'numeroCuenta', tabla: 'profesional_datos_privados', columna: 'numero_cuenta', categoria: 'FINANCIERO', id: 'usuario_id' },
+  { modelo: 'ProfesionalDatosPrivados', campo: 'titular', tabla: 'profesional_datos_privados', columna: 'titular', categoria: 'FINANCIERO', id: 'usuario_id' },
+];
+
+export function campoCifrado(modelo: string, campo: string): CampoCifrado | undefined {
+  return CAMPOS_CIFRADOS.find((c) => c.modelo === modelo && c.campo === campo);
+}

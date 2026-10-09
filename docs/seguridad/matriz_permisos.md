@@ -1,0 +1,251 @@
+# Matriz de permisos de la BD
+
+Generada a partir del catalogo real (`has_table_privilege`,
+`information_schema.column_privileges`, `pg_policies`,
+`information_schema.triggers`, `pg_proc`) despues de aplicar las migraciones
+hasta `20261010000000_ajustes_supervision_agenda`. Fuente para los guards
+del prompt 02 y para la tesis. Si una migracion cambia GRANTs, politicas,
+triggers o funciones, esta matriz se actualiza en el mismo cambio. Cada fila
+tiene al menos un caso en `backend/prisma/tests/seguridad_bd.sql`.
+
+Categoria (A/B/C): ver `criterio_clasificacion.md`. Columnas cifradas (bytea
+opaco para la BD; cifra y descifra la API): ver `cifrado.md`. Retencion y
+cierre de cuentas: `retencion_datos.md`.
+
+## Roles de base de datos
+
+| Rol | LOGIN | Superusuario | BYPASSRLS | Uso |
+|---|---|---|---|---|
+| `POSTGRES_USER` (`postgres`) | si | si | si | Solo dentro del contenedor `db`: crea `vinculos_owner` en el init. Ningun servicio de la app lo usa. |
+| `vinculos_owner` | si | no | si | Dueño de BD, tablas y funciones. Solo el servicio `migrate` y el seed (`MIGRATION_DATABASE_URL`). Tiene CREATEROLE (crea `app_user`/`app_reportes`) y CREATEDB (shadow DB de `migrate dev`). |
+| `app_user` | si | no | no | Unica conexion de la API (`DATABASE_URL`). Sujeto a RLS siempre. |
+| `app_reportes` | no | no | si | Solo dueño de funciones de reporte `SECURITY DEFINER`. Solo `vinculos_owner` es miembro. |
+
+`app_user` no puede `SET ROLE` a `vinculos_owner`, `app_reportes` ni `postgres`.
+
+## Contexto por transaccion y catalogo de roles
+
+Los roles de aplicacion (`usuarios.rol`) no son roles de Postgres: son
+`app.current_rol` + `app.current_usuario_id` (identidad del actor, cualquier
+rol: `usuarios.id`), seteados con `set_config(..., true)` al inicio de cada
+transaccion.
+
+| Rol | Alcance |
+|---|---|
+| ADMIN | Configuracion, usuarios, reportes, derivaciones (redefine candidatos, reintegra, cancela; crea solo de oficio), supervisiones, accesos de practicantes, bajas y todo lo de GESTION. Clinico: solo metadata de fichas. |
+| GESTION | Agenda, datos administrativos de pacientes, pagos, boletas, arriendos, adultos responsables, consentimientos. Nunca clinico. Solo existe si `configuracion_centro.rol_gestion_habilitado`. |
+| PROFESIONAL | Sus pacientes (tratante = `pacientes.profesional_id`), fichas y evoluciones; crea derivaciones. Como supervisor: casos seudonimizados de sus practicantes. |
+| PRACTICANTE | Solo pacientes recibidos por derivacion con consentimiento vigente (que lo nombra a el y a su supervisor vigente); acceso con expiracion y supervision vigente. |
+| PACIENTE | Su registro (`usuarios.paciente_id`), sus citas, pagos, boletas, adultos responsables y consentimientos; su equipo tratante. Nunca fichas ni evoluciones. |
+
+**Acceso vigente** (`acceso_vigente()`, politica `RESTRICTIVE` `<tabla>_acceso_vigente`
+en toda tabla): el usuario del contexto existe, `activo = true`, su `rol` en BD
+es igual a `app.current_rol` y, si es PRACTICANTE, `fecha_expiracion_acceso > now()`
+y tiene supervision vigente (con supervisor activo). Si no se cumple: 0 filas y
+ninguna escritura. "Sin contexto" = variables ausentes: 0 filas en toda tabla.
+
+**Principio de supervision: el paciente primero.** Se consiente quien
+atiende (el practicante); se informa quien supervisa. El supervisor siempre
+existe (`cambiar_supervisor` cierra y abre en la misma transaccion) y
+cambiarlo no afecta las sesiones: el consentimiento sigue vigente y el
+paciente recibe un aviso con plazo de oposicion (`avisos_consentimiento`).
+Ver `consentimiento.md`.
+
+**Consentimiento de practicante** (RESTRICTIVE `<tabla>_consentimiento_practicante`
+en `pacientes`, `fichas_clinicas`, `evoluciones`, `adultos_responsables`): con
+contexto PRACTICANTE, solo filas de pacientes con consentimiento ACEPTADO que
+nombra a ese practicante. Revocar (o la oposicion a un aviso) corta el acceso
+al instante; cambiar de supervisor no.
+
+**Cuentas**: una cuenta = un periodo de trabajo. Desactivada (`desactivado_en`)
+se puede reactivar sin perder datos dentro de `dias_gracia_cierre` (30 por
+defecto). `procesar_bajas()` la cierra (`cerrada_en`, datos personales
+vaciados, irreversible) al llegar la fecha efectiva de una baja o al vencer
+la gracia sin baja. Una cuenta cerrada no se modifica (23001). Nunca se
+desactiva al ultimo ADMIN activo (23514).
+
+**Bandeja del supervisor (minimo necesario)**: `derivaciones_pendientes()`
+entrega motivo, edad y tipo de atencion de todas las derivaciones pendientes
+del centro (no solo de sus practicantes): es lo minimo para decidir si
+proponer a un practicante; nunca nombre, RUT ni ficha.
+
+"Tratante" = PROFESIONAL o PRACTICANTE con `pacientes.profesional_id` = yo
+(`es_profesional_de_paciente` / `es_profesional_de_ficha`). "Supervisor vigente"
+= `es_supervisor_vigente_de(practicante)`.
+
+## Tablas (todas con ENABLE + FORCE RLS + acceso vigente)
+
+Sin politica = sin acceso. DELETE solo tiene politica en `bloqueos_temporales`
+y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_user`.
+
+| Cat. | Rol | Tabla | Operacion | Alcance de filas | Mecanismo |
+|---|---|---|---|---|---|
+| A+C | ADMIN | `usuarios` | SELECT, INSERT | todas | GRANT + `usuarios_select` / `usuarios_insert` |
+| A+C | ADMIN | `usuarios` | UPDATE | todas; no su propio rol | GRANT por columna + `usuarios_update` + trigger `usuarios_campos_protegidos` |
+| A+C | GESTION / PROFESIONAL / PRACTICANTE / PACIENTE | `usuarios` | SELECT | su fila | `usuarios_select` |
+| A+C | GESTION / PROFESIONAL / PRACTICANTE / PACIENTE | `usuarios` | UPDATE | su fila; solo `email`, `nombre`, `telefono` (cifrado), `password_hash` | GRANT por columna + `usuarios_update` + trigger `usuarios_campos_protegidos` (42501) |
+| A+C | ADMIN | `usuarios` | UPDATE `activo` false -> true | dentro de la gracia (cuenta no cerrada) | trigger `usuarios_ciclo_cuenta` (fija `desactivado_en`) |
+| A+C | todos (incluso dueño) | `usuarios` | UPDATE de cuenta cerrada / desactivar al ultimo ADMIN | ninguna | trigger `usuarios_ciclo_cuenta` (23001 / 23514) + CHECK `usuarios_cuenta_cerrada_vacia` |
+| A+C | no ADMIN | `usuarios` | INSERT | ninguna | `usuarios_insert` |
+| A+C | todos | `usuarios` | INSERT/UPDATE con rol GESTION | solo si `rol_gestion_habilitado` | trigger `usuarios_gestion_requiere_habilitacion` (23514) |
+| A+C | todos | `usuarios` | INSERT/UPDATE | PACIENTE <-> `paciente_id` (1:1) | CHECK `usuarios_paciente_solo_rol_paciente` + UNIQUE |
+| A+C | todos | `usuarios` | DELETE | ninguna (revocar = `activo=false`) | sin GRANT |
+| A+C | sin contexto | `usuarios` | login | fila del email | funcion `credenciales_login(email)` |
+| A+C | equipo / PACIENTE | `usuarios` (nombres ajenos) | lectura | ver funciones de directorio | `directorio_interno()`, `mi_equipo_tratante()` |
+| B | todos (autenticados) | `configuracion_centro` | SELECT | la fila unica | GRANT + `configuracion_centro_select` |
+| B | ADMIN | `configuracion_centro` | UPDATE | la fila unica; no apagar GESTION con GESTION activos | GRANT por columna + `configuracion_centro_update` + trigger `configuracion_centro_gestion_activos` (23514) |
+| B | todos | `configuracion_centro` | INSERT, DELETE | ninguna | sin GRANT (la fila la crea la migracion) |
+| A | todos | `historial_accesos_practicante` | INSERT, UPDATE, DELETE | ninguna directa; solo `otorgar_acceso_practicante` / `revocar_acceso_practicante` / `procesar_bajas` | sin GRANT + trigger `historial_accesos_practicante_append_only` (23001, incluso dueño) |
+| A | ADMIN / GESTION | `historial_accesos_practicante` | SELECT | todas | GRANT + `historial_accesos_practicante_select` |
+| A | PRACTICANTE | `historial_accesos_practicante` | SELECT | su historial | idem |
+| A | supervisor vigente | `historial_accesos_practicante` | SELECT | el de sus practicantes | idem |
+| A | ADMIN / GESTION | `bajas` | SELECT | todas | GRANT + `bajas_select`; escritura solo via `iniciar_baja_profesional` / `procesar_bajas` |
+| A | ADMIN / GESTION | `pacientes` | SELECT, INSERT, UPDATE | todos | GRANT (UPDATE por columna) + `pacientes_*` |
+| A | PROFESIONAL | `pacientes` | SELECT, UPDATE / INSERT | tratante / `profesional_id` = yo | GRANT + `pacientes_*` |
+| A | PRACTICANTE | `pacientes` | SELECT, UPDATE | tratante con consentimiento vigente (no crea) | GRANT + `pacientes_select` / `_update` + `pacientes_consentimiento_practicante` |
+| A | PACIENTE | `pacientes` | SELECT | su registro | `pacientes_select` |
+| A | todos (app_user) | `pacientes` | INSERT con tratante PRACTICANTE | ninguna: llega solo via derivacion con consentimiento | trigger `pacientes_asignacion_practicante` (42501) |
+| A | todos | `pacientes` | INSERT/UPDATE `rut` | cifrado; `rut_hmac` unico (indice ciego) | CHECK `pacientes_cifrado` (23514) + UNIQUE (23505) |
+| A | todos | `pacientes` | INSERT/UPDATE con tratante PRACTICANTE | exige consentimiento vigente al COMMIT | constraint trigger diferido `pacientes_practicante_requiere_consentimiento` (23514) |
+| A | todos | `pacientes` | UPDATE de `profesional_id` | ninguna (solo via `responder_derivacion`) | trigger `pacientes_tratante_via_derivacion` (42501) |
+| A | todos | `pacientes` | UPDATE de `id`, `codigo_seudonimo`, `created_at` | ninguna | sin GRANT de columna |
+| A | todos | `pacientes`, `adultos_responsables`, `evoluciones`, `derivaciones`, `supervision_comentarios`, `boletas`, `usuarios` | INSERT | `id` lo da la API (AAD del cifrado) | sin DEFAULT de id |
+| A | todos | `pacientes` | DELETE | ninguna | sin GRANT + trigger `pacientes_sin_delete` |
+| A | ADMIN | `fichas_clinicas` | SELECT, INSERT, UPDATE | todas (solo metadata) | GRANT + `fichas_clinicas_*` |
+| A | PROFESIONAL / PRACTICANTE | `fichas_clinicas` | SELECT, INSERT, UPDATE | tratante (PRACTICANTE: con consentimiento) | GRANT + `fichas_clinicas_*` + `_consentimiento_practicante` |
+| A | GESTION / PACIENTE / supervisor | `fichas_clinicas` | todas | ninguna | politicas sin rama |
+| A | todos | `fichas_clinicas` | DELETE | ninguna | sin GRANT + trigger `fichas_clinicas_sin_delete` |
+| A | PROFESIONAL / PRACTICANTE | `evoluciones` | SELECT | tratante actual (PRACTICANTE: con consentimiento) | GRANT + `evoluciones_select` + `_consentimiento_practicante` |
+| A | PROFESIONAL / PRACTICANTE | `evoluciones` | INSERT | tratante y `autor_id` = yo; notas y copia de autoria cifradas (NOT NULL) | GRANT + `evoluciones_insert` + CHECK `evoluciones_cifrado` |
+| A | tratante | `evolucion_intervenciones` | SELECT / INSERT | de evoluciones que ve / solo en la transaccion que crea la evolucion propia | GRANT + `evolucion_intervenciones_*`; trigger append-only (incluso dueño) |
+| A | ADMIN / GESTION / PACIENTE / supervisor | `evoluciones` | todas | ninguna directa (supervisor: `supervision_evoluciones`) | politicas sin rama |
+| A | todos | `evoluciones` | UPDATE, DELETE | ninguna | sin GRANT + triggers `evoluciones_append_only` / `_sin_delete` |
+| A | ADMIN / GESTION | `adultos_responsables` | SELECT, INSERT, UPDATE | todos | GRANT + `adultos_responsables_*` |
+| A | PROFESIONAL / PRACTICANTE | `adultos_responsables` | SELECT, INSERT, UPDATE | de pacientes donde es tratante (PRACTICANTE: con consentimiento) | GRANT + `adultos_responsables_*` + `_consentimiento_practicante` |
+| A | PACIENTE | `adultos_responsables` | SELECT | los propios | `adultos_responsables_select` |
+| A | todos | `adultos_responsables` | DELETE | ninguna | sin GRANT + trigger `adultos_responsables_sin_delete` |
+| A | ADMIN / GESTION | `consentimientos` | SELECT | todos | GRANT + `consentimientos_select` |
+| A | PACIENTE / practicante / supervisor / tratante | `consentimientos` | SELECT | los propios / los que lo nombran / de sus pacientes | `consentimientos_select` |
+| A | todos | `consentimientos` | INSERT, UPDATE | ninguna directa: solicitud al aceptar la derivacion (o `solicitar_consentimiento`), `responder_consentimiento`, `revocar_consentimiento`; vencidas via job | sin GRANT |
+| A | todos (incluso dueño) | `consentimientos` | DELETE | ninguna | sin GRANT + trigger `consentimientos_sin_delete` |
+| A | ADMIN / GESTION | `supervisiones` | SELECT | todas | GRANT + `supervisiones_select` |
+| A | PRACTICANTE / supervisor | `supervisiones` | SELECT | las propias | idem |
+| A | todos | `supervisiones` | INSERT, UPDATE | ninguna directa: solo `cambiar_supervisor()` (nunca un practicante sin supervisor) | sin GRANT |
+| A | todos | `supervisiones` | INSERT/UPDATE | una vigente por practicante; supervisor PROFESIONAL activo | EXCLUDE `supervisiones_una_vigente` (23P01) + trigger `supervisiones_roles_validos` (23514) |
+| A | supervisor vigente | `supervision_comentarios` | INSERT | sobre evoluciones de su practicante (caso vigente) | GRANT + `supervision_comentarios_insert` (`evolucion_supervisable`) |
+| A | tratante actual / supervisor vigente | `supervision_comentarios` | SELECT | registro del paciente: tratante actual (incluye al practicante autor mientras sea tratante) y el supervisor mientras supervise; ADMIN nunca | `supervision_comentarios_select` |
+| A | todos (incluso dueño) | `supervision_comentarios` | UPDATE, DELETE | ninguna | sin GRANT + trigger `supervision_comentarios_append_only` |
+| A+C | ADMIN / GESTION | `profesionales` | SELECT, INSERT, UPDATE | todas | GRANT + `profesionales_*` |
+| A+C | PROFESIONAL | `profesionales` | SELECT, INSERT, UPDATE | su fila (perfil autogestionado, `cobro_directo`) | `profesionales_*` |
+| A+C | todos | `profesionales` | UPDATE `perfil_publico` -> true | solo el propio (consentimiento, fija la fecha) y con tarifa general vigente | trigger `profesionales_perfil_protegido` (42501 / 23514) + CHECK `profesionales_perfil_publico_completo` (23514) |
+| A | PROFESIONAL / PRACTICANTE | `profesional_trayectoria` | SELECT, INSERT, UPDATE, DELETE | la propia; editar quita la verificacion | GRANT + `profesional_trayectoria_*` + trigger `profesional_trayectoria_protegida` |
+| A | ADMIN | `profesional_trayectoria` | SELECT, UPDATE (solo verificar) | todas | idem (otro campo -> 42501) |
+| A | GESTION | `profesional_trayectoria` | SELECT | todas | `profesional_trayectoria_select` |
+| A | PROFESIONAL / PRACTICANTE | `profesional_datos_privados` | SELECT, INSERT, UPDATE | los propios (cifrados; `rut_hmac` unico) | GRANT + `profesional_datos_privados_*` + CHECK `profesional_datos_privados_cifrado` |
+| A | ADMIN / GESTION | `profesional_datos_privados` | SELECT | todos | `profesional_datos_privados_select` |
+| A | PACIENTE | `profesional_datos_privados` | lectura | solo via `datos_pago_profesional(cita)` | funcion |
+| A | PROFESIONAL | `tarifas` | SELECT, INSERT | las propias; historial (sin UPDATE ni DELETE) | GRANT + `tarifas_*` |
+| A | ADMIN / GESTION | `tarifas` | SELECT | todas | `tarifas_select` |
+| A+C | propio / ADMIN / GESTION | `disponibilidad_profesional`, `bloqueos_agenda` | SELECT, INSERT, UPDATE, DELETE | del profesional; disponibilidad en minutos locales 0-1440; bloqueo BAJA solo via `iniciar_baja_profesional` | GRANT + `*_gestion` + CHECK `disponibilidad_profesional_valida` + trigger `bloqueos_agenda_baja_protegida` (42501) |
+| A | ver consentimiento | `avisos_consentimiento` | SELECT | los de consentimientos que ve | GRANT + `avisos_consentimiento_select` |
+| A | todos (incluso dueño) | `avisos_consentimiento` | INSERT, UPDATE, DELETE | solo via `cambiar_supervisor`, `responder_aviso_consentimiento`, `cerrar_avisos_vencidos`; se responde una vez | sin GRANT + trigger `avisos_consentimiento_append_only` (23001) |
+| B | todos (autenticados) | `tipos_sesion` | SELECT | todos | GRANT + `tipos_sesion_select` |
+| B | PROFESIONAL / PRACTICANTE / ADMIN | `tipos_sesion` | INSERT | propuestas propias (no ADMIN: siempre PROPUESTO) | GRANT + `tipos_sesion_insert` + trigger `tipos_sesion_protegidos` |
+| B | ADMIN | `tipos_sesion` | UPDATE | aprobar, rechazar, desactivar; nunca DELETE | GRANT + `tipos_sesion_update` + trigger (`aprobado_por` = quien decide) |
+| A | todos | `evoluciones` | INSERT | solo con tipo de sesion APROBADO y activo | trigger `evoluciones_tipo_sesion_aprobado` (23514) |
+| A | ADMIN | `revisiones_retencion` | SELECT, INSERT | propias (`revisado_por` = yo); motivo obligatorio; PURGAR solo pasados 15 años; append-only | GRANT + `revisiones_retencion_*` + triggers (23514 / 23001) |
+| A | ADMIN | `consultas_retencion` | SELECT | todas; las escribe `fichas_sobre_retencion()`; append-only | GRANT + `consultas_retencion_select` |
+| A+C | resto | `disponibilidad_profesional`, `bloqueos_agenda` | lectura | huecos libres sin motivos | `disponibilidad_publica()` |
+| A+C | resto | `profesionales` | todas | ninguna directa (ver `directorio_interno`, `perfiles_publicos`) | politicas sin rama |
+| A | ADMIN / GESTION | `practicantes` | SELECT, INSERT, UPDATE | todas | GRANT + `practicantes_*` |
+| A | PRACTICANTE / supervisor vigente | `practicantes` | SELECT | la propia / las de sus practicantes | `practicantes_select` |
+| B | todos (autenticados) | `tipos_atencion`, `profesional_tipos_atencion` | SELECT | todas | GRANT + `*_select` (`USING true`) |
+| B | ADMIN | `tipos_atencion` | INSERT, UPDATE | todas; nunca DELETE (se desactiva) | GRANT + `tipos_atencion_insert` / `_update` |
+| B | ADMIN | `profesional_tipos_atencion` | INSERT, DELETE | todas | GRANT + `profesional_tipos_atencion_insert` / `_delete` |
+| B | todos (autenticados) | `espacios` | SELECT | todos | GRANT + `espacios_select` |
+| B | ADMIN / GESTION | `espacios` | INSERT, UPDATE | todos; nunca DELETE (se desactiva) | GRANT + `espacios_insert` / `_update` |
+| B | todos (autenticados) / ADMIN | `intervenciones`, `estados_avance` | SELECT / INSERT, UPDATE | todas; nunca DELETE (se desactiva) | GRANT + `*_select` / `*_insert` / `*_update` |
+| A+C | todos (autenticados) | `bloqueos_temporales` | SELECT, INSERT, UPDATE, DELETE | `usuario_id` = yo; retiene al profesional siempre y el box solo si es presencial | GRANT + `bloqueos_temporales_propios` + CHECK `bloqueos_temporales_espacio_segun_modalidad` |
+| A+C | todos (autenticados) | `bloqueos_temporales` (ajenos) | lectura | espacio, inicio, fin de bloqueos activos | `ocupacion_espacios(desde, hasta)` |
+| A+C | ADMIN / GESTION | `citas` | SELECT, INSERT, UPDATE | todas | GRANT + `citas_*` |
+| A+C | PROFESIONAL / PRACTICANTE | `citas` | SELECT, UPDATE | `profesional_id` = yo | GRANT + `citas_select` / `_update` |
+| A+C | PROFESIONAL / PRACTICANTE | `citas` | INSERT (y resultado de UPDATE) | `profesional_id` = yo y paciente propio | GRANT + `citas_insert` / `_update` |
+| A+C | PACIENTE | `citas` | SELECT | sus citas | `citas_select` |
+| A+C | todos | `citas` | INSERT, UPDATE | box solo si PRESENCIAL; sin solapamiento CONFIRMADA por profesional (ambas modalidades) ni por box (solo presencial), incluso con citas que el contexto no ve | CHECK `citas_espacio_segun_modalidad` (23514) + `EXCLUDE` `citas_no_solapamiento_*` (23P01) |
+| A+C | todos | `citas` | INSERT, UPDATE a CONFIRMADA | margen de traslado entre distinta modalidad del mismo profesional (margen fijado al confirmar; ambos sentidos) | trigger `citas_margen_fijado` + `EXCLUDE` `citas_margen_traslado` (23P01) |
+| A+C | todos | `citas` | INSERT, UPDATE | `enlace_online` solo en ONLINE | CHECK `citas_enlace_solo_online` (23514) |
+| A+C | todos | `citas` | INSERT, UPDATE a CONFIRMADA | dentro de la disponibilidad de su modalidad y fuera de bloqueos de agenda | trigger `citas_agenda_valida` (23514) |
+| A+C | todos | `citas` | INSERT, UPDATE | paciente menor exige adulto responsable | trigger `citas_menor_requiere_adulto_responsable` (23514) |
+| A+C | todos | `citas` | DELETE | ninguna (cancelar = `estado`) | sin GRANT |
+| A+C | todos (autenticados) | `citas` (ocupacion) | lectura | espacio, inicio, fin de toda cita CONFIRMADA + bloqueos activos | `ocupacion_espacios(desde, hasta)` |
+| A | ADMIN / GESTION | `pagos`, `boletas` | SELECT, INSERT, UPDATE | todos | GRANT + `pagos_*` / `boletas_*` |
+| A | PROFESIONAL / PACIENTE | `pagos`, `boletas` | SELECT | de sus citas | `pagos_select` / `boletas_select` (subconsulta bajo su RLS) |
+| A | PRACTICANTE | `pagos`, `boletas` | todas | ninguna | politicas sin rama |
+| A | todos | `pagos`, `boletas` | DELETE | ninguna | sin GRANT |
+| A | ADMIN / GESTION | `arriendos` | SELECT, INSERT, UPDATE | todos | GRANT + `arriendos_*` |
+| A | PROFESIONAL | `arriendos` | SELECT | los suyos | `arriendos_select` |
+| A | todos | `arriendos` | DELETE | ninguna | sin GRANT |
+| A | ADMIN | `derivaciones` | SELECT | todas | GRANT + `derivaciones_select` |
+| A | PROFESIONAL | `derivaciones` | SELECT | origen = yo, o tratante actual de la ficha | `derivaciones_select` |
+| A | candidato | `derivaciones` | SELECT | ninguna (solo `oferta_derivacion`) | `derivaciones_select` |
+| A | todos | `derivaciones` | INSERT, UPDATE | ninguna directa; solo via funciones; motivo no vacio | sin GRANT + CHECK `derivaciones_motivo_no_vacio` |
+| A | todos | `derivaciones` | DELETE | ninguna | sin GRANT + trigger `derivaciones_sin_delete` |
+| A | ADMIN / origen / tratante | `derivacion_candidatos` | SELECT | candidatos de derivaciones que ve | GRANT + `derivacion_candidatos_select` |
+| A | candidato | `derivacion_candidatos` | SELECT | su propia fila | `derivacion_candidatos_select` |
+| A | todos (incluso dueño) | `derivacion_candidatos` | INSERT, UPDATE | max. una OFRECIDA y una ACEPTADA por derivacion; una fila activa por profesional | indices unicos parciales (23505) |
+| A | todos | `derivacion_candidatos` | INSERT, UPDATE, DELETE | ninguna directa; solo via funciones | sin GRANT |
+| A | todos | `accesos_ficha` | INSERT | `usuario_id` = yo y `rol` = mi rol de contexto | GRANT + `accesos_ficha_insert` |
+| A | ADMIN | `accesos_ficha` | SELECT | todas | GRANT + `accesos_ficha_select` |
+| A | todos (incluso dueño) | `accesos_ficha` | UPDATE, DELETE | ninguna | sin GRANT + trigger `accesos_ficha_append_only` |
+| A | todos (app_user) | `llaves_datos`, `custodios_llave`, `eventos_llaves` | todas | ninguna directa (`llaves_vigentes()`, `registrar_evento_llaves()`) | sin GRANT (RLS sin politicas) |
+| A | dueño (scripts de llaves) | `llaves_datos` | UPDATE / DELETE | solo activar, retirar y re-envolver / nunca | trigger `llaves_datos_protegidas` (23001) |
+| A | todos (incluso dueño) | `eventos_llaves` | UPDATE, DELETE | ninguna | trigger `eventos_llaves_append_only` (23001) |
+
+## Funciones (EXECUTE solo `app_user`; `SECURITY DEFINER`, `search_path` fijo)
+
+| Cat. | Rol | Funcion | Alcance | Errores |
+|---|---|---|---|---|
+| C | sin contexto | `credenciales_login(email)` | id, password_hash, rol, activo, fecha_expiracion_acceso, paciente_id del email | — |
+| C | sin contexto | `perfiles_publicos()` | id, nombre_publico, bio, foto_url, especialidad, enfoques, modalidad, tipos_atencion, verificado, titulos_verificados, tarifas vigentes de PROFESIONAL activos, sin baja, con `perfil_publico`. Nunca RUT, datos bancarios ni contacto | — |
+| C | sin contexto (perfil publico) / autenticados | `disponibilidad_publica(profesional, desde, hasta)` | modalidad, inicio, fin de huecos libres (max. 62 dias); sin motivos | 23514 |
+| C | ADMIN / GESTION / PROFESIONAL / PRACTICANTE | `directorio_interno()` | id, nombre, rol, tipos_atencion (activos) del equipo activo; email/telefono (cifrado) solo ADMIN/GESTION; PRACTICANTE solo ve a su supervisor | 42501 |
+| A | PACIENTE | `datos_pago_profesional(cita)` | datos bancarios cifrados del profesional de SU cita CONFIRMADA sin pago, solo con cobro directo; 0 filas si no aplica; audita DATOS_PAGO. "Pago pendiente" = sin ningun pago: definicion provisoria, se redefine en Cobros (montos, abonos, pagos parciales) | 42501 |
+| A | sin contexto (API al arrancar) | `llaves_vigentes()` | todas las versiones envueltas con la KEK + huella + canario; nunca la envoltura de recuperacion | — |
+| A | sin contexto (API) | `registrar_evento_llaves(tipo, detalle)` | solo VERIFICACION / FALLO_CANARIO | 42501 |
+| C | ADMIN / supervisor vigente | `derivaciones_pendientes()` | derivacion_id, estado, motivo y detalle (cifrados), tipo, edad de PENDIENTE/SIN_ASIGNAR de todo el centro (minimo necesario para proponer); audita | 42501 |
+| A | ADMIN | `cambiar_supervisor(practicante, nuevo)` | cierra y abre supervision en la misma transaccion; un aviso por paciente con consentimiento; devuelve cuantos | 42501, P0002, 55000, 23514 |
+| A | PACIENTE (o su adulto responsable si es menor) / ADMIN / GESTION con respaldo | `responder_aviso_consentimiento(aviso, respuesta, otorgado_por, adulto, respaldo)` | CONFORME u OPOSICION (= revocacion del consentimiento); una vez, dentro del plazo | 42501, P0002, 55000, 23514 |
+| A | job sin contexto | `cerrar_avisos_vencidos()` | avisos sin respuesta al vencer -> CONFORME tacito; idempotente; devuelve cuantos | — |
+| A | ADMIN | `fichas_sobre_retencion()` | fichas con ultima atencion > 15 años + ultima revision; registra la consulta (`consultas_retencion`) y cada ficha (`accesos_ficha` RETENCION) | 42501 |
+| A | ADMIN / GESTION / el propio profesional | `citas_en_conflicto_margen(profesional)` | pares de citas futuras que no cumplen el margen vigente (no se mueven solas) | 42501 |
+| A | ADMIN / supervisor vigente del practicante | `proponer_practicante(derivacion, practicante)` | agrega al practicante al final | 42501, P0002, 55000, 23514 |
+| A | PACIENTE (el propio o su adulto responsable si es menor) / ADMIN / GESTION con respaldo | `responder_consentimiento(id, acepta, version, otorgado_por, adulto, respaldo)` | ACEPTADO concreta el traspaso; RECHAZADO pasa al siguiente candidato | 42501, P0002, 55000, 23514 |
+| A | idem | `revocar_consentimiento(id, revocado_por, adulto, respaldo)` | corte inmediato, citas futuras con el practicante POR_REPROGRAMAR, bandeja | 42501, P0002, 55000, 23514 |
+| A | ADMIN / supervisor vigente | `solicitar_consentimiento(paciente)` | nueva solicitud para el practicante tratante y su supervisor actual | 42501, 23514, 23505 |
+| C | PACIENTE | `mi_equipo_tratante()` | id, nombre de su tratante y de los profesionales de sus citas | 42501 |
+| C | autenticados | `ocupacion_espacios(desde, hasta)` | espacio_id, inicio, fin (citas CONFIRMADA + bloqueos activos) | 42501 |
+| C | supervisor (PROFESIONAL) | `supervision_casos()` | codigo seudonimo, practicante_id, edad_paciente, tipo_atencion de casos vigentes con consentimiento; audita SUPERVISION | 42501 |
+| C | supervisor (PROFESIONAL) | `supervision_evoluciones(codigo)` | evolucion_id, autor_id, contenido, corrige_a_id, creado_en del practicante en ese caso; 0 filas si no es su caso; audita SUPERVISION | 42501 |
+| A | ADMIN | `otorgar_acceso_practicante(practicante, fecha_expiracion)` | fija la expiracion (y reactiva si esta en gracia) + OTORGADO en bitacora; exige supervision vigente; cuenta cerrada -> 55000 | 42501, P0002, 55000, 23514 |
+| A | ADMIN | `revocar_acceso_practicante(practicante, motivo)` | desactiva, citas futuras POR_REPROGRAMAR, REVOCADO en bitacora | 42501, P0002, 55000, 23514 |
+| A | ADMIN | `iniciar_baja_profesional(usuario, fecha_efectiva)` | cualquier cuenta de equipo (GESTION como PROFESIONAL; ADMIN: nunca la propia ni la del ultimo ADMIN); no a quien supervisa practicantes activos; bloqueo de agenda BAJA y citas desde la fecha POR_REPROGRAMAR; devuelve cuantas | 42501, P0002, 55000, 23514, 23505 |
+| A | job sin contexto | `procesar_bajas()` | practicantes vencidos -> inactivos + EXPIRADO; bajas cumplidas -> inactivas y cerradas; barrido de citas; cierra cuentas inactivas sin baja pasada la gracia; idempotente; devuelve desactivados | — |
+| A | ADMIN / GESTION (con nombre) / supervisor vigente (sin nombre, solo sus practicantes) | `pacientes_por_reasignar()` | paciente, ficha, codigo, nombre, apellido, tratante, motivo (BAJA, ACCESO_REVOCADO, ACCESO_EXPIRADO, SIN_SUPERVISION, CONSENTIMIENTO, TRATANTE_INACTIVO), derivacion_abierta | 42501 |
+| A | PROFESIONAL tratante / ADMIN o supervisor vigente de oficio | `crear_derivacion(id, ficha, motivo, tipo_atencion_id, detalle, candidatos[])` | `id` y motivo/detalle cifrados los da la API; de oficio solo si el paciente esta en la bandeja; `creada_por` = actor | 42501, 23514 (candidato, tipo inactivo, cifrado invalido), 23505 |
+| A | ADMIN | `definir_candidatos_derivacion(id, candidatos[])` | reemplaza/agrega/reordena pendientes; PRACTICANTE solo con supervision vigente | 42501, P0002, 55000, 23514 |
+| A | ADMIN | `reintegrar_candidato(id, profesional)` | candidato RECHAZADA/EXPIRADA/OMITIDA vuelve como fila nueva al final | 42501, P0002, 55000, 23514 |
+| A | ADMIN (PENDIENTE o SIN_ASIGNAR) / origen (solo SIN_ASIGNAR) | `cancelar_derivacion(id, motivo)` | PENDIENTE -> CANCELADA, SIN_ASIGNAR -> CERRADA; motivo obligatorio | 42501, P0002, 55000, 23514 |
+| C | candidato OFRECIDO | `oferta_derivacion(id)` | motivo y detalle (cifrados), tipo_atencion, edad_paciente, vence_en, citas_en_conflicto; 0 filas si no hay oferta | 42501 |
+| A | candidato OFRECIDO (PROFESIONAL / PRACTICANTE) | `responder_derivacion(id, acepta)` | PROFESIONAL acepta: traspaso + citas futuras (si chocan, POR_REPROGRAMAR). PRACTICANTE acepta: ESPERANDO_CONSENTIMIENTO + solicitud (48 h). Rechazo: siguiente | 42501, 55000 |
+| A | job sin contexto | `expirar_ofertas_derivacion()` | ofertas vencidas -> EXPIRADA; solicitudes de consentimiento vencidas -> VENCIDO + candidato RECHAZADO_POR_PACIENTE; siguiente; devuelve cuantas | — |
+| A | ADMIN | `reporte_citas_por_profesional(desde, hasta)` | agregados por profesional; dueño `app_reportes` | 42501 |
+| — | interno (sin EXECUTE para app_user) | `ofrecer_siguiente_candidato`, `agregar_candidatos`, `registrar_accion_derivacion`, `desactivar_tratante`, `reasignar_citas_derivacion`, `motivo_reasignacion`, `cobro_directo`, `cerrar_cuenta`, `concretar_traspaso`, `consentimiento_no_otorgado`, `validar_otorgante`, `margen_vigente`, `ultima_atencion` | — | — |
+| — | uso de politicas/triggers (EXECUTE `app_user`) | `acceso_vigente`, `app_paciente_id`, `es_profesional_de_*`, `rol_usuario`, `supervisor_vigente`, `es_supervisor_vigente_de`, `consentimiento_practicante_vigente`, `consentimiento_vigente_para`, `evolucion_supervisable`, `minuto_local`, `rango_con_margen` | booleanos / uuid / text / timestamptz | — |
+
+Auditoria en `accesos_ficha`: toda funcion de derivacion con usuario
+(`accion = 'DERIVACION'`, incluida la bandeja `derivaciones_pendientes`), toda
+lectura de supervision (`accion = 'SUPERVISION'`) y la entrega de datos de
+pago al paciente (`accion = 'DATOS_PAGO'`). Los jobs no
+escriben ahi (no hay usuario): su rastro es `derivacion_candidatos.estado =
+EXPIRADA`, `historial_accesos_practicante.accion = EXPIRADO` y
+`bajas.procesada_en`.

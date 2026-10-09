@@ -1,0 +1,8 @@
+# Override SOLO para desarrollo local: expone Postgres al host para poder correr
+# el backend fuera de Docker (npm run start:dev) contra la DB del contenedor.
+# No usar en el host de produccion: ahi la DB no sale de la red interna.
+
+services:
+  db:
+    ports:
+      - '127.0.0.1:5432:5432'

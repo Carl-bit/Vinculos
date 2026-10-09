@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens del sistema de diseño de Vinculos.
+ *
+ * Fuente de verdad: el handoff de Claude Design ("Vinculos Landing Page
+ * Design", tenant Centro Ejemplo), persistido en
+ * `design-system/vinculos/MASTER.md`. Los valores concretos (paleta,
+ * tipografias, radios, sombras, escalas) se cargan aca al traer el handoff,
+ * en el prompt 03_front.md. No inventar una paleta provisoria: una paleta
+ * "temporal" termina siendo la definitiva y contradice el diseño ya hecho.
+ *
+ * Prohibido, con o sin `impeccable detect` corriendo:
+ *   - degradados morado-a-azul genericos de IA
+ *   - Inter como unica tipografia
+ *   - icono en tile cuadrado redondeado repetido sobre cada titulo de seccion
+ *   - animaciones con easing de rebote por defecto
+ */
+@theme {
+  /* --color-*, --font-*, --radius-*, --shadow-* : desde MASTER.md */
+}

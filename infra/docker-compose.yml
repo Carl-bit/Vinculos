@@ -1,0 +1,137 @@
+# Un silo = un cliente = este compose desplegado con su propio .env.
+# La DB es de este silo y de nadie mas: cero queries entre silos.
+# Traefik corre aparte (infra/traefik/) y descubre estos servicios por labels.
+#
+# Roles de BD (ver docs/seguridad/matriz_permisos.md):
+#   POSTGRES_USER  superusuario, solo dentro del contenedor db (init).
+#   vinculos_owner dueño, solo en el servicio migrate.
+#   app_user       la API, sujeto a RLS.
+#
+# Llaves (docs/seguridad/cifrado.md): la KEK es un Docker secret que solo
+# monta el servicio backend; migrate no la recibe. Sin infra/secrets/<slug>/kek
+# la API no arranca (falla cerrado). Se crea con infra/scripts/llaves/aprovisionar.sh
+# despues del primer `up -d db migrate`.
+
+name: erp-${CLIENTE_SLUG}
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Contraseña de vinculos_owner. La aplica init/10-rol-owner.sh.
+      OWNER_DB_PASSWORD: ${OWNER_DB_PASSWORD}
+    volumes:
+      # Postgres 18: la imagen declara VOLUME /var/lib/postgresql y usa
+      # PGDATA=/var/lib/postgresql/18/docker. Montar en .../data (como en <=17)
+      # deja los datos fuera del volumen.
+      - db_data:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # -h 127.0.0.1: durante el init la imagen levanta un servidor temporal
+      # solo por socket; por TCP no responde hasta que el init terminó.
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - interna
+
+  # Corre y termina: migraciones + contraseña de app_user. Idempotente, corre
+  # en cada `up`. Unico servicio con credenciales del dueño.
+  migrate:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: erp-backend:${CLIENTE_SLUG}
+    restart: 'no'
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # El schema exige ambas variables; aqui las dos son el dueño.
+      DATABASE_URL: postgresql://vinculos_owner:${OWNER_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      MIGRATION_DATABASE_URL: postgresql://vinculos_owner:${OWNER_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    command: ['sh', '-c', 'npx prisma migrate deploy && node prisma/scripts/rol_api.js']
+    networks:
+      - interna
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: erp-backend:${CLIENTE_SLUG}
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      # Solo app_user (sujeto a RLS). Sin MIGRATION_DATABASE_URL.
+      DATABASE_URL: postgresql://app_user:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      PORT: 3001
+      FRONTEND_URL: https://${DOMINIO}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      BLOQUEO_TEMPORAL_TTL_SEGUNDOS: ${BLOQUEO_TEMPORAL_TTL_SEGUNDOS:-300}
+      # Archivo, nunca variable de entorno con la llave.
+      KEK_PATH: /run/secrets/vinculos_kek
+      RECUPERACION_PUBLICA_PATH: /recuperacion.pub
+    secrets:
+      - vinculos_kek
+    configs:
+      - source: recuperacion_publica
+        target: /recuperacion.pub
+    networks:
+      - interna
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.${CLIENTE_SLUG}-api.rule=Host(`${DOMINIO}`) && PathPrefix(`/api`)
+      - traefik.http.routers.${CLIENTE_SLUG}-api.entrypoints=websecure
+      - traefik.http.routers.${CLIENTE_SLUG}-api.tls.certresolver=letsencrypt
+      - traefik.http.services.${CLIENTE_SLUG}-api.loadbalancer.server.port=3001
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://${DOMINIO}/api
+        NEXT_PUBLIC_CENTRO_NOMBRE: ${CENTRO_NOMBRE}
+        NEXT_PUBLIC_SITE_URL: https://${DOMINIO}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.${CLIENTE_SLUG}-web.rule=Host(`${DOMINIO}`)
+      - traefik.http.routers.${CLIENTE_SLUG}-web.entrypoints=websecure
+      - traefik.http.routers.${CLIENTE_SLUG}-web.tls.certresolver=letsencrypt
+      - traefik.http.services.${CLIENTE_SLUG}-web.loadbalancer.server.port=3000
+
+volumes:
+  db_data:
+
+secrets:
+  vinculos_kek:
+    file: ./secrets/${CLIENTE_SLUG}/kek
+
+configs:
+  # Publica de recuperacion: no es secreta, pero es del silo.
+  recuperacion_publica:
+    file: ./secrets/${CLIENTE_SLUG}/recuperacion.pub
+
+networks:
+  # Solo backend + migrate + db. La DB nunca se expone al proxy ni al host.
+  interna:
+  # Red compartida con Traefik, creada una vez: docker network create proxy
+  proxy:
+    external: true

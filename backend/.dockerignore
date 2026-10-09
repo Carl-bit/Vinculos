@@ -1,0 +1,25 @@
+node_modules
+dist
+coverage
+*.log
+*.tsbuildinfo
+
+# Variables y llaves: nunca dentro de la imagen (la KEK llega como Docker secret).
+.env
+.env.*
+!.env.example
+*.shamir
+*.pem
+*.key
+kek
+kek.*
+
+# Respaldos de BD
+*.dump
+*.backup
+*.sql.gz
+
+# Tests: no van en la imagen de produccion
+test
+prisma/tests
+**/*.spec.ts
