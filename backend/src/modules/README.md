@@ -23,4 +23,4 @@ Una carpeta por bounded context. Cada modulo contiene como minimo
 - Todo endpoint que toque `pacientes`, `fichas_clinicas` o `evoluciones` pasa
   por el `RlsInterceptor` de `src/core/rls/`.
 
-El contenido de estos modulos lo genera el prompt `02_apis.md`.
+El contenido de estos modulos lo genera los prompts 02a-02h (`prompts/00_index.md`).

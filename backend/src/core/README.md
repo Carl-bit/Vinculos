@@ -12,4 +12,4 @@ puede usar otro modulo.
 | `common/interceptors/`   | Interceptores transversales que no son el de RLS.                                                  |
 | `eventos/`               | Contratos de los domain events (`CitaConfirmada`, etc.) y sus nombres. Es el unico "lenguaje comun" entre modulos. |
 
-Salvo `prisma/`, el contenido lo genera el prompt `02_apis.md`.
+Salvo `prisma/`, el contenido lo genera los prompts 02a-02h (`prompts/00_index.md`).

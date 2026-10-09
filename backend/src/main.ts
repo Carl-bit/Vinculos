@@ -27,7 +27,7 @@ async function bootstrap() {
   });
 
   // El filtro global de excepciones (traduccion del constraint EXCLUDE a 409)
-  // se registra en AppModule via APP_FILTER, lo genera el prompt 02_apis.md.
+  // se registra en AppModule via APP_FILTER, lo genera el prompt 02a (prompts/00_index.md).
 
   const port = config.get<number>('PORT', 3001);
   await app.listen(port);

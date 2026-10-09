@@ -16,7 +16,7 @@ import { PrismaModule } from './core/prisma/prisma.module';
  *     3. Match Terapeutico  (depende de Equipo)
  *     4. Cobros             (depende de Agenda y Espacios)
  *
- * Los imports de los 5 modulos los agrega el prompt 02_apis.md.
+ * Los imports de los 5 modulos los agrega el prompt 02a (prompts/00_index.md).
  */
 @Module({
   imports: [
