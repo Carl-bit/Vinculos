@@ -29,6 +29,8 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'SupervisionComentario', campo: 'texto', tabla: 'supervision_comentarios', columna: 'texto', categoria: 'CLINICO', id: 'id' },
   { modelo: 'Derivacion', campo: 'motivo', tabla: 'derivaciones', columna: 'motivo', categoria: 'CLINICO', id: 'id' },
   { modelo: 'Derivacion', campo: 'detalle', tabla: 'derivaciones', columna: 'detalle', categoria: 'CLINICO', id: 'id' },
+  // citas conserva DEFAULT de id: el enlace se genera con la cita ya creada (id conocido).
+  { modelo: 'Cita', campo: 'enlaceOnline', tabla: 'citas', columna: 'enlace_online', categoria: 'CLINICO', id: 'id' },
   { modelo: 'Boleta', campo: 'emisorNombre', tabla: 'boletas', columna: 'emisor_nombre', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'Boleta', campo: 'emisorRut', tabla: 'boletas', columna: 'emisor_rut', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'ProfesionalDatosPrivados', campo: 'rut', tabla: 'profesional_datos_privados', columna: 'rut', categoria: 'IDENTIFICACION', id: 'usuario_id' },
