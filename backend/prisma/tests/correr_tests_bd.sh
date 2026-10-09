@@ -23,7 +23,7 @@ export DATABASE_URL="$MIGRATION_DATABASE_URL"
 
 # La variable de identidad se llama app.current_usuario_id (01d): el nombre
 # anterior no puede quedar en el repo (patron partido para no encontrarse a si mismo).
-if grep -rn --exclude-dir=node_modules --exclude-dir=dist "current_profesional""_id" prisma src ../docs ../CLAUDE.md ../0*.md; then
+if grep -rn --exclude-dir=node_modules --exclude-dir=dist "current_profesional""_id" prisma src ../docs ../CLAUDE.md ../prompts; then
   echo "Queda el nombre anterior de la variable de contexto" >&2
   exit 1
 fi

@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     await prisma.tipoSesion.upsert({
       where: { nombre },
       update: {},
-      create: { nombre, estado: 'APROBADO', propuestoPorId: admin.id, aprobadoPorId: admin.id },
+      create: { nombre, estado: 'APROBADO', propuestoPorId: admin.id, revisadoPorId: admin.id, revisadoEn: new Date() },
     });
   }
   for (const nombre of intervenciones) {

@@ -10,7 +10,7 @@
 -- aprovisionamiento de llaves (infra/scripts/llaves/aprovisionar.sh).
 --
 -- Casos 1-17: los 17 del prompt 01. 18-27: prompt 01b. 28-44: prompt 01c.
--- 45-67: prompt 01d. 68-78: prompt 01e. 79+: prompt 01f. 01c redefinio 12, 14 y 27 (aceptar una
+-- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85+: prompt 01g. 01c redefinio 12, 14 y 27 (aceptar una
 -- derivacion traspasa el paciente); 01d redefinio 36, 37 y 42 (tipo de
 -- atencion por catalogo, oferta con citas en conflicto, el origen cancela en
 -- SIN_ASIGNAR); 01e redefinio 19 (tablas sin GRANT), 50 (perfil
@@ -114,9 +114,9 @@ INSERT INTO usuarios (id, email, password_hash, nombre, rol, paciente_id) VALUES
 INSERT INTO fichas_clinicas (id, paciente_id) VALUES
   (test.u('fa'), test.u('0a')), (test.u('fb'), test.u('0b')),
   (test.u('fc'), test.u('0c')), (test.u('fd'), test.u('0d'));
-INSERT INTO tipos_sesion (id, nombre, estado, propuesto_por_id, aprobado_por_id) VALUES
-  (test.u('60'), 'T Individual', 'APROBADO', test.u('a1'), test.u('a1')),
-  (test.u('61'), 'T Familiar', 'APROBADO', test.u('a1'), test.u('a1'));
+INSERT INTO tipos_sesion (id, nombre, estado, propuesto_por_id, revisado_por_id, revisado_en) VALUES
+  (test.u('60'), 'T Individual', 'APROBADO', test.u('a1'), test.u('a1'), now()),
+  (test.u('61'), 'T Familiar', 'APROBADO', test.u('a1'), test.u('a1'), now());
 DO $$ BEGIN
   PERFORM test.evo(test.u('fa'), test.u('b1'), 'sesion 1 Ana', NULL, test.u('ea')),
           test.evo(test.u('fc'), test.u('c1'), 'sesion 1 Caro', NULL, test.u('ec')),
@@ -2044,7 +2044,7 @@ END $$;
 DO $$ DECLARE n int; BEGIN
   PERFORM test.ctx('b2', 'PROFESIONAL');
   INSERT INTO tipos_sesion (id, nombre, estado, propuesto_por_id) VALUES (test.u('62'), 'T Pareja', 'APROBADO', test.u('b2'));
-  ASSERT (SELECT estado = 'PROPUESTO' AND aprobado_por_id IS NULL FROM tipos_sesion WHERE id = test.u('62')),
+  ASSERT (SELECT estado = 'PROPUESTO' AND revisado_por_id IS NULL AND revisado_en IS NULL FROM tipos_sesion WHERE id = test.u('62')),
     'caso 81: una propuesta queda PROPUESTO aunque diga otra cosa';
   UPDATE tipos_sesion SET estado = 'APROBADO' WHERE id = test.u('62');
   GET DIAGNOSTICS n = ROW_COUNT;
@@ -2068,7 +2068,8 @@ EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 DO $$ BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
   UPDATE tipos_sesion SET estado = 'APROBADO' WHERE id = test.u('62');
-  ASSERT (SELECT aprobado_por_id FROM tipos_sesion WHERE id = test.u('62')) = test.u('a1'), 'caso 81: ADMIN aprueba';
+  ASSERT (SELECT revisado_por_id = test.u('a1') AND revisado_en IS NOT NULL FROM tipos_sesion WHERE id = test.u('62')),
+    'caso 81: ADMIN aprueba (revisado_por/revisado_en)';
   BEGIN
     DELETE FROM tipos_sesion WHERE id = test.u('62');
     RAISE EXCEPTION 'caso 81: DELETE debio fallar';
@@ -2177,11 +2178,16 @@ DO $$ BEGIN
     (test.u('e2'), 'PRESENCIAL', test.u('b2'), test.u('0a'), test.dia(20, 14), test.dia(20, 15));
   BEGIN
     INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin, enlace_online) VALUES
-      (test.u('e1'), 'PRESENCIAL', test.u('b4'), test.u('0a'), test.dia(21, 10), test.dia(21, 11), 'https://meet.example/x');
+      (test.u('e1'), 'PRESENCIAL', test.u('b4'), test.u('0a'), test.dia(21, 10), test.dia(21, 11), test.cif('https://meet.example/x'));
     RAISE EXCEPTION 'caso 84: enlace en presencial debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin, enlace_online) VALUES
+      ('ONLINE', test.u('b4'), test.u('0a'), test.dia(21, 10), test.dia(21, 11), convert_to('https://meet.example/x', 'UTF8'));
+    RAISE EXCEPTION 'caso 84: enlace en texto plano debio fallar (01g: cifrado)';
+  EXCEPTION WHEN check_violation THEN NULL; END;
   INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin, enlace_online) VALUES
-    ('ONLINE', test.u('b4'), test.u('0a'), test.dia(21, 10), test.dia(21, 11), 'https://meet.example/x');
+    ('ONLINE', test.u('b4'), test.u('0a'), test.dia(21, 10), test.dia(21, 11), test.cif('https://meet.example/x'));
 END $$;
 DO $$ BEGIN
   PERFORM test.ctx('b1', 'PROFESIONAL');
@@ -2217,6 +2223,26 @@ DO $$ BEGIN
   PERFORM citas_en_conflicto_margen(test.u('b2'));
   RAISE EXCEPTION 'caso 84: otro profesional debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+
+\connect :owner_url
+\set ON_ERROR_STOP 1
+INSERT INTO usuarios (id, email, password_hash, nombre, rol) VALUES (test.u('a7'), 't-admin3@x', 'h', 'Admin 3', 'ADMIN');
+\connect :app_url
+\set ON_ERROR_STOP 1
+
+\echo 85 Un ADMIN nunca se desactiva a si mismo (aunque haya otro ADMIN activo); otro ADMIN si puede desactivarlo
+DO $$ BEGIN
+  PERFORM test.ctx('a7', 'ADMIN');
+  UPDATE usuarios SET activo = false WHERE id = test.u('a7');
+  RAISE EXCEPTION 'caso 85: ADMIN se desactiva a si mismo debio fallar';
+EXCEPTION WHEN check_violation THEN NULL; END $$;
+DO $$ DECLARE n int; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE usuarios SET activo = false WHERE id = test.u('a7');
+  GET DIAGNOSTICS n = ROW_COUNT;
+  ASSERT n = 1, 'caso 85: otro ADMIN si lo desactiva';
+  ASSERT (SELECT desactivado_en IS NOT NULL FROM usuarios WHERE id = test.u('a7')), 'caso 85: empieza su gracia';
+END $$;
 
 \connect :owner_url
 \set ON_ERROR_STOP 1

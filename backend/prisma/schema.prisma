@@ -25,6 +25,8 @@
 //     avisos al paciente, cierre de cuentas con gracia (ADMIN/GESTION incluidos),
 //     catalogo tipos_sesion, disponibilidad en minutos, revision de retencion y
 //     margen de traslado entre modalidades.
+//   - 20261011000000_cierre_fase_bd: ADMIN no se desactiva a si mismo,
+//     tipos_sesion.revisado_por/revisado_en y citas.enlace_online cifrado.
 //
 // Cifrado: los campos `Bytes` marcados "cifrado" los cifra la API con
 // AES-256-GCM (backend/src/common/crypto/, registro.ts lista todos). AAD =
@@ -151,7 +153,7 @@ model Usuario {
   consentimientosRespondidos Consentimiento[]             @relation("ConsentimientoRespondidoPor")
   consentimientosRevocados   Consentimiento[]             @relation("ConsentimientoRevocadoPor")
   tiposSesionPropuestos      TipoSesion[]                 @relation("TipoSesionPropuestoPor")
-  tiposSesionAprobados       TipoSesion[]                 @relation("TipoSesionAprobadoPor")
+  tiposSesionRevisados       TipoSesion[]                 @relation("TipoSesionRevisadoPor")
   avisosSupervisorAnterior   AvisoConsentimiento[]        @relation("AvisoSupervisorAnterior")
   avisosSupervisorNuevo      AvisoConsentimiento[]        @relation("AvisoSupervisorNuevo")
   avisosRespondidos          AvisoConsentimiento[]        @relation("AvisoRespondidoPor")
@@ -364,7 +366,7 @@ enum EstadoTipoSesion {
 }
 
 /// Catalogo (B) de tipos de sesion. PROFESIONAL/PRACTICANTE proponen; solo
-/// ADMIN aprueba o rechaza (aprobado_por = quien decidio). Sin DELETE: se
+/// ADMIN aprueba o rechaza (revisado_por/revisado_en = quien y cuando). Sin DELETE: se
 /// desactiva. Una evolucion solo usa tipos APROBADOS y activos (trigger).
 model TipoSesion {
   id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -372,13 +374,14 @@ model TipoSesion {
   descripcion    String?
   estado         EstadoTipoSesion @default(PROPUESTO)
   propuestoPorId String           @map("propuesto_por_id") @db.Uuid
-  aprobadoPorId  String?          @map("aprobado_por_id") @db.Uuid
+  revisadoPorId  String?          @map("revisado_por_id") @db.Uuid
+  revisadoEn     DateTime?        @map("revisado_en") @db.Timestamptz(6)
   activo         Boolean          @default(true)
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   propuestoPor Usuario     @relation("TipoSesionPropuestoPor", fields: [propuestoPorId], references: [id], onDelete: Restrict)
-  aprobadoPor  Usuario?    @relation("TipoSesionAprobadoPor", fields: [aprobadoPorId], references: [id], onDelete: Restrict)
+  revisadoPor  Usuario?    @relation("TipoSesionRevisadoPor", fields: [revisadoPorId], references: [id], onDelete: Restrict)
   evoluciones  Evolucion[]
 
   @@map("tipos_sesion")
@@ -805,8 +808,8 @@ model Cita {
   /// Fijado al confirmar (margen vigente del profesional). EXCLUDE
   /// citas_margen_traslado: distinta modalidad necesita ese margen.
   margenTrasladoMin Int               @default(0) @map("margen_traslado_min") @db.SmallInt
-  /// Solo ONLINE (CHECK). Lo genera la API.
-  enlaceOnline      String?           @map("enlace_online")
+  /// cifrado (CLINICO). Solo ONLINE (CHECK). Lo genera la API (02) con la cita ya creada.
+  enlaceOnline      Bytes?            @map("enlace_online")
   profesionalId     String            @map("profesional_id") @db.Uuid
   pacienteId        String            @map("paciente_id") @db.Uuid
   inicio            DateTime          @db.Timestamptz(6)

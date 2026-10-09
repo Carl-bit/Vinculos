@@ -7,7 +7,7 @@ import { PrismaClient } from '@prisma/client';
  * Se conecta como `app_user` (DATABASE_URL): sin superusuario, sin BYPASSRLS,
  * no dueño de tablas. La RLS aplica siempre (ver migracion
  * 20261006000000_endurecimiento_rls); no hace falta `SET LOCAL ROLE`.
- * El RlsInterceptor (prompt 02_apis.md) envuelve cada request en
+ * El RlsInterceptor (prompt 02a (prompts/00_index.md)) envuelve cada request en
  * `this.$transaction(...)` y al inicio ejecuta
  * `set_config('app.current_usuario_id', id, true)` y
  * `set_config('app.current_rol', rol, true)`. Fuera de esa transaccion las
