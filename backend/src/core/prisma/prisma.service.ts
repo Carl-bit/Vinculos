@@ -2,20 +2,27 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { PrismaClient } from '@prisma/client';
 
 /**
- * Cliente Prisma del silo. Una instancia = una DB = un cliente.
+ * Cliente Prisma base del silo (sin extension de cifrado). Una instancia = una
+ * DB = un cliente.
  *
  * Se conecta como `app_user` (DATABASE_URL): sin superusuario, sin BYPASSRLS,
- * no dueño de tablas. La RLS aplica siempre (ver migracion
- * 20261006000000_endurecimiento_rls); no hace falta `SET LOCAL ROLE`.
- * El RlsInterceptor (prompt 02a (prompts/00_index.md)) envuelve cada request en
- * `this.$transaction(...)` y al inicio ejecuta
- * `set_config('app.current_usuario_id', id, true)` y
- * `set_config('app.current_rol', rol, true)`. Fuera de esa transaccion las
- * tablas con RLS devuelven 0 filas (falla cerrado).
+ * no dueño de tablas; la RLS aplica siempre. Los modulos NO lo usan: usan
+ * ContextoBd (core/bd), que agrega el cifrado y abre la transaccion con
+ * contexto RLS por request. Este cliente solo lo usan directamente el
+ * CryptoModule (llaves_vigentes, registrar_evento_llaves) y ContextoBd.
+ *
+ * Los avisos de Prisma van al logger de Nest (nunca console). Los errores de
+ * consulta no se loguean aqui: los traduce el filtro global sin filtrar
+ * valores.
  */
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService extends PrismaClient<{ log: [{ emit: 'event'; level: 'warn' }] }> implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
+
+  constructor() {
+    super({ log: [{ emit: 'event', level: 'warn' }] });
+    this.$on('warn', (e) => this.logger.warn(e.message));
+  }
 
   async onModuleInit(): Promise<void> {
     await this.$connect();

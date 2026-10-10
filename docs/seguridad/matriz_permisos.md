@@ -3,7 +3,9 @@
 Generada a partir del catalogo real (`has_table_privilege`,
 `information_schema.column_privileges`, `pg_policies`,
 `information_schema.triggers`, `pg_proc`) despues de aplicar las migraciones
-hasta `20261011000000_cierre_fase_bd` (cierre de la fase de BD). Fuente para los guards
+hasta `20261011000000_cierre_fase_bd` (cierre de la fase de BD), mas las de la fase de API:
+`20261012000000_api_sesiones_alertas` (02a), `20261013000000_notificaciones` (02f) y
+`20261014000000_portal_mensajes_epicrisis` (02g). Fuente para los guards
 del prompt 02 y para la tesis. Si una migracion cambia GRANTs, politicas,
 triggers o funciones, esta matriz se actualiza en el mismo cambio. Cada fila
 tiene al menos un caso en `backend/prisma/tests/seguridad_bd.sql`.
@@ -208,6 +210,18 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | ADMIN | `accesos_ficha` | SELECT | todas | GRANT + `accesos_ficha_select` |
 | A | todos (incluso dueño) | `accesos_ficha` | UPDATE, DELETE | ninguna | sin GRANT + trigger `accesos_ficha_append_only` |
 | A | todos (app_user) | `llaves_datos`, `custodios_llave`, `eventos_llaves` | todas | ninguna directa (`llaves_vigentes()`, `registrar_evento_llaves()`) | sin GRANT (RLS sin politicas) |
+| A | todos (app_user) | `sesiones` | todas | ninguna directa (refresh tokens: solo el SHA-256) | sin GRANT; `crear_sesion` / `rotar_sesion` / `revocar_sesion` + trigger `usuarios_revoca_sesiones` |
+| A | ADMIN | `alertas_internas` | SELECT | todas | GRANT + `alertas_internas_select`; escritura solo via `alertar_bajas_sin_admin` / `alertar_fallo_canario` / `atender_alerta` |
+| A | todos (incluso dueño) | `alertas_internas` | UPDATE, DELETE | solo marcar atendida una vez (funcion) | sin GRANT + trigger `alertas_internas_append_only` (23001) |
+| A | ADMIN / GESTION | `notificaciones` | SELECT | todas | GRANT + `notificaciones_select` |
+| A | destinatario (usuario o PACIENTE) | `notificaciones` | SELECT | las propias | `notificaciones_select` |
+| A | todos (autenticados) | `notificaciones` | INSERT | `creada_por_id` = yo, PENDIENTE | GRANT + `notificaciones_insert`; cierre solo via `marcar_notificacion` (job) + trigger `notificaciones_append_only` (23001) |
+| A | PACIENTE | `mensajes_paciente` | SELECT, INSERT | los propios; destinatario solo de su equipo tratante (`mi_equipo_tratante`); contenido cifrado | GRANT + `mensajes_paciente_*` + CHECK `mensajes_paciente_cifrado` |
+| A | PROFESIONAL / PRACTICANTE | `mensajes_paciente` | SELECT | los recibidos; marcar leido via `marcar_mensaje_leido` | `mensajes_paciente_select` |
+| A | ADMIN / GESTION | `mensajes_paciente` | todas | ninguna (contenido del paciente) | politicas sin rama |
+| A | PACIENTE | `solicitudes_epicrisis` | SELECT, INSERT | las propias (SOLICITADA); motivo cifrado | GRANT + `solicitudes_epicrisis_*` + CHECK `solicitudes_epicrisis_cifrado` |
+| A | ADMIN / GESTION / tratante | `solicitudes_epicrisis` | SELECT | todas / de sus pacientes; resuelven ADMIN o el tratante via `resolver_solicitud_epicrisis` | `solicitudes_epicrisis_select` |
+| A | todos (incluso dueño) | `mensajes_paciente`, `solicitudes_epicrisis` | UPDATE, DELETE | solo via funciones; nunca DELETE | sin GRANT + triggers `*_append_only` (23001) |
 | A | dueño (scripts de llaves) | `llaves_datos` | UPDATE / DELETE | solo activar, retirar y re-envolver / nunca | trigger `llaves_datos_protegidas` (23001) |
 | A | todos (incluso dueño) | `eventos_llaves` | UPDATE, DELETE | ninguna | trigger `eventos_llaves_append_only` (23001) |
 
@@ -249,7 +263,17 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | candidato OFRECIDO (PROFESIONAL / PRACTICANTE) | `responder_derivacion(id, acepta)` | PROFESIONAL acepta: traspaso + citas futuras (si chocan, POR_REPROGRAMAR). PRACTICANTE acepta: ESPERANDO_CONSENTIMIENTO + solicitud (48 h). Rechazo: siguiente | 42501, 55000 |
 | A | job sin contexto | `expirar_ofertas_derivacion()` | ofertas vencidas -> EXPIRADA; solicitudes de consentimiento vencidas -> VENCIDO + candidato RECHAZADO_POR_PACIENTE; siguiente; devuelve cuantas | — |
 | A | ADMIN | `reporte_citas_por_profesional(desde, hasta)` | agregados por profesional; dueño `app_reportes` | 42501 |
-| — | interno (sin EXECUTE para app_user) | `ofrecer_siguiente_candidato`, `agregar_candidatos`, `registrar_accion_derivacion`, `desactivar_tratante`, `reasignar_citas_derivacion`, `motivo_reasignacion`, `cobro_directo`, `cerrar_cuenta`, `concretar_traspaso`, `consentimiento_no_otorgado`, `validar_otorgante`, `margen_vigente`, `ultima_atencion` | — | — |
+| A | sin contexto (login) | `crear_sesion(usuario, rol, hash, expira)` | abre una familia si la cuenta esta habilitada (activa, rol de la BD, practicante vigente y supervisado) | 42501 |
+| A | sin contexto (refresh) | `rotar_sesion(hash, hash_nuevo, expira)` | rota; reuso o cuenta sin acceso: revoca la familia y 0 filas | — |
+| A | sin contexto (logout) | `revocar_sesion(hash)` | revoca la familia del token | — |
+| A | job sin contexto | `alertar_bajas_sin_admin()` | alerta (una abierta por baja) las bajas cumplidas que dejarian al centro sin ADMIN; devuelve cuantas | — |
+| A | job sin contexto | `alertar_fallo_canario(detalle)` | alerta FALLO_CANARIO (sin llaves ni datos en el detalle) | — |
+| A | ADMIN | `atender_alerta(id)` | marca atendida una vez | 42501, P0002, 55000 |
+| A | job sin contexto | `notificaciones_por_enviar(limite)` | pendientes (SKIP LOCKED) con el email del destinatario (menor: adulto responsable) y el enlace cifrado de ENLACE_ONLINE | — |
+| A | job sin contexto | `marcar_notificacion(id, enviada, detalle)` | cierra una pendiente (ENVIADA / FALLIDA) | 55000 |
+| A | PROFESIONAL / PRACTICANTE destinatario | `marcar_mensaje_leido(id)` | una vez | 42501, P0002, 55000 |
+| A | ADMIN / tratante | `resolver_solicitud_epicrisis(id, estado, documento)` | SOLICITADA -> EN_PROCESO/ENTREGADA/RECHAZADA; EN_PROCESO -> ENTREGADA/RECHAZADA; ENTREGADA exige documento | 42501, P0002, 55000, 23514 |
+| — | interno (sin EXECUTE para app_user) | `cuenta_habilitada`, `revocar_sesiones_por_cambio`, `ofrecer_siguiente_candidato`, `agregar_candidatos`, `registrar_accion_derivacion`, `desactivar_tratante`, `reasignar_citas_derivacion`, `motivo_reasignacion`, `cobro_directo`, `cerrar_cuenta`, `concretar_traspaso`, `consentimiento_no_otorgado`, `validar_otorgante`, `margen_vigente`, `ultima_atencion` | — | — |
 | — | uso de politicas/triggers (EXECUTE `app_user`) | `acceso_vigente`, `app_paciente_id`, `es_profesional_de_*`, `rol_usuario`, `supervisor_vigente`, `es_supervisor_vigente_de`, `consentimiento_practicante_vigente`, `consentimiento_vigente_para`, `evolucion_supervisable`, `minuto_local`, `rango_con_margen` | booleanos / uuid / text / timestamptz | — |
 
 Auditoria en `accesos_ficha`: toda funcion de derivacion con usuario

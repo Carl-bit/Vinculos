@@ -12,13 +12,14 @@
  *   verificar     (--kek F | --parte F --parte F) [--actor A --registrar SIMULACRO|VERIFICACION]
  *   cambiar-custodios --kek F --publica F --partes DIR --custodios "..." --actor A
  *   registrar     --tipo SIMULACRO|COMPROMISO|... --detalle TEXTO --actor A
+ *   recalcular-hmac --kek F [--lote N] --actor A   (runbook de compromiso, paso 5.3)
  *
  * Archivos nuevos se crean con flag 'wx': nunca se sobrescribe una llave.
  */
 import { Logger } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { CategoriaLlave, ErrorCifrado } from './cifrado';
+import { CategoriaLlave, ErrorCifrado, Llavero } from './cifrado';
 import {
   AlmacenLlaves,
   Custodio,
@@ -33,6 +34,7 @@ import {
   rotarRecuperacion,
   verificar,
 } from './contingencia';
+import { recalcularRutHmac } from './recalculo-hmac';
 
 const logger = new Logger('Llaves');
 
@@ -227,6 +229,18 @@ async function main(): Promise<void> {
         );
         logger.log('Par de recuperacion nuevo. Entregar las partes nuevas; las anteriores ya no sirven (destruirlas).');
         break;
+      case 'recalcular-hmac': {
+        const llavero = Llavero.cargar(leerKek(uno(args, 'kek')), await almacen.listar());
+        const resultados = await recalcularRutHmac(prisma, llavero, Number(args.get('lote')?.[0] ?? 500));
+        for (const r of resultados) {
+          logger.log(`${r.tabla}: ${r.actualizadas}/${r.conRut} rut_hmac recalculados`);
+        }
+        const duplicados = resultados.flatMap((r) => r.duplicados.map((id) => `${r.tabla}:${id}`));
+        if (duplicados.length) {
+          throw new ErrorCifrado(`RUT duplicados (resolver a mano y volver a correr): ${duplicados.join(', ')}`);
+        }
+        break;
+      }
       case 'registrar':
         await almacen.evento(uno(args, 'tipo') as TipoEventoLlaves, uno(args, 'detalle'), actor);
         break;

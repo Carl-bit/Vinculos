@@ -298,3 +298,28 @@ efectos. Loguear el numero devuelto con el logger de Nest.
   `INSERT accesos_ficha` con el usuario y rol del contexto en la misma
   transaccion. Las funciones de derivacion, supervision y datos de pago ya
   auditan solas.
+
+## 13. Como quedo implementado (02a-02g)
+
+Estado y decisiones de la fase de API: `docs/api/estado_fase_api.md`.
+
+- Contexto RLS: `ContextoBd.enTransaccion` (core/bd). Ademas de los dos
+  `set_config`, verifica `acceso_vigente()` al inicio (falso -> 401) y antes
+  de confirmar ejecuta `SET CONSTRAINTS ALL IMMEDIATE`: Prisma entrega los
+  errores del COMMIT sin SQLSTATE; asi un trigger diferido falla como
+  consulta y llega al filtro con su codigo (23514 -> 422).
+- Errores: `core/errores/sqlstate.ts`. Prisma no expone el campo constraint
+  de un RAISE: la restriccion se reconoce por el nombre del constraint en el
+  texto de Postgres o por el texto propio del RAISE (tabla
+  `RESTRICCION_POR_TEXTO`); al cliente solo va un mensaje propio. Un 23505
+  bajo RLS puede llegar sin indice (P2002 sin target): el servicio que sabe
+  cual es lo traduce (`conflicto(...)`).
+- Cifrado: `claro()` al escribir y `texto()` al leer (core/bd/claro.ts). Prisma
+  clona los args antes de la extension: la marca de "valor a cifrar" es un
+  objeto plano, no un `Uint8Array`.
+- `evoluciones.created_at` usa default de la BD (`transaction_timestamp()`):
+  con `@default(now())` Prisma enviaba la hora del cliente y la politica de
+  `evolucion_intervenciones` (created_at = now()) rechazaba las
+  intervenciones.
+- Eventos de dominio: se emiten despues del COMMIT (`alConfirmar`), nunca
+  dentro de la transaccion.

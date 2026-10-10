@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@core/*": ["src/core/*"],
-      "@modules/*": ["src/modules/*"]
+      "@modulos/*": ["src/modulos/*"]
     }
   },
   "include": ["src/**/*", "prisma/**/*"],

@@ -13,8 +13,10 @@ levantar el proyecto.
 ```
 backend/                  NestJS + Prisma (monolito modular, single-tenant)
   prisma/                   schema.prisma + migraciones (SQL crudo incluido)
-  src/core/                 nucleo transversal: prisma, auth, rls, filtros, eventos
-  src/modules/              un bounded context por carpeta (ver su README)
+  src/core/                 transversal: config, bd (RLS + cifrado), auth, errores, logs, jobs, notificaciones, eventos
+  src/modulos/              un bounded context por carpeta (ver su README)
+  test/                     integracion (Jest + Supertest) contra Postgres efimero
+  pruebas/                  estres de agenda (k6, pendiente de Docker)
 frontend/                 Next.js App Router (portal publico SSR/SSG + backoffice CSR)
   src/app/(publico)/        landing del centro, perfiles, match, busqueda, contacto
   src/app/(admin)/          backoffice auth-gated

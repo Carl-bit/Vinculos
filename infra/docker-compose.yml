@@ -75,7 +75,11 @@ services:
       PORT: 3001
       FRONTEND_URL: https://${DOMINIO}
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      # Access token corto; las sesiones largas van por refresh token (tabla sesiones).
+      JWT_ACCESO_MINUTOS: ${JWT_ACCESO_MINUTOS:-15}
+      REFRESH_DIAS: ${REFRESH_DIAS:-7}
+      LOGIN_LIMITE_POR_MINUTO: ${LOGIN_LIMITE_POR_MINUTO:-10}
+      PUBLICO_LIMITE_POR_MINUTO: ${PUBLICO_LIMITE_POR_MINUTO:-60}
       BLOQUEO_TEMPORAL_TTL_SEGUNDOS: ${BLOQUEO_TEMPORAL_TTL_SEGUNDOS:-300}
       # Archivo, nunca variable de entorno con la llave.
       KEK_PATH: /run/secrets/vinculos_kek

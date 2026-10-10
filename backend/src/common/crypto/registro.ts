@@ -38,6 +38,9 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'ProfesionalDatosPrivados', campo: 'tipoCuenta', tabla: 'profesional_datos_privados', columna: 'tipo_cuenta', categoria: 'FINANCIERO', id: 'usuario_id' },
   { modelo: 'ProfesionalDatosPrivados', campo: 'numeroCuenta', tabla: 'profesional_datos_privados', columna: 'numero_cuenta', categoria: 'FINANCIERO', id: 'usuario_id' },
   { modelo: 'ProfesionalDatosPrivados', campo: 'titular', tabla: 'profesional_datos_privados', columna: 'titular', categoria: 'FINANCIERO', id: 'usuario_id' },
+  // 02g: portal del paciente (texto libre del paciente: puede traer datos de salud).
+  { modelo: 'MensajePaciente', campo: 'contenido', tabla: 'mensajes_paciente', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'SolicitudEpicrisis', campo: 'motivo', tabla: 'solicitudes_epicrisis', columna: 'motivo', categoria: 'CLINICO', id: 'id' },
 ];
 
 export function campoCifrado(modelo: string, campo: string): CampoCifrado | undefined {

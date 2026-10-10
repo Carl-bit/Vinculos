@@ -59,14 +59,16 @@ psql -X -v app_url="$APP_URL" -v owner_url="$OWNER_URL" -d "$OWNER_URL" -f prism
 npx prisma migrate diff --from-url "$MIGRATION_DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
 echo "== API sin MIGRATION_DATABASE_URL"
-# Arranque real de Nest (DI + PrismaService.$connect + listen) y cierre: el
-# proceso termina solo, sin dejar huerfanos.
+# Arranque real de Nest (DI + PrismaService.$connect + llavero con huella y
+# canarios + listen) y cierre: el proceso termina solo, sin dejar huerfanos.
 npm run --silent build
-env -u MIGRATION_DATABASE_URL DATABASE_URL="$APP_URL?schema=public" node -e "
+env -u MIGRATION_DATABASE_URL DATABASE_URL="$APP_URL?schema=public" KEK_PATH="$SECRETOS/kek" \
+  RECUPERACION_PUBLICA_PATH="$SECRETOS/recuperacion.pub" JWT_SECRET=secreto-de-prueba-de-al-menos-32-caracteres \
+  JOBS_HABILITADOS=false LOG_LEVEL=warn node -e "
   const { NestFactory } = require('@nestjs/core');
   const { AppModule } = require('./dist/app.module');
   (async () => {
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule.crear(), { logger: false });
     await app.listen(0);
     const [{ current_user }] = await app.get(require('./dist/core/prisma/prisma.service').PrismaService)
       .\$queryRaw\`SELECT current_user\`;
@@ -96,7 +98,7 @@ DATABASE_URL="$MIGRATION_DATABASE_URL" node -e "
   const p = new PrismaClient();
   p.\$queryRaw\`SELECT table_name || '.' || column_name AS c FROM information_schema.columns
     WHERE table_schema = 'public' AND data_type = 'bytea' AND column_name NOT LIKE '%hmac'
-      AND table_name NOT IN ('llaves_datos') ORDER BY 1\`.then((filas) => {
+      AND table_name NOT IN ('llaves_datos', 'sesiones') ORDER BY 1\`.then((filas) => {
     const bd = filas.map((f) => f.c).join(',');
     const reg = CAMPOS_CIFRADOS.map((c) => c.tabla + '.' + c.columna).sort().join(',');
     if (bd !== reg) { throw new Error('registro.ts != BD\nBD:  ' + bd + '\nreg: ' + reg); }

@@ -45,3 +45,6 @@ npm-debug.log*
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Estado de la BD efimera de los tests de integracion
+backend/test/bd/.entorno-test.json

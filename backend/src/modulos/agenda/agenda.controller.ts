@@ -1,0 +1,186 @@
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+
+import { Roles } from '../../core/auth/decoradores';
+import { AgendaService } from './agenda.service';
+import { CitasService } from './citas.service';
+import {
+  CrearBloqueoAgendaDto,
+  CrearCitaDto,
+  CrearDisponibilidadDto,
+  CrearEspacioDto,
+  EditarEspacioDto,
+  FiltroCitasDto,
+  HorarioDto,
+  RangoDto,
+  ReprogramarCitaDto,
+} from './dto/agenda.dto';
+
+const Uuid = new ParseUUIDPipe();
+const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
+const EQUIPO_AGENDA = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE'] as const;
+
+@Controller('espacios')
+export class EspaciosController {
+  constructor(private readonly agenda: AgendaService) {}
+
+  @Get()
+  @Roles(...TODOS)
+  listar() {
+    return this.agenda.espacios();
+  }
+
+  @Post()
+  @Roles('ADMIN', 'GESTION')
+  crear(@Body() dto: CrearEspacioDto) {
+    return this.agenda.crearEspacio(dto);
+  }
+
+  @Patch(':id')
+  @Roles('ADMIN', 'GESTION')
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarEspacioDto) {
+    return this.agenda.editarEspacio(id, dto);
+  }
+
+  /** Ocupacion de boxes (citas confirmadas + soft-locks), sin pacientes. */
+  @Get('ocupacion')
+  @Roles(...EQUIPO_AGENDA)
+  ocupacion(@Query() rango: RangoDto) {
+    return this.agenda.ocupacion(rango.desde, rango.hasta);
+  }
+}
+
+/** Disponibilidad semanal y bloqueos: el propio y ADMIN/GESTION (RLS). */
+@Controller('profesionales/:profesionalId')
+export class AgendaProfesionalController {
+  constructor(private readonly agenda: AgendaService) {}
+
+  @Get('disponibilidad')
+  @Roles(...EQUIPO_AGENDA)
+  disponibilidad(@Param('profesionalId', Uuid) id: string) {
+    return this.agenda.disponibilidad(id);
+  }
+
+  @Post('disponibilidad')
+  @Roles(...EQUIPO_AGENDA)
+  crearDisponibilidad(@Param('profesionalId', Uuid) id: string, @Body() dto: CrearDisponibilidadDto) {
+    return this.agenda.crearDisponibilidad(id, dto);
+  }
+
+  @Delete('disponibilidad/:id')
+  @Roles(...EQUIPO_AGENDA)
+  eliminarDisponibilidad(@Param('profesionalId', Uuid) profesionalId: string, @Param('id', Uuid) id: string) {
+    return this.agenda.eliminarDisponibilidad(profesionalId, id);
+  }
+
+  @Get('bloqueos')
+  @Roles(...EQUIPO_AGENDA)
+  bloqueos(@Param('profesionalId', Uuid) id: string) {
+    return this.agenda.bloqueos(id);
+  }
+
+  @Post('bloqueos')
+  @Roles(...EQUIPO_AGENDA)
+  crearBloqueo(@Param('profesionalId', Uuid) id: string, @Body() dto: CrearBloqueoAgendaDto) {
+    return this.agenda.crearBloqueo(id, dto);
+  }
+
+  @Delete('bloqueos/:id')
+  @Roles(...EQUIPO_AGENDA)
+  eliminarBloqueo(@Param('profesionalId', Uuid) profesionalId: string, @Param('id', Uuid) id: string) {
+    return this.agenda.eliminarBloqueo(profesionalId, id);
+  }
+
+  /** Huecos libres por modalidad (max. 62 dias), sin motivos. */
+  @Get('huecos')
+  @Roles(...TODOS)
+  huecos(@Param('profesionalId', Uuid) id: string, @Query() rango: RangoDto) {
+    return this.agenda.huecos(id, rango.desde, rango.hasta);
+  }
+
+  /** Citas futuras que no cumplen el margen vigente (no se mueven solas). */
+  @Get('conflictos-margen')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  conflictosMargen(@Param('profesionalId', Uuid) id: string) {
+    return this.agenda.citasEnConflictoMargen(id);
+  }
+}
+
+/** Soft-locks con TTL (cada uno los suyos). */
+@Controller('agenda/horarios-tomados')
+export class HorariosTomadosController {
+  constructor(private readonly agenda: AgendaService) {}
+
+  @Post()
+  @Roles(...EQUIPO_AGENDA)
+  tomar(@Body() dto: HorarioDto) {
+    return this.agenda.tomarHorario(dto);
+  }
+
+  @Get()
+  @Roles(...EQUIPO_AGENDA)
+  mios() {
+    return this.agenda.misHorariosTomados();
+  }
+
+  @Delete(':id')
+  @Roles(...EQUIPO_AGENDA)
+  soltar(@Param('id', Uuid) id: string) {
+    return this.agenda.soltarHorario(id);
+  }
+}
+
+/** Citas: ADMIN/GESTION todas; PROFESIONAL/PRACTICANTE las propias; PACIENTE solo lee las suyas. */
+@Controller('citas')
+export class CitasController {
+  constructor(private readonly citas: CitasService) {}
+
+  @Get()
+  @Roles(...TODOS)
+  listar(@Query() filtro: FiltroCitasDto) {
+    return this.citas.listar(filtro);
+  }
+
+  @Get('por-reprogramar')
+  @Roles(...EQUIPO_AGENDA)
+  porReprogramar() {
+    return this.citas.porReprogramar();
+  }
+
+  /** Verificacion previa (opcion C): disponibilidad, margen y box, con alternativas. */
+  @Post('verificacion')
+  @HttpCode(200)
+  @Roles(...EQUIPO_AGENDA)
+  verificar(@Body() dto: HorarioDto) {
+    return this.citas.verificar(dto);
+  }
+
+  @Post()
+  @Roles(...EQUIPO_AGENDA)
+  crear(@Body() dto: CrearCitaDto) {
+    return this.citas.crear(dto);
+  }
+
+  @Get(':id')
+  @Roles(...TODOS)
+  obtener(@Param('id', Uuid) id: string) {
+    return this.citas.obtener(id);
+  }
+
+  @Patch(':id/cancelacion')
+  @Roles(...EQUIPO_AGENDA)
+  cancelar(@Param('id', Uuid) id: string) {
+    return this.citas.cancelar(id);
+  }
+
+  @Patch(':id/reprogramacion')
+  @Roles(...EQUIPO_AGENDA)
+  reprogramar(@Param('id', Uuid) id: string, @Body() dto: ReprogramarCitaDto) {
+    return this.citas.reprogramar(id, dto);
+  }
+
+  @Get(':id/enlace')
+  @Roles(...TODOS)
+  enlace(@Param('id', Uuid) id: string) {
+    return this.citas.enlace(id);
+  }
+}

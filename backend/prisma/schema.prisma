@@ -159,6 +159,12 @@ model Usuario {
   avisosRespondidos          AvisoConsentimiento[]        @relation("AvisoRespondidoPor")
   revisionesRetencion        RevisionRetencion[]
   consultasRetencion         ConsultaRetencion[]
+  sesiones                   Sesion[]
+  alertasAtendidas           AlertaInterna[]
+  notificacionesRecibidas    Notificacion[]               @relation("NotificacionDestino")
+  notificacionesCreadas      Notificacion[]               @relation("NotificacionCreadaPor")
+  mensajesRecibidos          MensajePaciente[]
+  epicrisisResueltas         SolicitudEpicrisis[]
 
   @@map("usuarios")
 }
@@ -275,6 +281,161 @@ model EventoLlaves {
   @@map("eventos_llaves")
 }
 
+/// Sesiones de refresh token (A). Guarda solo el SHA-256 del token. Rotacion:
+/// cada uso marca usada_en y crea la siguiente de la misma familia; reusar un
+/// token ya usado o revocado revoca la familia entera. Sin GRANT a app_user:
+/// solo crear_sesion / rotar_sesion / revocar_sesion (sin contexto, login).
+/// Un trigger en usuarios revoca todas las sesiones al cambiar rol, activo,
+/// contraseña, cierre o al acortar la expiracion de un practicante.
+model Sesion {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId        String    @map("usuario_id") @db.Uuid
+  familiaId        String    @map("familia_id") @db.Uuid
+  tokenHash        Bytes     @unique @map("token_hash")
+  rol              Rol
+  creadaEn         DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
+  expiraEn         DateTime  @map("expira_en") @db.Timestamptz(6)
+  usadaEn          DateTime? @map("usada_en") @db.Timestamptz(6)
+  revocadaEn       DateTime? @map("revocada_en") @db.Timestamptz(6)
+  motivoRevocacion String?   @map("motivo_revocacion")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([usuarioId])
+  @@index([familiaId])
+  @@map("sesiones")
+}
+
+enum TipoAlerta {
+  BAJA_SIN_ADMIN
+  FALLO_CANARIO
+
+  @@map("tipo_alerta")
+}
+
+enum TipoNotificacion {
+  CITA_CONFIRMADA
+  CITA_CANCELADA
+  CITA_REPROGRAMADA
+  ENLACE_ONLINE
+  CONSENTIMIENTO_SOLICITADO
+  AVISO_CAMBIO_SUPERVISOR
+  DERIVACION_OFRECIDA
+  MENSAJE_PACIENTE
+
+  @@map("tipo_notificacion")
+}
+
+enum EstadoNotificacion {
+  PENDIENTE
+  ENVIADA
+  FALLIDA
+
+  @@map("estado_notificacion")
+}
+
+/// Registro de cada notificacion (A). Sin contenido ni datos de contacto:
+/// tipo, destinatario (paciente o usuario) y fila de referencia. La inserta la
+/// API (PENDIENTE) con el contexto del actor; el job de envio la toma con
+/// notificaciones_por_enviar() y la cierra con marcar_notificacion(). Append-
+/// only salvo ese cierre (una vez). Nunca DELETE.
+model Notificacion {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo         TipoNotificacion
+  canal        String             @default("EMAIL")
+  pacienteId   String?            @map("paciente_id") @db.Uuid
+  usuarioId    String?            @map("usuario_id") @db.Uuid
+  referenciaId String             @map("referencia_id") @db.Uuid
+  creadaPorId  String             @map("creada_por_id") @db.Uuid
+  estado       EstadoNotificacion @default(PENDIENTE)
+  intentos     Int                @default(0)
+  detalleError String?            @map("detalle_error")
+  creadaEn     DateTime           @default(now()) @map("creada_en") @db.Timestamptz(6)
+  procesadaEn  DateTime?          @map("procesada_en") @db.Timestamptz(6)
+
+  paciente  Paciente? @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  usuario   Usuario?  @relation("NotificacionDestino", fields: [usuarioId], references: [id], onDelete: Restrict)
+  creadaPor Usuario   @relation("NotificacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+
+  @@index([estado, creadaEn])
+  @@index([pacienteId])
+  @@index([usuarioId])
+  @@map("notificaciones")
+}
+
+/// Mensaje del paciente a un profesional de su equipo tratante (A).
+/// Comunicacion asimetrica: el paciente escribe desde el portal; el
+/// profesional responde por canales externos (no hay respuesta in-app).
+/// Contenido cifrado (CLINICO): id generado por la API (AAD). Lo leen el
+/// paciente y el destinatario; marcar leido solo via marcar_mensaje_leido().
+model MensajePaciente {
+  id            String    @id @db.Uuid
+  pacienteId    String    @map("paciente_id") @db.Uuid
+  profesionalId String    @map("profesional_id") @db.Uuid
+  /// cifrado (CLINICO)
+  contenido     Bytes
+  creadoEn      DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  leidoEn       DateTime? @map("leido_en") @db.Timestamptz(6)
+
+  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profesional Usuario  @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+
+  @@index([profesionalId, creadoEn])
+  @@index([pacienteId, creadoEn])
+  @@map("mensajes_paciente")
+}
+
+enum EstadoEpicrisis {
+  SOLICITADA
+  EN_PROCESO
+  ENTREGADA
+  RECHAZADA
+
+  @@map("estado_epicrisis")
+}
+
+/// Solicitud de epicrisis del paciente (A; derecho de acceso, Ley 20.584).
+/// La crea el paciente; la resuelven el tratante o ADMIN via
+/// resolver_solicitud_epicrisis() (sin UPDATE directo). ENTREGADA exige la
+/// referencia del documento entregado. Motivo opcional cifrado (CLINICO).
+model SolicitudEpicrisis {
+  id            String          @id @db.Uuid
+  pacienteId    String          @map("paciente_id") @db.Uuid
+  /// cifrado (CLINICO), opcional
+  motivo        Bytes?
+  estado        EstadoEpicrisis @default(SOLICITADA)
+  solicitadaEn  DateTime        @default(now()) @map("solicitada_en") @db.Timestamptz(6)
+  resueltaEn    DateTime?       @map("resuelta_en") @db.Timestamptz(6)
+  resueltaPorId String?         @map("resuelta_por_id") @db.Uuid
+  documentoRef  String?         @map("documento_ref")
+
+  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  resueltaPor Usuario? @relation(fields: [resueltaPorId], references: [id], onDelete: Restrict)
+
+  @@index([pacienteId, solicitadaEn])
+  @@map("solicitudes_epicrisis")
+}
+
+/// Alertas internas para ADMIN (A). Las escriben los jobs via funciones
+/// (alertar_bajas_sin_admin, alertar_fallo_canario); ADMIN las lee y las
+/// marca atendidas con atender_alerta(). Nunca DELETE. Una abierta por
+/// (tipo, referencia) (indice unico parcial, migracion cruda).
+model AlertaInterna {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo          TipoAlerta
+  /// Fila que origina la alerta (p. ej. bajas.id). Sin datos personales.
+  referenciaId  String?    @map("referencia_id") @db.Uuid
+  detalle       String
+  creadaEn      DateTime   @default(now()) @map("creada_en") @db.Timestamptz(6)
+  atendidaEn    DateTime?  @map("atendida_en") @db.Timestamptz(6)
+  atendidaPorId String?    @map("atendida_por_id") @db.Uuid
+
+  atendidaPor Usuario? @relation(fields: [atendidaPorId], references: [id], onDelete: Restrict)
+
+  @@index([creadaEn])
+  @@map("alertas_internas")
+}
+
 // ============================================================================
 // 2. Fichas y Pacientes
 // Tablas clinicas: sin DELETE real (trigger + sin GRANT DELETE al rol app).
@@ -301,14 +462,17 @@ model Paciente {
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  profesional         Usuario             @relation("PacienteProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  usuario             Usuario?            @relation("UsuarioPaciente")
-  tipoAtencion        TipoAtencion?       @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
-  adultosResponsables AdultoResponsable[]
-  consentimientos     Consentimiento[]
-  fichaClinica        FichaClinica?
-  citas               Cita[]
-  accesosFicha        AccesoFicha[]
+  profesional          Usuario              @relation("PacienteProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  usuario              Usuario?             @relation("UsuarioPaciente")
+  tipoAtencion         TipoAtencion?        @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
+  adultosResponsables  AdultoResponsable[]
+  consentimientos      Consentimiento[]
+  fichaClinica         FichaClinica?
+  citas                Cita[]
+  accesosFicha         AccesoFicha[]
+  notificaciones       Notificacion[]
+  mensajes             MensajePaciente[]
+  solicitudesEpicrisis SolicitudEpicrisis[]
 
   @@index([profesionalId])
   @@map("pacientes")
@@ -418,7 +582,11 @@ model Evolucion {
   estadoAvanceId String?     @map("estado_avance_id") @db.Uuid
   nivelRiesgo    NivelRiesgo @map("nivel_riesgo")
   corrigeAId     String?     @unique @map("corrige_a_id") @db.Uuid
-  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Default de la BD (no de Prisma): la politica de evolucion_intervenciones
+  /// compara created_at = now() de la transaccion; @default(now()) lo fija el
+  /// motor de Prisma con la hora del cliente y no coincide. transaction_timestamp()
+  /// = now(), pero Prisma no lo confunde con su now() al comparar el schema.
+  createdAt      DateTime    @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
 
   fichaClinica           FichaClinica            @relation(fields: [fichaClinicaId], references: [id], onDelete: Restrict)
   autor                  Usuario                 @relation(fields: [autorId], references: [id], onDelete: Restrict)

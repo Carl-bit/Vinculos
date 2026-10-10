@@ -18,23 +18,24 @@ siempre primero, en cada sesion, antes del prompt de turno. Estado de la BD:
 01b a 01g se entregaron como prompts en la conversacion (no hay archivo);
 su resultado esta en las migraciones, `docs/seguridad/` y `docs/bd/`.
 
-## Back: API (pendientes, en orden)
-Propuesta de division (por redactar). Cada uno respeta la seccion "API" de
-CLAUDE.md y `docs/seguridad/requisitos_02_apis.md`.
+## Back: API
+Prompts entregados en la conversacion (sin archivo), en este orden. Cada uno
+respeta la seccion "API" de CLAUDE.md y `docs/seguridad/requisitos_02_apis.md`.
+Estado: `docs/api/estado_fase_api.md`.
 
-1. **02a** Nucleo transversal: RlsInterceptor, filtro SQLSTATE -> HTTP,
-   CryptoModule (llavero, canarios), Auth (login, JWT, RolesGuard), logs redactados.
-2. **02b** Nucleo: usuarios, ingreso y cierre de cuentas, practicantes y
-   supervision, jobs de bajas.
-3. **02c** Fichas y Pacientes: pacientes, adultos responsables, fichas,
-   evoluciones (copia de autoria, tipos de sesion), auditoria, retencion.
-4. **02d** Derivaciones y consentimientos: ofertas, consentimientos, avisos,
-   jobs de expiracion.
-5. **02e** Agenda y Espacios: citas, disponibilidad, bloqueos, soft-lock,
-   margen de traslado, enlace online.
-6. **02f** Equipo: perfil, trayectoria, datos privados, tarifas, directorio.
-7. **02g** Match Terapeutico.
-8. **02h** Cobros: pagos, boletas, arriendos, modelo de cobro.
+| Prompt | Estado | Migracion | Contenido |
+|---|---|---|---|
+| 02a | hecho | `20261012000000_api_sesiones_alertas` | Config, contexto RLS por request, CryptoModule, auth (refresh rotativo), errores, logs, jobs, salud |
+| 02b | hecho | — | Nucleo: usuarios, configuracion, accesos de practicantes, bajas, alertas, directorio |
+| 02c | hecho | — | Fichas y pacientes: RUT con indice ciego, adultos responsables, evoluciones, tipos de sesion, auditoria, retencion |
+| 02d | hecho | — | Agenda y espacios: disponibilidad, bloqueos, soft-locks, citas con verificacion previa, enlace online; script k6 |
+| 02e | hecho | — | Equipo: perfil, trayectoria, datos privados, tarifas, supervision seudonimizada, recalculo de rut_hmac |
+| 02f | hecho | `20261013000000_notificaciones` | Derivaciones, consentimientos, avisos, notificaciones |
+| 02g | hecho | `20261014000000_portal_mensajes_epicrisis` | Match, portal del paciente, mensajes, epicrisis |
+| 02h | propuesta | — | Cobros: espera confirmacion de `docs/api/propuesta_02h_cobros.md` |
+
+`02_apis.md` (sin trackear) es una version anterior de la division; la
+vigente es la de esta tabla.
 
 `archivo/02_apis_original.md`: prompt original de API, obsoleto (anterior a
 01b: no conoce app_user, RLS completa, cifrado ni funciones de BD).

@@ -10,7 +10,7 @@
 -- aprovisionamiento de llaves (infra/scripts/llaves/aprovisionar.sh).
 --
 -- Casos 1-17: los 17 del prompt 01. 18-27: prompt 01b. 28-44: prompt 01c.
--- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85+: prompt 01g. 01c redefinio 12, 14 y 27 (aceptar una
+-- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 01c redefinio 12, 14 y 27 (aceptar una
 -- derivacion traspasa el paciente); 01d redefinio 36, 37 y 42 (tipo de
 -- atencion por catalogo, oferta con citas en conflicto, el origen cancela en
 -- SIN_ASIGNAR); 01e redefinio 19 (tablas sin GRANT), 50 (perfil
@@ -2244,6 +2244,146 @@ DO $$ DECLARE n int; BEGIN
   ASSERT (SELECT desactivado_en IS NOT NULL FROM usuarios WHERE id = test.u('a7')), 'caso 85: empieza su gracia';
 END $$;
 
+\echo 86 sesiones: sin GRANT; crear sin contexto solo con cuenta habilitada (activa, rol de la BD); rotacion; reuso revoca la familia; cambio de cuenta revoca
+DO $$ DECLARE r record; BEGIN
+  BEGIN
+    PERFORM 1 FROM sesiones;
+    RAISE EXCEPTION 'caso 86: SELECT directo a sesiones debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM crear_sesion(test.u('b1'), 'PROFESIONAL', sha256('s1'), now() + interval '1 day');
+  BEGIN
+    PERFORM crear_sesion(test.u('a7'), 'ADMIN', sha256('s2'), now() + interval '1 day');
+    RAISE EXCEPTION 'caso 86: cuenta desactivada (caso 85) no abre sesion';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM crear_sesion(test.u('b1'), 'ADMIN', sha256('s3'), now() + interval '1 day');
+    RAISE EXCEPTION 'caso 86: rol distinto al de la BD no abre sesion';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  SELECT * INTO r FROM rotar_sesion(sha256('s1'), sha256('s1b'), now() + interval '1 day');
+  ASSERT r.usuario_id = test.u('b1') AND r.rol = 'PROFESIONAL', 'caso 86: rota';
+  ASSERT NOT EXISTS (SELECT 1 FROM rotar_sesion(sha256('s1'), sha256('s1c'), now() + interval '1 day')),
+    'caso 86: reusar el token rotado -> 0 filas';
+  ASSERT NOT EXISTS (SELECT 1 FROM rotar_sesion(sha256('s1b'), sha256('s1d'), now() + interval '1 day')),
+    'caso 86: el reuso revoco la familia';
+  PERFORM crear_sesion(test.u('b1'), 'PROFESIONAL', sha256('s5'), now() + interval '1 day');
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  UPDATE usuarios SET password_hash = 'h-nueva' WHERE id = test.u('b1');
+  ASSERT NOT EXISTS (SELECT 1 FROM rotar_sesion(sha256('s5'), sha256('s5b'), now() + interval '1 day')),
+    'caso 86: cambiar la contraseña revoca las sesiones';
+END $$;
+
+\echo 87 alertas_internas: solo ADMIN lee y atiende (una vez); escritura solo via funciones
+DO $$ DECLARE v uuid; BEGIN
+  PERFORM alertar_fallo_canario('prueba caso 87');
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM alertas_internas) = 0, 'caso 87: PROFESIONAL no ve alertas';
+  BEGIN
+    INSERT INTO alertas_internas (tipo, detalle) VALUES ('FALLO_CANARIO', 'x');
+    RAISE EXCEPTION 'caso 87: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  SELECT id INTO v FROM alertas_internas WHERE detalle = 'prueba caso 87';
+  ASSERT v IS NOT NULL, 'caso 87: ADMIN ve la alerta';
+  BEGIN
+    UPDATE alertas_internas SET detalle = 'y' WHERE id = v;
+    RAISE EXCEPTION 'caso 87: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM test.ctx('b1', 'PROFESIONAL');
+    PERFORM atender_alerta(v);
+    RAISE EXCEPTION 'caso 87: PROFESIONAL no atiende alertas';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM atender_alerta(v);
+  ASSERT (SELECT atendida_por_id FROM alertas_internas WHERE id = v) = test.u('a1'), 'caso 87: registra quien atiende';
+  BEGIN
+    PERFORM atender_alerta(v);
+    RAISE EXCEPTION 'caso 87: atender dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  ASSERT alertar_bajas_sin_admin() = 0, 'caso 87: sin bajas bloqueadas por falta de ADMIN';
+END $$;
+
+\echo 88 notificaciones: inserta el actor (PENDIENTE, a su nombre); lee el destinatario y ADMIN/GESTION; cierre solo via funcion, una vez
+DO $$ DECLARE v uuid; r record; BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  INSERT INTO notificaciones (tipo, paciente_id, referencia_id, creada_por_id)
+  VALUES ('CITA_CONFIRMADA', test.u('0a'), test.u('0a'), test.u('b1'));
+  BEGIN
+    INSERT INTO notificaciones (tipo, paciente_id, referencia_id, creada_por_id)
+    VALUES ('CITA_CONFIRMADA', test.u('0a'), test.u('0a'), test.u('b2'));
+    RAISE EXCEPTION 'caso 88: insertar a nombre de otro debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO notificaciones (tipo, paciente_id, referencia_id, creada_por_id, estado, procesada_en)
+    VALUES ('CITA_CONFIRMADA', test.u('0a'), test.u('0a'), test.u('b1'), 'ENVIADA', now());
+    RAISE EXCEPTION 'caso 88: insertar ya enviada debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM notificaciones) = 0, 'caso 88: el actor no es destinatario: no la lee';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  SELECT id INTO v FROM notificaciones WHERE paciente_id = test.u('0a');
+  ASSERT v IS NOT NULL, 'caso 88: el paciente destinatario la ve';
+  BEGIN
+    UPDATE notificaciones SET estado = 'ENVIADA' WHERE id = v;
+    RAISE EXCEPTION 'caso 88: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM notificaciones WHERE id = v) = 1, 'caso 88: ADMIN la ve';
+  -- Job (sin contexto): toma la pendiente con el email del destinatario y la cierra.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT * INTO r FROM notificaciones_por_enviar(10) WHERE id = v;
+  ASSERT r.email IS NOT NULL, 'caso 88: el job obtiene el email del destinatario';
+  PERFORM marcar_notificacion(v, true, NULL);
+  BEGIN
+    PERFORM marcar_notificacion(v, false, 'x');
+    RAISE EXCEPTION 'caso 88: cerrar dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
+
+\echo 89 Portal: mensajes solo a su equipo tratante y los lee el destinatario; epicrisis la crea el paciente y la resuelve el tratante o ADMIN
+DO $$ DECLARE v_prof uuid; v_m uuid := gen_random_uuid(); v_s uuid := gen_random_uuid(); BEGIN
+  PERFORM test.ctx('a2', 'PACIENTE');
+  SELECT id INTO v_prof FROM mi_equipo_tratante() LIMIT 1;
+  INSERT INTO mensajes_paciente (id, paciente_id, profesional_id, contenido) VALUES (v_m, test.u('0a'), v_prof, test.cif('hola'));
+  BEGIN
+    INSERT INTO mensajes_paciente (id, paciente_id, profesional_id, contenido)
+    VALUES (gen_random_uuid(), test.u('0a'), test.u('a1'), test.cif('hola'));
+    RAISE EXCEPTION 'caso 89: mensaje fuera del equipo tratante debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO mensajes_paciente (id, paciente_id, profesional_id, contenido) VALUES (gen_random_uuid(), test.u('0a'), v_prof, '\x00');
+    RAISE EXCEPTION 'caso 89: contenido sin cifrar debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO solicitudes_epicrisis (id, paciente_id, motivo) VALUES (v_s, test.u('0a'), test.cif('motivo'));
+  ASSERT (SELECT count(*) FROM mensajes_paciente WHERE id = v_m) = 1, 'caso 89: el paciente ve su mensaje';
+
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM mensajes_paciente) = 0, 'caso 89: ADMIN no lee mensajes';
+  ASSERT (SELECT count(*) FROM solicitudes_epicrisis WHERE id = v_s) = 1, 'caso 89: ADMIN ve la solicitud';
+  BEGIN
+    PERFORM resolver_solicitud_epicrisis(v_s, 'ENTREGADA', NULL);
+    RAISE EXCEPTION 'caso 89: ENTREGADA sin documento debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM resolver_solicitud_epicrisis(v_s, 'ENTREGADA', 'doc.pdf');
+  BEGIN
+    PERFORM resolver_solicitud_epicrisis(v_s, 'RECHAZADA', NULL);
+    RAISE EXCEPTION 'caso 89: resolver una entregada debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+
+  PERFORM set_config('app.current_usuario_id', v_prof::text, true), set_config('app.current_rol', rol_usuario(v_prof), true);
+  ASSERT (SELECT count(*) FROM mensajes_paciente WHERE id = v_m) = 1, 'caso 89: el destinatario lee el mensaje';
+  BEGIN
+    UPDATE mensajes_paciente SET leido_en = now() WHERE id = v_m;
+    RAISE EXCEPTION 'caso 89: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM marcar_mensaje_leido(v_m);
+  BEGIN
+    PERFORM marcar_mensaje_leido(v_m);
+    RAISE EXCEPTION 'caso 89: marcar dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM mensajes_paciente) = 0, 'caso 89: otro profesional no lee mensajes ajenos';
+END $$;
+
 \connect :owner_url
 \set ON_ERROR_STOP 1
 
@@ -2251,7 +2391,8 @@ END $$;
 DO $$ DECLARE t text; BEGIN
   FOREACH t IN ARRAY ARRAY['historial_accesos_practicante', 'supervision_comentarios', 'consentimientos', 'eventos_llaves',
                            'llaves_datos', 'evolucion_intervenciones', 'avisos_consentimiento', 'revisiones_retencion',
-                           'consultas_retencion'] LOOP
+                           'consultas_retencion', 'alertas_internas', 'notificaciones', 'mensajes_paciente',
+                           'solicitudes_epicrisis'] LOOP
     BEGIN
       EXECUTE format('DELETE FROM %I', t);
       RAISE EXCEPTION 'caso 67: DELETE % debio fallar', t;
@@ -2283,7 +2424,7 @@ END $$;
 DO $$ DECLARE c record; n int; BEGIN
   FOR c IN SELECT table_name, column_name FROM information_schema.columns
            WHERE table_schema = 'public' AND data_type = 'bytea' AND column_name NOT LIKE '%hmac'
-             AND table_name NOT IN ('llaves_datos') LOOP
+             AND table_name NOT IN ('llaves_datos', 'sesiones') LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE %I IS NOT NULL AND (get_byte(%I, 0) <> 1 OR octet_length(%I) < 49)',
                    c.table_name, c.column_name, c.column_name, c.column_name) INTO n;
     ASSERT n = 0, format('caso 78: %s.%s con valores sin formato cifrado', c.table_name, c.column_name);

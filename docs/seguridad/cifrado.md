@@ -40,6 +40,9 @@ Par de recuperacion (RSA-OAEP-4096, SHA-256)
 - **Huella de la KEK**: HMAC de la KEK, guardada en `huella_kek`. Si la KEK
   montada no coincide, la API no arranca (falla cerrado).
 
+`sesiones.token_hash` (02a) es bytea pero no es un cifrado: es el SHA-256 del
+refresh token (los tests de "sin texto plano" y de registro la excluyen).
+
 ## Que se cifra y que no
 
 Registro unico: `backend/src/common/crypto/registro.ts`. El runner de tests
@@ -53,6 +56,7 @@ compara ese registro con las columnas bytea reales de la BD.
 | `evoluciones.notas`, `supervision_comentarios.texto`, `derivaciones.motivo`/`detalle` | Contenido clinico en texto libre. |
 | `citas.enlace_online` | Da acceso a una sesion clinica en curso. `citas` conserva su DEFAULT de id: el enlace se genera con la cita ya creada. |
 | Copia de autoria (`evoluciones.autor_*`) y emisor de boletas | Identifican al profesional en documentos de retencion legal. |
+| `mensajes_paciente.contenido`, `solicitudes_epicrisis.motivo` (02g) | Texto libre del paciente: puede traer datos de salud. |
 
 | No se cifra | Por que |
 |---|---|
