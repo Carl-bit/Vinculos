@@ -76,6 +76,16 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   supervisiones_roles_validos: 'El supervisor debe ser un PROFESIONAL activo',
   bajas_validas: 'Baja solo para cuentas de equipo, con fecha efectiva',
   sesiones_valida: 'Sesion invalida',
+  profesional_tipos_atencion_pkey: 'El tipo de atencion ya esta propuesto o asignado',
+  tipos_documento_clinico_nombre_key: 'Ya existe un tipo de documento con ese nombre',
+  envios_documento_adjunto_solicitado: 'El paciente no pidio recibir el documento adjunto: enviar como enlace',
+  pagos_sin_sobrepago: 'El pago supera el saldo de la cita',
+  pagos_monto_positivo: 'El monto del pago debe ser positivo',
+  pagos_anulacion_coherente: 'Anular un pago exige motivo',
+  resoluciones_cita_coherente: 'El traslado exige una cita nueva confirmada del mismo paciente',
+  liquidaciones_coherente: 'La liquidacion es de un PROFESIONAL y un periodo valido',
+  liquidaciones_sin_solape: 'Ya hay una liquidacion del profesional que se solapa con ese periodo',
+  citas_monto_inmutable: 'El monto de la cita no se modifica',
 };
 
 /**
@@ -103,6 +113,13 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/Rango invalido \(maximo 62 dias\)/, 'disponibilidad_publica_rango'],
   [/PURGAR solo/, 'revisiones_retencion_plazo'],
   [/requiere consentimiento informado vigente/, 'pacientes_practicante_requiere_consentimiento'],
+  [/supera el saldo/, 'pagos_sin_sobrepago'],
+  [/monto del pago debe ser positivo/, 'pagos_monto_positivo'],
+  [/Anular exige motivo/, 'pagos_anulacion_coherente'],
+  [/Adjunto sin solicitud explicita/, 'envios_documento_adjunto_solicitado'],
+  [/Traslado: indicar una cita nueva/, 'resoluciones_cita_coherente'],
+  [/Liquidacion: un PROFESIONAL/, 'liquidaciones_coherente'],
+  [/monto de la cita es inmutable/, 'citas_monto_inmutable'],
 ];
 
 function restriccionDeMensaje(mensaje: string | undefined): string | undefined {

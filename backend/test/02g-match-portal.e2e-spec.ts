@@ -118,10 +118,12 @@ describe('02g match y portal', () => {
       }
     });
 
-    it('datos de pago: solo con cobro directo y cita confirmada sin pago (descifrados, auditado)', async () => {
+    it('datos de pago: solo con cobro directo y cita confirmada con saldo (descifrados, auditado)', async () => {
       const cuerpo = String(randomInt(10_000_000, 20_000_000));
       await t.http().put('/api/profesionales/yo/datos-privados').set(await tk(tratante)).send({ rut: `${cuerpo}-${dvRut(cuerpo)}`, banco: 'BCI', tipoCuenta: 'CORRIENTE', numeroCuenta: '555666777', titular: 'Tratante' });
       await t.datos.disponibleSiempre(tratante.id);
+      // 02h: "pago pendiente" = saldo > 0; el monto sale de la tarifa vigente al confirmar.
+      await t.http().post('/api/profesionales/yo/tarifas').set(await tk(tratante)).send({ monto: 30000 });
       const inicio = new Date(Date.now() + 4 * DIA);
       inicio.setUTCHours(15, 0, 0, 0);
       const cita = await t.http().post('/api/citas').set(await tk(gestion)).send({ pacienteId: paciente.pacienteId, profesionalId: tratante.id, modalidad: 'ONLINE', inicio: inicio.toISOString(), fin: new Date(inicio.getTime() + 3_600_000).toISOString() });

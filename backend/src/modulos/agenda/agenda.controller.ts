@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 
-import { Roles } from '../../core/auth/decoradores';
+import { Publico, Roles } from '../../core/auth/decoradores';
 import { AgendaService } from './agenda.service';
 import { CitasService } from './citas.service';
+import { IntegracionesAgendaService } from './integraciones-agenda.service';
 import {
   CrearBloqueoAgendaDto,
   CrearCitaDto,
@@ -13,6 +15,7 @@ import {
   HorarioDto,
   RangoDto,
   ReprogramarCitaDto,
+  SalaDto,
 } from './dto/agenda.dto';
 
 const Uuid = new ParseUUIDPipe();
@@ -182,5 +185,46 @@ export class CitasController {
   @Roles(...TODOS)
   enlace(@Param('id', Uuid) id: string) {
     return this.citas.enlace(id);
+  }
+}
+
+/** Sala de videollamada y feed iCal: cada profesional o practicante los suyos (02h). */
+@Controller('profesionales/yo')
+export class IntegracionesAgendaController {
+  constructor(private readonly integraciones: IntegracionesAgendaService) {}
+
+  @Get('videollamada')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  sala() {
+    return this.integraciones.miSala();
+  }
+
+  @Put('videollamada')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  guardarSala(@Body() dto: SalaDto) {
+    return this.integraciones.guardarMiSala(dto);
+  }
+
+  /** Genera (o regenera) el token del feed: la URL se muestra una sola vez. */
+  @Post('calendario')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  regenerarFeed() {
+    return this.integraciones.regenerarFeed();
+  }
+}
+
+/** Feed iCal privado: sin sesion, el token de la URL autoriza (rate limit publico). */
+@Controller('calendario')
+@Publico()
+@UseGuards(ThrottlerGuard)
+@SkipThrottle({ login: true })
+export class CalendarioPublicoController {
+  constructor(private readonly integraciones: IntegracionesAgendaService) {}
+
+  @Get(':token')
+  @Header('Content-Type', 'text/calendar; charset=utf-8')
+  @Header('Cache-Control', 'private, no-store')
+  feed(@Param('token') token: string) {
+    return this.integraciones.feed(token);
   }
 }

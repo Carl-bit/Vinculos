@@ -41,6 +41,10 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   // 02g: portal del paciente (texto libre del paciente: puede traer datos de salud).
   { modelo: 'MensajePaciente', campo: 'contenido', tabla: 'mensajes_paciente', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
   { modelo: 'SolicitudEpicrisis', campo: 'motivo', tabla: 'solicitudes_epicrisis', columna: 'motivo', categoria: 'CLINICO', id: 'id' },
+  // 02h: documentos clinicos (archivo y enlace con token) y sala de videollamada propia.
+  { modelo: 'DocumentoClinico', campo: 'contenido', tabla: 'documentos_clinicos', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'EnvioDocumento', campo: 'enlace', tabla: 'envios_documento', columna: 'enlace', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'SalaVideollamada', campo: 'enlace', tabla: 'salas_videollamada', columna: 'enlace', categoria: 'IDENTIFICACION', id: 'usuario_id' },
 ];
 
 export function campoCifrado(modelo: string, campo: string): CampoCifrado | undefined {

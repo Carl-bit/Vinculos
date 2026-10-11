@@ -17,7 +17,9 @@ import { validarEntorno } from './config/entorno';
 import { CryptoModule } from './crypto/crypto.module';
 import { FiltroErrores } from './errores/filtro-errores';
 import { JobsService } from './jobs/jobs.service';
-import { ProveedorCorreo, ProveedorCorreoSimulado } from './notificaciones/correo';
+import { CalendarioIcs, ProveedorCalendario } from './integraciones/calendario';
+import { ProveedorVideollamada, ProveedorVideollamadaPorProfesional, ProveedorVideollamadaSimulado } from './integraciones/videollamada';
+import { ProveedorCorreo, ProveedorCorreoSimulado, ProveedorCorreoSmtp } from './notificaciones/correo';
 import { NotificacionesController } from './notificaciones/notificaciones.controller';
 import { NotificacionesService } from './notificaciones/notificaciones.service';
 import { idSolicitud, opcionesLogger } from './logs/logs';
@@ -82,13 +84,31 @@ export class CoreModule {
         AuthService,
         JobsService,
         NotificacionesService,
-        { provide: ProveedorCorreo, useClass: ProveedorCorreoSimulado },
+        // Integraciones: los modulos dependen solo de las interfaces; la
+        // implementacion se elige aqui por configuracion (integraciones.md).
+        {
+          provide: ProveedorCorreo,
+          inject: [ConfigService],
+          useFactory: (config: ConfigService) => {
+            const url = config.get<string>('SMTP_URL');
+            return url ? new ProveedorCorreoSmtp(url, config.getOrThrow<string>('CORREO_REMITENTE')) : new ProveedorCorreoSimulado();
+          },
+        },
+        {
+          provide: ProveedorVideollamada,
+          inject: [ConfigService],
+          useFactory: (config: ConfigService) =>
+            config.get<boolean>('VIDEOLLAMADA_SIMULADA')
+              ? new ProveedorVideollamadaSimulado()
+              : new ProveedorVideollamadaPorProfesional(config.get<boolean>('JITSI_HABILITADO') ?? false, config.getOrThrow<string>('JITSI_URL_BASE')),
+        },
+        { provide: ProveedorCalendario, useClass: CalendarioIcs },
         { provide: APP_GUARD, useClass: JwtGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
         { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
         { provide: APP_FILTER, useClass: FiltroErrores },
       ],
-      exports: [JobsService, NotificacionesService, ProveedorCorreo],
+      exports: [JobsService, NotificacionesService, ProveedorCorreo, ProveedorVideollamada, ProveedorCalendario],
     };
   }
 }

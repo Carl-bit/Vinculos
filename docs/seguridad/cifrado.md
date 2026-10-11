@@ -57,6 +57,9 @@ compara ese registro con las columnas bytea reales de la BD.
 | `citas.enlace_online` | Da acceso a una sesion clinica en curso. `citas` conserva su DEFAULT de id: el enlace se genera con la cita ya creada. |
 | Copia de autoria (`evoluciones.autor_*`) y emisor de boletas | Identifican al profesional en documentos de retencion legal. |
 | `mensajes_paciente.contenido`, `solicitudes_epicrisis.motivo` (02g) | Texto libre del paciente: puede traer datos de salud. |
+| `documentos_clinicos.contenido` (02h, CLINICO) | Archivo emitido por el tratante (epicrisis, receta...). Id generado por la API. |
+| `envios_documento.enlace` (02h, CLINICO) | URL con el token de descarga, solo para el job de correo. Para validar la descarga se guarda aparte su SHA-256 (`token_hash`, texto). |
+| `salas_videollamada.enlace` (02h, IDENTIFICACION) | Sala fija del profesional: da acceso a sus sesiones. Id de fila = `usuario_id`. |
 
 | No se cifra | Por que |
 |---|---|
@@ -65,6 +68,8 @@ compara ese registro con las columnas bytea reales de la BD.
 | Ids, catalogos (tipos de atencion, intervenciones, estados de avance) | Claves y datos sin personas. |
 | `nombre` | Se ordena y se busca; sin RUT ni contacto, solo identifica dentro del centro. |
 | `email` de login | Se busca en el login (`credenciales_login`); es la llave de acceso. |
+| Montos, pagos, liquidaciones (02h) | La BD calcula saldos, sobrepago y liquidaciones con ellos. Lo sensible del cobro (datos bancarios, emisor de la boleta) si va cifrado. |
+| `feeds_calendario.token_hash`, `envios_documento.token_hash` (02h) | SHA-256 de un token aleatorio de 256 bits: no revela el token; se busca por igualdad. |
 | Direcciones | Hoy no existen columnas de direccion; cuando se agreguen, van cifradas. |
 
 ## Modelo de amenazas

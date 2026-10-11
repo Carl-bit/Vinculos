@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { OnEvent } from '@nestjs/event-emitter';
-import type { TipoNotificacion } from '@prisma/client';
+import type { EstadoCita, ModalidadAtencion, TipoNotificacion } from '@prisma/client';
 
 import { ContextoBd } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
 import { EVENTOS, type CitaCancelada, type CitaConfirmada, type CitaReprogramada, type NotificacionSolicitada } from '../eventos/eventos';
+import { eventoDeCita, ProveedorCalendario } from '../integraciones/calendario';
 import { JobsService, type ResultadoJob } from '../jobs/jobs.service';
-import { ProveedorCorreo } from './correo';
+import { type Adjunto, type Correo, ProveedorCorreo } from './correo';
 
 const ASUNTOS: Record<TipoNotificacion, string> = {
   CITA_CONFIRMADA: 'Cita confirmada',
@@ -18,14 +19,44 @@ const ASUNTOS: Record<TipoNotificacion, string> = {
   AVISO_CAMBIO_SUPERVISOR: 'Aviso: cambio de supervisor',
   DERIVACION_OFRECIDA: 'Nueva oferta de derivacion',
   MENSAJE_PACIENTE: 'Nuevo mensaje de un paciente',
+  DOCUMENTO_CLINICO: 'Documento disponible',
+  DERIVACION_ACTUALIZADA: 'Cambios en una derivacion',
 };
 
+interface Pendiente {
+  id: string;
+  tipo: TipoNotificacion;
+  referencia_id: string;
+  email: string | null;
+  enlace: Uint8Array | null;
+  adjunto: Uint8Array | null;
+  datos: {
+    centro: string;
+    inicio?: string;
+    fin?: string;
+    modalidad?: ModalidadAtencion;
+    estado?: EstadoCita;
+    espacio?: string | null;
+    documento_id?: string;
+    nombre_archivo?: string;
+    tipo_mime?: string;
+    modo?: 'ENLACE' | 'ADJUNTO';
+    expira_en?: string;
+  };
+}
+
 /**
- * Notificaciones (02f). Escucha los eventos de dominio (despues del COMMIT)
- * y registra cada aviso en `notificaciones` (PENDIENTE) con el contexto del
- * actor. El job de envio (sin contexto, con advisory lock) toma las
- * pendientes, envia por la interfaz de correo y las cierra. Nunca loguea
- * emails ni enlaces.
+ * Notificaciones (02f, 02h). Escucha los eventos de dominio (despues del
+ * COMMIT) y registra cada aviso en `notificaciones` (PENDIENTE) con el
+ * contexto del actor; los avisos de derivacion los registra la BD (triggers).
+ * El job de envio (sin contexto, con advisory lock) toma las pendientes,
+ * envia por la interfaz de correo con el nombre del centro como remitente y
+ * las cierra. Nunca loguea emails, enlaces ni contenido.
+ *
+ * Contenido: los correos avisan y remiten al portal. Excepciones: el enlace
+ * de videollamada, el .ics de la cita (solo "Sesion", modalidad, horario y
+ * enlace o box) y los documentos clinicos emitidos (enlace que expira y exige
+ * iniciar sesion; adjunto solo si el paciente lo pidio).
  */
 @Injectable()
 export class NotificacionesService {
@@ -36,6 +67,7 @@ export class NotificacionesService {
     private readonly jobs: JobsService,
     private readonly llavero: LlaveroService,
     private readonly correo: ProveedorCorreo,
+    private readonly calendario: ProveedorCalendario,
   ) {}
 
   @OnEvent(EVENTOS.CITA_CONFIRMADA)
@@ -78,8 +110,8 @@ export class NotificacionesService {
   @Cron(CronExpression.EVERY_MINUTE, { name: 'enviar_notificaciones' })
   enviarPendientes(): Promise<ResultadoJob> {
     return this.jobs.conLock('enviar_notificaciones', async (tx) => {
-      const pendientes = await tx.$queryRaw<{ id: string; tipo: TipoNotificacion; referencia_id: string; email: string | null; enlace: Uint8Array | null }[]>`
-        SELECT id, tipo, referencia_id, email, enlace FROM notificaciones_por_enviar(50)`;
+      const pendientes = await tx.$queryRaw<Pendiente[]>`
+        SELECT id, tipo, referencia_id, email, enlace, adjunto, datos FROM notificaciones_por_enviar(50)`;
       let enviadas = 0;
       for (const n of pendientes) {
         let error: string | null = null;
@@ -87,7 +119,7 @@ export class NotificacionesService {
           error = 'destinatario sin email';
         } else {
           try {
-            await this.correo.enviar({ para: n.email, asunto: ASUNTOS[n.tipo], texto: this.texto(n) });
+            await this.correo.enviar(this.armar(n, n.email));
           } catch {
             error = 'fallo el envio';
           }
@@ -102,11 +134,65 @@ export class NotificacionesService {
     });
   }
 
-  private texto(n: { tipo: TipoNotificacion; referencia_id: string; enlace: Uint8Array | null }): string {
-    if (n.tipo === 'ENLACE_ONLINE' && n.enlace) {
-      const { url } = JSON.parse(this.llavero.descifrarCampo(n.enlace, 'citas', 'enlace_online', n.referencia_id)!) as { url: string };
-      return `Enlace de su sesion online: ${url}\nNo comparta este enlace.`;
+  private armar(n: Pendiente, para: string): Correo {
+    const base = { para, asunto: ASUNTOS[n.tipo], remitente: n.datos.centro };
+    const portal = 'Revise el detalle en el portal del centro.';
+    switch (n.tipo) {
+      case 'ENLACE_ONLINE':
+        if (n.enlace) {
+          return { ...base, texto: `Enlace de su sesion online: ${this.enlaceCita(n)}\nNo comparta este enlace.` };
+        }
+        break;
+      case 'CITA_CONFIRMADA':
+      case 'CITA_REPROGRAMADA':
+        return { ...base, texto: `${ASUNTOS[n.tipo]}. ${portal}`, adjuntos: n.datos.inicio ? [this.ics(n)] : [] };
+      case 'DOCUMENTO_CLINICO':
+        return this.documento(n, base);
+      case 'DERIVACION_OFRECIDA':
+        // Solo que tiene una oferta: nunca la lista, el orden ni quien rechazo.
+        return { ...base, texto: 'Tiene una nueva oferta de derivacion. Revisela en el sistema antes de que venza.' };
+      case 'DERIVACION_ACTUALIZADA':
+        return { ...base, texto: 'Una derivacion que usted origino cambio de estado. Revise el detalle en el sistema.' };
     }
-    return `${ASUNTOS[n.tipo]}. Revise el detalle en el portal del centro.`;
+    return { ...base, texto: `${ASUNTOS[n.tipo]}. ${portal}` };
+  }
+
+  private enlaceCita(n: Pendiente): string {
+    const { url } = JSON.parse(this.llavero.descifrarCampo(n.enlace, 'citas', 'enlace_online', n.referencia_id)!) as { url: string };
+    return url;
+  }
+
+  /** .ics con la misma regla de contenido que el feed (eventoDeCita). */
+  private ics(n: Pendiente): Adjunto {
+    const d = n.datos;
+    const evento = eventoDeCita({
+      id: n.referencia_id,
+      inicio: new Date(d.inicio!),
+      fin: new Date(d.fin!),
+      modalidad: d.modalidad!,
+      estado: d.estado!,
+      espacio: d.espacio ?? null,
+      enlace: n.enlace ? this.enlaceCita(n) : null,
+    });
+    return { nombre: 'sesion.ics', tipo: 'text/calendar; charset=utf-8', contenido: Buffer.from(this.calendario.calendario(d.centro, [evento]), 'utf8') };
+  }
+
+  /** Documento emitido: enlace que expira y exige iniciar sesion, o adjunto pedido por el paciente. */
+  private documento(n: Pendiente, base: Omit<Correo, 'texto'>): Correo {
+    const d = n.datos;
+    if (d.modo === 'ADJUNTO' && n.adjunto) {
+      const base64 = this.llavero.descifrarCampo(n.adjunto, 'documentos_clinicos', 'contenido', d.documento_id!)!;
+      return {
+        ...base,
+        texto: 'Adjuntamos el documento que solicito. Tambien esta disponible en el portal del centro.',
+        adjuntos: [{ nombre: d.nombre_archivo!, tipo: d.tipo_mime!, contenido: Buffer.from(base64, 'base64') }],
+      };
+    }
+    const url = this.llavero.descifrarCampo(n.enlace, 'envios_documento', 'enlace', n.referencia_id)!;
+    const vence = new Date(d.expira_en!).toLocaleString('es-CL', { timeZone: 'America/Santiago' });
+    return {
+      ...base,
+      texto: `Tiene un documento disponible: ${url}\nPara descargarlo debe iniciar sesion. El enlace vence el ${vence}.\nNo comparta este enlace.`,
+    };
   }
 }

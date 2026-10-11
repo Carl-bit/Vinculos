@@ -1,7 +1,10 @@
 # Propuesta 02h: definicion de "pago pendiente" y cambios de BD
 
-Estado: **propuesta, esperando confirmacion** (el prompt 02h pide detenerse
-aqui). Nada de esto esta implementado.
+Estado: **superada** (registro historico). La version implementada (prompt
+02h) cambio respuestas: el monto es inmutable (sin `ajustes_monto_cita`), hay
+una sola boleta al quedar pagada, la cancelacion tardia y la inasistencia si
+cobran segun `configuracion_centro`, y la liquidacion entra en 02h. Ver
+`estado_fase_api.md` (decisiones de 02h) y `requisitos_02_apis.md` 6.
 
 ## Hoy
 

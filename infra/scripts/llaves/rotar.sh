@@ -14,10 +14,13 @@
 #   rotar.sh custodios           par de recuperacion nuevo y 3 partes nuevas
 #                                (cambio de custodio). Las partes viejas no sirven.
 #   rotar.sh hmac-compromiso     fase 1 de una DEK HMAC nueva. SOLO ante
-#                                compromiso: exige recalcular todos los rut_hmac
-#                                (runbook de compromiso) al activarla.
-#   rotar.sh recalcular-hmac     recalcula todos los rut_hmac con la HMAC activa
-#                                (job manual, runbook de compromiso 5.3).
+#                                compromiso (runbook 5.5), con la API detenida:
+#                                hmac-compromiso -> recalcular-hmac -> activar
+#                                -> verificar-hmac. Nunca desde el contenedor de la API.
+#   rotar.sh recalcular-hmac     recalcula todos los rut_hmac con la HMAC nueva
+#                                aun pendiente (o la activa si no hay pendiente).
+#   rotar.sh verificar-hmac      despues de activar: cada rut_hmac coincide con
+#                                la HMAC activa y no hay indices repetidos.
 #
 # Uso: CLIENTE_SLUG=... [MODO=docker] sh infra/scripts/llaves/rotar.sh <fase>
 . "$(dirname "$0")/comun.sh"
@@ -31,8 +34,11 @@ case "${1:-}" in
     cli rotar-crear --kek "$D/kek" --publica "$D/recuperacion.pub" --categorias HMAC --compromiso-hmac si --actor "$ACTOR"
     ;;
   recalcular-hmac)
-    # Runbook de compromiso 5.3: despues de hmac-compromiso + activar.
+    # Runbook de compromiso 5.5: despues de hmac-compromiso y antes de activar.
     cli recalcular-hmac --kek "$D/kek" --actor "$ACTOR"
+    ;;
+  verificar-hmac)
+    cli verificar-hmac --kek "$D/kek" --actor "$ACTOR"
     ;;
   activar)
     cli rotar-activar --kek "$D/kek" --actor "$ACTOR"
@@ -52,7 +58,7 @@ case "${1:-}" in
     echo "Entregar partes_entregar_$STAMP/ a los custodios nuevos y borrarla de este equipo."
     ;;
   *)
-    echo "Uso: rotar.sh crear [CATEGORIAS] | activar | kek | custodios | hmac-compromiso | recalcular-hmac" >&2
+    echo "Uso: rotar.sh crear [CATEGORIAS] | activar | kek | custodios | hmac-compromiso | recalcular-hmac | verificar-hmac" >&2
     exit 1
     ;;
 esac

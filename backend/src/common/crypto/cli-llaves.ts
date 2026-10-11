@@ -12,7 +12,8 @@
  *   verificar     (--kek F | --parte F --parte F) [--actor A --registrar SIMULACRO|VERIFICACION]
  *   cambiar-custodios --kek F --publica F --partes DIR --custodios "..." --actor A
  *   registrar     --tipo SIMULACRO|COMPROMISO|... --detalle TEXTO --actor A
- *   recalcular-hmac --kek F [--lote N] --actor A   (runbook de compromiso, paso 5.3)
+ *   recalcular-hmac --kek F [--lote N] --actor A   (runbook de compromiso: con la HMAC nueva aun pendiente)
+ *   verificar-hmac  --kek F --actor A              (despues de activar: busqueda y repetidos)
  *
  * Archivos nuevos se crean con flag 'wx': nunca se sobrescribe una llave.
  */
@@ -34,7 +35,7 @@ import {
   rotarRecuperacion,
   verificar,
 } from './contingencia';
-import { recalcularRutHmac } from './recalculo-hmac';
+import { filasParaRecalculo, recalcularRutHmac, verificarRutHmac } from './recalculo-hmac';
 
 const logger = new Logger('Llaves');
 
@@ -230,15 +231,31 @@ async function main(): Promise<void> {
         logger.log('Par de recuperacion nuevo. Entregar las partes nuevas; las anteriores ya no sirven (destruirlas).');
         break;
       case 'recalcular-hmac': {
-        const llavero = Llavero.cargar(leerKek(uno(args, 'kek')), await almacen.listar());
+        const filas = filasParaRecalculo(await almacen.listar());
+        const hmac = filas.find((f) => f.categoria === 'HMAC' && f.activa)!;
+        const llavero = Llavero.cargar(leerKek(uno(args, 'kek')), filas);
         const resultados = await recalcularRutHmac(prisma, llavero, Number(args.get('lote')?.[0] ?? 500));
-        for (const r of resultados) {
-          logger.log(`${r.tabla}: ${r.actualizadas}/${r.conRut} rut_hmac recalculados`);
-        }
+        const resumen = resultados.map((r) => `${r.tabla} ${r.actualizadas}/${r.conRut}`).join(', ');
+        logger.log(`rut_hmac recalculados con HMAC v${hmac.version}: ${resumen}`);
         const duplicados = resultados.flatMap((r) => r.duplicados.map((id) => `${r.tabla}:${id}`));
+        await almacen.evento('ROTACION', `recalculo rut_hmac con HMAC v${hmac.version}: ${resumen}; duplicados ${duplicados.length}`, actor);
         if (duplicados.length) {
           throw new ErrorCifrado(`RUT duplicados (resolver a mano y volver a correr): ${duplicados.join(', ')}`);
         }
+        break;
+      }
+      case 'verificar-hmac': {
+        const filas = await almacen.listar();
+        const llavero = Llavero.cargar(leerKek(uno(args, 'kek')), filas);
+        const resultados = await verificarRutHmac(prisma, llavero);
+        const resumen = resultados.map((r) => `${r.tabla} ${r.coinciden}/${r.conRut} (repetidos ${r.repetidos})`).join(', ');
+        const fallos = resultados.filter((r) => r.coinciden !== r.conRut || (r.tabla !== 'adultos_responsables' && r.repetidos > 0));
+        const version = filas.find((f) => f.categoria === 'HMAC' && f.activa)!.version;
+        await almacen.evento(fallos.length ? 'FALLO_CANARIO' : 'VERIFICACION', `rut_hmac con HMAC v${version}: ${resumen}`, actor);
+        if (fallos.length) {
+          throw new ErrorCifrado(`rut_hmac no verifica: ${resumen}`);
+        }
+        logger.log(`rut_hmac OK con HMAC v${version}: ${resumen}`);
         break;
       }
       case 'registrar':

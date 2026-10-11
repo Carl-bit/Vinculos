@@ -253,6 +253,17 @@ export class AsignarTiposAtencionDto {
   tipoAtencionIds!: string[];
 }
 
+export class ProponerTipoAtencionDto {
+  @IsUUID()
+  tipoAtencionId!: string;
+}
+
+/** ADMIN decide una propuesta (PROPUESTO -> APROBADO | RECHAZADO). */
+export class RevisarTipoAtencionDto {
+  @IsIn(['APROBADO', 'RECHAZADO'])
+  estado!: 'APROBADO' | 'RECHAZADO';
+}
+
 export class CambiarSupervisorDto {
   @IsUUID()
   supervisorId!: string;

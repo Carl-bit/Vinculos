@@ -81,6 +81,12 @@ services:
       LOGIN_LIMITE_POR_MINUTO: ${LOGIN_LIMITE_POR_MINUTO:-10}
       PUBLICO_LIMITE_POR_MINUTO: ${PUBLICO_LIMITE_POR_MINUTO:-60}
       BLOQUEO_TEMPORAL_TTL_SEGUNDOS: ${BLOQUEO_TEMPORAL_TTL_SEGUNDOS:-300}
+      # Integraciones (docs/api/integraciones.md): SMTP de la plataforma, Jitsi opcional.
+      SMTP_URL: ${SMTP_URL:-}
+      CORREO_REMITENTE: ${CORREO_REMITENTE:-no-responder@vinculos.cl}
+      JITSI_HABILITADO: ${JITSI_HABILITADO:-false}
+      JITSI_URL_BASE: ${JITSI_URL_BASE:-https://meet.jit.si}
+      DOCUMENTO_ENLACE_HORAS: ${DOCUMENTO_ENLACE_HORAS:-72}
       # Archivo, nunca variable de entorno con la llave.
       KEK_PATH: /run/secrets/vinculos_kek
       RECUPERACION_PUBLICA_PATH: /recuperacion.pub

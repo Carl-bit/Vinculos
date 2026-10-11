@@ -33,6 +33,9 @@ export function prepararEntorno(extra: Record<string, string> = {}) {
     PUBLICO_LIMITE_POR_MINUTO: '10000',
     LOG_LEVEL: 'info',
     FRONTEND_URL: 'http://localhost:3000',
+    // Integraciones simuladas por defecto en tests (02h).
+    VIDEOLLAMADA_SIMULADA: 'true',
+    SMTP_URL: '',
     ...extra,
   });
   delete process.env.MIGRATION_DATABASE_URL;

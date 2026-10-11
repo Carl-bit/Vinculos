@@ -1,9 +1,10 @@
-import { DecisionRetencion, EstadoTipoSesion, NivelRiesgo } from '@prisma/client';
+import { DecisionRetencion, EstadoTipoSesion, ModoEnvioDocumento, NivelRiesgo } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
+  IsBase64,
   IsBoolean,
   IsDate,
   IsEmail,
@@ -209,4 +210,54 @@ export class RevisionRetencionDto {
   @IsString()
   @Length(3, 2000)
   motivo!: string;
+}
+
+export class TipoDocumentoDto {
+  @Recortar()
+  @IsString()
+  @Length(2, 80)
+  nombre!: string;
+}
+
+export class EditarTipoDocumentoDto {
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(2, 80)
+  nombre?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  activo?: boolean;
+}
+
+export const TIPOS_MIME_DOCUMENTO = ['application/pdf', 'image/png', 'image/jpeg'] as const;
+
+/** Documento emitido por el tratante. El archivo va en base64 (max. ~5 MB) y se guarda cifrado. */
+export class EmitirDocumentoDto {
+  @IsUUID()
+  pacienteId!: string;
+
+  @IsUUID()
+  tipoDocumentoId!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(1, 120)
+  @Matches(/^[\w\- .()áéíóúñÁÉÍÓÚÑ]+$/, { message: 'nombreArchivo con caracteres no permitidos' })
+  nombreArchivo!: string;
+
+  @IsIn(TIPOS_MIME_DOCUMENTO)
+  tipoMime!: (typeof TIPOS_MIME_DOCUMENTO)[number];
+
+  @IsBase64()
+  @MaxLength(7_000_000)
+  contenido!: string;
+}
+
+/** ENLACE (por defecto): expira y exige iniciar sesion. ADJUNTO: solo si el paciente lo pidio. */
+export class EnviarDocumentoDto {
+  @IsOptional()
+  @IsEnum(ModoEnvioDocumento)
+  modo?: ModoEnvioDocumento;
 }

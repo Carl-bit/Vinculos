@@ -2,12 +2,20 @@ import { Module } from '@nestjs/common';
 
 import { CatalogosRetencionService } from './catalogos-retencion.service';
 import { EvolucionesService } from './evoluciones.service';
-import { CatalogosClinicosController, EvolucionesController, PacientesController, RetencionController } from './fichas.controller';
+import { DocumentosService } from './documentos.service';
+import {
+  CatalogosClinicosController,
+  DocumentosController,
+  EvolucionesController,
+  PacientesController,
+  RetencionController,
+  TiposDocumentoController,
+} from './fichas.controller';
 import { PacientesService } from './pacientes.service';
 
-/** Fichas y Pacientes (02c). Depende solo del Nucleo (core). */
+/** Fichas y Pacientes (02c; documentos clinicos 02h). Depende solo del Nucleo (core). */
 @Module({
-  controllers: [PacientesController, EvolucionesController, CatalogosClinicosController, RetencionController],
-  providers: [PacientesService, EvolucionesService, CatalogosRetencionService],
+  controllers: [PacientesController, EvolucionesController, CatalogosClinicosController, RetencionController, TiposDocumentoController, DocumentosController],
+  providers: [PacientesService, EvolucionesService, CatalogosRetencionService, DocumentosService],
 })
 export class FichasModule {}

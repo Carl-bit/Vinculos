@@ -4,8 +4,8 @@ Generada a partir del catalogo real (`has_table_privilege`,
 `information_schema.column_privileges`, `pg_policies`,
 `information_schema.triggers`, `pg_proc`) despues de aplicar las migraciones
 hasta `20261011000000_cierre_fase_bd` (cierre de la fase de BD), mas las de la fase de API:
-`20261012000000_api_sesiones_alertas` (02a), `20261013000000_notificaciones` (02f) y
-`20261014000000_portal_mensajes_epicrisis` (02g). Fuente para los guards
+`20261012000000_api_sesiones_alertas` (02a), `20261013000000_notificaciones` (02f),
+`20261014000000_portal_mensajes_epicrisis` (02g) y `20261015000000_ajustes_y_cobros` (02h). Fuente para los guards
 del prompt 02 y para la tesis. Si una migracion cambia GRANTs, politicas,
 triggers o funciones, esta matriz se actualiza en el mismo cambio. Cada fila
 tiene al menos un caso en `backend/prisma/tests/seguridad_bd.sql`.
@@ -72,8 +72,9 @@ conformidad tacita a las 48 h es configurable (`plazo_oposicion_horas`) y
 queda pendiente de validacion legal (`consentimiento.md`); el margen entre dos
 citas con margenes distintos es el promedio; una baja que dejaria al centro
 sin ADMIN queda pendiente y la API alerta; el recalculo de `rut_hmac` ante
-compromiso es un job manual de la API (runbook); reactivar un practicante
-son dos pasos que la UI une.
+compromiso es un comando de mantencion del operador en un contenedor puntual,
+nunca en el de la API (runbook 5.5); reactivar un practicante son dos pasos
+que la UI une.
 
 **Bandeja del supervisor (minimo necesario)**: `derivaciones_pendientes()`
 entrega motivo, edad y tipo de atencion de todas las derivaciones pendientes
@@ -173,7 +174,10 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | PRACTICANTE / supervisor vigente | `practicantes` | SELECT | la propia / las de sus practicantes | `practicantes_select` |
 | B | todos (autenticados) | `tipos_atencion`, `profesional_tipos_atencion` | SELECT | todas | GRANT + `*_select` (`USING true`) |
 | B | ADMIN | `tipos_atencion` | INSERT, UPDATE | todas; nunca DELETE (se desactiva) | GRANT + `tipos_atencion_insert` / `_update` |
-| B | ADMIN | `profesional_tipos_atencion` | INSERT, DELETE | todas | GRANT + `profesional_tipos_atencion_insert` / `_delete` |
+| B | ADMIN | `profesional_tipos_atencion` | INSERT, DELETE | todas (ADMIN fija la lista aprobada) | GRANT + `profesional_tipos_atencion_insert` / `_delete` |
+| B | PROFESIONAL | `profesional_tipos_atencion` | INSERT | propias; siempre PROPUESTO (02h) | GRANT + `profesional_tipos_atencion_insert` + trigger `profesional_tipos_atencion_protegidos` |
+| B | ADMIN | `profesional_tipos_atencion` | UPDATE (`estado`) | aprobar o rechazar; registra `revisado_por`/`revisado_en`; otro rol: 0 filas | GRANT por columna + `profesional_tipos_atencion_update` + trigger |
+| B | todos | `profesional_tipos_atencion` | lectura publica | solo APROBADOS cuentan en `perfiles_publicos()` (match) y `directorio_interno()` (candidatos de derivacion) | funciones |
 | B | todos (autenticados) | `espacios` | SELECT | todos | GRANT + `espacios_select` |
 | B | ADMIN / GESTION | `espacios` | INSERT, UPDATE | todos; nunca DELETE (se desactiva) | GRANT + `espacios_insert` / `_update` |
 | B | todos (autenticados) / ADMIN | `intervenciones`, `estados_avance` | SELECT / INSERT, UPDATE | todas; nunca DELETE (se desactiva) | GRANT + `*_select` / `*_insert` / `*_update` |
@@ -190,11 +194,22 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A+C | todos | `citas` | INSERT, UPDATE | paciente menor exige adulto responsable | trigger `citas_menor_requiere_adulto_responsable` (23514) |
 | A+C | todos | `citas` | DELETE | ninguna (cancelar = `estado`) | sin GRANT |
 | A+C | todos (autenticados) | `citas` (ocupacion) | lectura | espacio, inicio, fin de toda cita CONFIRMADA + bloqueos activos | `ocupacion_espacios(desde, hasta)` |
-| A | ADMIN / GESTION | `pagos`, `boletas` | SELECT, INSERT, UPDATE | todos | GRANT + `pagos_*` / `boletas_*` |
+| A | ADMIN / GESTION | `pagos`, `boletas` | SELECT | todos | GRANT + `pagos_select` / `boletas_select` |
+| A | todos | `pagos`, `boletas` | INSERT, UPDATE | ninguna directa (02h): `registrar_pago`, `anular_pago`, `resolver_cita`, `emitir_boleta` | sin GRANT de escritura |
+| A | todos (incluso dueño) | `pagos` | UPDATE, DELETE | solo anular una vez (REGISTRADO -> ANULADO con motivo); nunca DELETE | trigger `pagos_append_only` (23001) + CHECK `pagos_anulacion_coherente` |
+| A | todos (incluso dueño) | `boletas` | UPDATE, DELETE | solo `pdf_url` de nulo a generado; una por cita | trigger `boletas_append_only` (23001) + UNIQUE `cita_id` |
 | A | PROFESIONAL / PACIENTE | `pagos`, `boletas` | SELECT | de sus citas | `pagos_select` / `boletas_select` (subconsulta bajo su RLS) |
 | A | PRACTICANTE | `pagos`, `boletas` | todas | ninguna | politicas sin rama |
 | A | todos | `pagos`, `boletas` | DELETE | ninguna | sin GRANT |
-| A | ADMIN / GESTION | `arriendos` | SELECT, INSERT, UPDATE | todos | GRANT + `arriendos_*` |
+| A | ADMIN / GESTION / PROFESIONAL / PACIENTE | `estado_pago_citas` (vista, `security_invoker`) | SELECT | monto, exigible, pagado, devolucion, saldo y estado (SIN_COBRO, PENDIENTE, PARCIAL, PAGADO) de las citas que su RLS deja ver; PRACTICANTE 0 filas | GRANT + RLS de `citas`, `pagos` y `resoluciones_cita` |
+| A | todos (incluso dueño) | `citas` | INSERT, UPDATE | `monto` lo fija la BD al confirmar con la tarifa mas especifica vigente (sin tarifa = 0) y es inmutable; `cancelada_en` lo fija la BD | trigger `citas_monto_fijado` (23001) |
+| A | ADMIN / GESTION | `resoluciones_cita` | SELECT | todas; escritura solo `resolver_cita` | GRANT + `resoluciones_cita_select` |
+| A | PROFESIONAL / PACIENTE | `resoluciones_cita` | SELECT | de sus citas | `resoluciones_cita_select` |
+| A | todos (incluso dueño) | `resoluciones_cita` | UPDATE, DELETE | ninguna (una decision por cita) | trigger `resoluciones_cita_append_only` (23001) + UNIQUE `cita_id` |
+| A | ADMIN / GESTION | `liquidaciones` | SELECT | todas; escritura solo `generar_liquidacion` / `avanzar_liquidacion` | GRANT + `liquidaciones_select` |
+| A | PROFESIONAL | `liquidaciones` | SELECT | las suyas EMITIDA o PAGADA (nunca BORRADOR) | `liquidaciones_select` |
+| A | todos (incluso dueño) | `liquidaciones` | INSERT, UPDATE, DELETE | sin solape por profesional; solo BORRADOR se recalcula; EMITIDA -> PAGADA | EXCLUDE `liquidaciones_sin_solape` (23P01) + trigger `liquidaciones_protegidas` (23001) |
+| A | ADMIN / GESTION | `arriendos` | SELECT, INSERT, UPDATE | todos; por periodo `[periodo_desde, periodo_hasta)` (02h) | GRANT + `arriendos_*` + CHECK `arriendos_validos` |
 | A | PROFESIONAL | `arriendos` | SELECT | los suyos | `arriendos_select` |
 | A | todos | `arriendos` | DELETE | ninguna | sin GRANT |
 | A | ADMIN | `derivaciones` | SELECT | todas | GRANT + `derivaciones_select` |
@@ -216,12 +231,24 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | ADMIN / GESTION | `notificaciones` | SELECT | todas | GRANT + `notificaciones_select` |
 | A | destinatario (usuario o PACIENTE) | `notificaciones` | SELECT | las propias | `notificaciones_select` |
 | A | todos (autenticados) | `notificaciones` | INSERT | `creada_por_id` = yo, PENDIENTE | GRANT + `notificaciones_insert`; cierre solo via `marcar_notificacion` (job) + trigger `notificaciones_append_only` (23001) |
+| A | BD (triggers) | `notificaciones` | INSERT | 02h: oferta al candidato (DERIVACION_OFRECIDA) cada vez que pasa a OFRECIDA, incluso via job o rechazo; cambio de estado al origen (DERIVACION_ACTUALIZADA, una pendiente por derivacion). `creada_por_id` nulo: el candidato no sabe quien rechazo | triggers `derivacion_candidatos_notificar`, `derivaciones_notificar` |
 | A | PACIENTE | `mensajes_paciente` | SELECT, INSERT | los propios; destinatario solo de su equipo tratante (`mi_equipo_tratante`); contenido cifrado | GRANT + `mensajes_paciente_*` + CHECK `mensajes_paciente_cifrado` |
 | A | PROFESIONAL / PRACTICANTE | `mensajes_paciente` | SELECT | los recibidos; marcar leido via `marcar_mensaje_leido` | `mensajes_paciente_select` |
 | A | ADMIN / GESTION | `mensajes_paciente` | todas | ninguna (contenido del paciente) | politicas sin rama |
 | A | PACIENTE | `solicitudes_epicrisis` | SELECT, INSERT | las propias (SOLICITADA); motivo cifrado | GRANT + `solicitudes_epicrisis_*` + CHECK `solicitudes_epicrisis_cifrado` |
 | A | ADMIN / GESTION / tratante | `solicitudes_epicrisis` | SELECT | todas / de sus pacientes; resuelven ADMIN o el tratante via `resolver_solicitud_epicrisis` | `solicitudes_epicrisis_select` |
 | A | todos (incluso dueño) | `mensajes_paciente`, `solicitudes_epicrisis` | UPDATE, DELETE | solo via funciones; nunca DELETE | sin GRANT + triggers `*_append_only` (23001) |
+| B | equipo / ADMIN | `tipos_documento_clinico` | SELECT / INSERT, UPDATE | todos; nunca DELETE (se desactiva); PACIENTE no | GRANT + `tipos_documento_clinico_*` |
+| A | PROFESIONAL / PRACTICANTE tratante | `documentos_clinicos` | SELECT, INSERT | de sus pacientes (PRACTICANTE con consentimiento); tipo activo; contenido cifrado | GRANT + `documentos_clinicos_*` + `_consentimiento_practicante` + CHECK `documentos_clinicos_cifrado` |
+| A | PACIENTE | `documentos_clinicos` | SELECT | los suyos; pide adjunto via `solicitar_adjunto_documento`; descarga via `registrar_descarga_documento` | `documentos_clinicos_select` |
+| A | ADMIN / GESTION | `documentos_clinicos` | todas | ninguna (contenido clinico) | politicas sin rama |
+| A | tratante | `envios_documento` | SELECT, INSERT | de documentos que ve; ENLACE (hash del token + URL cifrada + expiracion) o ADJUNTO solo con solicitud del paciente | GRANT + `envios_documento_*` + CHECK `envios_documento_coherente` + trigger `envios_documento_adjunto_solicitado` (23514) |
+| A | ADMIN | `envios_documento`, `descargas_documento` | SELECT | todos (auditoria, sin el documento) | `*_select` |
+| A | tratante / PACIENTE | `descargas_documento` | SELECT | de documentos que ve; escritura solo `registrar_descarga_documento` | GRANT SELECT + `descargas_documento_select` |
+| A | todos (incluso dueño) | `documentos_clinicos`, `envios_documento`, `descargas_documento` | UPDATE, DELETE | append-only (documento: solo registrar una vez la solicitud de adjunto) | triggers `*_append_only` (23001) |
+| A | PROFESIONAL / PRACTICANTE | `salas_videollamada` | SELECT, INSERT, UPDATE | la propia (modo ENLACE_PROPIO o JITSI; enlace cifrado) | GRANT + `salas_videollamada_*` + CHECK `salas_videollamada_cifrado` |
+| A | ADMIN / GESTION | `salas_videollamada` | SELECT | todas (agendan citas online por otros) | `salas_videollamada_select` |
+| A | PROFESIONAL / PRACTICANTE | `feeds_calendario` | SELECT, INSERT, UPDATE | el propio (solo el SHA-256 del token) | GRANT + `feeds_calendario_propio` |
 | A | dueño (scripts de llaves) | `llaves_datos` | UPDATE / DELETE | solo activar, retirar y re-envolver / nunca | trigger `llaves_datos_protegidas` (23001) |
 | A | todos (incluso dueño) | `eventos_llaves` | UPDATE, DELETE | ninguna | trigger `eventos_llaves_append_only` (23001) |
 
@@ -233,7 +260,7 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | C | sin contexto | `perfiles_publicos()` | id, nombre_publico, bio, foto_url, especialidad, enfoques, modalidad, tipos_atencion, verificado, titulos_verificados, tarifas vigentes de PROFESIONAL activos, sin baja, con `perfil_publico`. Nunca RUT, datos bancarios ni contacto | — |
 | C | sin contexto (perfil publico) / autenticados | `disponibilidad_publica(profesional, desde, hasta)` | modalidad, inicio, fin de huecos libres (max. 62 dias); sin motivos | 23514 |
 | C | ADMIN / GESTION / PROFESIONAL / PRACTICANTE | `directorio_interno()` | id, nombre, rol, tipos_atencion (activos) del equipo activo; email/telefono (cifrado) solo ADMIN/GESTION; PRACTICANTE solo ve a su supervisor | 42501 |
-| A | PACIENTE | `datos_pago_profesional(cita)` | datos bancarios cifrados del profesional de SU cita CONFIRMADA sin pago, solo con cobro directo; 0 filas si no aplica; audita DATOS_PAGO. "Pago pendiente" = sin ningun pago: definicion provisoria, se redefine en Cobros (montos, abonos, pagos parciales) | 42501 |
+| A | PACIENTE | `datos_pago_profesional(cita)` | datos bancarios cifrados del profesional de SU cita CONFIRMADA con saldo > 0 (02h: "pago pendiente"), solo con cobro directo; 0 filas si no aplica; audita DATOS_PAGO | 42501 |
 | A | sin contexto (API al arrancar) | `llaves_vigentes()` | todas las versiones envueltas con la KEK + huella + canario; nunca la envoltura de recuperacion | — |
 | A | sin contexto (API) | `registrar_evento_llaves(tipo, detalle)` | solo VERIFICACION / FALLO_CANARIO | 42501 |
 | C | ADMIN / supervisor vigente | `derivaciones_pendientes()` | derivacion_id, estado, motivo y detalle (cifrados), tipo, edad de PENDIENTE/SIN_ASIGNAR de todo el centro (minimo necesario para proponer); audita | 42501 |
@@ -269,17 +296,28 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | job sin contexto | `alertar_bajas_sin_admin()` | alerta (una abierta por baja) las bajas cumplidas que dejarian al centro sin ADMIN; devuelve cuantas | — |
 | A | job sin contexto | `alertar_fallo_canario(detalle)` | alerta FALLO_CANARIO (sin llaves ni datos en el detalle) | — |
 | A | ADMIN | `atender_alerta(id)` | marca atendida una vez | 42501, P0002, 55000 |
-| A | job sin contexto | `notificaciones_por_enviar(limite)` | pendientes (SKIP LOCKED) con el email del destinatario (menor: adulto responsable) y el enlace cifrado de ENLACE_ONLINE | — |
+| A | job sin contexto | `notificaciones_por_enviar(limite)` | pendientes (SKIP LOCKED) con el email del destinatario (menor: adulto responsable), el enlace cifrado (videollamada o documento), el adjunto cifrado si el envio es ADJUNTO y `datos` (nombre del centro; horario, modalidad y box de la cita para el .ics; metadatos del documento) | — |
+| A | PACIENTE | `solicitar_adjunto_documento(documento)` | registra una vez que el paciente pide el documento adjunto | 42501, P0002, 55000 |
+| A | PACIENTE | `registrar_descarga_documento(token_hash)` | documento del enlace si es suyo y vigente; registra la descarga (y `accesos_ficha` DESCARGA); vencido = `vencido` sin registrar | 42501, P0002 |
+| C | sin contexto (token en la URL) | `feed_calendario(token_hash)` | id, inicio, fin, modalidad, estado, box y enlace cifrado de citas CONFIRMADA/POR_REPROGRAMAR del dueño del token (activo); nunca paciente ni motivo | P0002 |
+| A | ADMIN / GESTION / profesional de la cita con cobro directo | `registrar_pago(cita, monto, medio)` | bloquea la cita; monto > saldo -> 23514 `pagos_sin_sobrepago`; fija `cobrado_por` | 42501, P0002, 23514 |
+| A | ADMIN / GESTION | `anular_pago(pago, motivo)` | REGISTRADO -> ANULADO con motivo; no si la cita tiene boleta o el pago esta en una liquidacion emitida | 42501, P0002, 55000, 23514 |
+| A | ADMIN / GESTION / profesional con cobro directo | `emitir_boleta(id, cita, emisor_nombre, emisor_rut)` | una boleta por cita PAGADA (copia del emisor cifrada por la API, numero simulado); nulo si no corresponde | 42501 |
+| A | ADMIN / GESTION | `resolver_cita(cita, decision, cita_nueva, motivo)` | politica de cancelacion (a tiempo o tardia segun `plazo_aviso_cancelacion_horas`; TRASLADO de pagos o DEVOLUCION menos `penalizacion_cancelacion_porcentaje`) e INASISTENCIA (`cobro_inasistencia_porcentaje`); una por cita | 42501, P0002, 55000, 23514 |
+| A | ADMIN / GESTION | `generar_liquidacion(profesional, desde, hasta)` | BORRADOR: cobrado por el centro - devoluciones - comision (`comision_centro_porcentaje`) - arriendos; recalcula un BORRADOR del mismo periodo | 42501, 23514, 55000, 23P01 |
+| A | ADMIN / GESTION | `avanzar_liquidacion(id, estado)` | BORRADOR -> EMITIDA -> PAGADA | 42501, P0002, 55000 |
 | A | job sin contexto | `marcar_notificacion(id, enviada, detalle)` | cierra una pendiente (ENVIADA / FALLIDA) | 55000 |
 | A | PROFESIONAL / PRACTICANTE destinatario | `marcar_mensaje_leido(id)` | una vez | 42501, P0002, 55000 |
 | A | ADMIN / tratante | `resolver_solicitud_epicrisis(id, estado, documento)` | SOLICITADA -> EN_PROCESO/ENTREGADA/RECHAZADA; EN_PROCESO -> ENTREGADA/RECHAZADA; ENTREGADA exige documento | 42501, P0002, 55000, 23514 |
-| — | interno (sin EXECUTE para app_user) | `cuenta_habilitada`, `revocar_sesiones_por_cambio`, `ofrecer_siguiente_candidato`, `agregar_candidatos`, `registrar_accion_derivacion`, `desactivar_tratante`, `reasignar_citas_derivacion`, `motivo_reasignacion`, `cobro_directo`, `cerrar_cuenta`, `concretar_traspaso`, `consentimiento_no_otorgado`, `validar_otorgante`, `margen_vigente`, `ultima_atencion` | — | — |
+| — | interno (sin EXECUTE para app_user) | 02h: `tarifa_vigente`, `fijar_monto_cita`, `avisar_origen_derivacion`, `notificar_candidato_derivacion`, `notificar_estado_derivacion`, `validar_envio_documento`, `proteger_*`, `bloquear_cambios_registro`; `cuenta_habilitada`, `revocar_sesiones_por_cambio`, `ofrecer_siguiente_candidato`, `agregar_candidatos`, `registrar_accion_derivacion`, `desactivar_tratante`, `reasignar_citas_derivacion`, `motivo_reasignacion`, `cobro_directo`, `cerrar_cuenta`, `concretar_traspaso`, `consentimiento_no_otorgado`, `validar_otorgante`, `margen_vigente`, `ultima_atencion` | — | — |
 | — | uso de politicas/triggers (EXECUTE `app_user`) | `acceso_vigente`, `app_paciente_id`, `es_profesional_de_*`, `rol_usuario`, `supervisor_vigente`, `es_supervisor_vigente_de`, `consentimiento_practicante_vigente`, `consentimiento_vigente_para`, `evolucion_supervisable`, `minuto_local`, `rango_con_margen` | booleanos / uuid / text / timestamptz | — |
 
 Auditoria en `accesos_ficha`: toda funcion de derivacion con usuario
 (`accion = 'DERIVACION'`, incluida la bandeja `derivaciones_pendientes`), toda
 lectura de supervision (`accion = 'SUPERVISION'`) y la entrega de datos de
-pago al paciente (`accion = 'DATOS_PAGO'`). Los jobs no
+pago al paciente (`accion = 'DATOS_PAGO'`). 02h: la API registra la emision
+de documentos clinicos (ESCRITURA) y cada envio (ENVIO); la descarga la
+registra `registrar_descarga_documento` (DESCARGA). Los jobs no
 escriben ahi (no hay usuario): su rastro es `derivacion_candidatos.estado =
 EXPIRADA`, `historial_accesos_practicante.accion = EXPIRADO` y
 `bajas.procesada_en`.

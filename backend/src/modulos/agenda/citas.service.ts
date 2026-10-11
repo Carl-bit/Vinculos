@@ -16,7 +16,7 @@ import { MENSAJE_POR_RESTRICCION } from '../../core/errores/sqlstate';
 import { EVENTOS, type CitaCancelada, type CitaConfirmada } from '../../core/eventos/eventos';
 import { AgendaService } from './agenda.service';
 import type { CrearCitaDto, FiltroCitasDto, HorarioDto, ReprogramarCitaDto } from './dto/agenda.dto';
-import { ProveedorVideollamada } from './videollamada';
+import { ProveedorVideollamada } from '../../core/integraciones/videollamada';
 
 /** Sin enlace (cifrado) en las listas: se pide aparte en /citas/:id/enlace. */
 const VISTA = {
@@ -29,6 +29,8 @@ const VISTA = {
   inicio: true,
   fin: true,
   estado: true,
+  monto: true,
+  canceladaEn: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.CitaSelect;
@@ -265,17 +267,24 @@ export class CitasService {
     return { disponible: false, motivos, alternativas };
   }
 
-  /** ONLINE: enlace cifrado (CLINICO) con expiracion, generado con la cita ya creada (id = AAD). */
-  private async generarEnlace(cita: Pick<Cita, 'id' | 'modalidad' | 'inicio' | 'fin'>): Promise<boolean> {
+  /**
+   * ONLINE: enlace cifrado (CLINICO) con expiracion, generado con la cita ya
+   * creada (id = AAD), segun el modo de videollamada del profesional
+   * (salas_videollamada; sin fila = ENLACE_PROPIO sin enlace).
+   */
+  private async generarEnlace(cita: Pick<Cita, 'id' | 'modalidad' | 'inicio' | 'fin' | 'profesionalId'>): Promise<boolean> {
     if (cita.modalidad !== 'ONLINE') {
       return false;
     }
     const horas = this.config.getOrThrow<number>('ENLACE_ONLINE_HORAS_TRAS_FIN');
+    const config = await this.bd.tx().salaVideollamada.findUnique({ where: { usuarioId: cita.profesionalId } });
     const sala = await this.video.crearSala({
       citaId: cita.id,
       inicio: cita.inicio,
       fin: cita.fin,
       expiraEn: new Date(cita.fin.getTime() + horas * 3_600_000),
+      modo: config?.modo ?? 'ENLACE_PROPIO',
+      enlacePropio: texto(config?.enlace),
     });
     await this.bd.tx().cita.update({
       where: { id: cita.id },

@@ -1,6 +1,6 @@
-import { EstadoCita, ModalidadAtencion, MotivoBloqueoAgenda } from '@prisma/client';
+import { EstadoCita, ModalidadAtencion, ModoVideollamada, MotivoBloqueoAgenda } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDate, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsDate, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUrl, IsUUID, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
 import { Recortar } from '../../../core/validacion/validadores';
 
@@ -137,4 +137,15 @@ export class FiltroCitasDto {
   @IsOptional()
   @IsEnum(EstadoCita)
   estado?: EstadoCita;
+}
+
+/** Sala de videollamada propia: ENLACE_PROPIO exige su URL https (se guarda cifrada); JITSI no lleva enlace. */
+export class SalaDto {
+  @IsEnum(ModoVideollamada)
+  modo!: ModoVideollamada;
+
+  @ValidateIf((o: SalaDto) => o.modo === 'ENLACE_PROPIO')
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(500)
+  enlace?: string;
 }

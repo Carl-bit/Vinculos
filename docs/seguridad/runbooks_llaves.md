@@ -84,17 +84,36 @@ ausente). Los datos estan intactos.
    crear/activar` + re-cifrado de los datos por la API. Las versiones viejas
    no se destruyen (retencion), pero quedan solo para leer.
 5. **DEK HMAC comprometida** (permite probar RUTs contra los indices ciegos).
-   La llave HMAC no rota de forma rutinaria, pero ante compromiso:
-   1. Ventana de mantencion: la API deja de aceptar altas y busquedas por RUT
-      (durante el recalculo los indices viejos y nuevos no coinciden).
-   2. `sh rotar.sh hmac-compromiso` (version HMAC nueva, inactiva) y
-      `sh rotar.sh activar`. Reiniciar la API.
-   3. Job de la API (02): descifra cada RUT (`pacientes`,
-      `adultos_responsables`, `profesional_datos_privados`) con su AAD y
-      recalcula `rut_hmac` con la HMAC nueva, en lotes y en transacciones. Un
-      23505 durante el recalculo es un RUT duplicado real: se resuelve a mano.
-   4. Verificar que el conteo del job = filas con RUT y cerrar la ventana.
-   5. La version HMAC anterior queda retirada (no se destruye).
+   La llave HMAC no rota de forma rutinaria; ante compromiso, el recalculo
+   es un **comando de mantencion** del operador (dueño de la BD + llaves),
+   nunca un proceso del contenedor de la API (la API corre como `app_user`,
+   no puede reescribir `rut_hmac` ajenos ni tiene la CLI de llaves):
+   1. **Ventana de mantencion**: `docker compose stop backend` (API
+      detenida). Si no se puede detener, dejarla en solo lectura y avisar:
+      durante el recalculo las busquedas por RUT y las altas con RUT dan
+      resultados erroneos (indices viejos y nuevos mezclados).
+   2. Respaldar la BD (`pg_dump`) y anotar la hora de inicio.
+   3. `MODO=docker sh rotar.sh hmac-compromiso` -> HMAC nueva **inactiva**
+      (evento ROTACION fase 1). Cada comando corre en un contenedor puntual
+      del servicio `migrate` (`docker compose run --rm migrate ...`), con las
+      llaves del silo montadas solo durante el comando.
+   4. `MODO=docker sh rotar.sh recalcular-hmac` -> descifra cada RUT
+      (`pacientes`, `adultos_responsables`, `profesional_datos_privados`) con
+      su AAD y recalcula `rut_hmac` con la HMAC **pendiente**, en lotes y
+      transacciones. Registra en `eventos_llaves` (ROTACION "recalculo ...")
+      cuantas filas por tabla. Un 23505 es un RUT duplicado real: el comando
+      lo informa, se resuelve a mano y se vuelve a correr (es idempotente).
+      Si falla, nada quedo activado: la API sigue con la HMAC anterior.
+   5. `MODO=docker sh rotar.sh activar` -> activa la HMAC nueva y **retira**
+      la anterior (`retirada_en`; no se destruye: retencion).
+   6. `MODO=docker sh rotar.sh verificar-hmac` -> cada `rut_hmac` debe
+      coincidir con el HMAC activo del RUT descifrado (la busqueda por RUT
+      encuentra cada fila) y no debe haber indices repetidos en pacientes ni
+      profesionales. Registra VERIFICACION (o FALLO_CANARIO si no cuadra).
+   7. `docker compose up -d backend` (la API carga la HMAC nueva al
+      arrancar). Probar una busqueda por RUT conocida y cerrar la ventana.
+   Simulacro en desarrollo: `backend/test/02h-simulacro-hmac.e2e-spec.ts`
+   corre estos pasos con los scripts reales contra la BD efimera de los tests.
 6. Evaluar notificacion a pacientes y autoridad segun la ley vigente.
 
 ## 6. Cambio de custodio

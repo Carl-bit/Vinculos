@@ -36,8 +36,8 @@ export class PortalService {
 
   /**
    * Datos de transferencia del profesional de SU cita, solo con cobro directo
-   * y cita CONFIRMADA sin pago (definicion provisoria de "pago pendiente",
-   * la redefine Cobros). 0 filas = no corresponde: { aplica: false }.
+   * y cita CONFIRMADA con saldo > 0 ("pago pendiente" de Cobros, 02h).
+   * 0 filas = no corresponde: { aplica: false }.
    */
   async datosPago(citaId: string) {
     const [f] = await this.bd.tx().$queryRaw<

@@ -1,6 +1,6 @@
 import type { Tx, UsuarioActual } from './contexto-bd.service';
 
-export type AccionAcceso = 'LECTURA' | 'ESCRITURA';
+export type AccionAcceso = 'LECTURA' | 'ESCRITURA' | 'ENVIO';
 
 /**
  * Registra un acceso a datos clinicos en accesos_ficha, en la misma

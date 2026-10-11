@@ -14,7 +14,8 @@ puede usar otro modulo.
 | `errores/` | Filtro global SQLSTATE -> HTTP (`sqlstate.ts`), nunca el texto de Postgres. |
 | `logs/` | pino con request id y redaccion de campos de `registro.ts` y credenciales. |
 | `jobs/` | Crons sin contexto con `pg_try_advisory_xact_lock` por job. |
-| `notificaciones/` | Registro de avisos (tabla `notificaciones`), job de envio e interfaz de correo (simulada). |
+| `notificaciones/` | Registro de avisos (tabla `notificaciones`), job de envio e interfaz de correo (SMTP o simulada). |
+| `integraciones/` | Interfaces de videollamada y calendario (iCal) y sus implementaciones; `CoreModule` elige por configuracion (`docs/api/integraciones.md`). |
 | `eventos/` | Contratos de los eventos de dominio: el unico lenguaje comun entre modulos. |
 | `salud/` | `GET /api/salud`: BD y canarios, sin datos. |
 | `validacion/` | RUT con DV (misma normalizacion que el indice ciego), telefono, recorte de texto. |

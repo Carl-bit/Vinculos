@@ -10,7 +10,7 @@
 -- aprovisionamiento de llaves (infra/scripts/llaves/aprovisionar.sh).
 --
 -- Casos 1-17: los 17 del prompt 01. 18-27: prompt 01b. 28-44: prompt 01c.
--- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 01c redefinio 12, 14 y 27 (aceptar una
+-- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
 -- derivacion traspasa el paciente); 01d redefinio 36, 37 y 42 (tipo de
 -- atencion por catalogo, oferta con citas en conflicto, el origen cancela en
 -- SIN_ASIGNAR); 01e redefinio 19 (tablas sin GRANT), 50 (perfil
@@ -515,7 +515,7 @@ DO $$ BEGIN
   RAISE EXCEPTION 'caso 31: PACIENTE escribe debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 
-\echo 32 pagos por rol: ADMIN 2, GESTION 2, p1 1, p2 1, practicante 0, PACIENTE 1; solo gestion escribe
+\echo 32 pagos por rol: ADMIN 2, GESTION 2, p1 1, p2 1, practicante 0, PACIENTE 1; nadie escribe directo (02h: registrar_pago)
 DO $$ BEGIN PERFORM test.ctx('a1', 'ADMIN');       ASSERT (SELECT count(*) FROM pagos) = 2, 'caso 32: ADMIN'; END $$;
 DO $$ BEGIN PERFORM test.ctx('b2', 'PROFESIONAL'); ASSERT (SELECT count(*) FROM pagos) = 1, 'caso 32: p2'; END $$;
 DO $$ BEGIN PERFORM test.ctx('c1', 'PRACTICANTE'); ASSERT (SELECT count(*) FROM pagos) = 0, 'caso 32: practicante'; END $$;
@@ -529,9 +529,16 @@ EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 DO $$ BEGIN
   PERFORM test.ctx('a3', 'GESTION');
   ASSERT (SELECT count(*) FROM pagos) = 2, 'caso 32: GESTION';
-  INSERT INTO pagos (cita_id, monto, medio_pago)
-  SELECT id, 25000, 'EFECTIVO' FROM citas WHERE profesional_id = test.u('c1');
-  ASSERT (SELECT count(*) FROM pagos) = 3, 'caso 32: GESTION inserta';
+  BEGIN
+    INSERT INTO pagos (cita_id, monto, medio_pago)
+    SELECT id, 25000, 'EFECTIVO' FROM citas WHERE profesional_id = test.u('c1');
+    RAISE EXCEPTION 'caso 32: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- La cita del practicante no tiene tarifa (monto 0): cualquier pago es sobrepago.
+  BEGIN
+    PERFORM registrar_pago((SELECT id FROM citas WHERE profesional_id = test.u('c1') LIMIT 1), 25000, 'EFECTIVO');
+    RAISE EXCEPTION 'caso 32: sobrepago debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
 END $$;
 
 \echo 33 PACIENTE: su registro si, fichas/evoluciones/derivaciones nunca
@@ -840,12 +847,12 @@ INSERT INTO profesionales (usuario_id, especialidad, modalidad) VALUES
   (test.u('b6'), 'Psicologia clinica', 'MIXTA');
 INSERT INTO practicantes (usuario_id, fecha_inicio, fecha_termino_practica) VALUES
   (test.u('c1'), '2026-03-01', '2026-12-31'), (test.u('c3'), '2026-03-01', '2026-12-31'), (test.u('c4'), '2026-03-01', '2026-12-31');
-INSERT INTO profesional_tipos_atencion (profesional_id, tipo_atencion_id) VALUES
-  (test.u('b1'), test.u('71')), (test.u('b1'), test.u('73'));
-INSERT INTO arriendos (profesional_id, monto, porcentaje_comision) VALUES
-  (test.u('b1'), 100000, 10), (test.u('b2'), 120000, 15);
-INSERT INTO boletas (id, pago_id, numero, emisor_nombre, emisor_rut)
-SELECT gen_random_uuid(), id, 'T-' || row_number() OVER (ORDER BY id), test.cif('Centro'), test.cif('76.000.000-0') FROM pagos;
+INSERT INTO profesional_tipos_atencion (profesional_id, tipo_atencion_id, estado, revisado_en) VALUES
+  (test.u('b1'), test.u('71'), 'APROBADO', now()), (test.u('b1'), test.u('73'), 'APROBADO', now());
+INSERT INTO arriendos (profesional_id, periodo_desde, periodo_hasta, monto) VALUES
+  (test.u('b1'), '2026-01-01', '2026-02-01', 100000), (test.u('b2'), '2026-01-01', '2026-02-01', 120000);
+INSERT INTO boletas (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
+SELECT gen_random_uuid(), cita_id, 'T-' || row_number() OVER (ORDER BY cita_id), monto, test.cif('Centro'), test.cif('76.000.000-0') FROM pagos;
 INSERT INTO historial_accesos_practicante (practicante_id, actor_id, accion, fecha_expiracion) VALUES
   (test.u('c1'), test.u('a1'), 'OTORGADO', now() + interval '30 days');
 -- Agenda futura: Fede con b6 a +3d y +7d; c1 ocupado a +3d (choca con 91);
@@ -986,22 +993,38 @@ DO $$ BEGIN
   RAISE EXCEPTION 'caso 50: PROFESIONAL crea perfil ajeno debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 
-\echo 51 tipos_atencion (B): todos leen; solo ADMIN escribe; nunca DELETE; N:M solo ADMIN
+\echo 51 tipos_atencion (B): todos leen; solo ADMIN escribe; nunca DELETE; N:M: el profesional propone (02h), solo ADMIN aprueba, asigna o quita
 DO $$ BEGIN
   PERFORM test.ctx('a2', 'PACIENTE');
   ASSERT (SELECT count(*) FROM tipos_atencion WHERE id IN (test.u('71'), test.u('72'), test.u('73'))) = 3, 'caso 51: PACIENTE lee';
 END $$;
-DO $$ BEGIN
+DO $$ DECLARE n int; BEGIN
   PERFORM test.ctx('b1', 'PROFESIONAL');
   ASSERT (SELECT count(*) FROM profesional_tipos_atencion WHERE profesional_id = test.u('b1')) = 2, 'caso 51: lee N:M';
   BEGIN
     INSERT INTO tipos_atencion (nombre) VALUES ('T Nuevo');
     RAISE EXCEPTION 'caso 51: PROFESIONAL crea tipo debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- 02h: el profesional propone para si (queda PROPUESTO aunque pida APROBADO); no para otros ni decide.
+  INSERT INTO profesional_tipos_atencion (profesional_id, tipo_atencion_id, estado) VALUES (test.u('b1'), test.u('72'), 'APROBADO');
+  ASSERT (SELECT estado FROM profesional_tipos_atencion WHERE profesional_id = test.u('b1') AND tipo_atencion_id = test.u('72'))
+         = 'PROPUESTO', 'caso 51: la propuesta queda PROPUESTO';
   BEGIN
-    INSERT INTO profesional_tipos_atencion (profesional_id, tipo_atencion_id) VALUES (test.u('b1'), test.u('72'));
-    RAISE EXCEPTION 'caso 51: PROFESIONAL se asigna tipo debio fallar';
+    INSERT INTO profesional_tipos_atencion (profesional_id, tipo_atencion_id) VALUES (test.u('b2'), test.u('72'));
+    RAISE EXCEPTION 'caso 51: PROFESIONAL propone por otro debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  UPDATE profesional_tipos_atencion SET estado = 'APROBADO' WHERE profesional_id = test.u('b1');
+  GET DIAGNOSTICS n = ROW_COUNT;
+  ASSERT n = 0, 'caso 51: el profesional no aprueba (0 filas)';
+END $$;
+DO $$ BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT NOT (SELECT 'T Evaluacion' = ANY (tipos_atencion) FROM directorio_interno() WHERE id = test.u('b1')),
+    'caso 51: una propuesta no cuenta en el directorio';
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE profesional_tipos_atencion SET estado = 'RECHAZADO' WHERE profesional_id = test.u('b1') AND tipo_atencion_id = test.u('72');
+  ASSERT (SELECT revisado_por_id = test.u('a1') AND revisado_en IS NOT NULL FROM profesional_tipos_atencion
+          WHERE profesional_id = test.u('b1') AND tipo_atencion_id = test.u('72')), 'caso 51: registra quien decide';
 END $$;
 DO $$ DECLARE n int; BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
@@ -1017,17 +1040,24 @@ DO $$ DECLARE n int; BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 
-\echo 52 boletas por rol: ADMIN 3, GESTION 3, p1 1, p2 1, practicante 0, PACIENTE 1; solo gestion escribe
-DO $$ BEGIN PERFORM test.ctx('a1', 'ADMIN');       ASSERT (SELECT count(*) FROM boletas) = 3, 'caso 52: ADMIN'; END $$;
-DO $$ BEGIN PERFORM test.ctx('a3', 'GESTION');     ASSERT (SELECT count(*) FROM boletas) = 3, 'caso 52: GESTION'; END $$;
+\echo 52 boletas por rol: ADMIN 2, GESTION 2, p1 1, p2 1, practicante 0, PACIENTE 1; nadie escribe directo (02h: emitir_boleta)
+DO $$ BEGIN PERFORM test.ctx('a1', 'ADMIN');       ASSERT (SELECT count(*) FROM boletas) = 2, 'caso 52: ADMIN'; END $$;
+DO $$ BEGIN PERFORM test.ctx('a3', 'GESTION');     ASSERT (SELECT count(*) FROM boletas) = 2, 'caso 52: GESTION'; END $$;
 DO $$ BEGIN PERFORM test.ctx('b1', 'PROFESIONAL'); ASSERT (SELECT count(*) FROM boletas) = 1, 'caso 52: p1'; END $$;
 DO $$ BEGIN PERFORM test.ctx('b2', 'PROFESIONAL'); ASSERT (SELECT count(*) FROM boletas) = 1, 'caso 52: p2'; END $$;
 DO $$ BEGIN PERFORM test.ctx('c1', 'PRACTICANTE'); ASSERT (SELECT count(*) FROM boletas) = 0, 'caso 52: practicante'; END $$;
 DO $$ BEGIN PERFORM test.ctx('a2', 'PACIENTE');    ASSERT (SELECT count(*) FROM boletas) = 1, 'caso 52: PACIENTE'; END $$;
 DO $$ BEGIN
   PERFORM test.ctx('b1', 'PROFESIONAL');
-  INSERT INTO boletas (pago_id, numero) SELECT id, 'X-1' FROM pagos LIMIT 1;
+  INSERT INTO boletas (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
+  SELECT gen_random_uuid(), cita_id, 'X-1', 1, test.cif('x'), test.cif('x') FROM pagos LIMIT 1;
   RAISE EXCEPTION 'caso 52: PROFESIONAL emite boleta debio fallar';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+DO $$ BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO boletas (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
+  SELECT gen_random_uuid(), cita_id, 'X-2', 1, test.cif('x'), test.cif('x') FROM pagos LIMIT 1;
+  RAISE EXCEPTION 'caso 52: GESTION inserta boleta directo debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 
 \echo 53 arriendos por rol: ADMIN 2, GESTION 2, p1 1, practicante 0, PACIENTE 0; solo gestion escribe
@@ -1038,7 +1068,7 @@ DO $$ BEGIN PERFORM test.ctx('a2', 'PACIENTE');    ASSERT (SELECT count(*) FROM 
 DO $$ BEGIN
   PERFORM test.ctx('b1', 'PROFESIONAL');
   ASSERT (SELECT array_agg(profesional_id) FROM arriendos) = ARRAY[test.u('b1')], 'caso 53: p1 los suyos';
-  INSERT INTO arriendos (profesional_id, monto, porcentaje_comision) VALUES (test.u('b1'), 1, 0);
+  INSERT INTO arriendos (profesional_id, periodo_desde, periodo_hasta, monto) VALUES (test.u('b1'), '2026-03-01', '2026-04-01', 1);
   RAISE EXCEPTION 'caso 53: PROFESIONAL crea arriendo debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 
@@ -1594,10 +1624,13 @@ DO $$ BEGIN
     'caso 70: PACIENTE no lee';
 END $$;
 
-\echo 71 Cobro: datos_pago_profesional solo con cobro directo, cita propia CONFIRMADA y sin pago; auditado
+\echo 71 Cobro: datos_pago_profesional solo con cobro directo, cita propia CONFIRMADA y con saldo (02h); auditado
 DO $$ DECLARE v_sin_pago uuid; v_con_pago uuid; v_ajena uuid; BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
-  SELECT id INTO v_sin_pago FROM citas WHERE profesional_id = test.u('b1') AND inicio = '2025-11-02 11:00-03';
+  -- 02h: "pago pendiente" = saldo > 0. Cita nueva de b1 (tarifa general 35000 desde el caso 49).
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e1'), test.u('b1'), test.u('0a'), test.dia(30, 10), test.dia(30, 11)) RETURNING id INTO v_sin_pago;
+  ASSERT (SELECT monto FROM citas WHERE id = v_sin_pago) = 35000, 'caso 71: monto fijado con la tarifa vigente';
   SELECT id INTO v_con_pago FROM citas WHERE profesional_id = test.u('b1') AND inicio = '2025-11-02 10:00-03' AND estado = 'CONFIRMADA';
   SELECT id INTO v_ajena FROM citas WHERE paciente_id = test.u('0b') LIMIT 1;
   PERFORM test.ctx('a2', 'PACIENTE');
@@ -2318,7 +2351,7 @@ DO $$ DECLARE v uuid; r record; BEGIN
     VALUES ('CITA_CONFIRMADA', test.u('0a'), test.u('0a'), test.u('b1'), 'ENVIADA', now());
     RAISE EXCEPTION 'caso 88: insertar ya enviada debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  ASSERT (SELECT count(*) FROM notificaciones) = 0, 'caso 88: el actor no es destinatario: no la lee';
+  ASSERT (SELECT count(*) FROM notificaciones WHERE tipo = 'CITA_CONFIRMADA') = 0, 'caso 88: el actor no es destinatario: no la lee';
   PERFORM test.ctx('a2', 'PACIENTE');
   SELECT id INTO v FROM notificaciones WHERE paciente_id = test.u('0a');
   ASSERT v IS NOT NULL, 'caso 88: el paciente destinatario la ve';
@@ -2330,7 +2363,7 @@ DO $$ DECLARE v uuid; r record; BEGIN
   ASSERT (SELECT count(*) FROM notificaciones WHERE id = v) = 1, 'caso 88: ADMIN la ve';
   -- Job (sin contexto): toma la pendiente con el email del destinatario y la cierra.
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
-  SELECT * INTO r FROM notificaciones_por_enviar(10) WHERE id = v;
+  SELECT * INTO r FROM notificaciones_por_enviar(1000) WHERE id = v;
   ASSERT r.email IS NOT NULL, 'caso 88: el job obtiene el email del destinatario';
   PERFORM marcar_notificacion(v, true, NULL);
   BEGIN
@@ -2384,6 +2417,291 @@ DO $$ DECLARE v_prof uuid; v_m uuid := gen_random_uuid(); v_s uuid := gen_random
   ASSERT (SELECT count(*) FROM mensajes_paciente) = 0, 'caso 89: otro profesional no lee mensajes ajenos';
 END $$;
 
+\echo 90 Documentos clinicos: emite y envia el tratante; el paciente ve, pide adjunto y descarga con enlace vigente; ADMIN audita envios sin ver documentos; GESTION nada
+DO $$ DECLARE v_prof uuid; v_tipo uuid := gen_random_uuid(); v_doc uuid := gen_random_uuid(); r record; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  SELECT profesional_id INTO v_prof FROM pacientes WHERE id = test.u('0a');
+  INSERT INTO tipos_documento_clinico (id, nombre) VALUES (v_tipo, 'T Epicrisis');
+  PERFORM set_config('app.current_usuario_id', v_prof::text, true), set_config('app.current_rol', rol_usuario(v_prof), true);
+  BEGIN
+    INSERT INTO tipos_documento_clinico (nombre) VALUES ('T Receta');
+    RAISE EXCEPTION 'caso 90: el tratante crea tipos debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  INSERT INTO documentos_clinicos (id, paciente_id, tipo_documento_id, emitido_por_id, nombre_archivo, tipo_mime, contenido)
+  VALUES (v_doc, test.u('0a'), v_tipo, v_prof, 'epicrisis.pdf', 'application/pdf', test.cif('pdf'));
+  BEGIN
+    INSERT INTO documentos_clinicos (id, paciente_id, tipo_documento_id, emitido_por_id, nombre_archivo, tipo_mime, contenido)
+    VALUES (gen_random_uuid(), test.u('0b'), v_tipo, v_prof, 'x.pdf', 'application/pdf', test.cif('pdf'));
+    RAISE EXCEPTION 'caso 90: documento de paciente ajeno debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO envios_documento (id, documento_id, modo, enviado_por_id) VALUES (gen_random_uuid(), v_doc, 'ADJUNTO', v_prof);
+    RAISE EXCEPTION 'caso 90: adjunto sin solicitud del paciente debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO envios_documento (id, documento_id, modo, token_hash, enlace, expira_en, enviado_por_id)
+  VALUES (gen_random_uuid(), v_doc, 'ENLACE', repeat('a', 64), test.cif('url'), now() + interval '1 day', v_prof),
+         (gen_random_uuid(), v_doc, 'ENLACE', repeat('b', 64), test.cif('url2'), now() - interval '1 minute', v_prof);
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM documentos_clinicos) = 0, 'caso 90: ADMIN no lee documentos';
+  ASSERT (SELECT count(*) FROM envios_documento WHERE documento_id = v_doc) = 2, 'caso 90: ADMIN audita envios';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM documentos_clinicos) + (SELECT count(*) FROM envios_documento) = 0, 'caso 90: GESTION no ve';
+  PERFORM test.ctx('a4', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM documentos_clinicos) = 0, 'caso 90: otro paciente no ve';
+  BEGIN
+    PERFORM registrar_descarga_documento(repeat('a', 64));
+    RAISE EXCEPTION 'caso 90: otro paciente descarga debio fallar';
+  EXCEPTION WHEN no_data_found OR insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM documentos_clinicos WHERE id = v_doc) = 1, 'caso 90: el paciente ve su documento';
+  SELECT * INTO r FROM registrar_descarga_documento(repeat('a', 64));
+  ASSERT r.documento_id = v_doc AND NOT r.vencido, 'caso 90: descarga con enlace vigente';
+  SELECT * INTO r FROM registrar_descarga_documento(repeat('b', 64));
+  ASSERT r.vencido, 'caso 90: enlace vencido';
+  ASSERT (SELECT count(*) FROM descargas_documento WHERE documento_id = v_doc) = 1, 'caso 90: solo la descarga vigente queda registrada';
+  PERFORM solicitar_adjunto_documento(v_doc);
+  BEGIN
+    PERFORM solicitar_adjunto_documento(v_doc);
+    RAISE EXCEPTION 'caso 90: pedir el adjunto dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', v_prof::text, true), set_config('app.current_rol', rol_usuario(v_prof), true);
+  INSERT INTO envios_documento (id, documento_id, modo, enviado_por_id) VALUES (gen_random_uuid(), v_doc, 'ADJUNTO', v_prof);
+  BEGIN
+    UPDATE documentos_clinicos SET nombre_archivo = 'x' WHERE id = v_doc;
+    RAISE EXCEPTION 'caso 90: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+
+\echo 91 Avisos de derivacion desde la BD: toda oferta notifica al candidato (tambien via job o rechazo) sin decir quien la origino; el origen recibe un aviso pendiente por derivacion
+DO $$ BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT EXISTS (SELECT 1 FROM derivacion_candidatos WHERE estado IN ('RECHAZADA', 'EXPIRADA')), 'caso 91: hubo ofertas que pasaron al siguiente';
+  ASSERT NOT EXISTS (SELECT 1 FROM derivacion_candidatos c WHERE c.ofrecida_en IS NOT NULL AND NOT EXISTS (
+           SELECT 1 FROM notificaciones n WHERE n.tipo = 'DERIVACION_OFRECIDA' AND n.usuario_id = c.profesional_id
+             AND n.referencia_id = c.derivacion_id)), 'caso 91: toda oferta notifica al candidato';
+  ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE tipo IN ('DERIVACION_OFRECIDA', 'DERIVACION_ACTUALIZADA')
+                     AND creada_por_id IS NOT NULL), 'caso 91: el aviso no dice quien lo origino';
+  ASSERT EXISTS (SELECT 1 FROM notificaciones n JOIN derivaciones d ON d.id = n.referencia_id
+                 WHERE n.tipo = 'DERIVACION_ACTUALIZADA' AND n.usuario_id = d.profesional_origen_id), 'caso 91: el origen recibe avisos';
+  ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'DERIVACION_ACTUALIZADA' AND estado = 'PENDIENTE'
+                     GROUP BY usuario_id, referencia_id HAVING count(*) > 1), 'caso 91: un aviso pendiente por derivacion';
+END $$;
+
+\echo 92 Videollamada y feed iCal: sala propia cifrada (ADMIN/GESTION la leen); token del feed solo del propio; feed sin contexto solo con token vigente y sin datos del paciente
+DO $$ DECLARE n int; BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  INSERT INTO salas_videollamada (usuario_id, modo, enlace) VALUES (test.u('b1'), 'ENLACE_PROPIO', test.cif('https://sala'));
+  BEGIN
+    INSERT INTO salas_videollamada (usuario_id, enlace) VALUES (test.u('b2'), test.cif('x'));
+    RAISE EXCEPTION 'caso 92: sala ajena debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE salas_videollamada SET enlace = '\x00' WHERE usuario_id = test.u('b1');
+    RAISE EXCEPTION 'caso 92: enlace sin cifrar debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO feeds_calendario (usuario_id, token_hash) VALUES (test.u('b1'), repeat('c', 64));
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM salas_videollamada) + (SELECT count(*) FROM feeds_calendario) = 0, 'caso 92: otro profesional no ve';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM salas_videollamada WHERE usuario_id = test.u('b1')) = 1, 'caso 92: GESTION lee la sala';
+  ASSERT (SELECT count(*) FROM feeds_calendario) = 0, 'caso 92: GESTION no ve tokens';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT count(*) INTO n FROM feed_calendario(repeat('c', 64));
+  ASSERT n > 0, 'caso 92: feed con token vigente';
+  ASSERT pg_get_function_result('feed_calendario(text)'::regprocedure) NOT LIKE '%paciente%', 'caso 92: el feed no devuelve pacientes';
+  BEGIN
+    PERFORM * FROM feed_calendario(repeat('d', 64));
+    RAISE EXCEPTION 'caso 92: token invalido debio fallar';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+END $$;
+
+\echo 93 Cobros: monto fijado al confirmar e inmutable; pagos solo via funciones (sobrepago 23514, parcial, anulacion con motivo); boleta unica al quedar pagada
+DO $$ DECLARE v_cita uuid; v_cita2 uuid; v_pago uuid; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET modelo_cobro = 'CENTRO';
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e1'), test.u('b1'), test.u('0a'), test.dia(31, 10), test.dia(31, 11)) RETURNING id INTO v_cita;
+  ASSERT (SELECT monto FROM citas WHERE id = v_cita) = 35000, 'caso 93: monto con la tarifa vigente';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  INSERT INTO tarifas (profesional_id, monto) VALUES (test.u('b1'), 50000);
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT monto FROM citas WHERE id = v_cita) = 35000, 'caso 93: la tarifa nueva no cambia la cita confirmada';
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e1'), test.u('b1'), test.u('0a'), test.dia(32, 10), test.dia(32, 11)) RETURNING id INTO v_cita2;
+  ASSERT (SELECT monto FROM citas WHERE id = v_cita2) = 50000, 'caso 93: cita nueva con la tarifa nueva';
+
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM registrar_pago(v_cita, 40000, 'EFECTIVO');
+    RAISE EXCEPTION 'caso 93: sobrepago debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  v_pago := registrar_pago(v_cita, 10000, 'EFECTIVO');
+  ASSERT (SELECT estado_pago || ':' || saldo FROM estado_pago_citas WHERE cita_id = v_cita) = 'PARCIAL:25000', 'caso 93: pago parcial';
+  ASSERT emitir_boleta(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) IS NULL, 'caso 93: sin boleta si no esta pagada';
+  BEGIN
+    PERFORM anular_pago(v_pago, ' ');
+    RAISE EXCEPTION 'caso 93: anular sin motivo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM anular_pago(v_pago, 'error de digitacion');
+  ASSERT (SELECT saldo FROM estado_pago_citas WHERE cita_id = v_cita) = 35000, 'caso 93: un pago anulado no cuenta';
+  BEGIN
+    PERFORM anular_pago(v_pago, 'otra vez');
+    RAISE EXCEPTION 'caso 93: anular dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM registrar_pago(v_cita, 35000, 'TRANSFERENCIA');
+  ASSERT (SELECT estado_pago FROM estado_pago_citas WHERE cita_id = v_cita) = 'PAGADO', 'caso 93: pagado';
+  ASSERT emitir_boleta(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) LIKE 'SIM-%', 'caso 93: boleta al quedar pagada';
+  ASSERT emitir_boleta(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) IS NULL, 'caso 93: una sola boleta';
+  BEGIN
+    PERFORM anular_pago((SELECT id FROM pagos WHERE cita_id = v_cita AND estado = 'REGISTRADO'), 'con boleta');
+    RAISE EXCEPTION 'caso 93: anular con boleta debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    UPDATE pagos SET monto = 1 WHERE cita_id = v_cita;
+    RAISE EXCEPTION 'caso 93: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM estado_pago_citas WHERE cita_id = v_cita) = 1, 'caso 93: el profesional ve el estado de su cita';
+  BEGIN
+    PERFORM registrar_pago(v_cita2, 1000, 'EFECTIVO');
+    RAISE EXCEPTION 'caso 93: profesional sin cobro directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('c1', 'PRACTICANTE');
+  ASSERT (SELECT count(*) FROM estado_pago_citas) = 0, 'caso 93: el practicante no ve cobros';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM boletas WHERE cita_id = v_cita) = 1, 'caso 93: el paciente ve su boleta';
+  ASSERT (SELECT saldo FROM estado_pago_citas WHERE cita_id = v_cita2) = 50000, 'caso 93: el paciente ve su saldo';
+END $$;
+
+\echo 94 Politica de cancelacion: a tiempo sin cobro; tardia devuelve menos la penalizacion o traslada el pago; inasistencia cobra el porcentaje; una decision por cita
+DO $$ DECLARE v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_nueva uuid; v_monto int; r record; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET plazo_aviso_cancelacion_horas = 24, penalizacion_cancelacion_porcentaje = 50,
+                                  cobro_inasistencia_porcentaje = 100;
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e1'), test.u('b1'), test.u('0a'), test.dia(33, 10), test.dia(33, 11)) RETURNING id INTO v_a;
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e2'), test.u('b1'), test.u('0a'), date_trunc('hour', now()) + interval '3 hours',
+          date_trunc('hour', now()) + interval '4 hours') RETURNING id, monto INTO v_b, v_monto;
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e2'), test.u('b1'), test.u('0a'), date_trunc('hour', now()) + interval '5 hours',
+          date_trunc('hour', now()) + interval '6 hours') RETURNING id INTO v_c;
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e1'), test.u('b1'), test.u('0a'), test.dia(34, 10), test.dia(34, 11)) RETURNING id INTO v_nueva;
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e2'), test.u('b1'), test.u('0a'), date_trunc('hour', now()) - interval '3 hours',
+          date_trunc('hour', now()) - interval '2 hours') RETURNING id INTO v_d;
+
+  PERFORM test.ctx('a3', 'GESTION');
+  PERFORM registrar_pago(v_a, 20000, 'EFECTIVO');
+  PERFORM registrar_pago(v_b, v_monto, 'EFECTIVO');
+  PERFORM registrar_pago(v_c, 10000, 'TRANSFERENCIA');
+  UPDATE citas SET estado = 'CANCELADA' WHERE id IN (v_a, v_b, v_c);
+  BEGIN
+    PERFORM resolver_cita(v_nueva, 'DEVOLUCION', NULL, NULL);
+    RAISE EXCEPTION 'caso 94: decidir sobre una cita no cancelada debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+
+  PERFORM resolver_cita(v_a, 'DEVOLUCION', NULL, 'aviso con tiempo');
+  SELECT * INTO r FROM resoluciones_cita WHERE cita_id = v_a;
+  ASSERT r.a_tiempo AND r.monto_exigible = 0 AND r.monto_devolucion = 20000, 'caso 94: a tiempo devuelve todo';
+  ASSERT (SELECT estado_pago FROM estado_pago_citas WHERE cita_id = v_a) = 'SIN_COBRO', 'caso 94: a tiempo sin cobro';
+  BEGIN
+    PERFORM resolver_cita(v_a, 'DEVOLUCION', NULL, NULL);
+    RAISE EXCEPTION 'caso 94: segunda decision debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+
+  PERFORM resolver_cita(v_b, 'DEVOLUCION', NULL, NULL);
+  SELECT * INTO r FROM resoluciones_cita WHERE cita_id = v_b;
+  ASSERT NOT r.a_tiempo AND r.porcentaje = 50 AND r.monto_exigible = v_monto / 2 AND r.monto_devolucion = v_monto - v_monto / 2,
+    'caso 94: tardia devuelve lo pagado menos la penalizacion';
+  ASSERT (SELECT estado_pago FROM estado_pago_citas WHERE cita_id = v_b) = 'PAGADO', 'caso 94: la penalizacion queda cubierta';
+
+  BEGIN
+    PERFORM resolver_cita(v_c, 'TRASLADO', NULL, NULL);
+    RAISE EXCEPTION 'caso 94: traslado sin cita nueva debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM resolver_cita(v_c, 'TRASLADO', v_nueva, 'reprograma');
+  ASSERT (SELECT pagado FROM estado_pago_citas WHERE cita_id = v_c) = 0
+     AND (SELECT pagado FROM estado_pago_citas WHERE cita_id = v_nueva) = 10000, 'caso 94: el pago pasa a la cita nueva';
+  ASSERT (SELECT origen = 'TRASLADO' AND traslado_de_id IS NOT NULL FROM pagos WHERE cita_id = v_nueva), 'caso 94: traslado trazable';
+
+  BEGIN
+    PERFORM resolver_cita(v_nueva, 'INASISTENCIA', NULL, NULL);
+    RAISE EXCEPTION 'caso 94: inasistencia de una cita futura debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM resolver_cita(v_d, 'INASISTENCIA', NULL, 'no llego');
+  ASSERT (SELECT estado_pago || ':' || saldo FROM estado_pago_citas WHERE cita_id = v_d) = 'PENDIENTE:' || v_monto,
+    'caso 94: inasistencia cobra el porcentaje configurado';
+  BEGIN
+    UPDATE resoluciones_cita SET monto_exigible = 0;
+    RAISE EXCEPTION 'caso 94: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM resolver_cita(v_d, 'DEVOLUCION', NULL, NULL);
+    RAISE EXCEPTION 'caso 94: PROFESIONAL decide debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM resoluciones_cita WHERE cita_id IN (v_a, v_b, v_c, v_d)) = 4, 'caso 94: el profesional ve las decisiones';
+END $$;
+
+\echo 95 Liquidacion: cobrado por el centro - comision - arriendos; BORRADOR/EMITIDA/PAGADA solo ADMIN/GESTION; sin solape; el profesional ve las suyas emitidas
+DO $$ DECLARE v_id uuid; r record;
+  v_hoy date := (now() AT TIME ZONE 'America/Santiago')::date;
+BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET comision_centro_porcentaje = 10;
+  INSERT INTO arriendos (profesional_id, espacio_id, periodo_desde, periodo_hasta, monto) VALUES (test.u('b1'), test.u('e1'), v_hoy, v_hoy + 1, 5000);
+  PERFORM test.ctx('a3', 'GESTION');
+  v_id := generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 1);
+  SELECT * INTO r FROM liquidaciones WHERE id = v_id;
+  -- Pagos de hoy cobrados por el centro (93 y 94) menos las devoluciones decididas hoy (94).
+  ASSERT r.total_cobrado = (SELECT sum(p.monto) FROM pagos p JOIN citas c ON c.id = p.cita_id
+                            WHERE c.profesional_id = test.u('b1') AND p.estado = 'REGISTRADO' AND p.cobrado_por = 'CENTRO'
+                              AND (p.fecha AT TIME ZONE 'America/Santiago')::date >= v_hoy - 1)
+                         - (SELECT sum(monto_devolucion) FROM resoluciones_cita), 'caso 95: cobrado menos devoluciones';
+  ASSERT r.comision = round(r.total_cobrado * 0.10) AND r.arriendos = 5000 AND r.total = r.total_cobrado - r.comision - 5000
+         AND r.estado = 'BORRADOR', 'caso 95: comision y arriendo';
+  ASSERT generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 1) = v_id, 'caso 95: un BORRADOR se recalcula';
+  BEGIN
+    PERFORM generar_liquidacion(test.u('b1'), v_hoy, v_hoy + 2);
+    RAISE EXCEPTION 'caso 95: periodo solapado debio fallar';
+  EXCEPTION WHEN exclusion_violation THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM liquidaciones) = 0, 'caso 95: el profesional no ve borradores';
+  BEGIN
+    PERFORM avanzar_liquidacion(v_id, 'EMITIDA');
+    RAISE EXCEPTION 'caso 95: PROFESIONAL emite debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  PERFORM avanzar_liquidacion(v_id, 'EMITIDA');
+  BEGIN
+    PERFORM generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 1);
+    RAISE EXCEPTION 'caso 95: recalcular una emitida debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    PERFORM anular_pago((SELECT p.id FROM pagos p JOIN citas c ON c.id = p.cita_id
+                         WHERE c.profesional_id = test.u('b1') AND p.estado = 'REGISTRADO' AND p.origen = 'TRASLADO' LIMIT 1), 'tarde');
+    RAISE EXCEPTION 'caso 95: anular un pago liquidado debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    PERFORM avanzar_liquidacion(v_id, 'EMITIDA');
+    RAISE EXCEPTION 'caso 95: emitir dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM avanzar_liquidacion(v_id, 'PAGADA');
+  BEGIN
+    UPDATE liquidaciones SET total = 0;
+    RAISE EXCEPTION 'caso 95: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT estado FROM liquidaciones WHERE id = v_id) = 'PAGADA', 'caso 95: el profesional ve la suya';
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM liquidaciones) = 0, 'caso 95: otro profesional no la ve';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM liquidaciones) + (SELECT count(*) FROM arriendos) = 0, 'caso 95: PACIENTE no ve';
+END $$;
+
 \connect :owner_url
 \set ON_ERROR_STOP 1
 
@@ -2392,7 +2710,8 @@ DO $$ DECLARE t text; BEGIN
   FOREACH t IN ARRAY ARRAY['historial_accesos_practicante', 'supervision_comentarios', 'consentimientos', 'eventos_llaves',
                            'llaves_datos', 'evolucion_intervenciones', 'avisos_consentimiento', 'revisiones_retencion',
                            'consultas_retencion', 'alertas_internas', 'notificaciones', 'mensajes_paciente',
-                           'solicitudes_epicrisis'] LOOP
+                           'solicitudes_epicrisis', 'documentos_clinicos', 'envios_documento', 'descargas_documento',
+                           'pagos', 'boletas', 'resoluciones_cita', 'liquidaciones'] LOOP
     BEGIN
       EXECUTE format('DELETE FROM %I', t);
       RAISE EXCEPTION 'caso 67: DELETE % debio fallar', t;
@@ -2417,6 +2736,19 @@ DO $$ DECLARE t text; BEGIN
   BEGIN
     UPDATE llaves_datos SET version = version + 10;
     RAISE EXCEPTION 'caso 67: UPDATE version debio fallar';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+  -- 02h: monto de la cita, pagos (solo anular) y liquidaciones emitidas, incluso dueño.
+  BEGIN
+    UPDATE citas SET monto = monto + 1 WHERE monto IS NOT NULL;
+    RAISE EXCEPTION 'caso 67: cambiar el monto de una cita debio fallar';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+  BEGIN
+    UPDATE pagos SET monto = monto + 1;
+    RAISE EXCEPTION 'caso 67: UPDATE pagos debio fallar';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+  BEGIN
+    UPDATE liquidaciones SET total_cobrado = 0, comision = 0, arriendos = 0, total = 0 WHERE estado <> 'BORRADOR';
+    RAISE EXCEPTION 'caso 67: UPDATE liquidacion emitida debio fallar';
   EXCEPTION WHEN restrict_violation THEN NULL; END;
 END $$;
 

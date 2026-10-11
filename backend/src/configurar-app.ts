@@ -19,6 +19,8 @@ export function configurarApp(app: NestExpressApplication): void {
     }),
   );
 
+  // Documentos clinicos en base64 (02h, max. ~5 MB de archivo; el DTO limita).
+  app.useBodyParser('json', { limit: '8mb' });
   app.setGlobalPrefix('api');
   app.enableCors({ origin: config.getOrThrow<string>('FRONTEND_URL'), credentials: true });
   // Detras de Traefik: req.ip = IP real del cliente (rate limit de login).

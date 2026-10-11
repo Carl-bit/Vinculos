@@ -20,6 +20,11 @@ import type {
  * motivo/detalle con ese id (AAD derivaciones:<col>:<id>) antes de llamar a
  * crear_derivacion. Las funciones que devuelven columnas cifradas se
  * descifran aqui con el AAD de la fila de origen.
+ *
+ * Avisos (02h): los registra la BD con triggers sobre derivacion_candidatos y
+ * derivaciones, tambien cuando un job o un rechazo pasa la oferta al
+ * siguiente: el candidato recibe solo "tiene una oferta" (sin quien la
+ * origino); el profesional de origen, un aviso por cambio de estado.
  */
 @Injectable()
 export class DerivacionesService {
@@ -37,7 +42,6 @@ export class DerivacionesService {
     await this.bd.tx().$queryRaw`
       SELECT crear_derivacion(${id}::uuid, ${dto.fichaId}::uuid, ${motivo}, ${dto.tipoAtencionId}::uuid,
                               ${detalle}::bytea, ${dto.candidatos}::uuid[])`;
-    await this.avisarOferta(id);
     // De oficio el supervisor no ve la derivacion (origen = tratante saliente): solo el id.
     return { id };
   }
@@ -125,20 +129,17 @@ export class DerivacionesService {
 
   async definirCandidatos(id: string, candidatos: string[]) {
     await this.bd.tx().$executeRaw`SELECT definir_candidatos_derivacion(${id}::uuid, ${candidatos}::uuid[])`;
-    await this.avisarOferta(id);
     return this.obtener(id);
   }
 
   async reintegrar(id: string, profesionalId: string) {
     await this.bd.tx().$executeRaw`SELECT reintegrar_candidato(${id}::uuid, ${profesionalId}::uuid)`;
-    await this.avisarOferta(id);
     return this.obtener(id);
   }
 
   /** ADMIN o el supervisor vigente del practicante (lo agrega al final). */
   async proponerPracticante(id: string, practicanteId: string) {
     await this.bd.tx().$executeRaw`SELECT proponer_practicante(${id}::uuid, ${practicanteId}::uuid)`;
-    await this.avisarOferta(id);
     return { derivacionId: id, practicanteId };
   }
 
@@ -180,14 +181,6 @@ export class DerivacionesService {
                                             ${dto.otorgadoPorTipo}::otorgante_consentimiento,
                                             ${dto.adultoResponsableId ?? null}::uuid, ${dto.respaldoDocumentoRef ?? null})`;
     return encontrado(await this.bd.tx().avisoConsentimiento.findUnique({ where: { id } }), 'Aviso');
-  }
-
-  /** Avisa al candidato OFRECIDO si el actor puede verlo (ADMIN, origen, tratante). */
-  private async avisarOferta(derivacionId: string) {
-    const ofrecido = await this.bd.tx().derivacionCandidato.findFirst({ where: { derivacionId, estado: 'OFRECIDA' } });
-    if (ofrecido) {
-      this.notificar('DERIVACION_OFRECIDA', { usuarioId: ofrecido.profesionalId }, derivacionId);
-    }
   }
 
   private notificar(tipo: TipoNotificacion, destino: NotificacionSolicitada['destino'], referenciaId: string) {

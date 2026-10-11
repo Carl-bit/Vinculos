@@ -89,6 +89,41 @@ export class Entorno {
   @IsInt()
   @Min(0)
   ENLACE_ONLINE_HORAS_TRAS_FIN: number = 2;
+
+  /**
+   * Integraciones (docs/api/integraciones.md). Correo: SMTP generico de la
+   * plataforma (smtp[s]://usuario:clave@host:puerto); vacio = simulado.
+   */
+  @IsOptional()
+  @IsString()
+  SMTP_URL: string = '';
+
+  /** Direccion del remitente de la plataforma (el nombre visible es el del centro). */
+  @IsOptional()
+  @IsString()
+  CORREO_REMITENTE: string = 'no-responder@vinculos.cl';
+
+  /** true = videollamada simulada (tests); false = modo de cada profesional. */
+  @IsOptional()
+  @Transform(aBooleano)
+  @IsBoolean()
+  VIDEOLLAMADA_SIMULADA: boolean = false;
+
+  @IsOptional()
+  @Transform(aBooleano)
+  @IsBoolean()
+  JITSI_HABILITADO: boolean = false;
+
+  @IsOptional()
+  @IsString()
+  JITSI_URL_BASE: string = 'https://meet.jit.si';
+
+  /** Vida del enlace de descarga de un documento clinico enviado por correo. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(720)
+  DOCUMENTO_ENLACE_HORAS: number = 72;
 }
 
 export function validarEntorno(config: Record<string, unknown>): Entorno {

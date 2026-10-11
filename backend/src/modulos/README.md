@@ -7,12 +7,12 @@ contexto RLS), nunca el cliente global.
 | Carpeta | Contexto | Prompt | Depende de |
 | --- | --- | --- | --- |
 | `nucleo/` | Usuarios, configuracion, accesos de practicantes, bajas, alertas, directorio | 02b | core |
-| `fichas/` | Pacientes, adultos responsables, fichas, evoluciones, tipos de sesion, retencion | 02c | core |
-| `agenda/` | Espacios, disponibilidad, bloqueos, soft-locks, citas, enlace online | 02d | core |
-| `equipo/` | Perfil, trayectoria, datos privados, tarifas, tipos de atencion, supervision | 02e | core |
+| `fichas/` | Pacientes, adultos responsables, fichas, evoluciones, tipos de sesion, retencion, documentos clinicos por correo (02h) | 02c, 02h | core |
+| `agenda/` | Espacios, disponibilidad, bloqueos, soft-locks, citas, enlace online, sala de videollamada y feed iCal (02h) | 02d, 02h | core (videollamada y calendario: interfaces de core) |
+| `equipo/` | Perfil, trayectoria, datos privados, tarifas, tipos de atencion (propone el profesional, aprueba ADMIN), supervision | 02e, 02h | core |
 | `derivaciones/` | Derivaciones, consentimientos, avisos de cambio de supervisor | 02f | core |
 | `match/` | Perfiles publicos, match, portal del paciente, mensajes, epicrisis | 02g | core (Equipo y Agenda solo via funciones de la BD) |
-| `cobros/` | Pagos, boletas, arriendos (pendiente: 02h espera la definicion de "pago pendiente") | 02h | core |
+| `cobros/` | Estado de pago, pagos, boletas, politica de cancelacion, arriendos, liquidaciones | 02h | core (Agenda solo via la BD: `citas.monto`, `estado_pago_citas`) |
 
 ## Reglas
 

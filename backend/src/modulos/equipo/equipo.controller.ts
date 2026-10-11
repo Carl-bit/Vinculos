@@ -10,6 +10,8 @@ import {
   EditarTipoAtencionDto,
   MargenDto,
   PerfilDto,
+  ProponerTipoAtencionDto,
+  RevisarTipoAtencionDto,
   TarifaDto,
   TipoAtencionDto,
   TrayectoriaDto,
@@ -80,6 +82,25 @@ export class PerfilesController {
     return this.equipo.tarifas(id);
   }
 
+  /** El propio propone; ADMIN aprueba o rechaza (solo los aprobados cuentan). */
+  @Post('yo/tipos-atencion')
+  @Roles('PROFESIONAL')
+  proponerTipo(@Body() dto: ProponerTipoAtencionDto) {
+    return this.equipo.proponerTipoAtencion(dto.tipoAtencionId);
+  }
+
+  @Get(':id/tipos-atencion')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  tiposDe(@Param('id', Uuid) id: string) {
+    return this.equipo.tiposDe(id);
+  }
+
+  @Patch(':id/tipos-atencion/:tipoAtencionId')
+  @Roles('ADMIN')
+  revisarTipo(@Param('id', Uuid) id: string, @Param('tipoAtencionId', Uuid) tipoId: string, @Body() dto: RevisarTipoAtencionDto) {
+    return this.equipo.revisarTipoAtencion(id, tipoId, dto.estado);
+  }
+
   @Put(':id/tipos-atencion')
   @Roles('ADMIN')
   asignarTipos(@Param('id', Uuid) id: string, @Body() dto: AsignarTiposAtencionDto) {
@@ -125,6 +146,13 @@ export class TiposAtencionController {
   @Roles(...TODOS)
   listar() {
     return this.equipo.tiposAtencion();
+  }
+
+  /** Cola de propuestas de profesionales (PROPUESTO). */
+  @Get('propuestas')
+  @Roles('ADMIN')
+  propuestas() {
+    return this.equipo.propuestasTiposAtencion();
   }
 
   @Post()

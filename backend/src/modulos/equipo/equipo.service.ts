@@ -149,12 +149,46 @@ export class EquipoService {
     return this.bd.tx().tipoAtencion.update({ where: { id }, data: dto });
   }
 
-  /** ADMIN: reemplaza los tipos de atencion que ofrece el profesional. */
+  /** ADMIN: fija la lista aprobada (reemplaza todo, incluidas propuestas pendientes). */
   async asignarTiposAtencion(profesionalId: string, tipoAtencionIds: string[]) {
     const tx = this.bd.tx();
     await tx.profesionalTipoAtencion.deleteMany({ where: { profesionalId } });
-    await tx.profesionalTipoAtencion.createMany({ data: tipoAtencionIds.map((tipoAtencionId) => ({ profesionalId, tipoAtencionId })) });
-    return tx.profesionalTipoAtencion.findMany({ where: { profesionalId } });
+    await tx.profesionalTipoAtencion.createMany({
+      data: tipoAtencionIds.map((tipoAtencionId) => ({ profesionalId, tipoAtencionId, estado: 'APROBADO' as const })),
+    });
+    return this.tiposDe(profesionalId);
+  }
+
+  /**
+   * El propio PROFESIONAL propone un tipo de atencion (queda PROPUESTO aunque
+   * pida otro estado: trigger). Solo cuenta en el match, el perfil publico y
+   * el directorio cuando ADMIN lo aprueba.
+   */
+  async proponerTipoAtencion(tipoAtencionId: string) {
+    const profesionalId = this.bd.usuario().id;
+    await this.bd
+      .tx()
+      .profesionalTipoAtencion.create({ data: { profesionalId, tipoAtencionId }, select: { profesionalId: true } })
+      .catch((error: unknown) => {
+        throw esSqlstate(error, '23505') ? conflicto('profesional_tipos_atencion_pkey') : error;
+      });
+    return this.tiposDe(profesionalId);
+  }
+
+  tiposDe(profesionalId: string) {
+    return this.bd.tx().profesionalTipoAtencion.findMany({ where: { profesionalId }, orderBy: { createdAt: 'asc' } });
+  }
+
+  /** Cola de ADMIN: propuestas pendientes de todos los profesionales. */
+  propuestasTiposAtencion() {
+    return this.bd.tx().profesionalTipoAtencion.findMany({ where: { estado: 'PROPUESTO' }, orderBy: { createdAt: 'asc' } });
+  }
+
+  /** Solo ADMIN (RLS + trigger registran quien y cuando). */
+  async revisarTipoAtencion(profesionalId: string, tipoAtencionId: string, estado: 'APROBADO' | 'RECHAZADO') {
+    const where = { profesionalId_tipoAtencionId: { profesionalId, tipoAtencionId } };
+    encontrado(await this.bd.tx().profesionalTipoAtencion.findUnique({ where }), 'Propuesta');
+    return this.bd.tx().profesionalTipoAtencion.update({ where, data: { estado } });
   }
 
 }

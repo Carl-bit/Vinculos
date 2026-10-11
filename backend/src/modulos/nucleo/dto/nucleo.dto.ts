@@ -6,6 +6,7 @@ import {
   IsEmail,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -17,7 +18,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-import { Recortar, TELEFONO_CL } from '../../../core/validacion/validadores';
+import { IsRut, NormalizarRut, Recortar, TELEFONO_CL } from '../../../core/validacion/validadores';
 
 const minusculas = () => Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value));
 
@@ -150,6 +151,43 @@ export class EditarConfiguracionDto {
   @Min(0)
   @Max(600)
   margenTrasladoMin?: number;
+
+  /** Remitente visible de los correos y emisor de boletas del modelo CENTRO. */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(2, 120)
+  nombreCentro?: string;
+
+  @IsOptional()
+  @IsRut()
+  @NormalizarRut()
+  rutCentro?: string;
+
+  /** Politica de cancelacion (Cobros). Los porcentajes se definen con el caso de estudio. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(720)
+  plazoAvisoCancelacionHoras?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  penalizacionCancelacionPorcentaje?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  cobroInasistenciaPorcentaje?: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  comisionCentroPorcentaje?: number;
 }
 
 export class OtorgarAccesoDto {

@@ -1,0 +1,146 @@
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+
+import { GoneException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import type { ModoEnvioDocumento, Prisma } from '@prisma/client';
+
+import { registrarAcceso } from '../../core/bd/auditoria';
+import { claro, texto } from '../../core/bd/claro';
+import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
+import { conflicto, esSqlstate } from '../../core/errores/sqlstate';
+import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
+import type { EditarTipoDocumentoDto, EmitirDocumentoDto, TipoDocumentoDto } from './dto/fichas.dto';
+
+/** Metadatos (sin contenido) para listas. */
+const VISTA = {
+  id: true,
+  pacienteId: true,
+  tipoDocumentoId: true,
+  emitidoPorId: true,
+  nombreArchivo: true,
+  tipoMime: true,
+  adjuntoSolicitadoEn: true,
+  emitidoEn: true,
+} satisfies Prisma.DocumentoClinicoSelect;
+
+const sha256 = (valor: string) => createHash('sha256').update(valor).digest('hex');
+
+/**
+ * Documentos clinicos por correo (02h). Regla: el unico contenido clinico que
+ * sale por correo son documentos emitidos por el tratante. Por defecto el
+ * correo lleva un enlace que expira y exige iniciar sesion (cada descarga
+ * queda registrada); el adjunto solo va si el paciente lo pidio explicitamente
+ * (solicitud registrada). Cada envio queda en envios_documento y en
+ * accesos_ficha. Los mensajes del paciente no cambian: el correo solo avisa.
+ */
+@Injectable()
+export class DocumentosService {
+  constructor(
+    private readonly bd: ContextoBd,
+    private readonly eventos: EventEmitter2,
+    private readonly config: ConfigService,
+  ) {}
+
+  tipos() {
+    return this.bd.tx().tipoDocumentoClinico.findMany({ orderBy: { nombre: 'asc' } });
+  }
+
+  crearTipo(dto: TipoDocumentoDto) {
+    return this.bd
+      .tx()
+      .tipoDocumentoClinico.create({ data: dto })
+      .catch((error: unknown) => {
+        throw esSqlstate(error, '23505') ? conflicto('tipos_documento_clinico_nombre_key') : error;
+      });
+  }
+
+  /** Nunca DELETE: se desactiva. */
+  editarTipo(id: string, dto: EditarTipoDocumentoDto) {
+    return this.bd.tx().tipoDocumentoClinico.update({ where: { id }, data: dto });
+  }
+
+  /** Solo el tratante (RLS; PRACTICANTE con consentimiento). */
+  async emitir(dto: EmitirDocumentoDto) {
+    const actor = this.bd.usuario();
+    const tx = this.bd.tx();
+    const doc = await tx.documentoClinico.create({
+      data: {
+        id: randomUUID(),
+        pacienteId: dto.pacienteId,
+        tipoDocumentoId: dto.tipoDocumentoId,
+        emitidoPorId: actor.id,
+        nombreArchivo: dto.nombreArchivo,
+        tipoMime: dto.tipoMime,
+        contenido: claro(dto.contenido),
+      },
+      select: VISTA,
+    });
+    await registrarAcceso(tx, actor, [{ pacienteId: doc.pacienteId, recurso: 'documentos_clinicos', accion: 'ESCRITURA' }]);
+    return doc;
+  }
+
+  /** Tratante: los de sus pacientes. PACIENTE: los suyos (RLS). */
+  listar(pacienteId?: string) {
+    return this.bd.tx().documentoClinico.findMany({ where: { pacienteId }, select: VISTA, orderBy: { emitidoEn: 'desc' } });
+  }
+
+  /**
+   * Envio por correo. ENLACE: token de 256 bits; se guarda su SHA-256 (para
+   * validar la descarga) y la URL cifrada (para el job de correo). ADJUNTO sin
+   * solicitud del paciente -> 422 (trigger de la BD).
+   */
+  async enviar(id: string, modo: ModoEnvioDocumento = 'ENLACE') {
+    const actor = this.bd.usuario();
+    const tx = this.bd.tx();
+    const doc = encontrado(await tx.documentoClinico.findUnique({ where: { id }, select: { id: true, pacienteId: true } }), 'Documento');
+    const envioId = randomUUID();
+    let enlace: { tokenHash: string; enlace: Uint8Array<ArrayBuffer>; expiraEn: Date } | undefined;
+    if (modo === 'ENLACE') {
+      const token = randomBytes(32).toString('base64url');
+      const base = this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/+$/, '');
+      const horas = this.config.getOrThrow<number>('DOCUMENTO_ENLACE_HORAS');
+      enlace = {
+        tokenHash: sha256(token),
+        enlace: claro(`${base}/portal/documentos/descarga?token=${token}`),
+        expiraEn: new Date(Date.now() + horas * 3_600_000),
+      };
+    }
+    const envio = await tx.envioDocumento.create({
+      data: { id: envioId, documentoId: doc.id, modo, enviadoPorId: actor.id, ...enlace },
+      select: { id: true, documentoId: true, modo: true, expiraEn: true, enviadoEn: true },
+    });
+    await registrarAcceso(tx, actor, [{ pacienteId: doc.pacienteId, recurso: 'envios_documento', accion: 'ENVIO' }]);
+    const evento: NotificacionSolicitada = { actor, tipo: 'DOCUMENTO_CLINICO', destino: { pacienteId: doc.pacienteId }, referenciaId: envio.id };
+    this.bd.alConfirmar(() => this.eventos.emitAsync(EVENTOS.NOTIFICACION_SOLICITADA, evento));
+    return envio;
+  }
+
+  envios(documentoId: string) {
+    return this.bd.tx().envioDocumento.findMany({
+      where: { documentoId },
+      select: { id: true, modo: true, expiraEn: true, enviadoPorId: true, enviadoEn: true, descargas: { select: { usuarioId: true, descargadoEn: true } } },
+      orderBy: { enviadoEn: 'desc' },
+    });
+  }
+
+  /** El paciente pide recibirlo adjunto (queda registrado; una vez). */
+  async solicitarAdjunto(id: string) {
+    await this.bd.tx().$executeRaw`SELECT solicitar_adjunto_documento(${id}::uuid)`;
+    return encontrado(await this.bd.tx().documentoClinico.findUnique({ where: { id }, select: VISTA }), 'Documento');
+  }
+
+  /** Descarga por enlace: el paciente con sesion; vencido -> 410 (no se registra). */
+  async descargar(token: string) {
+    const [r] = await this.bd.tx().$queryRaw<[{ documento_id: string; vencido: boolean }]>`
+      SELECT documento_id, vencido FROM registrar_descarga_documento(${sha256(token)})`;
+    if (r.vencido) {
+      throw new GoneException('El enlace del documento vencio: pida uno nuevo al centro');
+    }
+    const doc = encontrado(
+      await this.bd.tx().documentoClinico.findUnique({ where: { id: r.documento_id }, select: { ...VISTA, contenido: true } }),
+      'Documento',
+    );
+    return { ...doc, contenido: texto(doc.contenido) };
+  }
+}

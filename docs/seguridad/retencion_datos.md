@@ -52,6 +52,16 @@ borrado.** No hay purga automatica:
   los 15 años y **solo registra la decision**: la purga real sigue siendo
   manual y fuera del alcance del sistema.
 
+## Cobros y documentos (02h)
+
+- `pagos` no se borra ni se modifica: un error se **anula** con motivo
+  (`anular_pago`) y queda el registro. `boletas`, `resoluciones_cita` y las
+  liquidaciones emitidas tampoco cambian (respaldo tributario). Un traslado de
+  pagos entre citas anula el original y crea uno nuevo que lo referencia.
+- `documentos_clinicos`, `envios_documento` y `descargas_documento` son
+  append-only: forman parte del registro clinico del paciente y siguen su
+  retencion (minimo 15 años).
+
 ## Llaves
 
 Las versiones de llaves que cifraron datos tampoco se destruyen mientras

@@ -11,6 +11,11 @@ export class NotificacionesController {
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE')
   listar() {
-    return this.bd.tx().notificacion.findMany({ orderBy: { creadaEn: 'desc' }, take: 200 });
+    // Sin creadaPorId: un candidato de derivacion no debe saber quien rechazo antes (02h).
+    return this.bd.tx().notificacion.findMany({
+      select: { id: true, tipo: true, pacienteId: true, usuarioId: true, referenciaId: true, estado: true, creadaEn: true, procesadaEn: true },
+      orderBy: { creadaEn: 'desc' },
+      take: 200,
+    });
   }
 }

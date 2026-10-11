@@ -19,7 +19,8 @@ Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.m
   da false y todo devuelve 0 filas. Tras cambiar rol/activo/expiracion de un
   usuario, invalidar sus sesiones.
 - Sin contexto solo se llaman: `credenciales_login(email)`, `perfiles_publicos()`,
-  `disponibilidad_publica(...)` (portal publico), `llaves_vigentes()` y
+  `disponibilidad_publica(...)` (portal publico), `feed_calendario(token_hash)`
+  (feed iCal, 02h: el token de la URL autoriza), `llaves_vigentes()` y
   `registrar_evento_llaves(...)` (CryptoModule) y los jobs (seccion 8).
 
 ## 2. Errores de Postgres -> HTTP (filtro global)
@@ -36,7 +37,9 @@ Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.m
 
 Usar el nombre de constraint para el mensaje (`citas_dentro_de_disponibilidad`,
 `citas_fuera_de_bloqueos`, `profesionales_publicar_requiere_tarifa`,
-`consentimientos_menor_requiere_adulto_responsable`, `usuarios_sin_reactivacion`, ...).
+`consentimientos_menor_requiere_adulto_responsable`, `usuarios_sin_reactivacion`,
+02h: `pagos_sin_sobrepago`, `envios_documento_adjunto_solicitado`,
+`resoluciones_cita_coherente`, `liquidaciones_sin_solape`, ...).
 
 **Trigger diferido**: `pacientes_practicante_requiere_consentimiento` se
 evalua al COMMIT: el filtro debe capturar errores del `$transaction` completo.
@@ -70,7 +73,8 @@ que se inicializa antes que cualquier otro que toque datos:
   Ningun otro lugar cifra a mano campos del registro.
 - Funciones que devuelven columnas cifradas (`oferta_derivacion`,
   `derivaciones_pendientes`, `supervision_evoluciones`, `directorio_interno`,
-  `datos_pago_profesional`) pasan por `$queryRaw`: la extension no las ve. El
+  `datos_pago_profesional`, `notificaciones_por_enviar`, `feed_calendario`)
+  pasan por `$queryRaw`: la extension no las ve. El
   service descifra a mano con el AAD de la fila de origen
   (`derivaciones:motivo:<derivacion_id>`, `evoluciones:notas:<evolucion_id>`,
   `usuarios:telefono:<id>`, `profesional_datos_privados:banco:<profesional_id>`).
@@ -85,7 +89,8 @@ que se inicializa antes que cualquier otro que toque datos:
 
 Filas con columnas cifradas no tienen DEFAULT de id (el id es parte del AAD):
 `usuarios`, `pacientes`, `adultos_responsables`, `evoluciones`,
-`supervision_comentarios`, `derivaciones`, `boletas`. La API genera
+`supervision_comentarios`, `derivaciones`, `boletas`, `documentos_clinicos`,
+`envios_documento` (02h). La API genera
 `randomUUID()` antes de cifrar y lo pasa en el `create`. Prisma lo exige por
 tipo (el campo `id` no es opcional).
 
@@ -158,6 +163,11 @@ DTOs (`class-validator`), antes de cifrar:
   rechaza o desactiva (nunca DELETE); `revisado_por`/`revisado_en` registran
   quien y cuando aprobo o rechazo. La UI de evolucion solo lista los aprobados
   y activos; la de ADMIN muestra la cola de propuestos.
+- **Tipos de atencion por profesional** (02h, mismo patron): el PROFESIONAL
+  propone los suyos (`profesional_tipos_atencion`, quedan PROPUESTO); solo
+  ADMIN aprueba o rechaza (o fija la lista aprobada). Solo los APROBADOS
+  cuentan en el match y `perfiles_publicos()` y en `directorio_interno()`
+  (de donde la UI filtra los candidatos de una derivacion).
 
 ## 6. Perfil profesional y cobro
 
@@ -174,9 +184,33 @@ DTOs (`class-validator`), antes de cifrar:
   `datos_pago_profesional(cita)` y descifra con AAD
   `profesional_datos_privados:<columna>:<profesional_id>`; 0 filas = no
   corresponde mostrar datos de pago.
-- **"Pago pendiente" es provisorio**: hoy = cita CONFIRMADA sin ningun pago.
-  El modulo de Cobros lo redefine (montos, abonos, pagos parciales); la API no
-  debe asumir esta definicion fuera de `datos_pago_profesional`.
+- **Cobros (02h)**:
+  - `citas.monto` lo fija la BD al confirmar con la tarifa mas especifica
+    vigente (tipo de atencion del paciente + modalidad, tipo, modalidad,
+    general; sin tarifa = 0). Inmutable: no hay ajustes; una tarifa nueva solo
+    afecta citas confirmadas despues. Reprogramar (misma fila) lo conserva.
+  - Pagos solo via `registrar_pago` (sobrepago = 23514) y `anular_pago`
+    (motivo; nunca borrado). Saldo = vista `estado_pago_citas` (exigible -
+    pagado no anulado + devolucion). Estados: SIN_COBRO (exigible 0),
+    PENDIENTE, PARCIAL, PAGADO. "Pago pendiente" = saldo > 0, tambien en
+    `datos_pago_profesional`.
+  - Boleta: una por cita, emitida en la misma transaccion en que queda PAGADA
+    (`emitir_boleta`), con copia cifrada del emisor (el profesional si cobro
+    directo, si no el centro; sin RUT se cifra "sin RUT"). No se anula un pago
+    de una cita con boleta.
+  - Politica de cancelacion (`configuracion_centro`): `plazo_aviso_cancelacion_horas`
+    (24), `penalizacion_cancelacion_porcentaje` y `cobro_inasistencia_porcentaje`
+    (0, pendientes del caso de estudio). `resolver_cita` (ADMIN/GESTION)
+    registra la decision: TRASLADO (credito de una cancelacion a tiempo o
+    reprogramacion de una tardia: los pagos pasan a la cita nueva), DEVOLUCION
+    (a tiempo: todo; tardia: menos la penalizacion) o INASISTENCIA (cobra el
+    porcentaje). Una decision por cita, append-only.
+  - Liquidacion por profesional y periodo (`generar_liquidacion`,
+    `avanzar_liquidacion`): pagos cobrados por el centro - devoluciones -
+    `comision_centro_porcentaje` - arriendos del periodo. BORRADOR, EMITIDA,
+    PAGADA; solo ADMIN/GESTION; el profesional ve las suyas emitidas.
+  - Fuera de alcance: pasarela de pago, medios reales, SII (numero de boleta
+    simulado) y propuestas financieras.
 - El orden del Match (necesidad > tiempos > precio) lo implementa el modulo
   Match con `perfiles_publicos()` (tarifas incluidas) y `disponibilidad_publica()`.
 
@@ -189,9 +223,10 @@ DTOs (`class-validator`), antes de cifrar:
   modalidad (hora de Chile, sin cruzar de dia) y fuera de bloqueos de agenda
   (23514). Reprogramar una POR_REPROGRAMAR pasa por las mismas reglas.
 - **Disponibilidad en minutos**: `inicio_min`/`fin_min` son minutos desde la
-  medianoche de Chile (0-1440; 1440 = fin del dia, nunca "24:00"). La API los
+  medianoche de Chile (0-1440; 1440 = fin del dia). La API los
   expone y recibe como enteros (DTO: 0 <= inicio < fin <= 1440) y la UI los
-  muestra como HH:MM. Para convertir a instantes, usar la misma regla que la
+  muestra como HH:MM; el minuto 1440 se presenta como "24:00" (confirmado en
+  02h: solo presentacion, nunca se guarda ni se recibe asi). Para convertir a instantes, usar la misma regla que la
   BD (`minuto_local(fecha, minuto)`, zona America/Santiago): en los dias de
   cambio de horario el dia dura 23 o 25 h. Mejor pedir los huecos ya
   convertidos a `disponibilidad_publica()` que recalcularlos en TS.
@@ -210,8 +245,10 @@ DTOs (`class-validator`), antes de cifrar:
   - Editan el margen: el propio profesional y ADMIN/GESTION.
 - **Enlace online**: `citas.enlace_online` solo en citas ONLINE (CHECK) y
   **cifrado** (bytea, CLINICO, en `registro.ts`; AAD `citas:enlace_online:<id>`).
-  La API lo genera con la cita ya creada (id conocido), con expiracion, y lo
-  envia al paciente; nunca en presenciales ni en logs.
+  La API lo genera con la cita ya creada (id conocido), con expiracion, segun
+  el modo del profesional (`salas_videollamada`: ENLACE_PROPIO o JITSI, ver
+  `docs/api/integraciones.md`), y lo envia al paciente; nunca en presenciales
+  ni en logs.
 - El margen requerido entre dos citas con margenes distintos es el promedio
   de ambos (cada cita guarda el vigente al confirmarse).
 - Disponibilidad y bloqueos: los edita el propio y ADMIN/GESTION. El bloqueo
@@ -232,7 +269,9 @@ DTOs (`class-validator`), antes de cifrar:
 | verificacion de canarios (CryptoModule) | diaria | registra VERIFICACION / FALLO_CANARIO |
 
 Idempotentes y con `SKIP LOCKED`: correr dos instancias a la vez no duplica
-efectos. Loguear el numero devuelto con el logger de Nest.
+efectos. Loguear el numero devuelto con el logger de Nest. Ademas el envio de
+correos (`enviar_notificaciones`, cada minuto). La programacion de cada job
+se prueba con reloj simulado (`core/jobs/jobs.spec.ts`).
 
 ## 9. Practicantes, supervision y consentimiento
 
@@ -298,8 +337,16 @@ efectos. Loguear el numero devuelto con el logger de Nest.
   `INSERT accesos_ficha` con el usuario y rol del contexto en la misma
   transaccion. Las funciones de derivacion, supervision y datos de pago ya
   auditan solas.
+- Documentos clinicos (02h): emision (ESCRITURA) y cada envio (ENVIO) los
+  registra la API; cada descarga, `registrar_descarga_documento` (DESCARGA y
+  `descargas_documento`). El unico contenido clinico que sale por correo son
+  documentos emitidos: por defecto un enlace que expira y exige sesion;
+  adjunto solo si el paciente lo pidio. Los mensajes del paciente no cambian
+  (el correo solo avisa y remite al portal).
+- Decisiones de cobro (`resoluciones_cita`), anulaciones (`pagos`) y
+  liquidaciones guardan quien y cuando; son append-only.
 
-## 13. Como quedo implementado (02a-02g)
+## 13. Como quedo implementado (02a-02h)
 
 Estado y decisiones de la fase de API: `docs/api/estado_fase_api.md`.
 
@@ -323,3 +370,12 @@ Estado y decisiones de la fase de API: `docs/api/estado_fase_api.md`.
   intervenciones.
 - Eventos de dominio: se emiten despues del COMMIT (`alConfirmar`), nunca
   dentro de la transaccion.
+- 02h: los avisos de derivacion los registra la BD (triggers sobre
+  `derivacion_candidatos` y `derivaciones`), asi tambien salen cuando un job
+  o un rechazo pasa la oferta al siguiente; la fila no lleva autor y
+  `GET /notificaciones` no expone `creadaPorId`.
+- 02h: integraciones por interfaz (`ProveedorCorreo`, `ProveedorVideollamada`,
+  `ProveedorCalendario`) elegidas en `CoreModule` por configuracion
+  (`docs/api/integraciones.md`).
+- 02h: Prisma envia los enteros de `$queryRaw` como `bigint`: castear
+  (`::int`) al llamar funciones con parametros `int` (si no, 42883 -> 500).
