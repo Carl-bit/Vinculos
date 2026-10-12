@@ -49,8 +49,8 @@ describe('calendario .ics: solo "Sesion", modalidad, horario y enlace o box', ()
 
   it('presencial con box; online con enlace; POR_REPROGRAMAR marcada como tentativa', () => {
     const texto = ics.calendario('Centro Prueba', [
-      eventoDeCita({ id: 'a', inicio: new Date('2026-11-02T13:00:00Z'), fin: new Date('2026-11-02T14:00:00Z'), modalidad: 'PRESENCIAL', estado: 'CONFIRMADA', espacio: 'Box 1', enlace: null }),
-      eventoDeCita({ id: 'b', inicio: new Date('2026-11-03T13:00:00Z'), fin: new Date('2026-11-03T14:00:00Z'), modalidad: 'ONLINE', estado: 'POR_REPROGRAMAR', espacio: null, enlace: 'https://sala/x' }),
+      eventoDeCita({ id: 'a', inicio: new Date('2026-11-02T13:00:00Z'), fin: new Date('2026-11-02T14:00:00Z'), modalidad: 'PRESENCIAL', estado: 'CONFIRMADA', espacio: 'Box 1', enlace: null, secuencia: 0 }),
+      eventoDeCita({ id: 'b', inicio: new Date('2026-11-03T13:00:00Z'), fin: new Date('2026-11-03T14:00:00Z'), modalidad: 'ONLINE', estado: 'POR_REPROGRAMAR', espacio: null, enlace: 'https://sala/x', secuencia: 1 }),
     ]);
     expect(texto.split('\r\n').filter((l) => l === 'BEGIN:VEVENT')).toHaveLength(2);
     expect(texto).toContain('DTSTART:20261102T130000Z');
@@ -67,8 +67,27 @@ describe('calendario .ics: solo "Sesion", modalidad, horario y enlace o box', ()
         .map((l) => l.split(/[:;]/)[0]),
     );
     expect([...propiedades].sort()).toEqual(
-      ['BEGIN', 'CALSCALE', 'DESCRIPTION', 'DTEND', 'DTSTAMP', 'DTSTART', 'END', 'LOCATION', 'METHOD', 'PRODID', 'STATUS', 'SUMMARY', 'UID', 'VERSION', 'X-WR-CALNAME'].sort(),
+      ['BEGIN', 'CALSCALE', 'DESCRIPTION', 'DTEND', 'DTSTAMP', 'DTSTART', 'END', 'LOCATION', 'METHOD', 'PRODID', 'SEQUENCE', 'STATUS', 'SUMMARY', 'UID', 'VERSION', 'X-WR-CALNAME'].sort(),
     );
+  });
+
+  it('02i: UID fijo por cita y SEQUENCE creciente; la cancelacion va con METHOD:CANCEL y STATUS:CANCELLED', () => {
+    const cita = { id: 'c', fin: new Date('2026-11-04T14:00:00Z'), modalidad: 'PRESENCIAL' as const, espacio: 'Box 2', enlace: null };
+    const original = ics.calendario('x', [eventoDeCita({ ...cita, inicio: new Date('2026-11-04T13:00:00Z'), estado: 'CONFIRMADA', secuencia: 0 })]);
+    const reprogramada = ics.calendario('x', [eventoDeCita({ ...cita, inicio: new Date('2026-11-04T13:30:00Z'), estado: 'CONFIRMADA', secuencia: 2 })]);
+    const cancelada = ics.calendario('x', [eventoDeCita({ ...cita, inicio: new Date('2026-11-04T13:30:00Z'), estado: 'CANCELADA', secuencia: 3 })], {
+      metodo: 'CANCEL',
+      organizador: { nombre: 'Centro "X"', email: 'no-responder@vinculos.cl' },
+    });
+    for (const t of [original, reprogramada, cancelada]) {
+      expect(t).toContain('UID:c@vinculos\r\n');
+    }
+    expect([original, reprogramada, cancelada].map((t) => /SEQUENCE:(\d+)/.exec(t)![1])).toEqual(['0', '2', '3']);
+    expect(reprogramada).toContain('METHOD:PUBLISH');
+    expect(cancelada).toContain('METHOD:CANCEL');
+    expect(cancelada).toContain('STATUS:CANCELLED');
+    expect(cancelada).toContain('ORGANIZER;CN="Centro X":mailto:no-responder@vinculos.cl');
+    expect(cancelada).not.toContain('LOCATION');
   });
 
   it('pliega lineas largas a 75 octetos', () => {

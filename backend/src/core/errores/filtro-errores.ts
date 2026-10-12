@@ -69,6 +69,15 @@ export class FiltroErrores implements ExceptionFilter {
         mensaje: typeof r === 'string' ? r : ((message as string | string[] | undefined) ?? error.message),
       };
     }
+    // body-parser (antes de la ruta): JSON sobre el limite (413) o mal formado (400).
+    const cuerpo = (error ?? {}) as { status?: unknown; type?: unknown };
+    if (typeof cuerpo.type === 'string' && typeof cuerpo.status === 'number' && cuerpo.status >= 400 && cuerpo.status < 500) {
+      return {
+        statusCode: cuerpo.status,
+        error: HttpStatus[cuerpo.status] ?? 'ERROR',
+        mensaje: cuerpo.status === 413 ? 'Cuerpo demasiado grande (maximo 1 MB; los archivos van por multipart)' : 'Cuerpo de la solicitud invalido',
+      };
+    }
     if (error instanceof ErrorCifrado) {
       this.logger.error(`ErrorCifrado: ${error.message}`);
     } else if (error instanceof Prisma.PrismaClientKnownRequestError) {

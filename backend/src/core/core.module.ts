@@ -20,7 +20,7 @@ import { JobsService } from './jobs/jobs.service';
 import { CalendarioIcs, ProveedorCalendario } from './integraciones/calendario';
 import { ProveedorVideollamada, ProveedorVideollamadaPorProfesional, ProveedorVideollamadaSimulado } from './integraciones/videollamada';
 import { ProveedorCorreo, ProveedorCorreoSimulado, ProveedorCorreoSmtp } from './notificaciones/correo';
-import { NotificacionesController } from './notificaciones/notificaciones.controller';
+import { NotificacionesController, PlantillasMensajeController } from './notificaciones/notificaciones.controller';
 import { NotificacionesService } from './notificaciones/notificaciones.service';
 import { idSolicitud, opcionesLogger } from './logs/logs';
 import { PrismaModule } from './prisma/prisma.module';
@@ -79,7 +79,7 @@ export class CoreModule {
         CryptoModule,
         BdModule,
       ],
-      controllers: [AuthController, SaludController, NotificacionesController],
+      controllers: [AuthController, SaludController, NotificacionesController, PlantillasMensajeController],
       providers: [
         AuthService,
         JobsService,

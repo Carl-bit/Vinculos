@@ -60,6 +60,9 @@ compara ese registro con las columnas bytea reales de la BD.
 | `documentos_clinicos.contenido` (02h, CLINICO) | Archivo emitido por el tratante (epicrisis, receta...). Id generado por la API. |
 | `envios_documento.enlace` (02h, CLINICO) | URL con el token de descarga, solo para el job de correo. Para validar la descarga se guarda aparte su SHA-256 (`token_hash`, texto). |
 | `salas_videollamada.enlace` (02h, IDENTIFICACION) | Sala fija del profesional: da acceso a sus sesiones. Id de fila = `usuario_id`. |
+| `notificaciones.asunto`, `notificaciones.cuerpo` (02i, CLINICO) | Mensaje armado con la plantilla (bandeja y correo): nombres, horario y enlaces de una atencion de salud. Lo escribe el job (cifrado por la API, AAD `notificaciones:<columna>:<id>`). |
+| `recordatorios_cita.enlace` (02i, CLINICO) | URL con el token para confirmar o cancelar, solo para armar el mensaje. Para validar se guarda aparte su SHA-256 (`token_hash`). Id generado por la API. |
+| `adjuntos_ficha.contenido` (02i, CLINICO) | Archivo externo de la ficha (informe, imagen) en base64. Id generado por la API. |
 
 | No se cifra | Por que |
 |---|---|
@@ -69,7 +72,7 @@ compara ese registro con las columnas bytea reales de la BD.
 | `nombre` | Se ordena y se busca; sin RUT ni contacto, solo identifica dentro del centro. |
 | `email` de login | Se busca en el login (`credenciales_login`); es la llave de acceso. |
 | Montos, pagos, liquidaciones (02h) | La BD calcula saldos, sobrepago y liquidaciones con ellos. Lo sensible del cobro (datos bancarios, emisor de la boleta) si va cifrado. |
-| `feeds_calendario.token_hash`, `envios_documento.token_hash` (02h) | SHA-256 de un token aleatorio de 256 bits: no revela el token; se busca por igualdad. |
+| `feeds_calendario.token_hash`, `envios_documento.token_hash` (02h), `recordatorios_cita.token_hash` (02i) | SHA-256 de un token aleatorio de 256 bits: no revela el token; se busca por igualdad. |
 | Direcciones | Hoy no existen columnas de direccion; cuando se agreguen, van cifradas. |
 
 ## Modelo de amenazas

@@ -144,7 +144,7 @@ describe('02g match y portal', () => {
       expect(r.status).toBe(201);
       const fila = await t.dueno.mensajePaciente.findUniqueOrThrow({ where: { id: r.body.id } });
       expect(Buffer.from(fila.contenido).toString('latin1')).not.toContain('reagendar');
-      expect(await t.dueno.notificacion.count({ where: { tipo: 'MENSAJE_PACIENTE', usuarioId: tratante.id, referenciaId: r.body.id } })).toBe(1);
+      expect(await t.dueno.notificacion.count({ where: { tipo: 'MENSAJE_PACIENTE', canal: 'BANDEJA', usuarioId: tratante.id, referenciaId: r.body.id } })).toBe(1);
       expect((await t.http().post('/api/portal/mensajes').set(await tk(paciente)).send({ profesionalId: otroProfesional.id, contenido: 'hola' })).status).toBe(403);
       const recibidos = await t.http().get('/api/mensajes').set(await tk(tratante));
       expect(recibidos.body.map((m: { contenido: string }) => m.contenido)).toEqual(['Necesito reagendar por un control medico']);

@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 
+import { RecordatoriosService } from '../../modulos/agenda/recordatorios.service';
 import { ContextoBd } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
 import { ProveedorCalendario } from '../integraciones/calendario';
@@ -32,6 +33,7 @@ describe('programacion de jobs (reloj simulado)', () => {
       providers: [
         JobsService,
         NotificacionesService,
+        RecordatoriosService,
         { provide: ContextoBd, useValue: {} },
         { provide: LlaveroService, useValue: {} },
         { provide: ProveedorCorreo, useValue: {} },
@@ -52,8 +54,8 @@ describe('programacion de jobs (reloj simulado)', () => {
 
   const de = (job: string) => disparos.filter((d) => d.job === job);
 
-  it('cada 10 minutos: expirar ofertas de derivacion y cerrar avisos vencidos', () => {
-    for (const job of ['expirar_ofertas_derivacion', 'cerrar_avisos_vencidos']) {
+  it('cada 10 minutos: ofertas de derivacion, avisos vencidos, consentimientos por vencer y recordatorios de citas', () => {
+    for (const job of ['expirar_ofertas_derivacion', 'cerrar_avisos_vencidos', 'avisar_consentimientos_por_vencer', 'enviar_recordatorios']) {
       expect(de(job)).toHaveLength(144);
       expect(de(job).every((d) => d.en.getUTCMinutes() % 10 === 0 && d.en.getUTCSeconds() === 0)).toBe(true);
     }
@@ -76,7 +78,15 @@ describe('programacion de jobs (reloj simulado)', () => {
 
   it('no hay jobs sin cubrir por este test', () => {
     expect(new Set(disparos.map((d) => d.job))).toEqual(
-      new Set(['expirar_ofertas_derivacion', 'cerrar_avisos_vencidos', 'procesar_bajas', 'enviar_notificaciones', 'verificar_canarios']),
+      new Set([
+        'expirar_ofertas_derivacion',
+        'cerrar_avisos_vencidos',
+        'avisar_consentimientos_por_vencer',
+        'enviar_recordatorios',
+        'procesar_bajas',
+        'enviar_notificaciones',
+        'verificar_canarios',
+      ]),
     );
   });
 });

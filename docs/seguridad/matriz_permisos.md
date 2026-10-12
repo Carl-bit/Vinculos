@@ -5,7 +5,8 @@ Generada a partir del catalogo real (`has_table_privilege`,
 `information_schema.triggers`, `pg_proc`) despues de aplicar las migraciones
 hasta `20261011000000_cierre_fase_bd` (cierre de la fase de BD), mas las de la fase de API:
 `20261012000000_api_sesiones_alertas` (02a), `20261013000000_notificaciones` (02f),
-`20261014000000_portal_mensajes_epicrisis` (02g) y `20261015000000_ajustes_y_cobros` (02h). Fuente para los guards
+`20261014000000_portal_mensajes_epicrisis` (02g), `20261015000000_ajustes_y_cobros` (02h) y
+`20261016000000_mensajeria_enums` + `20261016000100_mensajeria_recordatorios_documentos` (02i). Fuente para los guards
 del prompt 02 y para la tesis. Si una migracion cambia GRANTs, politicas,
 triggers o funciones, esta matriz se actualiza en el mismo cambio. Cada fila
 tiene al menos un caso en `backend/prisma/tests/seguridad_bd.sql`.
@@ -228,17 +229,26 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | todos (app_user) | `sesiones` | todas | ninguna directa (refresh tokens: solo el SHA-256) | sin GRANT; `crear_sesion` / `rotar_sesion` / `revocar_sesion` + trigger `usuarios_revoca_sesiones` |
 | A | ADMIN | `alertas_internas` | SELECT | todas | GRANT + `alertas_internas_select`; escritura solo via `alertar_bajas_sin_admin` / `alertar_fallo_canario` / `atender_alerta` |
 | A | todos (incluso dueño) | `alertas_internas` | UPDATE, DELETE | solo marcar atendida una vez (funcion) | sin GRANT + trigger `alertas_internas_append_only` (23001) |
-| A | ADMIN / GESTION | `notificaciones` | SELECT | todas | GRANT + `notificaciones_select` |
-| A | destinatario (usuario o PACIENTE) | `notificaciones` | SELECT | las propias | `notificaciones_select` |
-| A | todos (autenticados) | `notificaciones` | INSERT | `creada_por_id` = yo, PENDIENTE | GRANT + `notificaciones_insert`; cierre solo via `marcar_notificacion` (job) + trigger `notificaciones_append_only` (23001) |
-| A | BD (triggers) | `notificaciones` | INSERT | 02h: oferta al candidato (DERIVACION_OFRECIDA) cada vez que pasa a OFRECIDA, incluso via job o rechazo; cambio de estado al origen (DERIVACION_ACTUALIZADA, una pendiente por derivacion). `creada_por_id` nulo: el candidato no sabe quien rechazo | triggers `derivacion_candidatos_notificar`, `derivaciones_notificar` |
+| A | ADMIN / GESTION | `notificaciones` | SELECT | todas (la API les expone solo metadatos; el contenido, en la bandeja propia) | GRANT + `notificaciones_select` |
+| A | destinatario (usuario o PACIENTE) | `notificaciones` | SELECT | las propias (bandeja: canal BANDEJA, asunto y cuerpo cifrados) | `notificaciones_select` |
+| A | todos (autenticados) | `notificaciones` | INSERT | 02i: ninguna directa; via `notificar()` (a nombre del actor; una fila BANDEJA + CORREO segun plantilla y preferencias) | sin GRANT INSERT; avance solo via funciones del job + trigger `notificaciones_append_only` (23001) + CHECK `notificaciones_coherente` (WHATSAPP reservado) |
+| A | BD (triggers, jobs) | `notificaciones` | INSERT | via `encolar_notificacion`: oferta al candidato (DERIVACION_OFRECIDA) cada vez que pasa a OFRECIDA, incluso via job o rechazo; cambio de estado al origen (DERIVACION_ACTUALIZADA, una pendiente por derivacion y canal); recordatorios; consentimientos por vencer; cancelacion por token. `creada_por_id` nulo | triggers `derivacion_candidatos_notificar`, `derivaciones_notificar`; funciones de job |
+| B | ADMIN | `plantillas_mensaje` | SELECT, UPDATE (asunto, cuerpo, activa) | todas; variables solo de la lista permitida; BANDEJA no se desactiva; el ejemplo es fijo; sin INSERT ni DELETE (02i) | GRANT + `plantillas_mensaje_admin` + CHECK `plantillas_mensaje_variables_permitidas`, `plantillas_mensaje_coherente` (23514) |
+| B | resto | `plantillas_mensaje` | todas | ninguna | politica sin rama |
+| A | PACIENTE | `preferencias_notificacion` | SELECT, INSERT, UPDATE (recordatorios, avisos_operativos) | las propias; los avisos legales no tienen columna (02i) | GRANT + `preferencias_notificacion_*`; DELETE bloqueado (trigger) |
+| A | ADMIN / GESTION | `preferencias_notificacion` | SELECT | todas | `preferencias_notificacion_select` |
+| A | ADMIN / GESTION; PROFESIONAL / PACIENTE | `recordatorios_cita` | SELECT | todos; de citas que ven (02i). Escritura solo via `registrar_recordatorio` (job) y `responder_recordatorio` (token) | GRANT SELECT + `recordatorios_cita_select` + CHECK `recordatorios_cita_coherente` + trigger `recordatorios_cita_protegidos` (23001) |
+| A | PROFESIONAL / PRACTICANTE tratante | `adjuntos_ficha` | SELECT, INSERT | de sus pacientes (PRACTICANTE con consentimiento); PDF, PNG o JPEG; contenido cifrado (02i) | GRANT + `adjuntos_ficha_*` + `_consentimiento_practicante` + CHECK `adjuntos_ficha_archivo` |
+| A | ADMIN / GESTION / PACIENTE | `adjuntos_ficha` | todas | ninguna (como la ficha clinica) | politicas sin rama |
+| A | todos (incluso dueño) | `adjuntos_ficha` (UPDATE, DELETE), `preferencias_notificacion` (DELETE) | UPDATE, DELETE | append-only | triggers `adjuntos_ficha_append_only`, `preferencias_notificacion_sin_delete` (23001) |
 | A | PACIENTE | `mensajes_paciente` | SELECT, INSERT | los propios; destinatario solo de su equipo tratante (`mi_equipo_tratante`); contenido cifrado | GRANT + `mensajes_paciente_*` + CHECK `mensajes_paciente_cifrado` |
 | A | PROFESIONAL / PRACTICANTE | `mensajes_paciente` | SELECT | los recibidos; marcar leido via `marcar_mensaje_leido` | `mensajes_paciente_select` |
 | A | ADMIN / GESTION | `mensajes_paciente` | todas | ninguna (contenido del paciente) | politicas sin rama |
 | A | PACIENTE | `solicitudes_epicrisis` | SELECT, INSERT | las propias (SOLICITADA); motivo cifrado | GRANT + `solicitudes_epicrisis_*` + CHECK `solicitudes_epicrisis_cifrado` |
 | A | ADMIN / GESTION / tratante | `solicitudes_epicrisis` | SELECT | todas / de sus pacientes; resuelven ADMIN o el tratante via `resolver_solicitud_epicrisis` | `solicitudes_epicrisis_select` |
 | A | todos (incluso dueño) | `mensajes_paciente`, `solicitudes_epicrisis` | UPDATE, DELETE | solo via funciones; nunca DELETE | sin GRANT + triggers `*_append_only` (23001) |
-| B | equipo / ADMIN | `tipos_documento_clinico` | SELECT / INSERT, UPDATE | todos; nunca DELETE (se desactiva); PACIENTE no | GRANT + `tipos_documento_clinico_*` |
+| B | equipo / ADMIN | `tipos_documento_clinico` | SELECT / INSERT, UPDATE (nombre, activo, plantilla) | todos; nunca DELETE (se desactiva); plantilla con variables permitidas (02i) | GRANT + `tipos_documento_clinico_*` + CHECK `tipos_documento_clinico_plantilla_valida` (23514) |
+| B | PACIENTE | `tipos_documento_clinico` | SELECT | solo los tipos de sus documentos (titulo del PDF, 02i) | `tipos_documento_clinico_select_paciente` (via `tipo_documento_del_paciente`) |
 | A | PROFESIONAL / PRACTICANTE tratante | `documentos_clinicos` | SELECT, INSERT | de sus pacientes (PRACTICANTE con consentimiento); tipo activo; contenido cifrado | GRANT + `documentos_clinicos_*` + `_consentimiento_practicante` + CHECK `documentos_clinicos_cifrado` |
 | A | PACIENTE | `documentos_clinicos` | SELECT | los suyos; pide adjunto via `solicitar_adjunto_documento`; descarga via `registrar_descarga_documento` | `documentos_clinicos_select` |
 | A | ADMIN / GESTION | `documentos_clinicos` | todas | ninguna (contenido clinico) | politicas sin rama |
@@ -296,28 +306,35 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | job sin contexto | `alertar_bajas_sin_admin()` | alerta (una abierta por baja) las bajas cumplidas que dejarian al centro sin ADMIN; devuelve cuantas | — |
 | A | job sin contexto | `alertar_fallo_canario(detalle)` | alerta FALLO_CANARIO (sin llaves ni datos en el detalle) | — |
 | A | ADMIN | `atender_alerta(id)` | marca atendida una vez | 42501, P0002, 55000 |
-| A | job sin contexto | `notificaciones_por_enviar(limite)` | pendientes (SKIP LOCKED) con el email del destinatario (menor: adulto responsable), el enlace cifrado (videollamada o documento), el adjunto cifrado si el envio es ADJUNTO y `datos` (nombre del centro; horario, modalidad y box de la cita para el .ics; metadatos del documento) | — |
+| A | job sin contexto (con contexto: 42501) | `notificaciones_por_enviar(limite)` | 02i: pendientes vencidas (`proximo_intento`, SKIP LOCKED) con su plantilla activa, el contenido ya armado (si lo hay), el email solo en CORREO (menor: adulto responsable), el enlace cifrado y su origen (videollamada, recordatorio o documento), el documento si el envio es ADJUNTO y `datos` (centro; nombre del paciente solo si es el destinatario; profesional; horario, estado y SEQUENCE de la cita; metadatos del documento) | 42501 |
+| A | job sin contexto | `guardar_contenido_notificacion(id, asunto, cuerpo)` | guarda una vez el mensaje armado (cifrado por la API) | 42501, 55000 |
+| A | job sin contexto | `marcar_notificacion(id, enviada, detalle, reintentar)` | ENVIADO; o fallo: PENDIENTE con backoff 1, 2, 4, 8 min y FALLIDO al quinto intento (o sin reintento) | 42501, 55000 |
+| A | job sin contexto | `avisar_consentimientos_por_vencer()` | una vez por solicitud SOLICITADA pasada la mitad de su plazo | 42501 |
+| A | job sin contexto | `citas_por_recordar(limite)`, `registrar_recordatorio(id, cita, inicio, token_hash, enlace)` | citas CONFIRMADA en la ventana `recordatorio_horas_antes`; registra uno por cita y horario (idempotente) y su mensaje | 42501 |
+| C | sin contexto (token en la URL) | `consultar_recordatorio(token_hash)` | horario, modalidad y profesional de la cita; vigencia; si una cancelacion seria a tiempo y la penalizacion vigente. Nunca datos del paciente | P0002 |
+| A | sin contexto (token en la URL) | `responder_recordatorio(token_hash, respuesta)` | un solo uso, hasta el inicio: CONFIRMADA o CANCELADA (cancela la cita, informa a tiempo o tardia, avisa a paciente y profesional) | P0002, 55000 |
+| A | todos (autenticados) | `notificar(tipo, paciente, usuario, referencia)` | registra el aviso a nombre del actor; los eventos de la BD (derivaciones, recordatorios, consentimiento por vencer) no se piden desde la API | 42501 |
 | A | PACIENTE | `solicitar_adjunto_documento(documento)` | registra una vez que el paciente pide el documento adjunto | 42501, P0002, 55000 |
 | A | PACIENTE | `registrar_descarga_documento(token_hash)` | documento del enlace si es suyo y vigente; registra la descarga (y `accesos_ficha` DESCARGA); vencido = `vencido` sin registrar | 42501, P0002 |
-| C | sin contexto (token en la URL) | `feed_calendario(token_hash)` | id, inicio, fin, modalidad, estado, box y enlace cifrado de citas CONFIRMADA/POR_REPROGRAMAR del dueño del token (activo); nunca paciente ni motivo | P0002 |
+| C | sin contexto (token en la URL) | `feed_calendario(token_hash)` | id, inicio, fin, modalidad, estado, box, enlace cifrado y SEQUENCE (02i) de citas CONFIRMADA/POR_REPROGRAMAR/CANCELADA del dueño del token (activo); nunca paciente ni motivo | P0002 |
 | A | ADMIN / GESTION / profesional de la cita con cobro directo | `registrar_pago(cita, monto, medio)` | bloquea la cita; monto > saldo -> 23514 `pagos_sin_sobrepago`; fija `cobrado_por` | 42501, P0002, 23514 |
 | A | ADMIN / GESTION | `anular_pago(pago, motivo)` | REGISTRADO -> ANULADO con motivo; no si la cita tiene boleta o el pago esta en una liquidacion emitida | 42501, P0002, 55000, 23514 |
 | A | ADMIN / GESTION / profesional con cobro directo | `emitir_boleta(id, cita, emisor_nombre, emisor_rut)` | una boleta por cita PAGADA (copia del emisor cifrada por la API, numero simulado); nulo si no corresponde | 42501 |
 | A | ADMIN / GESTION | `resolver_cita(cita, decision, cita_nueva, motivo)` | politica de cancelacion (a tiempo o tardia segun `plazo_aviso_cancelacion_horas`; TRASLADO de pagos o DEVOLUCION menos `penalizacion_cancelacion_porcentaje`) e INASISTENCIA (`cobro_inasistencia_porcentaje`); una por cita | 42501, P0002, 55000, 23514 |
 | A | ADMIN / GESTION | `generar_liquidacion(profesional, desde, hasta)` | BORRADOR: cobrado por el centro - devoluciones - comision (`comision_centro_porcentaje`) - arriendos; recalcula un BORRADOR del mismo periodo | 42501, 23514, 55000, 23P01 |
 | A | ADMIN / GESTION | `avanzar_liquidacion(id, estado)` | BORRADOR -> EMITIDA -> PAGADA | 42501, P0002, 55000 |
-| A | job sin contexto | `marcar_notificacion(id, enviada, detalle)` | cierra una pendiente (ENVIADA / FALLIDA) | 55000 |
 | A | PROFESIONAL / PRACTICANTE destinatario | `marcar_mensaje_leido(id)` | una vez | 42501, P0002, 55000 |
 | A | ADMIN / tratante | `resolver_solicitud_epicrisis(id, estado, documento)` | SOLICITADA -> EN_PROCESO/ENTREGADA/RECHAZADA; EN_PROCESO -> ENTREGADA/RECHAZADA; ENTREGADA exige documento | 42501, P0002, 55000, 23514 |
-| — | interno (sin EXECUTE para app_user) | 02h: `tarifa_vigente`, `fijar_monto_cita`, `avisar_origen_derivacion`, `notificar_candidato_derivacion`, `notificar_estado_derivacion`, `validar_envio_documento`, `proteger_*`, `bloquear_cambios_registro`; `cuenta_habilitada`, `revocar_sesiones_por_cambio`, `ofrecer_siguiente_candidato`, `agregar_candidatos`, `registrar_accion_derivacion`, `desactivar_tratante`, `reasignar_citas_derivacion`, `motivo_reasignacion`, `cobro_directo`, `cerrar_cuenta`, `concretar_traspaso`, `consentimiento_no_otorgado`, `validar_otorgante`, `margen_vigente`, `ultima_atencion` | — | — |
-| — | uso de politicas/triggers (EXECUTE `app_user`) | `acceso_vigente`, `app_paciente_id`, `es_profesional_de_*`, `rol_usuario`, `supervisor_vigente`, `es_supervisor_vigente_de`, `consentimiento_practicante_vigente`, `consentimiento_vigente_para`, `evolucion_supervisable`, `minuto_local`, `rango_con_margen` | booleanos / uuid / text / timestamptz | — |
+| — | interno (sin EXECUTE para app_user) | 02i: `encolar_notificacion`, `avanzar_secuencia_cita`, `proteger_recordatorio`. 02h: `tarifa_vigente`, `fijar_monto_cita`, `avisar_origen_derivacion`, `notificar_candidato_derivacion`, `notificar_estado_derivacion`, `validar_envio_documento`, `proteger_*`, `bloquear_cambios_registro`; `cuenta_habilitada`, `revocar_sesiones_por_cambio`, `ofrecer_siguiente_candidato`, `agregar_candidatos`, `registrar_accion_derivacion`, `desactivar_tratante`, `reasignar_citas_derivacion`, `motivo_reasignacion`, `cobro_directo`, `cerrar_cuenta`, `concretar_traspaso`, `consentimiento_no_otorgado`, `validar_otorgante`, `margen_vigente`, `ultima_atencion` | — | — |
+| — | uso de politicas/triggers (EXECUTE `app_user`) | 02i: `plantilla_valida`, `categoria_evento`, `tipo_documento_del_paciente`; `acceso_vigente`, `app_paciente_id`, `es_profesional_de_*`, `rol_usuario`, `supervisor_vigente`, `es_supervisor_vigente_de`, `consentimiento_practicante_vigente`, `consentimiento_vigente_para`, `evolucion_supervisable`, `minuto_local`, `rango_con_margen` | booleanos / uuid / text / timestamptz | — |
 
 Auditoria en `accesos_ficha`: toda funcion de derivacion con usuario
 (`accion = 'DERIVACION'`, incluida la bandeja `derivaciones_pendientes`), toda
 lectura de supervision (`accion = 'SUPERVISION'`) y la entrega de datos de
 pago al paciente (`accion = 'DATOS_PAGO'`). 02h: la API registra la emision
 de documentos clinicos (ESCRITURA) y cada envio (ENVIO); la descarga la
-registra `registrar_descarga_documento` (DESCARGA). Los jobs no
+registra `registrar_descarga_documento` (DESCARGA). 02i: subida (ESCRITURA) y
+descarga (LECTURA) de `adjuntos_ficha` las registra la API. Los jobs no
 escriben ahi (no hay usuario): su rastro es `derivacion_candidatos.estado =
 EXPIRADA`, `historial_accesos_practicante.accion = EXPIRADO` y
 `bajas.procesada_en`.

@@ -80,6 +80,8 @@ model ConfiguracionCentro {
   penalizacionCancelacionPorcentaje Decimal     @default(0) @map("penalizacion_cancelacion_porcentaje") @db.Decimal(5, 2)
   cobroInasistenciaPorcentaje       Decimal     @default(0) @map("cobro_inasistencia_porcentaje") @db.Decimal(5, 2)
   comisionCentroPorcentaje          Decimal     @default(0) @map("comision_centro_porcentaje") @db.Decimal(5, 2)
+  /// 02i: horas antes de la cita en que sale el recordatorio (0 = desactivado).
+  recordatorioHorasAntes            Int         @default(24) @map("recordatorio_horas_antes")
   updatedAt                         DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("configuracion_centro")
@@ -184,6 +186,7 @@ model Usuario {
   resolucionesCita           ResolucionCita[]
   liquidaciones              Liquidacion[]                @relation("LiquidacionProfesional")
   liquidacionesCreadas       Liquidacion[]                @relation("LiquidacionCreadaPor")
+  adjuntosSubidos            AdjuntoFicha[]
 
   @@map("usuarios")
 }
@@ -343,46 +346,110 @@ enum TipoNotificacion {
   MENSAJE_PACIENTE
   DOCUMENTO_CLINICO
   DERIVACION_ACTUALIZADA
+  RECORDATORIO_CITA
+  CONSENTIMIENTO_POR_VENCER
+  PAGO_REGISTRADO
+  BOLETA_EMITIDA
 
   @@map("tipo_notificacion")
 }
 
 enum EstadoNotificacion {
   PENDIENTE
-  ENVIADA
-  FALLIDA
+  ENVIADO
+  FALLIDO
 
   @@map("estado_notificacion")
 }
 
-/// Registro de cada notificacion (A). Sin contenido ni datos de contacto:
-/// tipo, destinatario (paciente o usuario) y fila de referencia. La inserta la
-/// API (PENDIENTE) con el contexto del actor; el job de envio la toma con
-/// notificaciones_por_enviar() y la cierra con marcar_notificacion(). Append-
-/// only salvo ese cierre (una vez). Nunca DELETE.
+/// BANDEJA: siempre, registro oficial (portal / backoffice). CORREO: copia o
+/// aviso. WHATSAPP: reservado, sin implementacion (CHECK lo rechaza).
+enum CanalMensaje {
+  BANDEJA
+  CORREO
+  WHATSAPP
+
+  @@map("canal_mensaje")
+}
+
+/// Rol del destinatario de una plantilla: el paciente o un integrante del equipo.
+enum DestinatarioMensaje {
+  PACIENTE
+  EQUIPO
+
+  @@map("destinatario_mensaje")
+}
+
+/// Mensaje a un paciente o integrante del equipo (A), una fila por canal
+/// (02i). La crea la BD (encolar_notificacion / notificar(): BANDEJA siempre,
+/// CORREO segun plantilla activa y preferencias). El job la arma con la
+/// plantilla vigente (asunto y cuerpo cifrados, una vez) y la cierra: BANDEJA
+/// queda ENVIADO al armarse; CORREO reintenta con backoff (proximo_intento)
+/// hasta ENVIADO o FALLIDO. Append-only salvo ese avance. Nunca DELETE.
 model Notificacion {
-  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tipo         TipoNotificacion
-  canal        String             @default("EMAIL")
-  pacienteId   String?            @map("paciente_id") @db.Uuid
-  usuarioId    String?            @map("usuario_id") @db.Uuid
-  referenciaId String             @map("referencia_id") @db.Uuid
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tipo           TipoNotificacion
+  canal          CanalMensaje
+  pacienteId     String?            @map("paciente_id") @db.Uuid
+  usuarioId      String?            @map("usuario_id") @db.Uuid
+  referenciaId   String             @map("referencia_id") @db.Uuid
   /// Nulo = la origino la BD sin actor (job): p. ej. una oferta que pasa al siguiente candidato.
-  creadaPorId  String?            @map("creada_por_id") @db.Uuid
-  estado       EstadoNotificacion @default(PENDIENTE)
-  intentos     Int                @default(0)
-  detalleError String?            @map("detalle_error")
-  creadaEn     DateTime           @default(now()) @map("creada_en") @db.Timestamptz(6)
-  procesadaEn  DateTime?          @map("procesada_en") @db.Timestamptz(6)
+  creadaPorId    String?            @map("creada_por_id") @db.Uuid
+  estado         EstadoNotificacion @default(PENDIENTE)
+  intentos       Int                @default(0)
+  proximoIntento DateTime           @default(now()) @map("proximo_intento") @db.Timestamptz(6)
+  detalleError   String?            @map("detalle_error")
+  /// cifrado (CLINICO): asunto y cuerpo armados con la plantilla (una vez)
+  asunto         Bytes?
+  /// cifrado (CLINICO)
+  cuerpo         Bytes?
+  creadaEn       DateTime           @default(now()) @map("creada_en") @db.Timestamptz(6)
+  procesadaEn    DateTime?          @map("procesada_en") @db.Timestamptz(6)
 
   paciente  Paciente? @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
   usuario   Usuario?  @relation("NotificacionDestino", fields: [usuarioId], references: [id], onDelete: Restrict)
   creadaPor Usuario?  @relation("NotificacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
 
-  @@index([estado, creadaEn])
+  @@index([estado, proximoIntento])
   @@index([pacienteId])
   @@index([usuarioId])
   @@map("notificaciones")
+}
+
+/// Plantilla por evento, destinatario y canal (B). La migracion carga el
+/// ejemplo (asunto_ejemplo/cuerpo_ejemplo, fijos); ADMIN personaliza asunto,
+/// cuerpo y activa, y puede restaurar el ejemplo. Variables solo de la lista
+/// permitida (CHECK plantillas_mensaje_variables_permitidas). BANDEJA no se
+/// desactiva. Sin INSERT ni DELETE desde la API.
+model PlantillaMensaje {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evento        TipoNotificacion
+  destinatario  DestinatarioMensaje
+  canal         CanalMensaje
+  asunto        String
+  cuerpo        String
+  activa        Boolean             @default(true)
+  asuntoEjemplo String              @map("asunto_ejemplo")
+  cuerpoEjemplo String              @map("cuerpo_ejemplo")
+  updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([evento, destinatario, canal])
+  @@map("plantillas_mensaje")
+}
+
+/// Preferencias del paciente (A): solo canales externos (la BANDEJA siempre
+/// registra). Desactivables: recordatorios y avisos operativos. Los avisos
+/// legales (consentimientos, cambio de supervisor, documentos emitidos) no
+/// tienen columna: nunca se desactivan.
+model PreferenciaNotificacion {
+  pacienteId       String   @id @map("paciente_id") @db.Uuid
+  recordatorios    Boolean  @default(true)
+  avisosOperativos Boolean  @default(true) @map("avisos_operativos")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+
+  @@map("preferencias_notificacion")
 }
 
 /// Mensaje del paciente a un profesional de su equipo tratante (A).
@@ -484,9 +551,9 @@ model Paciente {
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  profesional          Usuario              @relation("PacienteProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  usuario              Usuario?             @relation("UsuarioPaciente")
-  tipoAtencion         TipoAtencion?        @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
+  profesional          Usuario                  @relation("PacienteProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  usuario              Usuario?                 @relation("UsuarioPaciente")
+  tipoAtencion         TipoAtencion?            @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
   adultosResponsables  AdultoResponsable[]
   consentimientos      Consentimiento[]
   fichaClinica         FichaClinica?
@@ -496,6 +563,8 @@ model Paciente {
   mensajes             MensajePaciente[]
   solicitudesEpicrisis SolicitudEpicrisis[]
   documentos           DocumentoClinico[]
+  preferencias         PreferenciaNotificacion?
+  adjuntos             AdjuntoFicha[]
 
   @@index([profesionalId])
   @@map("pacientes")
@@ -1012,16 +1081,20 @@ model Cita {
   monto             Int?
   /// Lo fija la BD al pasar a CANCELADA (plazo de aviso de la politica de cancelacion).
   canceladaEn       DateTime?         @map("cancelada_en") @db.Timestamptz(6)
+  /// 02i: SEQUENCE del evento de calendario (UID fijo por cita). La sube la BD
+  /// en cada cambio de horario, modalidad, box o estado.
+  secuencia         Int               @default(0)
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  espacio               Espacio?         @relation(fields: [espacioId], references: [id], onDelete: Restrict)
-  profesional           Usuario          @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
-  paciente              Paciente         @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  espacio               Espacio?           @relation(fields: [espacioId], references: [id], onDelete: Restrict)
+  profesional           Usuario            @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+  paciente              Paciente           @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
   pagos                 Pago[]
   boleta                Boleta?
-  resolucion            ResolucionCita?  @relation("ResolucionCita")
-  resolucionesComoNueva ResolucionCita[] @relation("ResolucionCitaNueva")
+  resolucion            ResolucionCita?    @relation("ResolucionCita")
+  resolucionesComoNueva ResolucionCita[]   @relation("ResolucionCitaNueva")
+  recordatorios         RecordatorioCita[]
 
   @@index([pacienteId])
   @@map("citas")
@@ -1455,6 +1528,10 @@ model TipoDocumentoClinico {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nombre    String   @unique
   activo    Boolean  @default(true)
+  /// 02i: plantilla del documento. Variables permitidas: nombre_paciente,
+  /// nombre_profesional, fecha, nombre_centro y contenido (lo que redacta el
+  /// profesional). CHECK tipos_documento_clinico_plantilla_valida.
+  plantilla String   @default("{{contenido}}")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -1480,7 +1557,8 @@ model DocumentoClinico {
   emitidoPorId        String    @map("emitido_por_id") @db.Uuid
   nombreArchivo       String    @map("nombre_archivo")
   tipoMime            String    @map("tipo_mime")
-  /// cifrado (CLINICO): el archivo en base64
+  /// cifrado (CLINICO): texto del documento (plantilla del tipo con las
+  /// variables y lo redactado). El PDF se genera al entregarlo (02i).
   contenido           Bytes
   /// El paciente pidio explicitamente recibirlo adjunto (solicitar_adjunto_documento).
   adjuntoSolicitadoEn DateTime? @map("adjunto_solicitado_en") @db.Timestamptz(6)
@@ -1572,4 +1650,58 @@ model FeedCalendario {
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
 
   @@map("feeds_calendario")
+}
+
+/// Recordatorio de una cita (A, 02i). Uno por cita y horario (UNIQUE): si la
+/// cita se reprograma sale otro. Token de un solo uso (SHA-256) para
+/// confirmar o cancelar, valido hasta el inicio de la cita; la URL va cifrada
+/// (CLINICO) solo para armar el mensaje. Lo crea el job
+/// (registrar_recordatorio); la respuesta, responder_recordatorio (una vez).
+model RecordatorioCita {
+  id           String                 @id @db.Uuid
+  citaId       String                 @map("cita_id") @db.Uuid
+  inicio       DateTime               @db.Timestamptz(6)
+  tokenHash    String                 @unique @map("token_hash")
+  /// cifrado (CLINICO)
+  enlace       Bytes
+  expiraEn     DateTime               @map("expira_en") @db.Timestamptz(6)
+  creadoEn     DateTime               @default(now()) @map("creado_en") @db.Timestamptz(6)
+  respuesta    RespuestaRecordatorio?
+  respondidoEn DateTime?              @map("respondido_en") @db.Timestamptz(6)
+  /// Cancelacion: si fue con el aviso minimo de la politica vigente.
+  aTiempo      Boolean?               @map("a_tiempo")
+
+  cita Cita @relation(fields: [citaId], references: [id], onDelete: Restrict)
+
+  @@unique([citaId, inicio])
+  @@map("recordatorios_cita")
+}
+
+enum RespuestaRecordatorio {
+  CONFIRMADA
+  CANCELADA
+
+  @@map("respuesta_recordatorio")
+}
+
+/// Adjunto externo de la ficha (A, 02i): informe o imagen que sube el
+/// tratante. Tipo validado por contenido (PDF, PNG, JPEG); archivo cifrado
+/// (CLINICO, base64) con AAD; id generado por la API. Misma RLS y auditoria
+/// que la ficha. Append-only.
+model AdjuntoFicha {
+  id            String   @id @db.Uuid
+  pacienteId    String   @map("paciente_id") @db.Uuid
+  subidoPorId   String   @map("subido_por_id") @db.Uuid
+  nombreArchivo String   @map("nombre_archivo")
+  tipoMime      String   @map("tipo_mime")
+  tamanoBytes   Int      @map("tamano_bytes")
+  /// cifrado (CLINICO): el archivo en base64
+  contenido     Bytes
+  subidoEn      DateTime @default(now()) @map("subido_en") @db.Timestamptz(6)
+
+  paciente  Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  subidoPor Usuario  @relation(fields: [subidoPorId], references: [id], onDelete: Restrict)
+
+  @@index([pacienteId])
+  @@map("adjuntos_ficha")
 }

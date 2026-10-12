@@ -2,9 +2,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import { JobsService } from '../src/core/jobs/jobs.service';
-import { type Correo, ProveedorCorreo, ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
-import { NotificacionesService } from '../src/core/notificaciones/notificaciones.service';
-import { auth, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, binario, crearApp, procesarMensajes, textoPdf, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const DIA = 86_400_000;
 
@@ -25,15 +23,7 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
   let paciente: UsuarioPrueba & { pacienteId: string };
   let otroPaciente: UsuarioPrueba & { pacienteId: string };
   const tk = (u: UsuarioPrueba) => t.token(u).then(auth);
-  const correos = () => t.app.get(ProveedorCorreo) as ProveedorCorreoSimulado;
-  /** Corre el job de envio hasta vaciar la cola (la BD es compartida entre archivos de test). */
-  const enviar = async (): Promise<Correo[]> => {
-    correos().enviados.length = 0;
-    while ((await t.dueno.notificacion.count({ where: { estado: 'PENDIENTE' } })) > 0) {
-      await t.app.get(NotificacionesService).enviarPendientes();
-    }
-    return [...correos().enviados];
-  };
+  const enviar = () => procesarMensajes(t);
 
   beforeAll(async () => {
     t = await crearApp();
@@ -95,11 +85,13 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
 
   describe('A2 documentos clinicos por correo', () => {
     let tipoDocId: string;
-    const CONTENIDO = Buffer.from('%PDF-1.4 epicrisis con contenido clinico reservado');
+    const CONTENIDO = 'Epicrisis con contenido clinico reservado';
+    const pdfDe = (r: { body: Buffer }) => textoPdf(r.body).replace(/\s+/g, ' ');
 
     it('catalogo de tipos de documento: solo ADMIN escribe; el equipo lee; el paciente no', async () => {
       const r = await t.http().post('/api/tipos-documento-clinico').set(await tk(admin)).send({ nombre: `Epicrisis ${Date.now()}` });
       expect(r.status).toBe(201);
+      expect(r.body.plantilla).toBe('{{contenido}}');
       tipoDocId = r.body.id;
       expect((await t.http().post('/api/tipos-documento-clinico').set(await tk(admin)).send({ nombre: r.body.nombre })).status).toBe(409);
       expect((await t.http().post('/api/tipos-documento-clinico').set(await tk(prof)).send({ nombre: 'Receta' })).status).toBe(403);
@@ -110,25 +102,26 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
       const conInactivo = await t.http().post('/api/documentos-clinicos').set(await tk(prof)).send({
         pacienteId: paciente.pacienteId,
         tipoDocumentoId: inactivo.body.id,
-        nombreArchivo: 'x.pdf',
-        tipoMime: 'application/pdf',
-        contenido: CONTENIDO.toString('base64'),
+        contenido: CONTENIDO,
       });
       expect(conInactivo.status).toBe(403);
     });
 
     it('emite el tratante; envio por enlace que expira y exige sesion; cada descarga queda registrada; el correo no lleva contenido', async () => {
-      const cuerpo = { pacienteId: paciente.pacienteId, tipoDocumentoId: tipoDocId, nombreArchivo: 'epicrisis.pdf', tipoMime: 'application/pdf', contenido: CONTENIDO.toString('base64') };
-      expect((await t.http().post('/api/documentos-clinicos').set(await tk(otroProf)).send(cuerpo)).status).toBe(403);
+      const cuerpo = { pacienteId: paciente.pacienteId, tipoDocumentoId: tipoDocId, contenido: CONTENIDO };
+      // 02i: el paciente ajeno no se ve (404, no revela que existe); ADMIN/GESTION lo ven pero no emiten (403).
+      expect((await t.http().post('/api/documentos-clinicos').set(await tk(otroProf)).send(cuerpo)).status).toBe(404);
       for (const u of [admin, gestion, paciente]) {
         expect((await t.http().post('/api/documentos-clinicos').set(await tk(u)).send(cuerpo)).status).toBe(403);
       }
-      expect((await t.http().post('/api/documentos-clinicos').set(await tk(prof)).send({ ...cuerpo, contenido: 'no es base64!' })).status).toBe(400);
+      // 02i: sin subida de archivos (ni base64): solo el texto redactado.
+      expect((await t.http().post('/api/documentos-clinicos').set(await tk(prof)).send({ ...cuerpo, tipoMime: 'application/pdf' })).status).toBe(400);
       const doc = await t.http().post('/api/documentos-clinicos').set(await tk(prof)).send(cuerpo);
       expect(doc.status).toBe(201);
       expect(doc.body).not.toHaveProperty('contenido');
+      expect(doc.body.tipoMime).toBe('application/pdf');
       const fila = await t.dueno.documentoClinico.findUniqueOrThrow({ where: { id: doc.body.id } });
-      expect(Buffer.from(fila.contenido).toString('latin1')).not.toContain(CONTENIDO.toString('base64').slice(0, 20));
+      expect(Buffer.from(fila.contenido).toString('latin1')).not.toContain('reservado');
 
       for (const u of [admin, gestion]) {
         expect((await t.http().get('/api/documentos-clinicos').set(await tk(u))).status).toBe(403);
@@ -146,20 +139,26 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
       expect(new Date(envio.body.expiraEn).getTime()).toBeGreaterThan(Date.now() + 71 * 3_600_000);
       expect(await t.dueno.accesoFicha.count({ where: { usuarioId: prof.id, recurso: { in: ['documentos_clinicos', 'envios_documento'] } } })).toBe(2);
 
-      const enviados = (await enviar()).filter((c) => c.para === paciente.email && c.asunto === 'Documento disponible');
+      const enviados = (await procesarMensajes(t)).filter((c) => c.para === paciente.email && c.asunto === 'Documento disponible');
       expect(enviados).toHaveLength(1);
       expect(enviados[0].adjuntos ?? []).toEqual([]);
-      expect(enviados[0].texto).toContain('iniciar sesion');
-      expect(enviados[0].texto).not.toContain('contenido clinico');
+      expect(enviados[0].texto).toContain('iniciar sesión');
+      expect(enviados[0].texto).not.toContain('reservado');
       const token = /token=([\w-]+)/.exec(enviados[0].texto)![1];
 
-      expect((await t.http().get(`/api/documentos-clinicos/descarga/${token}`)).status).toBe(401);
-      expect((await t.http().get(`/api/documentos-clinicos/descarga/${token}`).set(await tk(otroPaciente))).status).toBe(404);
-      expect((await t.http().get(`/api/documentos-clinicos/descarga/${token}`).set(await tk(prof))).status).toBe(403);
+      const descarga = (u?: UsuarioPrueba) => {
+        const r = t.http().get(`/api/documentos-clinicos/descarga/${token}`).buffer(true).parse(binario);
+        return u ? tk(u).then((h) => r.set(h)) : r;
+      };
+      expect((await descarga()).status).toBe(401);
+      expect((await descarga(otroPaciente)).status).toBe(404);
+      expect((await descarga(prof)).status).toBe(403);
       for (let i = 0; i < 2; i++) {
-        const d = await t.http().get(`/api/documentos-clinicos/descarga/${token}`).set(await tk(paciente));
+        const d = await descarga(paciente);
         expect(d.status).toBe(200);
-        expect(Buffer.from(d.body.contenido, 'base64')).toEqual(CONTENIDO);
+        expect(d.headers['content-type']).toContain('application/pdf');
+        expect(d.body.subarray(0, 5).toString()).toBe('%PDF-');
+        expect(pdfDe(d)).toContain(CONTENIDO);
       }
       expect(await t.dueno.descargaDocumento.count({ where: { documentoId: doc.body.id, usuarioId: paciente.id } })).toBe(2);
       expect(await t.dueno.accesoFicha.count({ where: { usuarioId: paciente.id, accion: 'DESCARGA' } })).toBe(2);
@@ -186,14 +185,8 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
       expect(JSON.stringify(auditoria.body)).not.toContain('enlace');
     });
 
-    it('adjunto solo si el paciente lo pide (solicitud registrada, una vez)', async () => {
-      const doc = await t.http().post('/api/documentos-clinicos').set(await tk(prof)).send({
-        pacienteId: paciente.pacienteId,
-        tipoDocumentoId: tipoDocId,
-        nombreArchivo: 'receta.pdf',
-        tipoMime: 'application/pdf',
-        contenido: CONTENIDO.toString('base64'),
-      });
+    it('adjunto solo si el paciente lo pide (solicitud registrada, una vez); va el PDF generado', async () => {
+      const doc = await t.http().post('/api/documentos-clinicos').set(await tk(prof)).send({ pacienteId: paciente.pacienteId, tipoDocumentoId: tipoDocId, contenido: CONTENIDO });
       expect((await t.http().post(`/api/documentos-clinicos/${doc.body.id}/solicitud-adjunto`).set(await tk(otroPaciente))).status).toBe(404);
       expect((await t.http().post(`/api/documentos-clinicos/${doc.body.id}/solicitud-adjunto`).set(await tk(prof))).status).toBe(403);
       const solicitud = await t.http().post(`/api/documentos-clinicos/${doc.body.id}/solicitud-adjunto`).set(await tk(paciente));
@@ -201,9 +194,9 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
       expect(solicitud.body.adjuntoSolicitadoEn).not.toBeNull();
       expect((await t.http().post(`/api/documentos-clinicos/${doc.body.id}/solicitud-adjunto`).set(await tk(paciente))).status).toBe(409);
       expect((await t.http().post(`/api/documentos-clinicos/${doc.body.id}/envios`).set(await tk(prof)).send({ modo: 'ADJUNTO' })).status).toBe(201);
-      const [correo] = (await enviar()).filter((c) => c.para === paciente.email && c.asunto === 'Documento disponible');
-      expect(correo.adjuntos).toEqual([expect.objectContaining({ nombre: 'receta.pdf', tipo: 'application/pdf' })]);
-      expect(correo.adjuntos![0].contenido).toEqual(CONTENIDO);
+      const [correo] = (await procesarMensajes(t)).filter((c) => c.para === paciente.email && c.asunto === 'Documento disponible');
+      expect(correo.adjuntos).toEqual([expect.objectContaining({ nombre: doc.body.nombreArchivo, tipo: 'application/pdf' })]);
+      expect(textoPdf(correo.adjuntos![0].contenido).replace(/\s+/g, ' ')).toContain(CONTENIDO);
     });
   });
 
@@ -221,7 +214,9 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
       });
       expect(r.status).toBe(201);
       const id = r.body.id as string;
-      const avisos = async (u: UsuarioPrueba) => (await t.http().get('/api/notificaciones').set(await tk(u))).body as Record<string, unknown>[];
+      // 02i: una fila por canal; la bandeja es el registro oficial.
+      const avisos = async (u: UsuarioPrueba) =>
+        ((await t.http().get('/api/notificaciones').set(await tk(u))).body as Record<string, unknown>[]).filter((n) => n.canal === 'BANDEJA');
 
       const deC1 = await avisos(c1);
       expect(deC1).toEqual([expect.objectContaining({ tipo: 'DERIVACION_OFRECIDA', referenciaId: id, usuarioId: c1.id })]);
@@ -254,11 +249,11 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
 
       const enviados = await enviar();
       const aC3 = enviados.find((c) => c.para === c3.email)!;
-      expect(aC3.texto).toContain('Tiene una nueva oferta de derivacion');
+      expect(aC3.texto).toContain('tiene una nueva oferta de derivación');
       for (const dato of ['Motivo clinico', c1.id, c2.id, c1.email, c2.email]) {
         expect(aC3.texto).not.toContain(dato);
       }
-      expect(enviados.some((c) => c.para === origen.email && c.asunto === 'Cambios en una derivacion')).toBe(true);
+      expect(enviados.some((c) => c.para === origen.email && c.asunto === 'Cambios en una derivación')).toBe(true);
     });
   });
 

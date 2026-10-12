@@ -86,6 +86,11 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   liquidaciones_coherente: 'La liquidacion es de un PROFESIONAL y un periodo valido',
   liquidaciones_sin_solape: 'Ya hay una liquidacion del profesional que se solapa con ese periodo',
   citas_monto_inmutable: 'El monto de la cita no se modifica',
+  plantillas_mensaje_variables_permitidas:
+    'Variable no permitida: solo nombre_paciente, nombre_profesional, fecha, hora, modalidad, enlace y nombre_centro',
+  plantillas_mensaje_coherente: 'Plantilla invalida (asunto y cuerpo no vacios; la bandeja no se desactiva)',
+  tipos_documento_clinico_plantilla_valida: 'Variable no permitida: solo nombre_paciente, nombre_profesional, fecha, nombre_centro y contenido',
+  configuracion_centro_recordatorio_valido: 'El recordatorio va entre 0 (desactivado) y 168 horas antes',
 };
 
 /**
@@ -126,7 +131,8 @@ function restriccionDeMensaje(mensaje: string | undefined): string | undefined {
   if (!mensaje) {
     return undefined;
   }
-  const nombrada = /constraint "([a-z0-9_]+)"/.exec(mensaje)?.[1];
+  // Con o sin comillas escapadas (Prisma serializa el error de Postgres en JSON).
+  const nombrada = /constraint \\?"([a-z0-9_]+)\\?"/.exec(mensaje)?.[1];
   if (nombrada) {
     return nombrada;
   }

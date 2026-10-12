@@ -124,6 +124,13 @@ export class Entorno {
   @Min(1)
   @Max(720)
   DOCUMENTO_ENLACE_HORAS: number = 72;
+
+  /** Tamaño maximo de un adjunto externo de la ficha (multipart, 02i). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  ADJUNTO_MAX_MB: number = 10;
 }
 
 export function validarEntorno(config: Record<string, unknown>): Entorno {

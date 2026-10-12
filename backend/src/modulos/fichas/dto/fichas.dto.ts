@@ -4,7 +4,6 @@ import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
-  IsBase64,
   IsBoolean,
   IsDate,
   IsEmail,
@@ -212,11 +211,21 @@ export class RevisionRetencionDto {
   motivo!: string;
 }
 
+/**
+ * Plantilla del documento (02i): variables nombre_paciente,
+ * nombre_profesional, fecha, nombre_centro y contenido (lo que redacta el
+ * profesional). Variable no permitida -> 422 (CHECK de la BD).
+ */
 export class TipoDocumentoDto {
   @Recortar()
   @IsString()
   @Length(2, 80)
   nombre!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, MAX_TEXTO_CLINICO)
+  plantilla?: string;
 }
 
 export class EditarTipoDocumentoDto {
@@ -229,11 +238,18 @@ export class EditarTipoDocumentoDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, MAX_TEXTO_CLINICO)
+  plantilla?: string;
 }
 
-export const TIPOS_MIME_DOCUMENTO = ['application/pdf', 'image/png', 'image/jpeg'] as const;
-
-/** Documento emitido por el tratante. El archivo va en base64 (max. ~5 MB) y se guarda cifrado. */
+/**
+ * Documento emitido por el tratante (02i): redacta el texto en la app; el
+ * servidor lo arma con la plantilla del tipo, lo guarda cifrado y genera el
+ * PDF con el formato del centro al entregarlo. Sin subida de archivos.
+ */
 export class EmitirDocumentoDto {
   @IsUUID()
   pacienteId!: string;
@@ -243,15 +259,7 @@ export class EmitirDocumentoDto {
 
   @Recortar()
   @IsString()
-  @Length(1, 120)
-  @Matches(/^[\w\- .()áéíóúñÁÉÍÓÚÑ]+$/, { message: 'nombreArchivo con caracteres no permitidos' })
-  nombreArchivo!: string;
-
-  @IsIn(TIPOS_MIME_DOCUMENTO)
-  tipoMime!: (typeof TIPOS_MIME_DOCUMENTO)[number];
-
-  @IsBase64()
-  @MaxLength(7_000_000)
+  @Length(1, MAX_TEXTO_CLINICO)
   contenido!: string;
 }
 

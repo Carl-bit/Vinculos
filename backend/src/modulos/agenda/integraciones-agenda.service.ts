@@ -49,10 +49,23 @@ export class IntegracionesAgendaService {
     return { url: `${base}/api/calendario/${token}.ics` };
   }
 
-  /** Sin contexto: feed_calendario(hash) solo responde para un token vigente (si no, P0002 -> 404). */
+  /**
+   * Sin contexto: feed_calendario(hash) solo responde para un token vigente
+   * (si no, P0002 -> 404). UID fijo por cita y SEQUENCE de la BD: una
+   * reprogramacion actualiza el evento; una cancelada sale STATUS:CANCELLED.
+   */
   async feed(token: string): Promise<string> {
     const filas = await this.bd.sinContexto('publico').$queryRaw<
-      { id: string; inicio: Date; fin: Date; modalidad: ModalidadAtencion; estado: EstadoCita; espacio: string | null; enlace: Uint8Array | null }[]
+      {
+        id: string;
+        inicio: Date;
+        fin: Date;
+        modalidad: ModalidadAtencion;
+        estado: EstadoCita;
+        espacio: string | null;
+        enlace: Uint8Array | null;
+        secuencia: number;
+      }[]
     >`SELECT * FROM feed_calendario(${sha256(token.replace(/\.ics$/, ''))})`;
     const eventos = filas.map((c) =>
       eventoDeCita({ ...c, enlace: c.enlace ? (JSON.parse(this.llavero.descifrarCampo(c.enlace, 'citas', 'enlace_online', c.id)!) as { url: string }).url : null }),

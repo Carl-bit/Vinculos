@@ -1,7 +1,24 @@
-import { Body, Controller, Get, HttpCode, Param, ParseEnumPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseEnumPipe,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { EstadoTipoSesion } from '@prisma/client';
 
 import { Roles } from '../../core/auth/decoradores';
+import { AdjuntosService } from './adjuntos.service';
 import { CatalogosRetencionService } from './catalogos-retencion.service';
 import { DocumentosService } from './documentos.service';
 import {
@@ -23,6 +40,10 @@ import { EvolucionesService } from './evoluciones.service';
 import { PacientesService } from './pacientes.service';
 
 const Uuid = new ParseUUIDPipe();
+
+/** Respuesta binaria descargable (sin cache: datos clinicos). */
+const archivo = (contenido: Buffer, tipo: string, nombre: string) =>
+  new StreamableFile(contenido, { type: tipo, disposition: `attachment; filename="${encodeURIComponent(nombre)}"` });
 const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
 
 /** Roles segun matriz_permisos.md (pacientes, adultos_responsables, fichas_clinicas). */
@@ -214,11 +235,12 @@ export class DocumentosController {
     return this.documentos.listar(pacienteId);
   }
 
-  /** Destino del enlace del correo: exige sesion del paciente; registra la descarga. */
+  /** Destino del enlace del correo: exige sesion del paciente; registra la descarga. PDF generado al entregar. */
   @Get('descarga/:token')
   @Roles('PACIENTE')
-  descargar(@Param('token') token: string) {
-    return this.documentos.descargar(token);
+  async descargar(@Param('token') token: string) {
+    const { nombreArchivo, pdf } = await this.documentos.descargar(token);
+    return archivo(pdf, 'application/pdf', nombreArchivo);
   }
 
   @Post(':id/envios')
@@ -238,5 +260,39 @@ export class DocumentosController {
   @Roles('PACIENTE')
   solicitarAdjunto(@Param('id', Uuid) id: string) {
     return this.documentos.solicitarAdjunto(id);
+  }
+}
+
+/**
+ * Adjuntos externos de la ficha (02i): informes o imagenes de terceros que
+ * sube el tratante. Multipart (campo "archivo", limite ADJUNTO_MAX_MB, mas ->
+ * 413); tipo validado por contenido (PDF, PNG, JPEG; si no -> 422). Misma RLS
+ * y auditoria que la ficha: ADMIN, GESTION y el paciente no los ven.
+ */
+@Controller()
+export class AdjuntosFichaController {
+  constructor(private readonly adjuntos: AdjuntosService) {}
+
+  @Post('pacientes/:id/adjuntos')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  @UseInterceptors(FileInterceptor('archivo'))
+  subir(@Param('id', Uuid) pacienteId: string, @UploadedFile() archivo?: Express.Multer.File) {
+    if (!archivo) {
+      throw new BadRequestException('Falta el archivo (campo "archivo", multipart/form-data)');
+    }
+    return this.adjuntos.subir(pacienteId, archivo);
+  }
+
+  @Get('pacientes/:id/adjuntos')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  listar(@Param('id', Uuid) pacienteId: string) {
+    return this.adjuntos.listar(pacienteId);
+  }
+
+  @Get('adjuntos-ficha/:id')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  async descargar(@Param('id', Uuid) id: string) {
+    const a = await this.adjuntos.descargar(id);
+    return archivo(a.contenido, a.tipoMime, a.nombreArchivo);
   }
 }

@@ -16,6 +16,8 @@ import request = require('supertest');
 import { AppModule } from '../src/app.module';
 import { Llavero, type FilaLlave } from '../src/common/crypto/cifrado';
 import { configurarApp } from '../src/configurar-app';
+import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
+import { NotificacionesService } from '../src/core/notificaciones/notificaciones.service';
 import { leerEntorno } from './bd/global';
 
 export const CLAVE = 'clave-de-prueba-123';
@@ -244,3 +246,32 @@ export class Fixtures {
 }
 
 export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+/**
+ * Corre el job de mensajes hasta que no queden pendientes ya vencidos (la BD
+ * es compartida entre archivos de test) y devuelve los correos enviados en
+ * esa corrida.
+ */
+export async function procesarMensajes(t: AppPrueba): Promise<Correo[]> {
+  const correo = t.app.get(ProveedorCorreo) as ProveedorCorreoSimulado;
+  correo.enviados.length = 0;
+  while ((await t.dueno.notificacion.count({ where: { estado: 'PENDIENTE', proximoIntento: { lte: new Date() } } })) > 0) {
+    await t.app.get(NotificacionesService).enviarPendientes();
+  }
+  return [...correo.enviados];
+}
+
+/** Supertest: cuerpo binario (PDF, imagenes) como Buffer. */
+export const binario = (res: request.Response, cb: (err: Error | null, body: Buffer) => void) => {
+  const flujo = res as unknown as NodeJS.ReadableStream;
+  const partes: Buffer[] = [];
+  flujo.on('data', (p: Buffer) => partes.push(p));
+  flujo.on('end', () => cb(null, Buffer.concat(partes)));
+};
+
+/** Texto de un PDF de generarPdfDocumento (sin compresion, fuentes estandar WinAnsi): una linea por renglon. */
+export function textoPdf(pdf: Buffer): string {
+  return [...pdf.toString('latin1').matchAll(/\[(.*?)\] TJ/g)]
+    .map(([, arr]) => [...arr.matchAll(/<([0-9a-f]*)>/g)].map(([, hex]) => Buffer.from(hex, 'hex').toString('latin1')).join(''))
+    .join('\n');
+}

@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Prisma, type TipoNotificacion } from '@prisma/client';
 
 import { texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
+import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
 import type { ArriendoDto, FiltroCobrosDto, LiquidacionDto, RegistrarPagoDto, ResolverCitaDto } from './dto/cobros.dto';
 
 export interface EstadoPagoCita {
@@ -36,12 +38,16 @@ const dia = (d: Date) => d.toISOString().slice(0, 10);
  * El monto de la cita lo fija la BD al confirmar (tarifa mas especifica
  * vigente) y no cambia. Pasarela de pago, medios reales y SII: fuera de
  * alcance (la boleta lleva un numero simulado).
+ *
+ * 02i: avisa al paciente cada pago registrado y cada boleta emitida
+ * (despues del COMMIT; bandeja y, segun sus preferencias, correo).
  */
 @Injectable()
 export class CobrosService {
   constructor(
     private readonly bd: ContextoBd,
     private readonly llavero: LlaveroService,
+    private readonly eventos: EventEmitter2,
   ) {}
 
   estados(f: FiltroCobrosDto) {
@@ -77,7 +83,9 @@ export class CobrosService {
 
   /** Sobrepago -> 422. Si la cita queda PAGADA se emite su boleta en la misma transaccion. */
   async registrarPago(citaId: string, dto: RegistrarPagoDto) {
-    await this.bd.tx().$queryRaw`SELECT registrar_pago(${citaId}::uuid, ${dto.monto}::int, ${dto.medioPago}::medio_pago)`;
+    const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
+      SELECT registrar_pago(${citaId}::uuid, ${dto.monto}::int, ${dto.medioPago}::medio_pago) AS id`;
+    this.avisar('PAGO_REGISTRADO', (await this.estado(citaId)).paciente_id, id);
     await this.emitirBoleta(citaId);
     return this.detalle(citaId);
   }
@@ -124,10 +132,18 @@ export class CobrosService {
       rut = c.rutCentro;
     }
     const id = randomUUID();
-    await tx.$queryRaw`
+    const [{ numero }] = await tx.$queryRaw<[{ numero: string | null }]>`
       SELECT emitir_boleta(${id}::uuid, ${citaId}::uuid,
                            ${this.llavero.cifrarCampo(nombre, 'boletas', 'emisor_nombre', id)},
-                           ${this.llavero.cifrarCampo(rut ?? 'sin RUT', 'boletas', 'emisor_rut', id)})`;
+                           ${this.llavero.cifrarCampo(rut ?? 'sin RUT', 'boletas', 'emisor_rut', id)}) AS numero`;
+    if (numero) {
+      this.avisar('BOLETA_EMITIDA', estado.paciente_id, id);
+    }
+  }
+
+  private avisar(tipo: TipoNotificacion, pacienteId: string, referenciaId: string) {
+    const evento: NotificacionSolicitada = { actor: this.bd.usuario(), tipo, destino: { pacienteId }, referenciaId };
+    this.bd.alConfirmar(() => this.eventos.emitAsync(EVENTOS.NOTIFICACION_SOLICITADA, evento));
   }
 
   arriendos(profesionalId?: string) {

@@ -8,8 +8,10 @@ import type { ModoEnvioDocumento, Prisma } from '@prisma/client';
 import { registrarAcceso } from '../../core/bd/auditoria';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
+import { generarPdfDocumento } from '../../core/documentos/pdf';
 import { conflicto, esSqlstate } from '../../core/errores/sqlstate';
 import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
+import { armarPlantilla } from '../../core/notificaciones/notificaciones.service';
 import type { EditarTipoDocumentoDto, EmitirDocumentoDto, TipoDocumentoDto } from './dto/fichas.dto';
 
 /** Metadatos (sin contenido) para listas. */
@@ -26,8 +28,15 @@ const VISTA = {
 
 const sha256 = (valor: string) => createHash('sha256').update(valor).digest('hex');
 
+const nombreArchivo = (tipo: string) => `${tipo.replace(/[^\w\- áéíóúñÁÉÍÓÚÑ]/g, '').trim() || 'documento'}.pdf`;
+
 /**
- * Documentos clinicos por correo (02h). Regla: el unico contenido clinico que
+ * Documentos clinicos (02h, 02i). Emitidos: el profesional redacta el texto;
+ * el servidor lo arma con la plantilla del tipo de documento (solo sus
+ * variables), lo guarda cifrado y genera el PDF con el formato del centro al
+ * entregarlo (descarga o adjunto). Sin subida de archivos.
+ *
+ * Por correo (02h). Regla: el unico contenido clinico que
  * sale por correo son documentos emitidos por el tratante. Por defecto el
  * correo lleva un enlace que expira y exige iniciar sesion (cada descarga
  * queda registrada); el adjunto solo va si el paciente lo pidio explicitamente
@@ -60,19 +69,35 @@ export class DocumentosService {
     return this.bd.tx().tipoDocumentoClinico.update({ where: { id }, data: dto });
   }
 
-  /** Solo el tratante (RLS; PRACTICANTE con consentimiento). */
+  /** Solo el tratante (RLS; PRACTICANTE con consentimiento). Tipo inactivo -> 403 (RLS). */
   async emitir(dto: EmitirDocumentoDto) {
     const actor = this.bd.usuario();
     const tx = this.bd.tx();
+    const [tipo, paciente, [profesional], centro] = await Promise.all([
+      tx.tipoDocumentoClinico.findUnique({ where: { id: dto.tipoDocumentoId }, select: { nombre: true, plantilla: true } }),
+      tx.paciente.findUnique({ where: { id: dto.pacienteId }, select: { nombre: true, apellido: true } }),
+      tx.$queryRaw<{ nombre: string | null }[]>`SELECT nombre FROM directorio_interno() WHERE id = ${actor.id}::uuid`,
+      tx.configuracionCentro.findUniqueOrThrow({ where: { id: true }, select: { nombreCentro: true } }),
+    ]);
+    const t = encontrado(tipo, 'Tipo de documento');
+    const p = encontrado(paciente, 'Paciente');
+    // {{contenido}} es lo que redacta el profesional; el resto lo llena el servidor.
+    const texto = armarPlantilla(t.plantilla, {
+      nombre_paciente: `${p.nombre} ${p.apellido}`,
+      nombre_profesional: profesional?.nombre ?? '',
+      fecha: new Date().toLocaleDateString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'long', year: 'numeric' }),
+      nombre_centro: centro.nombreCentro,
+      contenido: dto.contenido,
+    });
     const doc = await tx.documentoClinico.create({
       data: {
         id: randomUUID(),
         pacienteId: dto.pacienteId,
         tipoDocumentoId: dto.tipoDocumentoId,
         emitidoPorId: actor.id,
-        nombreArchivo: dto.nombreArchivo,
-        tipoMime: dto.tipoMime,
-        contenido: claro(dto.contenido),
+        nombreArchivo: nombreArchivo(t.nombre),
+        tipoMime: 'application/pdf',
+        contenido: claro(texto),
       },
       select: VISTA,
     });
@@ -130,17 +155,23 @@ export class DocumentosService {
     return encontrado(await this.bd.tx().documentoClinico.findUnique({ where: { id }, select: VISTA }), 'Documento');
   }
 
-  /** Descarga por enlace: el paciente con sesion; vencido -> 410 (no se registra). */
-  async descargar(token: string) {
+  /** Descarga por enlace: el paciente con sesion; vencido -> 410 (no se registra). Devuelve el PDF. */
+  async descargar(token: string): Promise<{ nombreArchivo: string; pdf: Buffer }> {
     const [r] = await this.bd.tx().$queryRaw<[{ documento_id: string; vencido: boolean }]>`
       SELECT documento_id, vencido FROM registrar_descarga_documento(${sha256(token)})`;
     if (r.vencido) {
       throw new GoneException('El enlace del documento vencio: pida uno nuevo al centro');
     }
+    const tx = this.bd.tx();
     const doc = encontrado(
-      await this.bd.tx().documentoClinico.findUnique({ where: { id: r.documento_id }, select: { ...VISTA, contenido: true } }),
+      await tx.documentoClinico.findUnique({
+        where: { id: r.documento_id },
+        select: { nombreArchivo: true, contenido: true, emitidoEn: true, tipoDocumento: { select: { nombre: true } } },
+      }),
       'Documento',
     );
-    return { ...doc, contenido: texto(doc.contenido) };
+    const { nombreCentro } = await tx.configuracionCentro.findUniqueOrThrow({ where: { id: true }, select: { nombreCentro: true } });
+    const pdf = await generarPdfDocumento({ centro: nombreCentro, titulo: doc.tipoDocumento.nombre, texto: texto(doc.contenido), emitidoEn: doc.emitidoEn });
+    return { nombreArchivo: doc.nombreArchivo, pdf };
   }
 }

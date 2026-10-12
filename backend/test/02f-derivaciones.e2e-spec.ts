@@ -4,9 +4,8 @@
  * aceptado / rechazado / vencido; revocacion con citas POR_REPROGRAMAR.
  */
 import { JobsService } from '../src/core/jobs/jobs.service';
-import { ProveedorCorreo, ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
 import { NotificacionesService } from '../src/core/notificaciones/notificaciones.service';
-import { auth, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, crearApp, procesarMensajes, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 describe('02f derivaciones y consentimientos', () => {
   let t: AppPrueba;
@@ -73,7 +72,7 @@ describe('02f derivaciones y consentimientos', () => {
     expect(oferta.body).toEqual(expect.objectContaining({ motivo: 'Motivo clinico de prueba', detalle: 'Detalle', edadPaciente: expect.any(Number) }));
     expect(JSON.stringify(oferta.body)).not.toContain(paciente.pacienteId);
     expect((await t.http().get(`/api/derivaciones/${id}/oferta`).set(await tk(candidatoC))).status).toBe(404);
-    expect(await t.dueno.notificacion.count({ where: { tipo: 'DERIVACION_OFRECIDA', usuarioId: candidatoB.id, referenciaId: id } })).toBe(1);
+    expect(await t.dueno.notificacion.count({ where: { tipo: 'DERIVACION_OFRECIDA', canal: 'BANDEJA', usuarioId: candidatoB.id, referenciaId: id } })).toBe(1);
 
     expect((await t.http().post(`/api/derivaciones/${id}/respuesta`).set(await tk(candidatoB)).send({ acepta: false })).status).toBe(200);
     expect(await candidatos(id)).toEqual({ [candidatoB.id]: 'RECHAZADA', [candidatoC.id]: 'OFRECIDA' });
@@ -114,7 +113,7 @@ describe('02f derivaciones y consentimientos', () => {
     expect((await t.http().get('/api/derivaciones/pendientes').set(await tk(candidatoB))).status).toBe(403);
 
     const { paciente, derivacionId, consentimientoId } = await hastaSolicitud();
-    expect(await t.dueno.notificacion.count({ where: { tipo: 'CONSENTIMIENTO_SOLICITADO', pacienteId: paciente.pacienteId } })).toBe(1);
+    expect(await t.dueno.notificacion.count({ where: { tipo: 'CONSENTIMIENTO_SOLICITADO', canal: 'BANDEJA', pacienteId: paciente.pacienteId } })).toBe(1);
     const propios = await t.http().get('/api/consentimientos').set(await tk(paciente));
     expect(propios.body.map((c: { id: string }) => c.id)).toEqual([consentimientoId]);
     // El supervisor solicita pero nunca registra la respuesta.
@@ -180,23 +179,21 @@ describe('02f derivaciones y consentimientos', () => {
     expect((await t.http().post(`/api/practicantes/${p.id}/supervisor`).set(await tk(admin)).send({ supervisorId: nuevo.id })).body.avisosCreados).toBe(1);
     const avisos = await t.http().get('/api/avisos-consentimiento').set(await tk(usuarioPaciente));
     expect(avisos.body).toHaveLength(1);
-    expect(await t.dueno.notificacion.count({ where: { tipo: 'AVISO_CAMBIO_SUPERVISOR', pacienteId: caso.id } })).toBe(1);
+    expect(await t.dueno.notificacion.count({ where: { tipo: 'AVISO_CAMBIO_SUPERVISOR', canal: 'BANDEJA', pacienteId: caso.id } })).toBe(1);
     const r = await t.http().post(`/api/avisos-consentimiento/${avisos.body[0].id}/respuesta`).set(await tk(usuarioPaciente)).send({ respuesta: 'OPOSICION', otorgadoPorTipo: 'PACIENTE' });
     expect(r.body.respuesta).toBe('OPOSICION');
     expect((await t.dueno.consentimiento.findFirstOrThrow({ where: { pacienteId: caso.id } })).estado).toBe('REVOCADO');
     expect((await t.http().post(`/api/avisos-consentimiento/${avisos.body[0].id}/respuesta`).set(await tk(usuarioPaciente)).send({ respuesta: 'CONFORME', otorgadoPorTipo: 'PACIENTE' })).status).toBe(409);
   });
 
-  it('notificaciones: registradas por accion; el job las envia (o marca FALLIDA sin email); cada uno ve las suyas', async () => {
-    const correo = t.app.get(ProveedorCorreo) as ProveedorCorreoSimulado;
-    correo.enviados.length = 0;
-    const r = await t.app.get(NotificacionesService).enviarPendientes();
-    expect(r.corrio).toBe(true);
-    expect(await t.dueno.notificacion.count({ where: { estado: 'PENDIENTE' } })).toBe(0);
-    expect(await t.dueno.notificacion.count({ where: { estado: 'ENVIADA' } })).toBeGreaterThan(0);
-    expect(correo.enviados.some((c) => c.para === candidatoB.email && c.asunto === 'Nueva oferta de derivacion')).toBe(true);
+  it('notificaciones: registradas por accion; el job las envia (o marca FALLIDO sin email); cada uno ve las suyas', async () => {
+    const enviados = await procesarMensajes(t);
+    expect((await t.app.get(NotificacionesService).enviarPendientes()).corrio).toBe(true);
+    expect(await t.dueno.notificacion.count({ where: { estado: 'PENDIENTE', proximoIntento: { lte: new Date() } } })).toBe(0);
+    expect(await t.dueno.notificacion.count({ where: { estado: 'ENVIADO' } })).toBeGreaterThan(0);
+    expect(enviados.some((c) => c.para === candidatoB.email && c.asunto === 'Nueva oferta de derivación')).toBe(true);
     // Nunca contenido clinico en el correo.
-    expect(correo.enviados.every((c) => !c.texto.includes('Motivo clinico'))).toBe(true);
+    expect(enviados.every((c) => !c.texto.includes('Motivo clinico'))).toBe(true);
     const deB = await t.http().get('/api/notificaciones').set(await tk(candidatoB));
     expect(deB.body.length).toBeGreaterThan(0);
     expect(deB.body.every((n: { usuarioId: string }) => n.usuarioId === candidatoB.id)).toBe(true);

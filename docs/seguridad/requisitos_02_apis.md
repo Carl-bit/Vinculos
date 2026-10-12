@@ -20,8 +20,16 @@ Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.m
   usuario, invalidar sus sesiones.
 - Sin contexto solo se llaman: `credenciales_login(email)`, `perfiles_publicos()`,
   `disponibilidad_publica(...)` (portal publico), `feed_calendario(token_hash)`
-  (feed iCal, 02h: el token de la URL autoriza), `llaves_vigentes()` y
-  `registrar_evento_llaves(...)` (CryptoModule) y los jobs (seccion 8).
+  (feed iCal, 02h: el token de la URL autoriza), `consultar_recordatorio` y
+  `responder_recordatorio` (02i: el token del recordatorio autoriza, un solo
+  uso), `llaves_vigentes()` y `registrar_evento_llaves(...)` (CryptoModule) y
+  los jobs (seccion 8). Las funciones de job de 02i rechazan una llamada con
+  contexto de usuario (42501).
+- Mensajes (02i): la API nunca inserta en `notificaciones`; llama a
+  `notificar(tipo, paciente, usuario, referencia)` con el contexto del actor
+  (despues del COMMIT de la accion). La BD crea una fila BANDEJA siempre y una
+  CORREO si la plantilla esta activa y las preferencias del paciente lo
+  permiten (los avisos legales no se desactivan).
 
 ## 2. Errores de Postgres -> HTTP (filtro global)
 
@@ -39,7 +47,13 @@ Usar el nombre de constraint para el mensaje (`citas_dentro_de_disponibilidad`,
 `citas_fuera_de_bloqueos`, `profesionales_publicar_requiere_tarifa`,
 `consentimientos_menor_requiere_adulto_responsable`, `usuarios_sin_reactivacion`,
 02h: `pagos_sin_sobrepago`, `envios_documento_adjunto_solicitado`,
-`resoluciones_cita_coherente`, `liquidaciones_sin_solape`, ...).
+`resoluciones_cita_coherente`, `liquidaciones_sin_solape`, 02i:
+`plantillas_mensaje_variables_permitidas`, `tipos_documento_clinico_plantilla_valida`, ...).
+
+Fuera de la BD (02i): cuerpo JSON sobre 1 MB -> 413 (los archivos van por
+multipart); adjunto sobre `ADJUNTO_MAX_MB` -> 413; tipo de archivo que no es
+PDF, PNG ni JPEG por su contenido (magic bytes) -> 422 `adjuntos_ficha_tipo`;
+token de recordatorio usado o vencido -> 409.
 
 **Trigger diferido**: `pacientes_practicante_requiere_consentimiento` se
 evalua al COMMIT: el filtro debe capturar errores del `$transaction` completo.
@@ -267,6 +281,9 @@ DTOs (`class-validator`), antes de cifrar:
 | `procesar_bajas()` | cada hora (y al arrancar) | usuarios desactivados (ademas cierra bajas cumplidas y cuentas fuera de gracia) |
 | `cerrar_avisos_vencidos()` | cada 5-15 min | avisos de cambio de supervisor sin respuesta -> CONFORME tacito |
 | verificacion de canarios (CryptoModule) | diaria | registra VERIFICACION / FALLO_CANARIO |
+| `notificaciones_por_enviar` + `guardar_contenido_notificacion` + `marcar_notificacion` (02i) | cada minuto | mensajes armados y cerrados; correo con backoff 1, 2, 4, 8 min, FALLIDO al quinto intento |
+| `avisar_consentimientos_por_vencer()` (02i) | cada 10 min | avisos legales (una vez por solicitud) |
+| `citas_por_recordar` + `registrar_recordatorio` (02i, Agenda) | cada 10 min | recordatorios registrados (uno por cita y horario) |
 
 Idempotentes y con `SKIP LOCKED`: correr dos instancias a la vez no duplica
 efectos. Loguear el numero devuelto con el logger de Nest. Ademas el envio de
@@ -345,8 +362,11 @@ se prueba con reloj simulado (`core/jobs/jobs.spec.ts`).
   (el correo solo avisa y remite al portal).
 - Decisiones de cobro (`resoluciones_cita`), anulaciones (`pagos`) y
   liquidaciones guardan quien y cuando; son append-only.
+- Adjuntos de la ficha (02i): subida (ESCRITURA) y descarga (LECTURA) en
+  `accesos_ficha`, recurso `adjuntos_ficha`. Documentos emitidos: el PDF se
+  genera al entregarlo (no se guarda); la descarga se audita como en 02h.
 
-## 13. Como quedo implementado (02a-02h)
+## 13. Como quedo implementado (02a-02i)
 
 Estado y decisiones de la fase de API: `docs/api/estado_fase_api.md`.
 
@@ -379,3 +399,15 @@ Estado y decisiones de la fase de API: `docs/api/estado_fase_api.md`.
   (`docs/api/integraciones.md`).
 - 02h: Prisma envia los enteros de `$queryRaw` como `bigint`: castear
   (`::int`) al llamar funciones con parametros `int` (si no, 42883 -> 500).
+- 02i: mensajeria en `core/notificaciones` (eventos, plantillas, canales;
+  `docs/api/integraciones.md`). El job arma cada mensaje una vez con la
+  plantilla vigente y lo guarda cifrado; las variables salen de
+  `notificaciones_por_enviar` (nunca motivo, diagnostico ni notas).
+- 02i: el body JSON vuelve a 1 MB; los adjuntos de la ficha van por multipart
+  (multer, limite `ADJUNTO_MAX_MB`) y los documentos emitidos se redactan
+  como texto (PDF con pdfkit al entregarlo).
+- 02i: errores de body-parser (413, JSON invalido) los traduce el filtro
+  global (antes salian como 500).
+- 02i: una politica que lee otra tabla con RLS cuya politica lee la primera
+  es recursiva (42P17 -> 500): se resuelve con una funcion SECURITY DEFINER
+  (`tipo_documento_del_paciente`).

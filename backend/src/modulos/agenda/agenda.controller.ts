@@ -5,6 +5,7 @@ import { Publico, Roles } from '../../core/auth/decoradores';
 import { AgendaService } from './agenda.service';
 import { CitasService } from './citas.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
+import { RecordatoriosService } from './recordatorios.service';
 import {
   CrearBloqueoAgendaDto,
   CrearCitaDto,
@@ -226,5 +227,37 @@ export class CalendarioPublicoController {
   @Header('Cache-Control', 'private, no-store')
   feed(@Param('token') token: string) {
     return this.integraciones.feed(token);
+  }
+}
+
+/**
+ * Respuesta a un recordatorio (02i): sin sesion, el token del enlace autoriza
+ * (un solo uso, hasta el inicio de la cita; rate limit publico). Primero se
+ * consulta (muestra si una cancelacion seria a tiempo o tardia) y despues se
+ * confirma asistencia o se cancela.
+ */
+@Controller('recordatorios')
+@Publico()
+@UseGuards(ThrottlerGuard)
+@SkipThrottle({ login: true })
+export class RecordatoriosPublicoController {
+  constructor(private readonly recordatorios: RecordatoriosService) {}
+
+  @Get(':token')
+  @Header('Cache-Control', 'private, no-store')
+  consultar(@Param('token') token: string) {
+    return this.recordatorios.consultar(token);
+  }
+
+  @Post(':token/confirmacion')
+  @HttpCode(200)
+  confirmar(@Param('token') token: string) {
+    return this.recordatorios.responder(token, 'CONFIRMADA');
+  }
+
+  @Post(':token/cancelacion')
+  @HttpCode(200)
+  cancelar(@Param('token') token: string) {
+    return this.recordatorios.responder(token, 'CANCELADA');
   }
 }

@@ -62,6 +62,14 @@ borrado.** No hay purga automatica:
   append-only: forman parte del registro clinico del paciente y siguen su
   retencion (minimo 15 años).
 
+## Mensajeria y adjuntos (02i)
+
+- `adjuntos_ficha` es append-only y sigue la retencion de la ficha (minimo
+  15 años).
+- `notificaciones` (la bandeja es el registro oficial de lo que se aviso) y
+  `recordatorios_cita` son append-only: solo avanza el envio o se registra la
+  respuesta. Sin purga automatica: se define junto con la de la ficha.
+
 ## Llaves
 
 Las versiones de llaves que cifraron datos tampoco se destruyen mientras

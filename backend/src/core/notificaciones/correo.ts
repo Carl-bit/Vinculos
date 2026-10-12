@@ -33,8 +33,13 @@ export abstract class ProveedorCorreo {
 export class ProveedorCorreoSimulado extends ProveedorCorreo {
   private readonly logger = new Logger('CorreoSimulado');
   readonly enviados: Correo[] = [];
+  /** Tests: simula una caida del proveedor (el envio lanza). */
+  fallar = false;
 
   async enviar(correo: Correo): Promise<void> {
+    if (this.fallar) {
+      throw new Error('proveedor de correo caido (simulado)');
+    }
     this.enviados.push(correo);
     this.logger.log(`correo simulado: ${correo.asunto}`);
   }

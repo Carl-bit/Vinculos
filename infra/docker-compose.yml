@@ -87,6 +87,7 @@ services:
       JITSI_HABILITADO: ${JITSI_HABILITADO:-false}
       JITSI_URL_BASE: ${JITSI_URL_BASE:-https://meet.jit.si}
       DOCUMENTO_ENLACE_HORAS: ${DOCUMENTO_ENLACE_HORAS:-72}
+      ADJUNTO_MAX_MB: ${ADJUNTO_MAX_MB:-10}
       # Archivo, nunca variable de entorno con la llave.
       KEK_PATH: /run/secrets/vinculos_kek
       RECUPERACION_PUBLICA_PATH: /recuperacion.pub

@@ -10,7 +10,7 @@
 -- aprovisionamiento de llaves (infra/scripts/llaves/aprovisionar.sh).
 --
 -- Casos 1-17: los 17 del prompt 01. 18-27: prompt 01b. 28-44: prompt 01c.
--- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
+-- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
 -- derivacion traspasa el paciente); 01d redefinio 36, 37 y 42 (tipo de
 -- atencion por catalogo, oferta con citas en conflicto, el origen cancela en
 -- SIN_ASIGNAR); 01e redefinio 19 (tablas sin GRANT), 50 (perfil
@@ -2336,40 +2336,73 @@ DO $$ DECLARE v uuid; BEGIN
   ASSERT alertar_bajas_sin_admin() = 0, 'caso 87: sin bajas bloqueadas por falta de ADMIN';
 END $$;
 
-\echo 88 notificaciones: inserta el actor (PENDIENTE, a su nombre); lee el destinatario y ADMIN/GESTION; cierre solo via funcion, una vez
-DO $$ DECLARE v uuid; r record; BEGIN
+\echo 88 notificaciones (02i): solo via notificar() (BANDEJA siempre + CORREO); lee el destinatario y ADMIN/GESTION; el job arma una vez y cierra; el correo reintenta con backoff hasta FALLIDO
+DO $$ DECLARE v uuid; vc uuid; r record; BEGIN
   PERFORM test.ctx('b1', 'PROFESIONAL');
-  INSERT INTO notificaciones (tipo, paciente_id, referencia_id, creada_por_id)
-  VALUES ('CITA_CONFIRMADA', test.u('0a'), test.u('0a'), test.u('b1'));
   BEGIN
-    INSERT INTO notificaciones (tipo, paciente_id, referencia_id, creada_por_id)
-    VALUES ('CITA_CONFIRMADA', test.u('0a'), test.u('0a'), test.u('b2'));
-    RAISE EXCEPTION 'caso 88: insertar a nombre de otro debio fallar';
+    INSERT INTO notificaciones (tipo, canal, paciente_id, referencia_id, creada_por_id)
+    VALUES ('CITA_CONFIRMADA', 'BANDEJA', test.u('0a'), test.u('0a'), test.u('b1'));
+    RAISE EXCEPTION 'caso 88: INSERT directo debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM notificar('CITA_CONFIRMADA', test.u('0a'), NULL, test.u('0a'));
   BEGIN
-    INSERT INTO notificaciones (tipo, paciente_id, referencia_id, creada_por_id, estado, procesada_en)
-    VALUES ('CITA_CONFIRMADA', test.u('0a'), test.u('0a'), test.u('b1'), 'ENVIADA', now());
-    RAISE EXCEPTION 'caso 88: insertar ya enviada debio fallar';
+    PERFORM notificar('DERIVACION_OFRECIDA', NULL, test.u('b2'), test.u('0a'));
+    RAISE EXCEPTION 'caso 88: un aviso que origina la BD no se pide desde la API';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   ASSERT (SELECT count(*) FROM notificaciones WHERE tipo = 'CITA_CONFIRMADA') = 0, 'caso 88: el actor no es destinatario: no la lee';
   PERFORM test.ctx('a2', 'PACIENTE');
-  SELECT id INTO v FROM notificaciones WHERE paciente_id = test.u('0a');
-  ASSERT v IS NOT NULL, 'caso 88: el paciente destinatario la ve';
+  ASSERT (SELECT array_agg(canal::text ORDER BY canal) FROM notificaciones WHERE tipo = 'CITA_CONFIRMADA' AND referencia_id = test.u('0a'))
+         = ARRAY['BANDEJA', 'CORREO'], 'caso 88: una fila por canal; el paciente destinatario las ve';
+  SELECT id INTO v FROM notificaciones WHERE tipo = 'CITA_CONFIRMADA' AND referencia_id = test.u('0a') AND canal = 'BANDEJA';
+  SELECT id INTO vc FROM notificaciones WHERE tipo = 'CITA_CONFIRMADA' AND referencia_id = test.u('0a') AND canal = 'CORREO';
   BEGIN
-    UPDATE notificaciones SET estado = 'ENVIADA' WHERE id = v;
+    UPDATE notificaciones SET estado = 'ENVIADO' WHERE id = v;
     RAISE EXCEPTION 'caso 88: UPDATE directo debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  PERFORM test.ctx('a1', 'ADMIN');
-  ASSERT (SELECT count(*) FROM notificaciones WHERE id = v) = 1, 'caso 88: ADMIN la ve';
-  -- Job (sin contexto): toma la pendiente con el email del destinatario y la cierra.
-  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
-  SELECT * INTO r FROM notificaciones_por_enviar(1000) WHERE id = v;
-  ASSERT r.email IS NOT NULL, 'caso 88: el job obtiene el email del destinatario';
-  PERFORM marcar_notificacion(v, true, NULL);
   BEGIN
-    PERFORM marcar_notificacion(v, false, 'x');
+    PERFORM marcar_notificacion(v, true, NULL, false);
+    RAISE EXCEPTION 'caso 88: funciones del job con contexto de usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM notificaciones WHERE id IN (v, vc)) = 2, 'caso 88: ADMIN las ve';
+  -- Job (sin contexto): plantilla vigente y email solo para el correo.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT * INTO r FROM notificaciones_por_enviar(1000) WHERE id = vc;
+  ASSERT r.email IS NOT NULL AND r.plantilla_asunto = 'Cita confirmada', 'caso 88: el correo trae email y plantilla';
+  SELECT * INTO r FROM notificaciones_por_enviar(1000) WHERE id = v;
+  ASSERT r.email IS NULL AND r.plantilla_cuerpo LIKE '%{{nombre_paciente}}%', 'caso 88: la bandeja no lleva email';
+  -- Bandeja: se arma una vez (cifrado) y queda ENVIADO.
+  PERFORM guardar_contenido_notificacion(v, test.cif('asunto'), test.cif('cuerpo'));
+  BEGIN
+    PERFORM guardar_contenido_notificacion(v, test.cif('otro'), test.cif('otro'));
+    RAISE EXCEPTION 'caso 88: armar dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    PERFORM guardar_contenido_notificacion(vc, '\x00', '\x00');
+    RAISE EXCEPTION 'caso 88: contenido sin cifrar debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM marcar_notificacion(v, true, NULL, false);
+  BEGIN
+    PERFORM marcar_notificacion(v, false, 'x', true);
     RAISE EXCEPTION 'caso 88: cerrar dos veces debio fallar';
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  -- Correo: fallo reintentable -> PENDIENTE con backoff (no sale antes de tiempo); al quinto intento FALLIDO.
+  PERFORM marcar_notificacion(vc, false, 'fallo el envio', true);
+  ASSERT NOT EXISTS (SELECT 1 FROM notificaciones_por_enviar(1000) WHERE id = vc), 'caso 88: no se reintenta antes de tiempo';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT estado = 'PENDIENTE' AND intentos = 1 AND proximo_intento >= now() + interval '1 minute' FROM notificaciones WHERE id = vc),
+    'caso 88: reintento con backoff';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  PERFORM marcar_notificacion(vc, false, 'fallo el envio', true);
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT proximo_intento >= now() + interval '2 minutes' FROM notificaciones WHERE id = vc), 'caso 88: backoff exponencial';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  PERFORM marcar_notificacion(vc, false, 'fallo el envio', true);
+  PERFORM marcar_notificacion(vc, false, 'fallo el envio', true);
+  PERFORM marcar_notificacion(vc, false, 'fallo el envio', true);
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT estado = 'FALLIDO' AND intentos = 5 FROM notificaciones WHERE id = vc), 'caso 88: FALLIDO al quinto intento';
+  ASSERT (SELECT estado FROM notificaciones WHERE id = v) = 'ENVIADO', 'caso 88: la bandeja no depende del correo';
 END $$;
 
 \echo 89 Portal: mensajes solo a su equipo tratante y los lee el destinatario; epicrisis la crea el paciente y la resuelve el tratante o ADMIN
@@ -2484,7 +2517,7 @@ DO $$ BEGIN
   ASSERT EXISTS (SELECT 1 FROM notificaciones n JOIN derivaciones d ON d.id = n.referencia_id
                  WHERE n.tipo = 'DERIVACION_ACTUALIZADA' AND n.usuario_id = d.profesional_origen_id), 'caso 91: el origen recibe avisos';
   ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'DERIVACION_ACTUALIZADA' AND estado = 'PENDIENTE'
-                     GROUP BY usuario_id, referencia_id HAVING count(*) > 1), 'caso 91: un aviso pendiente por derivacion';
+                     GROUP BY usuario_id, referencia_id, canal HAVING count(*) > 1), 'caso 91: un aviso pendiente por derivacion (por canal)';
 END $$;
 
 \echo 92 Videollamada y feed iCal: sala propia cifrada (ADMIN/GESTION la leen); token del feed solo del propio; feed sin contexto solo con token vigente y sin datos del paciente
@@ -2702,6 +2735,185 @@ BEGIN
   ASSERT (SELECT count(*) FROM liquidaciones) + (SELECT count(*) FROM arriendos) = 0, 'caso 95: PACIENTE no ve';
 END $$;
 
+\echo 96 Plantillas de mensaje: ejemplos cargados; solo ADMIN personaliza; variable no permitida 23514; la bandeja no se desactiva; se restaura el ejemplo; sin INSERT ni DELETE; plantilla de documento validada
+DO $$ DECLARE v uuid; n int; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM plantillas_mensaje WHERE canal = 'BANDEJA') = (SELECT count(*) FROM plantillas_mensaje WHERE canal = 'CORREO')
+         AND (SELECT count(*) FROM plantillas_mensaje) >= 28, 'caso 96: ejemplos en BANDEJA y CORREO';
+  ASSERT NOT EXISTS (SELECT 1 FROM plantillas_mensaje WHERE asunto <> asunto_ejemplo OR cuerpo <> cuerpo_ejemplo OR canal = 'WHATSAPP'),
+    'caso 96: cargadas con el ejemplo';
+  SELECT id INTO v FROM plantillas_mensaje WHERE evento = 'RECORDATORIO_CITA' AND destinatario = 'PACIENTE' AND canal = 'CORREO';
+  UPDATE plantillas_mensaje SET cuerpo = 'Hola {{ nombre_paciente }}, nos vemos el {{fecha}} a las {{hora}}' WHERE id = v;
+  BEGIN
+    UPDATE plantillas_mensaje SET cuerpo = 'Motivo: {{motivo}}' WHERE id = v;
+    RAISE EXCEPTION 'caso 96: variable no permitida debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE plantillas_mensaje SET asunto = 'Diagnostico {{diagnostico}}' WHERE id = v;
+    RAISE EXCEPTION 'caso 96: variable no permitida en el asunto debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE plantillas_mensaje SET cuerpo = 'Hola {{nombre_paciente}' WHERE id = v;
+    RAISE EXCEPTION 'caso 96: llaves sueltas debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE plantillas_mensaje SET activa = false WHERE evento = 'RECORDATORIO_CITA' AND canal = 'BANDEJA';
+    RAISE EXCEPTION 'caso 96: desactivar la bandeja debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE plantillas_mensaje SET cuerpo_ejemplo = 'x' WHERE id = v;
+    RAISE EXCEPTION 'caso 96: cambiar el ejemplo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO plantillas_mensaje (evento, destinatario, canal, asunto, cuerpo, asunto_ejemplo, cuerpo_ejemplo)
+    VALUES ('ENLACE_ONLINE', 'PACIENTE', 'BANDEJA', 'a', 'b', 'a', 'b');
+    RAISE EXCEPTION 'caso 96: INSERT debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    DELETE FROM plantillas_mensaje WHERE id = v;
+    RAISE EXCEPTION 'caso 96: DELETE debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  UPDATE plantillas_mensaje SET asunto = asunto_ejemplo, cuerpo = cuerpo_ejemplo WHERE id = v;
+  ASSERT (SELECT cuerpo = cuerpo_ejemplo FROM plantillas_mensaje WHERE id = v), 'caso 96: restaurada';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  UPDATE plantillas_mensaje SET asunto = 'x';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  ASSERT n = 0 AND (SELECT count(*) FROM plantillas_mensaje) = 0, 'caso 96: solo ADMIN';
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    INSERT INTO tipos_documento_clinico (nombre, plantilla) VALUES ('Tipo 96', 'Diagnostico: {{diagnostico}}');
+    RAISE EXCEPTION 'caso 96: plantilla de documento con variable no permitida debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO tipos_documento_clinico (nombre, plantilla)
+  VALUES ('Certificado 96', 'Certifico que {{nombre_paciente}} asistio. {{contenido}} {{nombre_profesional}}, {{fecha}}, {{nombre_centro}}');
+END $$;
+
+\echo 97 Preferencias: el paciente desactiva recordatorios y avisos operativos (solo afecta el correo: la bandeja siempre); los avisos legales no se desactivan; correo con plantilla inactiva no sale
+DO $$ BEGIN
+  PERFORM test.ctx('a4', 'PACIENTE');
+  INSERT INTO preferencias_notificacion (paciente_id, recordatorios, avisos_operativos) VALUES (test.u('0e'), false, false);
+  BEGIN
+    INSERT INTO preferencias_notificacion (paciente_id) VALUES (test.u('0a'));
+    RAISE EXCEPTION 'caso 97: preferencias ajenas debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM preferencias_notificacion) = 0, 'caso 97: no ve las ajenas';
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM notificar('PAGO_REGISTRADO', test.u('0e'), NULL, test.u('0e'));
+  PERFORM notificar('CONSENTIMIENTO_SOLICITADO', test.u('0e'), NULL, test.u('0e'));
+  PERFORM notificar('DOCUMENTO_CLINICO', test.u('0e'), NULL, test.u('0e'));
+  ASSERT (SELECT array_agg(canal::text) FROM notificaciones WHERE tipo = 'PAGO_REGISTRADO' AND referencia_id = test.u('0e'))
+         = ARRAY['BANDEJA'], 'caso 97: operativo desactivado: solo bandeja';
+  ASSERT (SELECT count(*) FROM notificaciones WHERE tipo IN ('CONSENTIMIENTO_SOLICITADO', 'DOCUMENTO_CLINICO')
+          AND referencia_id = test.u('0e') AND canal = 'CORREO') = 2, 'caso 97: avisos legales siempre por correo';
+  UPDATE plantillas_mensaje SET activa = false WHERE evento = 'BOLETA_EMITIDA' AND canal = 'CORREO';
+  PERFORM notificar('BOLETA_EMITIDA', test.u('0a'), NULL, test.u('0a'));
+  ASSERT (SELECT array_agg(canal::text) FROM notificaciones WHERE tipo = 'BOLETA_EMITIDA' AND referencia_id = test.u('0a'))
+         = ARRAY['BANDEJA'], 'caso 97: plantilla de correo inactiva: solo bandeja';
+  UPDATE plantillas_mensaje SET activa = true WHERE evento = 'BOLETA_EMITIDA' AND canal = 'CORREO';
+  PERFORM test.ctx('a4', 'PACIENTE');
+  UPDATE preferencias_notificacion SET recordatorios = true WHERE paciente_id = test.u('0e');
+  ASSERT (SELECT recordatorios AND NOT avisos_operativos FROM preferencias_notificacion), 'caso 97: el paciente cambia las suyas';
+END $$;
+
+\echo 98 Adjuntos de la ficha: el tratante sube y lee (cifrado; PDF, PNG o JPEG); ADMIN, GESTION, el paciente y otro profesional no; append-only
+DO $$ DECLARE v uuid := gen_random_uuid(); v_prof uuid; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  SELECT profesional_id INTO v_prof FROM pacientes WHERE id = test.u('0a');
+  PERFORM set_config('app.current_usuario_id', v_prof::text, true), set_config('app.current_rol', rol_usuario(v_prof), true);
+  INSERT INTO adjuntos_ficha (id, paciente_id, subido_por_id, nombre_archivo, tipo_mime, tamano_bytes, contenido)
+  VALUES (v, test.u('0a'), v_prof, 'informe.pdf', 'application/pdf', 10, test.cif('informe'));
+  BEGIN
+    INSERT INTO adjuntos_ficha (id, paciente_id, subido_por_id, nombre_archivo, tipo_mime, tamano_bytes, contenido)
+    VALUES (gen_random_uuid(), test.u('0a'), v_prof, 'x.txt', 'text/plain', 10, test.cif('x'));
+    RAISE EXCEPTION 'caso 98: tipo no permitido debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO adjuntos_ficha (id, paciente_id, subido_por_id, nombre_archivo, tipo_mime, tamano_bytes, contenido)
+    VALUES (gen_random_uuid(), test.u('0a'), v_prof, 'x.pdf', 'application/pdf', 10, '\x00');
+    RAISE EXCEPTION 'caso 98: contenido sin cifrar debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE adjuntos_ficha SET nombre_archivo = 'y' WHERE id = v;
+    RAISE EXCEPTION 'caso 98: UPDATE debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM adjuntos_ficha WHERE id = v) = 1, 'caso 98: el tratante lo lee';
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO adjuntos_ficha (id, paciente_id, subido_por_id, nombre_archivo, tipo_mime, tamano_bytes, contenido)
+    VALUES (gen_random_uuid(), test.u('0a'), test.u('b5'), 'x.pdf', 'application/pdf', 10, test.cif('x'));
+    RAISE EXCEPTION 'caso 98: subir a ficha ajena debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM adjuntos_ficha) = 0, 'caso 98: otro profesional no lo ve';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM adjuntos_ficha) = 0, 'caso 98: ADMIN no lo ve';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM adjuntos_ficha) = 0, 'caso 98: GESTION no lo ve';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM adjuntos_ficha) = 0, 'caso 98: el paciente no lo ve (como la ficha)';
+  -- El paciente lee solo los tipos de documento de sus documentos (titulo del PDF).
+  ASSERT (SELECT count(*) FROM tipos_documento_clinico) = (SELECT count(DISTINCT tipo_documento_id) FROM documentos_clinicos)
+         AND (SELECT count(*) FROM tipos_documento_clinico) > 0, 'caso 98: el paciente ve los tipos de sus documentos';
+  PERFORM test.ctx('a4', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM tipos_documento_clinico) = 0, 'caso 98: sin documentos no ve tipos';
+END $$;
+
+\echo 99 Recordatorios: una vez por cita y horario (job); token de un solo uso; la cancelacion informa a tiempo o tardia y avisa; SEQUENCE sube y el feed muestra la cancelada
+DO $$ DECLARE v_cita uuid; v_cita2 uuid; v_ini timestamptz; v_ini2 timestamptz; v_r uuid := gen_random_uuid(); r record; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET recordatorio_horas_antes = 48, plazo_aviso_cancelacion_horas = 24, penalizacion_cancelacion_porcentaje = 50;
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b1'), test.u('0a'), date_trunc('minute', now()) + interval '30 hours 7 minutes',
+          date_trunc('minute', now()) + interval '31 hours 7 minutes') RETURNING id, inicio INTO v_cita, v_ini;
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b1'), test.u('0a'), date_trunc('minute', now()) + interval '5 hours 7 minutes',
+          date_trunc('minute', now()) + interval '6 hours 7 minutes') RETURNING id, inicio INTO v_cita2, v_ini2;
+  ASSERT (SELECT secuencia FROM citas WHERE id = v_cita) = 0, 'caso 99: SEQUENCE inicial';
+  BEGIN
+    PERFORM citas_por_recordar(10);
+    RAISE EXCEPTION 'caso 99: funcion del job con contexto debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT (SELECT count(*) FROM citas_por_recordar(1000) WHERE cita_id IN (v_cita, v_cita2)) = 2, 'caso 99: ambas en la ventana';
+  ASSERT registrar_recordatorio(v_r, v_cita, v_ini, repeat('e', 64), test.cif('https://x')),
+    'caso 99: recordatorio registrado';
+  ASSERT NOT registrar_recordatorio(gen_random_uuid(), v_cita, v_ini, repeat('f', 64), test.cif('x')),
+    'caso 99: una sola vez por cita y horario';
+  ASSERT NOT EXISTS (SELECT 1 FROM citas_por_recordar(1000) WHERE cita_id = v_cita), 'caso 99: ya recordada';
+  SELECT * INTO r FROM consultar_recordatorio(repeat('e', 64));
+  ASSERT r.vigente AND r.a_tiempo AND r.penalizacion_porcentaje = 50 AND r.profesional IS NOT NULL, 'caso 99: consulta antes de cancelar';
+  SELECT * INTO r FROM responder_recordatorio(repeat('e', 64), 'CANCELADA');
+  ASSERT r.a_tiempo AND r.penalizacion_porcentaje = 0, 'caso 99: cancelacion a tiempo sin penalizacion';
+  BEGIN
+    PERFORM responder_recordatorio(repeat('e', 64), 'CONFIRMADA');
+    RAISE EXCEPTION 'caso 99: token usado dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM registrar_recordatorio(gen_random_uuid(), v_cita2, v_ini2, repeat('9', 64), test.cif('x'));
+  SELECT * INTO r FROM responder_recordatorio(repeat('9', 64), 'CANCELADA');
+  ASSERT NOT r.a_tiempo AND r.penalizacion_porcentaje = 50, 'caso 99: cancelacion tardia con la penalizacion vigente';
+  BEGIN
+    PERFORM consultar_recordatorio(repeat('8', 64));
+    RAISE EXCEPTION 'caso 99: token inexistente debio fallar';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  ASSERT EXISTS (SELECT 1 FROM feed_calendario(repeat('c', 64)) WHERE id = v_cita AND estado = 'CANCELADA' AND secuencia = 1),
+    'caso 99: el feed incluye la cancelada con su SEQUENCE';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM notificaciones WHERE tipo = 'RECORDATORIO_CITA' AND referencia_id = v_r) = 2, 'caso 99: bandeja y correo';
+  ASSERT (SELECT estado = 'CANCELADA' AND cancelada_en IS NOT NULL AND secuencia = 1 FROM citas WHERE id = v_cita), 'caso 99: cancelada; SEQUENCE sube';
+  ASSERT (SELECT count(*) FROM notificaciones WHERE tipo = 'CITA_CANCELADA' AND referencia_id = v_cita AND canal = 'BANDEJA') = 2,
+    'caso 99: avisa al paciente y al profesional';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    UPDATE recordatorios_cita SET respuesta = NULL;
+    RAISE EXCEPTION 'caso 99: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM recordatorios_cita WHERE cita_id IN (v_cita, v_cita2)) = 2, 'caso 99: el profesional ve los de sus citas';
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM recordatorios_cita WHERE cita_id IN (v_cita, v_cita2)) = 0, 'caso 99: otro profesional no';
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET recordatorio_horas_antes = 24, penalizacion_cancelacion_porcentaje = 0;
+END $$;
+
 \connect :owner_url
 \set ON_ERROR_STOP 1
 
@@ -2711,7 +2923,8 @@ DO $$ DECLARE t text; BEGIN
                            'llaves_datos', 'evolucion_intervenciones', 'avisos_consentimiento', 'revisiones_retencion',
                            'consultas_retencion', 'alertas_internas', 'notificaciones', 'mensajes_paciente',
                            'solicitudes_epicrisis', 'documentos_clinicos', 'envios_documento', 'descargas_documento',
-                           'pagos', 'boletas', 'resoluciones_cita', 'liquidaciones'] LOOP
+                           'pagos', 'boletas', 'resoluciones_cita', 'liquidaciones', 'preferencias_notificacion',
+                           'recordatorios_cita', 'adjuntos_ficha'] LOOP
     BEGIN
       EXECUTE format('DELETE FROM %I', t);
       RAISE EXCEPTION 'caso 67: DELETE % debio fallar', t;

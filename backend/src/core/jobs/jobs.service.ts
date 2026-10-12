@@ -64,6 +64,15 @@ export class JobsService implements OnApplicationBootstrap {
     });
   }
 
+  @Cron(CronExpression.EVERY_10_MINUTES, { name: 'avisar_consentimientos_por_vencer' })
+  avisarConsentimientosPorVencer(): Promise<ResultadoJob> {
+    // 02i: una vez por solicitud, pasada la mitad de su plazo (aviso legal: no se desactiva).
+    return this.conLock('avisar_consentimientos_por_vencer', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT avisar_consentimientos_por_vencer() AS n`;
+      return n;
+    });
+  }
+
   @Cron(CronExpression.EVERY_10_MINUTES, { name: 'cerrar_avisos_vencidos' })
   cerrarAvisosVencidos(): Promise<ResultadoJob> {
     // Avisos de cambio de supervisor sin respuesta -> CONFORME tacito.

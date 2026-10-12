@@ -188,6 +188,13 @@ export class EditarConfiguracionDto {
   @Min(0)
   @Max(100)
   comisionCentroPorcentaje?: number;
+
+  /** Recordatorio de citas (02i): horas antes del inicio; 0 = desactivado. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(168)
+  recordatorioHorasAntes?: number;
 }
 
 export class OtorgarAccesoDto {

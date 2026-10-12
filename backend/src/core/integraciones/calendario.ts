@@ -2,13 +2,23 @@ import { Injectable } from '@nestjs/common';
 import type { EstadoCita, ModalidadAtencion } from '@prisma/client';
 
 export interface EventoCalendario {
+  /** Fijo por cita: una reprogramacion o cancelacion actualiza el mismo evento. */
   uid: string;
+  /** SEQUENCE (RFC 5545): sube con cada cambio de la cita (citas.secuencia). */
+  secuencia: number;
   inicio: Date;
   fin: Date;
   titulo: string;
   ubicacion: string | null;
   descripcion: string | null;
-  tentativo: boolean;
+  estado: 'CONFIRMED' | 'TENTATIVE' | 'CANCELLED';
+}
+
+export interface OpcionesCalendario {
+  /** PUBLISH (feed y avisos) o CANCEL (cita cancelada). */
+  metodo?: 'PUBLISH' | 'CANCEL';
+  /** Remitente de la plataforma con el nombre del centro (adjuntos de correo). */
+  organizador?: { nombre: string; email: string };
 }
 
 /**
@@ -18,7 +28,7 @@ export interface EventoCalendario {
  * los mismos eventos.
  */
 export abstract class ProveedorCalendario {
-  abstract calendario(nombre: string, eventos: EventoCalendario[]): string;
+  abstract calendario(nombre: string, eventos: EventoCalendario[], opciones?: OpcionesCalendario): string;
 }
 
 /** Datos de una cita que pueden salir del sistema (nunca paciente ni motivo). */
@@ -30,23 +40,27 @@ export interface CitaCalendario {
   estado: EstadoCita;
   espacio: string | null;
   enlace: string | null;
+  secuencia: number;
 }
 
 /**
  * Regla de contenido unica para el feed y los .ics: solo "Sesion", la
  * modalidad, el horario y el enlace o el box. POR_REPROGRAMAR va marcada
- * (tentativa). Nunca el nombre del paciente ni el motivo.
+ * (tentativa); CANCELADA, STATUS:CANCELLED. UID fijo por cita y SEQUENCE de
+ * la BD: los clientes actualizan el evento existente. Nunca el nombre del
+ * paciente ni el motivo.
  */
 export function eventoDeCita(c: CitaCalendario): EventoCalendario {
   const porReprogramar = c.estado === 'POR_REPROGRAMAR';
   return {
     uid: `${c.id}@vinculos`,
+    secuencia: c.secuencia,
     inicio: c.inicio,
     fin: c.fin,
     titulo: porReprogramar ? 'Sesión (por reprogramar)' : 'Sesión',
-    ubicacion: c.modalidad === 'ONLINE' ? c.enlace : c.espacio,
+    ubicacion: c.estado === 'CANCELADA' ? null : c.modalidad === 'ONLINE' ? c.enlace : c.espacio,
     descripcion: `Modalidad: ${c.modalidad === 'ONLINE' ? 'online' : 'presencial'}`,
-    tentativo: porReprogramar,
+    estado: c.estado === 'CANCELADA' ? 'CANCELLED' : porReprogramar ? 'TENTATIVE' : 'CONFIRMED',
   };
 }
 
@@ -70,25 +84,28 @@ function plegar(linea: string): string {
 
 @Injectable()
 export class CalendarioIcs extends ProveedorCalendario {
-  calendario(nombre: string, eventos: EventoCalendario[]): string {
+  calendario(nombre: string, eventos: EventoCalendario[], opciones: OpcionesCalendario = {}): string {
     const ahora = fecha(new Date());
+    const org = opciones.organizador;
     const lineas = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//Vinculos//Agenda//ES',
       'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
+      `METHOD:${opciones.metodo ?? 'PUBLISH'}`,
       `X-WR-CALNAME:${escapar(nombre)}`,
       ...eventos.flatMap((e) => [
         'BEGIN:VEVENT',
         `UID:${e.uid}`,
+        `SEQUENCE:${e.secuencia}`,
         `DTSTAMP:${ahora}`,
+        ...(org ? [`ORGANIZER;CN="${org.nombre.replace(/"/g, '')}":mailto:${org.email}`] : []),
         `DTSTART:${fecha(e.inicio)}`,
         `DTEND:${fecha(e.fin)}`,
         `SUMMARY:${escapar(e.titulo)}`,
         ...(e.ubicacion ? [`LOCATION:${escapar(e.ubicacion)}`] : []),
         ...(e.descripcion ? [`DESCRIPTION:${escapar(e.descripcion)}`] : []),
-        `STATUS:${e.tentativo ? 'TENTATIVE' : 'CONFIRMED'}`,
+        `STATUS:${e.estado}`,
         'END:VEVENT',
       ]),
       'END:VCALENDAR',
