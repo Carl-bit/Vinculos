@@ -7,12 +7,7 @@ import type { EstadoDerivacion, TipoNotificacion } from '@prisma/client';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
-import type {
-  CrearDerivacionDto,
-  ResponderAvisoDto,
-  ResponderConsentimientoDto,
-  RevocarConsentimientoDto,
-} from './dto/derivaciones.dto';
+import type { CrearDerivacionDto, ResponderAvisoDto, ResponderConsentimientoDto, RevocarConsentimientoDto } from './dto/derivaciones.dto';
 
 /**
  * Derivaciones y consentimientos: TODA escritura via funciones SECURITY

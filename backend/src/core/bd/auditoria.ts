@@ -17,6 +17,13 @@ export async function registrarAcceso(
     return;
   }
   await tx.accesoFicha.createMany({
-    data: filas.map((f) => ({ usuarioId: usuario.id, rol: usuario.rol, pacienteId: f.pacienteId, fichaId: f.fichaId ?? null, recurso: f.recurso, accion: f.accion })),
+    data: filas.map((f) => ({
+      usuarioId: usuario.id,
+      rol: usuario.rol,
+      pacienteId: f.pacienteId,
+      fichaId: f.fichaId ?? null,
+      recurso: f.recurso,
+      accion: f.accion,
+    })),
   });
 }

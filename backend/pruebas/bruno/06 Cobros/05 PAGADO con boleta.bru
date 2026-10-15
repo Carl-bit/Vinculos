@@ -1,0 +1,25 @@
+meta {
+  name: PAGADO con boleta
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/cobros/citas/{{citaParcialId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+  test("boleta emitida", function () {
+    expect(res.body.estado_pago).to.equal("PAGADO");
+    expect(res.body.boleta).to.not.equal(null);
+  });
+}

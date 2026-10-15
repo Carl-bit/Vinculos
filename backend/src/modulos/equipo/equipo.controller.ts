@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
+import { TAGS } from '../../core/docs/openapi';
 import { Roles } from '../../core/auth/decoradores';
 import {
   AsignarTiposAtencionDto,
@@ -24,6 +26,7 @@ const Uuid = new ParseUUIDPipe();
 const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
 
 /** Perfil, datos privados y tarifas: el propio escribe; ADMIN/GESTION leen (matriz_permisos.md). */
+@ApiTags(TAGS.equipo)
 @Controller('profesionales')
 export class PerfilesController {
   constructor(private readonly equipo: EquipoService) {}
@@ -108,6 +111,7 @@ export class PerfilesController {
   }
 }
 
+@ApiTags(TAGS.equipo)
 @Controller('trayectoria')
 export class TrayectoriaController {
   constructor(private readonly equipo: EquipoService) {}
@@ -138,6 +142,7 @@ export class TrayectoriaController {
 }
 
 /** Catalogo (B): todos leen; ADMIN escribe; nunca DELETE (se desactiva). */
+@ApiTags(TAGS.equipo)
 @Controller('tipos-atencion')
 export class TiposAtencionController {
   constructor(private readonly equipo: EquipoService) {}
@@ -168,6 +173,7 @@ export class TiposAtencionController {
   }
 }
 
+@ApiTags(TAGS.equipo)
 @Controller()
 export class SupervisionController {
   constructor(private readonly supervision: SupervisionService) {}

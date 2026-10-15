@@ -5,15 +5,7 @@ import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { conflicto, esSqlstate } from '../../core/errores/sqlstate';
-import type {
-  DatosPrivadosDto,
-  EditarPerfilDto,
-  EditarTipoAtencionDto,
-  PerfilDto,
-  TarifaDto,
-  TipoAtencionDto,
-  TrayectoriaDto,
-} from './dto/equipo.dto';
+import type { DatosPrivadosDto, EditarPerfilDto, EditarTipoAtencionDto, PerfilDto, TarifaDto, TipoAtencionDto, TrayectoriaDto } from './dto/equipo.dto';
 
 const VISTA_PRIVADOS = {
   usuarioId: true,
@@ -190,5 +182,4 @@ export class EquipoService {
     encontrado(await this.bd.tx().profesionalTipoAtencion.findUnique({ where }), 'Propuesta');
     return this.bd.tx().profesionalTipoAtencion.update({ where, data: { estado } });
   }
-
 }

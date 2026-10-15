@@ -51,7 +51,7 @@ export function idSolicitud(req: IncomingMessage & { id?: unknown }): string {
     const cabecera = req.headers['x-request-id'];
     req.id = typeof cabecera === 'string' && UUID.test(cabecera) ? cabecera : randomUUID();
   }
-  return req.id as string;
+  return req.id;
 }
 
 export function opcionesLogger(nivel: string, destino?: DestinationStream): Params {

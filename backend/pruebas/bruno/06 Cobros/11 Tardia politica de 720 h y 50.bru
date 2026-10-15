@@ -1,0 +1,33 @@
+meta {
+  name: Tardia: politica de 720 h y 50%
+  type: http
+  seq: 11
+}
+
+patch {
+  url: {{baseUrl}}/configuracion
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenAdmin}}
+}
+
+body:json {
+  {
+    "recordatorioHorasAntes": 0,
+    "plazoAvisoCancelacionHoras": 720,
+    "penalizacionCancelacionPorcentaje": 50
+  }
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Para tener una cancelacion tardia sin esperar: plazo de 30 dias (el recordatorio se desactiva, porque debe ser mayor que el plazo).
+}

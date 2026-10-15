@@ -1,0 +1,28 @@
+meta {
+  name: Refresh rotativo (ADMIN)
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/auth/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "{{refreshAdmin}}"
+  }
+}
+
+script:post-response {
+  bru.setVar("tokenAdmin", res.body.accessToken);
+  bru.setVar("refreshAdmin", res.body.refreshToken);
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

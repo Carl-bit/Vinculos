@@ -213,7 +213,7 @@ DTOs (`class-validator`), antes de cifrar:
     directo, si no el centro; sin RUT se cifra "sin RUT"). No se anula un pago
     de una cita con boleta.
   - Politica de cancelacion (`configuracion_centro`): `plazo_aviso_cancelacion_horas`
-    (24), `penalizacion_cancelacion_porcentaje` y `cobro_inasistencia_porcentaje`
+    (24; con recordatorio activo, menor que `recordatorio_horas_antes`, 02j), `penalizacion_cancelacion_porcentaje` y `cobro_inasistencia_porcentaje`
     (0, pendientes del caso de estudio). `resolver_cita` (ADMIN/GESTION)
     registra la decision: TRASLADO (credito de una cancelacion a tiempo o
     reprogramacion de una tardia: los pagos pasan a la cita nueva), DEVOLUCION

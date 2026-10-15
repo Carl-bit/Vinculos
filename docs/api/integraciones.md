@@ -109,7 +109,7 @@ tienen campo (un campo extra es 400): nunca se desactivan.
 
 ## Recordatorios de citas (02i)
 
-- `configuracion_centro.recordatorio_horas_antes` (default 24; 0 =
+- `configuracion_centro.recordatorio_horas_antes` (default 48 desde 02j; 0 =
   desactivado). Job `enviar_recordatorios` (Agenda, cada 10 min, advisory
   lock): un recordatorio por cita y horario (`recordatorios_cita`, UNIQUE);
   si la cita se reprograma, sale otro para el horario nuevo.
@@ -125,9 +125,12 @@ tienen campo (un campo extra es 400): nunca se desactivan.
     responde si fue a tiempo y la penalizacion, cancela la cita y avisa al
     paciente y al profesional. Segundo uso o enlace vencido: 409.
 - Respeta las preferencias del paciente (categoria recordatorio).
-- Recomendacion: `recordatorio_horas_antes` mayor que el plazo de aviso de
-  cancelacion; si son iguales, cancelar desde el recordatorio siempre es
-  tardio.
+- Regla (02j, CHECK `configuracion_centro_recordatorio_antes_de_cancelacion`):
+  si el recordatorio esta activo, `recordatorio_horas_antes` debe ser mayor
+  que `plazo_aviso_cancelacion_horas`; si no, cancelar desde el recordatorio
+  siempre seria tardio. Aplica cambie el que cambie (23514 -> 422 con mensaje
+  propio). La migracion movio los silos con recordatorio <= plazo al minimo
+  coherente (48, o plazo + 1; con plazo >= 168, desactivado).
 
 ## Calendario
 

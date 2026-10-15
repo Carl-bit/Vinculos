@@ -41,10 +41,7 @@ for (const c of CAMPOS_CIFRADOS) {
 
 /** Relaciones de cada modelo (campo -> modelo), para descifrar includes. */
 const RELACIONES = new Map<string, [string, string][]>(
-  Prisma.dmmf.datamodel.models.map((m) => [
-    m.name,
-    m.fields.filter((f) => f.kind === 'object').map((f): [string, string] => [f.name, f.type]),
-  ]),
+  Prisma.dmmf.datamodel.models.map((m) => [m.name, m.fields.filter((f) => f.kind === 'object').map((f): [string, string] => [f.name, f.type])]),
 );
 
 function cifrarDatos(llavero: Llavero, modelo: string, info: InfoModelo, data: Datos | undefined, id: unknown): void {
@@ -54,7 +51,7 @@ function cifrarDatos(llavero: Llavero, modelo: string, info: InfoModelo, data: D
   for (const c of info.campos) {
     let valor = data[c.campo];
     if (valor && typeof valor === 'object' && !(valor instanceof Uint8Array) && !esClaro(valor) && 'set' in valor) {
-      valor = (valor as { set: unknown }).set;
+      valor = valor.set;
     }
     if (valor === undefined || valor === null) {
       continue;

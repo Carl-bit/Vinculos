@@ -58,9 +58,7 @@ export class AuthService {
       SELECT id::text, password_hash, rol, activo, fecha_expiracion_acceso FROM credenciales_login(${email})`;
     const coincide = await bcrypt.compare(password, fila?.password_hash ?? this.hashRelleno);
     const vigente =
-      !!fila &&
-      fila.activo &&
-      (fila.rol !== 'PRACTICANTE' || (fila.fecha_expiracion_acceso !== null && fila.fecha_expiracion_acceso > new Date()));
+      !!fila && fila.activo && (fila.rol !== 'PRACTICANTE' || (fila.fecha_expiracion_acceso !== null && fila.fecha_expiracion_acceso > new Date()));
     if (!fila || !fila.password_hash || !coincide || !vigente) {
       throw new UnauthorizedException(NO_AUTORIZADO);
     }

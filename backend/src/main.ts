@@ -4,10 +4,12 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 
 import { AppModule } from './app.module';
 import { configurarApp } from './configurar-app';
+import { configurarOpenApi } from './core/docs/openapi';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule.crear(), { bufferLogs: true });
   configurarApp(app);
+  configurarOpenApi(app);
   await app.listen(app.get(ConfigService).getOrThrow<number>('PORT'));
 }
 

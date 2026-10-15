@@ -1,0 +1,21 @@
+meta {
+  name: Portal: datos de pago
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/portal/citas/{{portalCitaId}}/datos-pago
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenPaciente}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

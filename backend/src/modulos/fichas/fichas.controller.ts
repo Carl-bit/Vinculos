@@ -15,8 +15,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { EstadoTipoSesion } from '@prisma/client';
 
+import { ErrorCuerpoGrande, TAGS } from '../../core/docs/openapi';
 import { Roles } from '../../core/auth/decoradores';
 import { AdjuntosService } from './adjuntos.service';
 import { CatalogosRetencionService } from './catalogos-retencion.service';
@@ -47,6 +49,7 @@ const archivo = (contenido: Buffer, tipo: string, nombre: string) =>
 const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
 
 /** Roles segun matriz_permisos.md (pacientes, adultos_responsables, fichas_clinicas). */
+@ApiTags(TAGS.fichas)
 @Controller('pacientes')
 export class PacientesController {
   constructor(private readonly pacientes: PacientesService) {}
@@ -102,6 +105,7 @@ export class PacientesController {
 }
 
 /** Evoluciones: solo el tratante. ADMIN, GESTION, PACIENTE y supervisor nunca (supervision: 02e). */
+@ApiTags(TAGS.fichas)
 @Controller('fichas/:fichaId/evoluciones')
 export class EvolucionesController {
   constructor(private readonly evoluciones: EvolucionesService) {}
@@ -119,6 +123,7 @@ export class EvolucionesController {
   }
 }
 
+@ApiTags(TAGS.fichas)
 @Controller()
 export class CatalogosClinicosController {
   constructor(private readonly catalogos: CatalogosRetencionService) {}
@@ -167,6 +172,7 @@ export class CatalogosClinicosController {
 }
 
 /** Revision anual de retencion: solo ADMIN. */
+@ApiTags(TAGS.fichas)
 @Controller('retencion')
 export class RetencionController {
   constructor(private readonly catalogos: CatalogosRetencionService) {}
@@ -191,6 +197,7 @@ export class RetencionController {
 }
 
 /** Catalogo (B) de tipos de documento clinico: el equipo lee; ADMIN escribe; nunca DELETE. */
+@ApiTags(TAGS.fichas)
 @Controller('tipos-documento-clinico')
 export class TiposDocumentoController {
   constructor(private readonly documentos: DocumentosService) {}
@@ -219,12 +226,14 @@ export class TiposDocumentoController {
  * pide el adjunto y descarga por el enlace del correo (con sesion).
  * ADMIN/GESTION nunca ven el contenido; ADMIN audita los envios.
  */
+@ApiTags(TAGS.fichas)
 @Controller('documentos-clinicos')
 export class DocumentosController {
   constructor(private readonly documentos: DocumentosService) {}
 
   @Post()
   @Roles('PROFESIONAL', 'PRACTICANTE')
+  @ErrorCuerpoGrande()
   emitir(@Body() dto: EmitirDocumentoDto) {
     return this.documentos.emitir(dto);
   }
@@ -269,6 +278,7 @@ export class DocumentosController {
  * 413); tipo validado por contenido (PDF, PNG, JPEG; si no -> 422). Misma RLS
  * y auditoria que la ficha: ADMIN, GESTION y el paciente no los ven.
  */
+@ApiTags(TAGS.fichas)
 @Controller()
 export class AdjuntosFichaController {
   constructor(private readonly adjuntos: AdjuntosService) {}
@@ -276,6 +286,9 @@ export class AdjuntosFichaController {
   @Post('pacientes/:id/adjuntos')
   @Roles('PROFESIONAL', 'PRACTICANTE')
   @UseInterceptors(FileInterceptor('archivo'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', required: ['archivo'], properties: { archivo: { type: 'string', format: 'binary', description: 'PDF, PNG o JPEG' } } } })
+  @ErrorCuerpoGrande()
   subir(@Param('id', Uuid) pacienteId: string, @UploadedFile() archivo?: Express.Multer.File) {
     if (!archivo) {
       throw new BadRequestException('Falta el archivo (campo "archivo", multipart/form-data)');

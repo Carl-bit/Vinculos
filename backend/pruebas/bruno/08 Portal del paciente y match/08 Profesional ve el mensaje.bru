@@ -1,0 +1,21 @@
+meta {
+  name: Profesional ve el mensaje
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/mensajes
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

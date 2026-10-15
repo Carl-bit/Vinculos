@@ -1,0 +1,21 @@
+meta {
+  name: Tardia: cancelar
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/citas/{{citaTardiaId}}/cancelacion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

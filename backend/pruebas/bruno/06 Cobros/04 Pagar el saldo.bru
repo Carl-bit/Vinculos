@@ -1,0 +1,28 @@
+meta {
+  name: Pagar el saldo
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/cobros/citas/{{citaParcialId}}/pagos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+body:json {
+  {
+    "monto": {{saldoParcial}},
+    "medioPago": "TRANSFERENCIA"
+  }
+}
+
+tests {
+  test("status 201", function () {
+    expect(res.status).to.equal(201);
+  });
+}

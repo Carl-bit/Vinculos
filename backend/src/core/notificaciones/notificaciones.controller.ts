@@ -1,44 +1,12 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { ApiTags } from '@nestjs/swagger';
 
+import { TAGS } from '../docs/openapi';
 import { Actor, Roles } from '../auth/decoradores';
 import { ContextoBd, encontrado, type UsuarioActual } from '../bd/contexto-bd.service';
+import { EditarPlantillaDto, PreferenciasDto } from './notificaciones.dto';
 
 const Uuid = new ParseUUIDPipe();
-const recortar = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
-
-/** Personalizacion de una plantilla (ADMIN). Las variables las valida la BD (variable no permitida: 23514 -> 422). */
-export class EditarPlantillaDto {
-  @IsOptional()
-  @Transform(recortar)
-  @IsString()
-  @Length(1, 200)
-  asunto?: string;
-
-  @IsOptional()
-  @Transform(recortar)
-  @IsString()
-  @Length(1, 4000)
-  cuerpo?: string;
-
-  /** BANDEJA no se desactiva (CHECK -> 422). */
-  @IsOptional()
-  @IsBoolean()
-  activa?: boolean;
-}
-
-/** Solo lo desactivable: los avisos legales no tienen campo (un campo extra es 400). */
-export class PreferenciasDto {
-  @IsOptional()
-  @IsBoolean()
-  recordatorios?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  avisosOperativos?: boolean;
-}
-
 const PREFERENCIAS = { recordatorios: true, avisosOperativos: true } as const;
 
 /**
@@ -46,6 +14,7 @@ const PREFERENCIAS = { recordatorios: true, avisosOperativos: true } as const;
  * destinatario los suyos (RLS). Bandeja (registro oficial, con contenido):
  * solo los propios. Preferencias: el paciente.
  */
+@ApiTags(TAGS.mensajeria)
 @Controller('notificaciones')
 export class NotificacionesController {
   constructor(private readonly bd: ContextoBd) {}
@@ -111,6 +80,7 @@ export class NotificacionesController {
 }
 
 /** Plantillas de mensaje (B): solo ADMIN. Sin crear ni borrar: se personalizan o se restaura el ejemplo. */
+@ApiTags(TAGS.mensajeria)
 @Controller('plantillas-mensaje')
 export class PlantillasMensajeController {
   constructor(private readonly bd: ContextoBd) {}

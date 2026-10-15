@@ -1,0 +1,25 @@
+meta {
+  name: Tipos de sesion aprobados
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/tipos-sesion?estado=APROBADO
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+script:post-response {
+  bru.setVar("tipoSesionId", res.body[0].id);
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

@@ -2911,7 +2911,25 @@ DO $$ DECLARE v_cita uuid; v_cita2 uuid; v_ini timestamptz; v_ini2 timestamptz; 
   PERFORM test.ctx('b2', 'PROFESIONAL');
   ASSERT (SELECT count(*) FROM recordatorios_cita WHERE cita_id IN (v_cita, v_cita2)) = 0, 'caso 99: otro profesional no';
   PERFORM test.ctx('a1', 'ADMIN');
-  UPDATE configuracion_centro SET recordatorio_horas_antes = 24, penalizacion_cancelacion_porcentaje = 0;
+  UPDATE configuracion_centro SET recordatorio_horas_antes = 48, penalizacion_cancelacion_porcentaje = 0;
+END $$;
+
+\echo 100 Recordatorio activo antes del plazo de aviso de cancelacion (CHECK sobre la fila); 0 lo desactiva; default 48
+DO $$ BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT column_default FROM information_schema.columns
+          WHERE table_name = 'configuracion_centro' AND column_name = 'recordatorio_horas_antes') = '48', 'caso 100: default 48';
+  UPDATE configuracion_centro SET recordatorio_horas_antes = 48, plazo_aviso_cancelacion_horas = 24;
+  BEGIN
+    UPDATE configuracion_centro SET recordatorio_horas_antes = 24;
+    RAISE EXCEPTION 'caso 100: recordatorio igual al plazo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE configuracion_centro SET plazo_aviso_cancelacion_horas = 48;
+    RAISE EXCEPTION 'caso 100: plazo que alcanza al recordatorio debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE configuracion_centro SET recordatorio_horas_antes = 0, plazo_aviso_cancelacion_horas = 72;
+  UPDATE configuracion_centro SET recordatorio_horas_antes = 48, plazo_aviso_cancelacion_horas = 24;
 END $$;
 
 \connect :owner_url

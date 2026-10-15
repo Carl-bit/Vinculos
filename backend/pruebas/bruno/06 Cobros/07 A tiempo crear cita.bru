@@ -1,0 +1,36 @@
+meta {
+  name: A tiempo: crear cita
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/citas
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+body:json {
+  {
+    "pacienteId": "{{pacientePruebaId}}",
+    "profesionalId": "{{idProf1}}",
+    "modalidad": "PRESENCIAL",
+    "espacioId": "{{boxId}}",
+    "inicio": "{{aTiempoInicio}}",
+    "fin": "{{aTiempoFin}}"
+  }
+}
+
+script:post-response {
+  bru.setVar("citaATiempoId", res.body.id);
+}
+
+tests {
+  test("status 201", function () {
+    expect(res.status).to.equal(201);
+  });
+}

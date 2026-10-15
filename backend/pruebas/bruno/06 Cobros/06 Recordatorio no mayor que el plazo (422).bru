@@ -1,0 +1,31 @@
+meta {
+  name: Recordatorio no mayor que el plazo (422)
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/configuracion
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenAdmin}}
+}
+
+body:json {
+  {
+    "recordatorioHorasAntes": 24,
+    "plazoAvisoCancelacionHoras": 24
+  }
+}
+
+tests {
+  test("status 422", function () {
+    expect(res.status).to.equal(422);
+  });
+  test("regla", function () {
+    expect(res.body.restriccion).to.equal("configuracion_centro_recordatorio_antes_de_cancelacion");
+  });
+}

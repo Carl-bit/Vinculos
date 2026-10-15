@@ -107,7 +107,7 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A+C | sin contexto | `usuarios` | login | fila del email | funcion `credenciales_login(email)` |
 | A+C | equipo / PACIENTE | `usuarios` (nombres ajenos) | lectura | ver funciones de directorio | `directorio_interno()`, `mi_equipo_tratante()` |
 | B | todos (autenticados) | `configuracion_centro` | SELECT | la fila unica | GRANT + `configuracion_centro_select` |
-| B | ADMIN | `configuracion_centro` | UPDATE | la fila unica; no apagar GESTION con GESTION activos | GRANT por columna + `configuracion_centro_update` + trigger `configuracion_centro_gestion_activos` (23514) |
+| B | ADMIN | `configuracion_centro` | UPDATE | la fila unica; no apagar GESTION con GESTION activos; recordatorio activo mayor que el plazo de aviso de cancelacion (02j) | GRANT por columna + `configuracion_centro_update` + trigger `configuracion_centro_gestion_activos` (23514) + CHECK `configuracion_centro_recordatorio_antes_de_cancelacion` (23514) |
 | B | todos | `configuracion_centro` | INSERT, DELETE | ninguna | sin GRANT (la fila la crea la migracion) |
 | A | todos | `historial_accesos_practicante` | INSERT, UPDATE, DELETE | ninguna directa; solo `otorgar_acceso_practicante` / `revocar_acceso_practicante` / `procesar_bajas` | sin GRANT + trigger `historial_accesos_practicante_append_only` (23001, incluso dueño) |
 | A | ADMIN / GESTION | `historial_accesos_practicante` | SELECT | todas | GRANT + `historial_accesos_practicante_select` |

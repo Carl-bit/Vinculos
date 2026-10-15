@@ -22,15 +22,7 @@ import { NucleoModule } from './modulos/nucleo/nucleo.module';
  *     3. Match Terapeutico  (depende de Equipo)
  *     4. Cobros             (depende de Agenda y Espacios)
  */
-export const MODULOS: DynamicModule['imports'] = [
-  NucleoModule,
-  FichasModule,
-  AgendaModule,
-  EquipoModule,
-  DerivacionesModule,
-  MatchModule,
-  CobrosModule,
-];
+export const MODULOS: DynamicModule['imports'] = [NucleoModule, FichasModule, AgendaModule, EquipoModule, DerivacionesModule, MatchModule, CobrosModule];
 
 @Module({})
 export class AppModule {

@@ -26,7 +26,11 @@ export function generarPdfDocumento(d: DocumentoPdf): Promise<Buffer> {
     pdf.on('error', reject);
 
     pdf.font('Helvetica-Bold').fontSize(13).text(d.centro, { align: 'center' });
-    pdf.moveDown(0.3).moveTo(56, pdf.y).lineTo(pdf.page.width - 56, pdf.y).stroke();
+    pdf
+      .moveDown(0.3)
+      .moveTo(56, pdf.y)
+      .lineTo(pdf.page.width - 56, pdf.y)
+      .stroke();
     pdf.moveDown(1.2).font('Helvetica-Bold').fontSize(15).text(d.titulo, { align: 'center' });
     pdf.moveDown(1.2).font('Helvetica').fontSize(11).text(d.texto, { lineGap: 3 });
     const fecha = d.emitidoEn.toLocaleDateString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'long', year: 'numeric' });

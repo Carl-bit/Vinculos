@@ -1,5 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
+import { TAGS } from '../../core/docs/openapi';
 import { Roles } from '../../core/auth/decoradores';
 import {
   CambiarPasswordDto,
@@ -18,6 +20,7 @@ const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as 
 const Uuid = new ParseUUIDPipe();
 
 /** Roles segun docs/seguridad/matriz_permisos.md (usuarios, configuracion_centro). */
+@ApiTags(TAGS.nucleo)
 @Controller('usuarios')
 export class UsuariosController {
   constructor(private readonly usuarios: UsuariosService) {}
@@ -66,6 +69,7 @@ export class UsuariosController {
   }
 }
 
+@ApiTags(TAGS.nucleo)
 @Controller('configuracion')
 export class ConfiguracionController {
   constructor(private readonly usuarios: UsuariosService) {}
@@ -83,6 +87,7 @@ export class ConfiguracionController {
   }
 }
 
+@ApiTags(TAGS.nucleo)
 @Controller('practicantes')
 export class PracticantesController {
   constructor(private readonly equipo: EquipoAccesoService) {}
@@ -113,6 +118,7 @@ export class PracticantesController {
   }
 }
 
+@ApiTags(TAGS.nucleo)
 @Controller('bajas')
 export class BajasController {
   constructor(private readonly equipo: EquipoAccesoService) {}
@@ -138,6 +144,7 @@ export class BajasController {
   }
 }
 
+@ApiTags(TAGS.nucleo)
 @Controller('alertas')
 export class AlertasController {
   constructor(private readonly equipo: EquipoAccesoService) {}
@@ -156,6 +163,7 @@ export class AlertasController {
   }
 }
 
+@ApiTags(TAGS.nucleo)
 @Controller('directorio')
 export class DirectorioController {
   constructor(private readonly equipo: EquipoAccesoService) {}

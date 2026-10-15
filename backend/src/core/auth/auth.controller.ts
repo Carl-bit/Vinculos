@@ -1,11 +1,14 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
 
+import { TAGS } from '../docs/openapi';
 import { LoginDto, RefreshDto } from './auth.dto';
 import { AuthService, type Tokens } from './auth.service';
 import { Publico } from './decoradores';
 
 /** Rate limit por IP: throttler 'login' (LOGIN_LIMITE_POR_MINUTO). */
+@ApiTags(TAGS.auth)
 @Controller('auth')
 @Publico()
 @UseGuards(ThrottlerGuard)

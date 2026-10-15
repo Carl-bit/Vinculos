@@ -1,0 +1,24 @@
+meta {
+  name: PACIENTE ve sus documentos
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/documentos-clinicos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenPaciente}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+  test("incluye el emitido", function () {
+    expect(res.body.map((d) => d.id)).to.include(bru.getVar("documentoId"));
+  });
+}

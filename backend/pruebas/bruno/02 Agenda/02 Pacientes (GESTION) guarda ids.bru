@@ -1,0 +1,29 @@
+meta {
+  name: Pacientes (GESTION) guarda ids
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/pacientes
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+script:post-response {
+  const id = (nombre) => res.body.find((p) => p.nombre === nombre).id;
+  bru.setVar("pacientePruebaId", id("Paciente"));
+  bru.setVar("camilaId", id("Camila"));
+  bru.setVar("diegoId", id("Diego"));
+  bru.setVar("sofiaId", id("Sofia"));
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

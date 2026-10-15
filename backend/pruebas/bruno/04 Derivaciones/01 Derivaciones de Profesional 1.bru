@@ -1,0 +1,25 @@
+meta {
+  name: Derivaciones de Profesional 1
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/derivaciones
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+script:post-response {
+  bru.setVar("derivacionId", res.body.find((d) => d.estado === "PENDIENTE").id);
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

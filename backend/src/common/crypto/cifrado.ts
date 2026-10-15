@@ -126,9 +126,7 @@ export function hmacConDek(dek: Buffer, valor: string): Buffer {
 
 /** Canario de una DEK: HMAC para la categoria HMAC, cifrado para el resto. */
 export function crearCanario(categoria: CategoriaLlave, dek: Buffer, dekId: string, version: number): Buffer {
-  return categoria === 'HMAC'
-    ? hmacConDek(dek, CANARIO)
-    : cifrarConDek(dek, dekId, version, CANARIO, `canario:${dekId}`);
+  return categoria === 'HMAC' ? hmacConDek(dek, CANARIO) : cifrarConDek(dek, dekId, version, CANARIO, `canario:${dekId}`);
 }
 
 export function canarioValido(categoria: CategoriaLlave, dek: Buffer, dekId: string, canario: Buffer): boolean {

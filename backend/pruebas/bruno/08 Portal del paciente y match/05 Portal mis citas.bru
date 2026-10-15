@@ -1,0 +1,25 @@
+meta {
+  name: Portal: mis citas
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/portal/citas
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenPaciente}}
+}
+
+script:post-response {
+  bru.setVar("portalCitaId", res.body[0].id);
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

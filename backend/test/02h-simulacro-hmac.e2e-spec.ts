@@ -36,12 +36,24 @@ describe('02h simulacro de compromiso de la HMAC', () => {
       gestion = await t.datos.usuario('GESTION');
       prof = await t.datos.usuario('PROFESIONAL');
       for (const rut of ruts) {
-        const r = await t.http().post('/api/pacientes').set(await t.token(prof).then(auth)).send({ nombre: 'Sim', apellido: 'Hmac', rut, fechaNacimiento: '1980-01-01' });
+        const r = await t
+          .http()
+          .post('/api/pacientes')
+          .set(await t.token(prof).then(auth))
+          .send({ nombre: 'Sim', apellido: 'Hmac', rut, fechaNacimiento: '1980-01-01' });
         expect(r.status).toBe(201);
         ids.push(r.body.id);
       }
-      await t.http().put('/api/profesionales/yo/datos-privados').set(await t.token(prof).then(auth)).send({ rut: rutNuevo() });
-      const adulto = await t.http().post(`/api/pacientes/${ids[0]}/adultos-responsables`).set(await t.token(prof).then(auth)).send({ nombre: 'Tutor', rut: rutNuevo() });
+      await t
+        .http()
+        .put('/api/profesionales/yo/datos-privados')
+        .set(await t.token(prof).then(auth))
+        .send({ rut: rutNuevo() });
+      const adulto = await t
+        .http()
+        .post(`/api/pacientes/${ids[0]}/adultos-responsables`)
+        .set(await t.token(prof).then(auth))
+        .send({ nombre: 'Tutor', rut: rutNuevo() });
       expect(adulto.status).toBe(201);
       antes = await t.dueno.paciente.findMany({ where: { id: { in: ids } }, select: { id: true, rutHmac: true } });
       hmacV = await t.dueno.llaveDatos.findFirstOrThrow({ where: { categoria: 'HMAC', activa: true } });
@@ -86,15 +98,29 @@ describe('02h simulacro de compromiso de la HMAC', () => {
       }
       // Busqueda por RUT y duplicados con la HMAC nueva.
       for (const [i, rut] of ruts.entries()) {
-        const r = await t.http().get('/api/pacientes').query({ rut }).set(await t.token(gestion).then(auth));
+        const r = await t
+          .http()
+          .get('/api/pacientes')
+          .query({ rut })
+          .set(await t.token(gestion).then(auth));
         expect(r.body.map((p: { id: string }) => p.id)).toEqual([ids[i]]);
       }
-      const dup = await t.http().post('/api/pacientes').set(await t.token(prof).then(auth)).send({ nombre: 'Dup', apellido: 'Hmac', rut: ruts[0], fechaNacimiento: '1980-01-01' });
+      const dup = await t
+        .http()
+        .post('/api/pacientes')
+        .set(await t.token(prof).then(auth))
+        .send({ nombre: 'Dup', apellido: 'Hmac', rut: ruts[0], fechaNacimiento: '1980-01-01' });
       expect(dup.status).toBe(409);
-      const eventos = (await t.dueno.eventoLlaves.findMany({ where: { actor: 'simulacro-02h' }, orderBy: { ocurridoEn: 'asc' } })).map((x) => `${x.tipo}: ${x.detalle}`);
+      const eventos = (await t.dueno.eventoLlaves.findMany({ where: { actor: 'simulacro-02h' }, orderBy: { ocurridoEn: 'asc' } })).map(
+        (x) => `${x.tipo}: ${x.detalle}`,
+      );
       expect(eventos).toEqual([
         expect.stringMatching(new RegExp(`^ROTACION: fase 1 \\(creadas\\): HMAC v${hmacV.version + 1}$`)),
-        expect.stringMatching(new RegExp(`^ROTACION: recalculo rut_hmac con HMAC v${hmacV.version + 1}: pacientes \\d+/\\d+, adultos_responsables \\d+/\\d+, profesional_datos_privados \\d+/\\d+; duplicados 0$`)),
+        expect.stringMatching(
+          new RegExp(
+            `^ROTACION: recalculo rut_hmac con HMAC v${hmacV.version + 1}: pacientes \\d+/\\d+, adultos_responsables \\d+/\\d+, profesional_datos_privados \\d+/\\d+; duplicados 0$`,
+          ),
+        ),
         expect.stringMatching(new RegExp(`^ROTACION: fase 2 \\(activadas\\): HMAC v${hmacV.version + 1}$`)),
         expect.stringMatching(new RegExp(`^VERIFICACION: rut_hmac con HMAC v${hmacV.version + 1}: pacientes (\\d+)/\\1 \\(repetidos 0\\)`)),
       ]);

@@ -1,0 +1,33 @@
+meta {
+  name: Emitir documento
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/documentos-clinicos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+body:json {
+  {
+    "pacienteId": "{{pacientePruebaId}}",
+    "tipoDocumentoId": "{{tipoDocumentoId}}",
+    "contenido": "Se certifica la atencion (texto ficticio)."
+  }
+}
+
+script:post-response {
+  bru.setVar("documentoId", res.body.id);
+}
+
+tests {
+  test("status 201", function () {
+    expect(res.status).to.equal(201);
+  });
+}

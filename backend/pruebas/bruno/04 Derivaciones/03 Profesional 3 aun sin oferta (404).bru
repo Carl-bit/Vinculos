@@ -1,0 +1,21 @@
+meta {
+  name: Profesional 3 aun sin oferta (404)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/derivaciones/{{derivacionId}}/oferta
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf3}}
+}
+
+tests {
+  test("status 404", function () {
+    expect(res.status).to.equal(404);
+  });
+}

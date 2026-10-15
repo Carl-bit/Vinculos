@@ -154,13 +154,41 @@ describe('02a infraestructura', () => {
     it('sin token: 401; token alterado: 401', async () => {
       expect((await t.http().get('/api/prueba/contexto')).status).toBe(401);
       const token = await t.token(admin);
-      expect((await t.http().get('/api/prueba/contexto').set(auth(token + 'x'))).status).toBe(401);
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/prueba/contexto')
+            .set(auth(token + 'x'))
+        ).status,
+      ).toBe(401);
     });
 
     it('rol incorrecto: 403; ruta sin @Roles: 403 para todos', async () => {
-      expect((await t.http().get('/api/prueba/solo-admin').set(auth(await t.token(profesional)))).status).toBe(403);
-      expect((await t.http().get('/api/prueba/solo-admin').set(auth(await t.token(admin)))).status).toBe(200);
-      expect((await t.http().get('/api/prueba/sin-roles').set(auth(await t.token(admin)))).status).toBe(403);
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/prueba/solo-admin')
+            .set(auth(await t.token(profesional)))
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/prueba/solo-admin')
+            .set(auth(await t.token(admin)))
+        ).status,
+      ).toBe(200);
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/prueba/sin-roles')
+            .set(auth(await t.token(admin)))
+        ).status,
+      ).toBe(403);
     });
 
     it('contexto aislado entre requests concurrentes', async () => {
@@ -169,7 +197,11 @@ describe('02a infraestructura', () => {
       const respuestas = await Promise.all(
         Array.from({ length: 30 }, (_v, i) => {
           const k = i % usuarios.length;
-          return t.http().get('/api/prueba/contexto').set(auth(tokens[k])).then((r) => ({ r, u: usuarios[k] }));
+          return t
+            .http()
+            .get('/api/prueba/contexto')
+            .set(auth(tokens[k]))
+            .then((r) => ({ r, u: usuarios[k] }));
         }),
       );
       for (const { r, u } of respuestas) {
@@ -181,7 +213,10 @@ describe('02a infraestructura', () => {
 
   describe('errores de la BD', () => {
     it('23P01 (EXCLUDE) -> 409 sin mensaje de Postgres', async () => {
-      const r = await t.http().post('/api/prueba/choque').set(auth(await t.token(admin)));
+      const r = await t
+        .http()
+        .post('/api/prueba/choque')
+        .set(auth(await t.token(admin)));
       expect(r.status).toBe(409);
       expect(r.body.sqlstate).toBe('23P01');
       expect(r.body.restriccion).toBe('prueba_rangos_sin_solape');
@@ -191,7 +226,10 @@ describe('02a infraestructura', () => {
     });
 
     it('error al COMMIT (trigger diferido 23514) -> 422', async () => {
-      const r = await t.http().post('/api/prueba/commit').set(auth(await t.token(admin)));
+      const r = await t
+        .http()
+        .post('/api/prueba/commit')
+        .set(auth(await t.token(admin)));
       expect(r.status).toBe(422);
       expect(r.body.sqlstate).toBe('23514');
       expect(JSON.stringify(r.body)).not.toMatch(/Regla diferida de prueba/);

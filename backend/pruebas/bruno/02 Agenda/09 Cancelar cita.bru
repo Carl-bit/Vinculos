@@ -1,0 +1,24 @@
+meta {
+  name: Cancelar cita
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/citas/{{citaId}}/cancelacion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+  test("queda CANCELADA", function () {
+    expect(res.body.estado).to.equal("CANCELADA");
+  });
+}

@@ -1,0 +1,17 @@
+meta {
+  name: Match publico anonimo
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/publico/match?tipoAtencion=Psicoterapia individual adultos&modalidad=ONLINE&desde={{desde}}&hasta={{hasta}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

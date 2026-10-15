@@ -1,5 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
+import { TAGS } from '../../core/docs/openapi';
 import { Roles } from '../../core/auth/decoradores';
 import { CobrosService } from './cobros.service';
 import { AnularPagoDto, ArriendoDto, FiltroCobrosDto, LiquidacionDto, RegistrarPagoDto, ResolverCitaDto } from './dto/cobros.dto';
@@ -11,6 +13,7 @@ const Uuid = new ParseUUIDPipe();
  * arriendos, liquidaciones). La BD aplica igual la RLS y las reglas de cada
  * funcion (p. ej. el profesional registra pagos solo con cobro directo).
  */
+@ApiTags(TAGS.cobros)
 @Controller('cobros')
 export class CobrosController {
   constructor(private readonly cobros: CobrosService) {}

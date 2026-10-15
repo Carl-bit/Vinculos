@@ -64,7 +64,11 @@ export function eventoDeCita(c: CitaCalendario): EventoCalendario {
   };
 }
 
-const fecha = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+const fecha = (d: Date) =>
+  d
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 const escapar = (t: string) => t.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 
 /** Pliega lineas a 75 octetos (RFC 5545 3.1). */

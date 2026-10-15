@@ -49,8 +49,26 @@ describe('calendario .ics: solo "Sesion", modalidad, horario y enlace o box', ()
 
   it('presencial con box; online con enlace; POR_REPROGRAMAR marcada como tentativa', () => {
     const texto = ics.calendario('Centro Prueba', [
-      eventoDeCita({ id: 'a', inicio: new Date('2026-11-02T13:00:00Z'), fin: new Date('2026-11-02T14:00:00Z'), modalidad: 'PRESENCIAL', estado: 'CONFIRMADA', espacio: 'Box 1', enlace: null, secuencia: 0 }),
-      eventoDeCita({ id: 'b', inicio: new Date('2026-11-03T13:00:00Z'), fin: new Date('2026-11-03T14:00:00Z'), modalidad: 'ONLINE', estado: 'POR_REPROGRAMAR', espacio: null, enlace: 'https://sala/x', secuencia: 1 }),
+      eventoDeCita({
+        id: 'a',
+        inicio: new Date('2026-11-02T13:00:00Z'),
+        fin: new Date('2026-11-02T14:00:00Z'),
+        modalidad: 'PRESENCIAL',
+        estado: 'CONFIRMADA',
+        espacio: 'Box 1',
+        enlace: null,
+        secuencia: 0,
+      }),
+      eventoDeCita({
+        id: 'b',
+        inicio: new Date('2026-11-03T13:00:00Z'),
+        fin: new Date('2026-11-03T14:00:00Z'),
+        modalidad: 'ONLINE',
+        estado: 'POR_REPROGRAMAR',
+        espacio: null,
+        enlace: 'https://sala/x',
+        secuencia: 1,
+      }),
     ]);
     expect(texto.split('\r\n').filter((l) => l === 'BEGIN:VEVENT')).toHaveLength(2);
     expect(texto).toContain('DTSTART:20261102T130000Z');
@@ -67,7 +85,24 @@ describe('calendario .ics: solo "Sesion", modalidad, horario y enlace o box', ()
         .map((l) => l.split(/[:;]/)[0]),
     );
     expect([...propiedades].sort()).toEqual(
-      ['BEGIN', 'CALSCALE', 'DESCRIPTION', 'DTEND', 'DTSTAMP', 'DTSTART', 'END', 'LOCATION', 'METHOD', 'PRODID', 'SEQUENCE', 'STATUS', 'SUMMARY', 'UID', 'VERSION', 'X-WR-CALNAME'].sort(),
+      [
+        'BEGIN',
+        'CALSCALE',
+        'DESCRIPTION',
+        'DTEND',
+        'DTSTAMP',
+        'DTSTART',
+        'END',
+        'LOCATION',
+        'METHOD',
+        'PRODID',
+        'SEQUENCE',
+        'STATUS',
+        'SUMMARY',
+        'UID',
+        'VERSION',
+        'X-WR-CALNAME',
+      ].sort(),
     );
   });
 

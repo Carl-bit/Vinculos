@@ -63,9 +63,7 @@ export class MatchService {
     const desde = dto.desde ?? new Date();
     const hasta = dto.hasta ?? new Date(desde.getTime() + 14 * DIA);
     const candidatos = (await this.perfiles()).filter(
-      (p) =>
-        (!dto.tipoAtencion || p.tipos_atencion.includes(dto.tipoAtencion)) &&
-        (!dto.modalidad || p.modalidad === 'MIXTA' || p.modalidad === dto.modalidad),
+      (p) => (!dto.tipoAtencion || p.tipos_atencion.includes(dto.tipoAtencion)) && (!dto.modalidad || p.modalidad === 'MIXTA' || p.modalidad === dto.modalidad),
     );
     const resultados = await Promise.all(
       candidatos.map(async (p) => {

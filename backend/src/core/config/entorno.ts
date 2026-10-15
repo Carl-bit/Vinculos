@@ -11,7 +11,7 @@ import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, MinLength
 
 // Se lee el valor original: la conversion implicita haria Boolean('false') = true.
 const aBooleano = ({ obj, key }: { obj: Record<string, unknown>; key: string }) =>
-  obj[key] === undefined ? undefined : String(obj[key]) === 'true';
+  obj[key] === undefined ? undefined : obj[key] === true || obj[key] === 'true';
 
 export class Entorno {
   /** Rol app_user (sujeto a RLS). Unica conexion de la API. */
@@ -76,6 +76,12 @@ export class Entorno {
   @IsOptional()
   @IsString()
   LOG_LEVEL: string = 'info';
+
+  /** /docs (Swagger UI) y /docs-json. Sin valor: habilitada salvo NODE_ENV=production (core/docs/openapi.ts). */
+  @IsOptional()
+  @Transform(aBooleano)
+  @IsBoolean()
+  DOCS_API?: boolean;
 
   /** TTL del soft-lock de agenda (solo UX; la fuente de verdad es el EXCLUDE). */
   @IsOptional()

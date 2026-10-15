@@ -1,0 +1,24 @@
+meta {
+  name: Origen ve ACEPTADA
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/derivaciones/{{derivacionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+  test("ACEPTADA", function () {
+    expect(res.body.estado).to.equal("ACEPTADA");
+  });
+}

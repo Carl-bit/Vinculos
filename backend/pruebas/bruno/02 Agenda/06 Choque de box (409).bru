@@ -1,0 +1,36 @@
+meta {
+  name: Choque de box (409)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/citas
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+body:json {
+  {
+    "pacienteId": "{{sofiaId}}",
+    "profesionalId": "{{idProf2}}",
+    "modalidad": "PRESENCIAL",
+    "espacioId": "{{boxId}}",
+    "inicio": "{{citaInicio}}",
+    "fin": "{{citaFin}}"
+  }
+}
+
+tests {
+  test("status 409", function () {
+    expect(res.status).to.equal(409);
+  });
+}
+
+docs {
+  Otro profesional, mismo box y horario. La verificacion previa responde 409 con motivos y alternativas; si dos llegan a la vez, el EXCLUDE de la BD (23P01) tambien da 409.
+}

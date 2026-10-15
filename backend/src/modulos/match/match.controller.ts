@@ -1,6 +1,8 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
 
+import { TAGS } from '../../core/docs/openapi';
 import { Publico, Roles } from '../../core/auth/decoradores';
 import { MatchDto, MensajeDto, RangoPublicoDto, ResolverEpicrisisDto, SolicitarEpicrisisDto } from './dto/match.dto';
 import { MatchService } from './match.service';
@@ -9,6 +11,7 @@ import { PortalService } from './portal.service';
 const Uuid = new ParseUUIDPipe();
 
 /** Sin autenticacion: solo datos publicos. Rate limit por IP (PUBLICO_LIMITE_POR_MINUTO). */
+@ApiTags(TAGS.publico)
 @Controller('publico')
 @Publico()
 @UseGuards(ThrottlerGuard)
@@ -32,6 +35,7 @@ export class PublicoController {
   }
 }
 
+@ApiTags(TAGS.portal)
 @Controller('portal')
 export class PortalController {
   constructor(private readonly portal: PortalService) {}
@@ -68,6 +72,7 @@ export class PortalController {
 }
 
 /** Mensajes: el paciente ve los enviados; el profesional los recibidos. ADMIN/GESTION nunca (contenido). */
+@ApiTags(TAGS.portal)
 @Controller('mensajes')
 export class MensajesController {
   constructor(private readonly portal: PortalService) {}
@@ -86,6 +91,7 @@ export class MensajesController {
   }
 }
 
+@ApiTags(TAGS.portal)
 @Controller('epicrisis')
 export class EpicrisisController {
   constructor(private readonly portal: PortalService) {}

@@ -1,0 +1,21 @@
+meta {
+  name: Paciente A: practicante lo ve
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/pacientes/{{pacAId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenPracticante}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

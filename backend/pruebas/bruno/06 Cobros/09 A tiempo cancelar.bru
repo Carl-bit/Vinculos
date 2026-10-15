@@ -1,0 +1,21 @@
+meta {
+  name: A tiempo: cancelar
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/citas/{{citaATiempoId}}/cancelacion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

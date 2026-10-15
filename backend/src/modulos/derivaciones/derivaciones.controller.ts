@@ -1,6 +1,8 @@
 import { Body, Controller, Get, HttpCode, Param, ParseEnumPipe, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { EstadoDerivacion } from '@prisma/client';
 
+import { TAGS } from '../../core/docs/openapi';
 import { Roles } from '../../core/auth/decoradores';
 import { DerivacionesService } from './derivaciones.service';
 import {
@@ -18,6 +20,7 @@ import {
 const Uuid = new ParseUUIDPipe();
 
 /** Roles segun matriz_permisos.md (funciones de derivacion). La BD valida el detalle (tratante, supervisor, bandeja). */
+@ApiTags(TAGS.derivaciones)
 @Controller('derivaciones')
 export class DerivacionesController {
   constructor(private readonly derivaciones: DerivacionesService) {}
@@ -89,6 +92,7 @@ export class DerivacionesController {
 }
 
 /** Consentimientos y avisos: responde el paciente (o su adulto responsable) o ADMIN/GESTION con respaldo. */
+@ApiTags(TAGS.derivaciones)
 @Controller()
 export class ConsentimientosController {
   constructor(private readonly derivaciones: DerivacionesService) {}

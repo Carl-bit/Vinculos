@@ -1,0 +1,24 @@
+meta {
+  name: PACIENTE ve sus cobros
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/cobros/citas
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenPaciente}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+  test("solo propios", function () {
+    res.body.forEach((c) => expect(c.paciente_id).to.equal(bru.getVar("pacientePruebaId")));
+  });
+}

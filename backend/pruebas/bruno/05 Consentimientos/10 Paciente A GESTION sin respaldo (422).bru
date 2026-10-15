@@ -1,0 +1,29 @@
+meta {
+  name: Paciente A: GESTION sin respaldo (422)
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/consentimientos/{{consentAId}}/respuesta
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+body:json {
+  {
+    "acepta": true,
+    "versionDocumento": "v1",
+    "otorgadoPorTipo": "PACIENTE"
+  }
+}
+
+tests {
+  test("status 422", function () {
+    expect(res.status).to.equal(422);
+  });
+}

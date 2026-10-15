@@ -1,0 +1,22 @@
+meta {
+  name: Recordatorio: segundo uso (409)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/recordatorios/{{tokenRecordatorio}}/cancelacion
+  body: none
+  auth: none
+}
+
+tests {
+  const token = bru.getEnvVar("tokenRecordatorio");
+  if (!token) {
+    test("sin token: pegar en el entorno el del correo de recordatorio (Mailpit)", function () {});
+  } else {
+    test("un solo uso", function () {
+      expect(res.status).to.equal(409);
+    });
+  }
+}

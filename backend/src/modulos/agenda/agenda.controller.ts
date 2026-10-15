@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
 
+import { TAGS } from '../../core/docs/openapi';
 import { Publico, Roles } from '../../core/auth/decoradores';
 import { AgendaService } from './agenda.service';
 import { CitasService } from './citas.service';
@@ -23,6 +25,7 @@ const Uuid = new ParseUUIDPipe();
 const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
 const EQUIPO_AGENDA = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE'] as const;
 
+@ApiTags(TAGS.agenda)
 @Controller('espacios')
 export class EspaciosController {
   constructor(private readonly agenda: AgendaService) {}
@@ -54,6 +57,7 @@ export class EspaciosController {
 }
 
 /** Disponibilidad semanal y bloqueos: el propio y ADMIN/GESTION (RLS). */
+@ApiTags(TAGS.agenda)
 @Controller('profesionales/:profesionalId')
 export class AgendaProfesionalController {
   constructor(private readonly agenda: AgendaService) {}
@@ -110,6 +114,7 @@ export class AgendaProfesionalController {
 }
 
 /** Soft-locks con TTL (cada uno los suyos). */
+@ApiTags(TAGS.agenda)
 @Controller('agenda/horarios-tomados')
 export class HorariosTomadosController {
   constructor(private readonly agenda: AgendaService) {}
@@ -134,6 +139,7 @@ export class HorariosTomadosController {
 }
 
 /** Citas: ADMIN/GESTION todas; PROFESIONAL/PRACTICANTE las propias; PACIENTE solo lee las suyas. */
+@ApiTags(TAGS.agenda)
 @Controller('citas')
 export class CitasController {
   constructor(private readonly citas: CitasService) {}
@@ -190,6 +196,7 @@ export class CitasController {
 }
 
 /** Sala de videollamada y feed iCal: cada profesional o practicante los suyos (02h). */
+@ApiTags(TAGS.agenda)
 @Controller('profesionales/yo')
 export class IntegracionesAgendaController {
   constructor(private readonly integraciones: IntegracionesAgendaService) {}
@@ -215,6 +222,7 @@ export class IntegracionesAgendaController {
 }
 
 /** Feed iCal privado: sin sesion, el token de la URL autoriza (rate limit publico). */
+@ApiTags(TAGS.agenda)
 @Controller('calendario')
 @Publico()
 @UseGuards(ThrottlerGuard)
@@ -236,6 +244,7 @@ export class CalendarioPublicoController {
  * consulta (muestra si una cancelacion seria a tiempo o tardia) y despues se
  * confirma asistencia o se cancela.
  */
+@ApiTags(TAGS.agenda)
 @Controller('recordatorios')
 @Publico()
 @UseGuards(ThrottlerGuard)

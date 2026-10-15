@@ -1,0 +1,24 @@
+meta {
+  name: PACIENTE ve solo sus citas
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/citas
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenPaciente}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+  test("todas propias", function () {
+    res.body.forEach((c) => expect(c.pacienteId).to.equal(bru.getVar("pacientePruebaId")));
+  });
+}

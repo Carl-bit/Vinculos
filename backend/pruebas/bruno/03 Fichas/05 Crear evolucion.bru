@@ -1,0 +1,37 @@
+meta {
+  name: Crear evolucion
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/fichas/{{fichaPruebaId}}/evoluciones
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+body:json {
+  {
+    "notas": "Evolucion de prueba manual (texto ficticio).",
+    "tipoSesionId": "{{tipoSesionId}}",
+    "nivelRiesgo": "BAJO"
+  }
+}
+
+script:post-response {
+  bru.setVar("evolucionId", res.body.evolucion.id);
+}
+
+tests {
+  test("status 201", function () {
+    expect(res.status).to.equal(201);
+  });
+  test("copia de autoria", function () {
+    expect(res.body.evolucion.copiaAutoria.nombre).to.be.a("string");
+    expect(res.body.evolucion.copiaAutoria.rut).to.be.a("string");
+  });
+}

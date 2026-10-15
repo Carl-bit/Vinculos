@@ -1,0 +1,21 @@
+meta {
+  name: Huecos de Profesional 1
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/profesionales/{{idProf1}}/huecos?desde={{desde}}&hasta={{hasta}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

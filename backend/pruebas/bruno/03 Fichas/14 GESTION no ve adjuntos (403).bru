@@ -1,0 +1,21 @@
+meta {
+  name: GESTION no ve adjuntos (403)
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/pacientes/{{pacientePruebaId}}/adjuntos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+tests {
+  test("status 403", function () {
+    expect(res.status).to.equal(403);
+  });
+}

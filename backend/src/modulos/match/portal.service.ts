@@ -41,7 +41,14 @@ export class PortalService {
    */
   async datosPago(citaId: string) {
     const [f] = await this.bd.tx().$queryRaw<
-      { profesional_id: string; rut: Uint8Array | null; banco: Uint8Array | null; tipo_cuenta: Uint8Array | null; numero_cuenta: Uint8Array | null; titular: Uint8Array | null }[]
+      {
+        profesional_id: string;
+        rut: Uint8Array | null;
+        banco: Uint8Array | null;
+        tipo_cuenta: Uint8Array | null;
+        numero_cuenta: Uint8Array | null;
+        titular: Uint8Array | null;
+      }[]
     >`SELECT * FROM datos_pago_profesional(${citaId}::uuid)`;
     if (!f) {
       return { aplica: false as const };

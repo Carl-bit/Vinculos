@@ -1,0 +1,25 @@
+meta {
+  name: Tipos de documento clinico
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/tipos-documento-clinico
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+script:post-response {
+  bru.setVar("tipoDocumentoId", res.body[0].id);
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

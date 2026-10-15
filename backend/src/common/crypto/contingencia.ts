@@ -15,29 +15,11 @@
  * Lo usan los scripts de infra/scripts/llaves (via prisma/scripts/llaves.ts)
  * y los tests. El acceso a la BD va por la interfaz AlmacenLlaves.
  */
-import {
-  constants,
-  createPrivateKey,
-  generateKeyPairSync,
-  privateDecrypt,
-  publicEncrypt,
-  randomBytes,
-  randomUUID,
-} from 'node:crypto';
+import { constants, createPrivateKey, generateKeyPairSync, privateDecrypt, publicEncrypt, randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { combine, split } from 'shamir-secret-sharing';
-import {
-  CATEGORIAS,
-  CategoriaLlave,
-  ErrorCifrado,
-  FilaLlave,
-  canarioValido,
-  crearCanario,
-  desenvolverConKek,
-  envolverConKek,
-  huellaKek,
-} from './cifrado';
+import { CATEGORIAS, CategoriaLlave, ErrorCifrado, FilaLlave, canarioValido, crearCanario, desenvolverConKek, envolverConKek, huellaKek } from './cifrado';
 
 export interface FilaLlaveCompleta extends FilaLlave {
   dekPorRecuperacion: Buffer;
@@ -45,14 +27,7 @@ export interface FilaLlaveCompleta extends FilaLlave {
 }
 
 export type TipoEventoLlaves =
-  | 'APROVISIONAMIENTO'
-  | 'ROTACION'
-  | 'VERIFICACION'
-  | 'FALLO_CANARIO'
-  | 'RESTAURACION'
-  | 'SIMULACRO'
-  | 'CAMBIO_CUSTODIO'
-  | 'COMPROMISO';
+  'APROVISIONAMIENTO' | 'ROTACION' | 'VERIFICACION' | 'FALLO_CANARIO' | 'RESTAURACION' | 'SIMULACRO' | 'CAMBIO_CUSTODIO' | 'COMPROMISO';
 
 export interface Custodio {
   parte: number;
@@ -99,13 +74,7 @@ export function desenvolverConRecuperacion(privadaPem: string, envuelta: Buffer)
   }
 }
 
-export function nuevaDek(
-  categoria: CategoriaLlave,
-  version: number,
-  activa: boolean,
-  kek: Buffer,
-  publicaPem: string,
-): FilaLlaveCompleta {
+export function nuevaDek(categoria: CategoriaLlave, version: number, activa: boolean, kek: Buffer, publicaPem: string): FilaLlaveCompleta {
   const id = randomUUID();
   const dek = randomBytes(32);
   return {
@@ -151,9 +120,7 @@ export async function reconstruirPrivada(partes: Buffer[]): Promise<string> {
 
 function escribirPartes(partesDir: string, custodios: Custodio[], partes: Buffer[]): void {
   mkdirSync(partesDir, { recursive: true });
-  partes.forEach((parte, i) =>
-    writeFileSync(join(partesDir, `parte_${custodios[i].parte}.shamir`), parte, { flag: 'wx', mode: 0o600 }),
-  );
+  partes.forEach((parte, i) => writeFileSync(join(partesDir, `parte_${custodios[i].parte}.shamir`), parte, { flag: 'wx', mode: 0o600 }));
 }
 
 function rutasLibres(rutas: string[]): void {
@@ -247,11 +214,7 @@ export async function rotarActivar(kek: Buffer, almacen: AlmacenLlaves, actor: s
   await almacen.evento('ROTACION', `fase 2 (activadas): ${pendientes.map((f) => `${f.categoria} v${f.version}`).join(', ')}`, actor);
 }
 
-async function reenvolverTodas(
-  almacen: AlmacenLlaves,
-  kekNueva: Buffer,
-  abrir: (fila: FilaLlaveCompleta) => Buffer,
-): Promise<void> {
+async function reenvolverTodas(almacen: AlmacenLlaves, kekNueva: Buffer, abrir: (fila: FilaLlaveCompleta) => Buffer): Promise<void> {
   const cambios = (await almacen.listar()).map((fila) => {
     const dek = abrir(fila);
     if (!canarioValido(fila.categoria, dek, fila.id, fila.canario)) {
@@ -309,10 +272,7 @@ export async function rotarRecuperacion(
  * Verifica todas las versiones por una via (KEK o partes de recuperacion).
  * Devuelve la lista de fallos (vacia = todo OK). No escribe nada.
  */
-export async function verificar(
-  filas: FilaLlaveCompleta[],
-  via: { kek: Buffer } | { partes: Buffer[] },
-): Promise<string[]> {
+export async function verificar(filas: FilaLlaveCompleta[], via: { kek: Buffer } | { partes: Buffer[] }): Promise<string[]> {
   const privada = 'partes' in via ? await reconstruirPrivada(via.partes) : null;
   const fallos: string[] = [];
   for (const fila of filas) {

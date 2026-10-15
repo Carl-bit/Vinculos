@@ -68,7 +68,10 @@ export class IntegracionesAgendaService {
       }[]
     >`SELECT * FROM feed_calendario(${sha256(token.replace(/\.ics$/, ''))})`;
     const eventos = filas.map((c) =>
-      eventoDeCita({ ...c, enlace: c.enlace ? (JSON.parse(this.llavero.descifrarCampo(c.enlace, 'citas', 'enlace_online', c.id)!) as { url: string }).url : null }),
+      eventoDeCita({
+        ...c,
+        enlace: c.enlace ? (JSON.parse(this.llavero.descifrarCampo(c.enlace, 'citas', 'enlace_online', c.id)!) as { url: string }).url : null,
+      }),
     );
     return this.calendario.calendario('Agenda Vinculos', eventos);
   }

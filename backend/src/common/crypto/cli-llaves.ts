@@ -170,10 +170,7 @@ async function main(): Promise<void> {
     switch (comando) {
       case 'aprovisionar': {
         const custodios = leerCustodios(uno(args, 'custodios'));
-        await aprovisionar(
-          { kekPath: uno(args, 'kek'), publicaPath: uno(args, 'publica'), partesDir: uno(args, 'partes'), custodios, actor },
-          almacen,
-        );
+        await aprovisionar({ kekPath: uno(args, 'kek'), publicaPath: uno(args, 'publica'), partesDir: uno(args, 'partes'), custodios, actor }, almacen);
         logger.log('Aprovisionado. Entregar cada parte a su custodio y borrarlas de este equipo.');
         break;
       }
@@ -207,9 +204,7 @@ async function main(): Promise<void> {
         break;
       }
       case 'verificar': {
-        const via = args.has('kek')
-          ? { kek: leerKek(uno(args, 'kek')) }
-          : { partes: (args.get('parte') ?? []).map((p) => readFileSync(p)) };
+        const via = args.has('kek') ? { kek: leerKek(uno(args, 'kek')) } : { partes: (args.get('parte') ?? []).map((p) => readFileSync(p)) };
         const filas = await almacen.listar();
         const fallos = await verificar(filas, via);
         const registrar = args.get('registrar')?.[0] as TipoEventoLlaves | undefined;

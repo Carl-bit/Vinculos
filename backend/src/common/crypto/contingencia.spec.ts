@@ -43,7 +43,10 @@ class AlmacenMemoria implements AlmacenLlaves {
   }
   async reenvolver(cambios: { id: string; dekPorKek: Buffer; huellaKek: string }[]) {
     for (const c of cambios) {
-      Object.assign(this.filas.find((f) => f.id === c.id)!, { dekPorKek: c.dekPorKek, huellaKek: c.huellaKek });
+      Object.assign(
+        this.filas.find((f) => f.id === c.id)!,
+        { dekPorKek: c.dekPorKek, huellaKek: c.huellaKek },
+      );
     }
   }
   async reenvolverRecuperacion(cambios: { id: string; dekPorRecuperacion: Buffer }[]) {
@@ -78,7 +81,9 @@ describe('contingencia de llaves', () => {
     );
     kek = readFileSync(join(dir, 'kek'));
     publica = readFileSync(join(dir, 'recuperacion.pub'), 'utf8');
-    partes = readdirSync(join(dir, 'partes')).sort().map((f) => readFileSync(join(dir, 'partes', f)));
+    partes = readdirSync(join(dir, 'partes'))
+      .sort()
+      .map((f) => readFileSync(join(dir, 'partes', f)));
   });
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -101,7 +106,11 @@ describe('contingencia de llaves', () => {
   });
 
   it('cualquier par de partes recupera las DEK; una sola parte no', async () => {
-    for (const par of [[0, 1], [0, 2], [1, 2]]) {
+    for (const par of [
+      [0, 1],
+      [0, 2],
+      [1, 2],
+    ]) {
       expect(await verificar(almacen.filas, { partes: par.map((i) => partes[i]) })).toEqual([]);
     }
     await expect(reconstruirPrivada([partes[0]])).rejects.toThrow(ErrorCifrado);
@@ -125,7 +134,10 @@ describe('contingencia de llaves', () => {
     await rotarActivar(kek, almacen, 'test');
 
     const clinicas = almacen.filas.filter((f) => f.categoria === 'CLINICO');
-    expect(clinicas.map((f) => [f.version, f.activa, f.retiradaEn !== null])).toEqual([[1, false, true], [2, true, false]]);
+    expect(clinicas.map((f) => [f.version, f.activa, f.retiradaEn !== null])).toEqual([
+      [1, false, true],
+      [2, true, false],
+    ]);
     const llaveroV2 = Llavero.cargar(kek, almacen.filas);
     expect(llaveroV2.descifrar(viejo, aad('evoluciones', 'notas', idFila))).toBe('nota antigua');
   });
@@ -156,7 +168,9 @@ describe('contingencia de llaves', () => {
     // Mismo estado, re-envuelto con una KEK conocida para el test.
     await recuperar([partes[0], partes[1]], kekActual, Object.assign(otro, { filas }), 'test');
     await rotarRecuperacion(kekActual, { publicaPath: join(dir, 'nueva.pub'), partesDir: join(dir, 'partes_nuevas'), custodios, actor: 'test' }, otro);
-    const nuevas = readdirSync(join(dir, 'partes_nuevas')).sort().map((f) => readFileSync(join(dir, 'partes_nuevas', f)));
+    const nuevas = readdirSync(join(dir, 'partes_nuevas'))
+      .sort()
+      .map((f) => readFileSync(join(dir, 'partes_nuevas', f)));
     expect(await verificar(otro.filas, { partes: [nuevas[0], nuevas[2]] })).toEqual([]);
     expect(await verificar(otro.filas, { partes: [partes[0], partes[1]] })).toHaveLength(otro.filas.length);
     expect(otro.eventos).toContain('CAMBIO_CUSTODIO');

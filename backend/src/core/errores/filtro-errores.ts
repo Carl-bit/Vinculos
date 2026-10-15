@@ -46,8 +46,7 @@ export class FiltroErrores implements ExceptionFilter {
     const bd = errorBd(error);
     if (bd) {
       const statusCode = HTTP_POR_SQLSTATE[bd.sqlstate] ?? (bd.sqlstate.startsWith('22') ? 422 : 500);
-      const mensaje =
-        (bd.restriccion && MENSAJE_POR_RESTRICCION[bd.restriccion]) ?? MENSAJE_POR_SQLSTATE[bd.sqlstate] ?? 'Error interno';
+      const mensaje = (bd.restriccion && MENSAJE_POR_RESTRICCION[bd.restriccion]) ?? MENSAJE_POR_SQLSTATE[bd.sqlstate] ?? 'Error interno';
       const nivel = statusCode >= 500 ? 'error' : 'warn';
       this.logger[nivel](`BD sqlstate=${bd.sqlstate} restriccion=${bd.restriccion ?? '-'} -> ${statusCode}`);
       return {
@@ -91,7 +90,7 @@ export class FiltroErrores implements ExceptionFilter {
       // Sin instanceof Error: errores de otro realm (modulos nativos) no lo cumplen.
       const e = (error ?? {}) as { name?: unknown; message?: unknown; stack?: unknown };
       this.logger.error(
-        typeof e.message === 'string' ? `${String(e.name ?? 'Error')}: ${e.message}` : 'Error no identificado',
+        typeof e.message === 'string' ? `${typeof e.name === 'string' ? e.name : 'Error'}: ${e.message}` : 'Error no identificado',
         typeof e.stack === 'string' ? e.stack : undefined,
       );
     }

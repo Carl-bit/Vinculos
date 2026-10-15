@@ -1,0 +1,21 @@
+meta {
+  name: Nuevo tratante ve al paciente
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/pacientes/{{diegoId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf3}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

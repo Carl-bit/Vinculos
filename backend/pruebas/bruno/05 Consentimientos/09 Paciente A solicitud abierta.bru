@@ -1,0 +1,25 @@
+meta {
+  name: Paciente A: solicitud abierta
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/consentimientos
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+script:post-response {
+  bru.setVar("consentAId", res.body.find((c) => c.pacienteId === bru.getVar("pacAId") && c.estado === "SOLICITADO").id);
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

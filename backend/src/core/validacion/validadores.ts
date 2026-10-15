@@ -47,8 +47,7 @@ export function IsRut(opciones?: ValidationOptions) {
 }
 
 /** Normaliza el RUT despues de validar (mismo formato que el indice ciego). */
-export const NormalizarRut = () =>
-  Transform(({ value }: { value: unknown }) => (typeof value === 'string' && rutValido(value) ? normalizarRut(value) : value));
+export const NormalizarRut = () => Transform(({ value }: { value: unknown }) => (typeof value === 'string' && rutValido(value) ? normalizarRut(value) : value));
 
 /** Telefono chileno: +56 seguido de 9 digitos (movil 9XXXXXXXX o fijo). */
 export const TELEFONO_CL = /^\+56\d{9}$/;

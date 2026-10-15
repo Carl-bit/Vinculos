@@ -119,8 +119,10 @@ export class NotificacionesService {
   private async registrar(actor: NotificacionSolicitada['actor'], n: Omit<NotificacionSolicitada, 'actor'>) {
     const pacienteId = 'pacienteId' in n.destino ? n.destino.pacienteId : null;
     const usuarioId = 'usuarioId' in n.destino ? n.destino.usuarioId : null;
-    await this.bd.enTransaccion(actor, () =>
-      this.bd.tx().$executeRaw`
+    await this.bd.enTransaccion(
+      actor,
+      () =>
+        this.bd.tx().$executeRaw`
         SELECT notificar(${n.tipo}::tipo_notificacion, ${pacienteId}::uuid, ${usuarioId}::uuid, ${n.referenciaId}::uuid)`,
     );
   }

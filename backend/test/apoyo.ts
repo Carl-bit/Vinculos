@@ -54,10 +54,7 @@ export interface AppPrueba {
   cerrar: () => Promise<void>;
 }
 
-export async function crearApp(
-  extra: Record<string, string> = {},
-  modulosExtra: (Type | DynamicModule)[] = [],
-): Promise<AppPrueba> {
+export async function crearApp(extra: Record<string, string> = {}, modulosExtra: (Type | DynamicModule)[] = []): Promise<AppPrueba> {
   const e = prepararEntorno(extra);
   const logs: string[] = [];
   const ref = await Test.createTestingModule({
@@ -100,17 +97,15 @@ export async function llaveroPrueba(dueno: PrismaClient): Promise<Llavero> {
   const filas = await dueno.llaveDatos.findMany();
   return Llavero.cargar(
     readFileSync(leerEntorno().kek),
-    filas.map(
-      (f): FilaLlave => ({
-        id: f.id,
-        categoria: f.categoria,
-        version: f.version,
-        activa: f.activa,
-        dekPorKek: Buffer.from(f.dekPorKek),
-        huellaKek: f.huellaKek,
-        canario: Buffer.from(f.canario),
-      }),
-    ),
+    filas.map((f): FilaLlave => ({
+      id: f.id,
+      categoria: f.categoria,
+      version: f.version,
+      activa: f.activa,
+      dekPorKek: Buffer.from(f.dekPorKek),
+      huellaKek: f.huellaKek,
+      canario: Buffer.from(f.canario),
+    })),
   );
 }
 
@@ -253,7 +248,7 @@ export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
  * esa corrida.
  */
 export async function procesarMensajes(t: AppPrueba): Promise<Correo[]> {
-  const correo = t.app.get(ProveedorCorreo) as ProveedorCorreoSimulado;
+  const correo = t.app.get<ProveedorCorreo, ProveedorCorreoSimulado>(ProveedorCorreo);
   correo.enviados.length = 0;
   while ((await t.dueno.notificacion.count({ where: { estado: 'PENDIENTE', proximoIntento: { lte: new Date() } } })) > 0) {
     await t.app.get(NotificacionesService).enviarPendientes();

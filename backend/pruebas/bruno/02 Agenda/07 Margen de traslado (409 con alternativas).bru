@@ -1,0 +1,38 @@
+meta {
+  name: Margen de traslado (409 con alternativas)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/citas
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+body:json {
+  {
+    "pacienteId": "{{pacientePruebaId}}",
+    "profesionalId": "{{idProf1}}",
+    "modalidad": "ONLINE",
+    "inicio": "{{margenInicio}}",
+    "fin": "{{margenFin}}"
+  }
+}
+
+tests {
+  test("status 409", function () {
+    expect(res.status).to.equal(409);
+  });
+  test("trae alternativas", function () {
+    expect(res.body.alternativas.length).to.be.greaterThan(0);
+  });
+}
+
+docs {
+  Online 10 minutos despues de una presencial del mismo profesional: el margen del centro es 30 minutos.
+}

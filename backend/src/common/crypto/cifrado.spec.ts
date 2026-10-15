@@ -1,16 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  CATEGORIAS,
-  ErrorCifrado,
-  FilaLlave,
-  LARGO_MINIMO,
-  Llavero,
-  aad,
-  crearCanario,
-  envolverConKek,
-  huellaKek,
-  normalizarRut,
-} from './cifrado';
+import { CATEGORIAS, ErrorCifrado, FilaLlave, LARGO_MINIMO, Llavero, aad, crearCanario, envolverConKek, huellaKek, normalizarRut } from './cifrado';
 import { generarKek } from './contingencia';
 import { CAMPOS_CIFRADOS } from './registro';
 

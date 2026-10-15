@@ -13,6 +13,9 @@ next-env.d.ts
 .env.*
 !.env.example
 
+# Cluster Postgres local de desarrollo (infra/scripts/bd_local.sh)
+infra/local/
+
 # Llaves de cada silo y de desarrollo (KEK, partes de recuperacion). Nunca en git.
 infra/secrets/
 # Red de seguridad por si se copian fuera de infra/secrets/.

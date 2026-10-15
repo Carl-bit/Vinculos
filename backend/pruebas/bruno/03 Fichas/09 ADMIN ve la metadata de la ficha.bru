@@ -1,0 +1,21 @@
+meta {
+  name: ADMIN ve la metadata de la ficha
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/pacientes/{{pacientePruebaId}}/ficha
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenAdmin}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

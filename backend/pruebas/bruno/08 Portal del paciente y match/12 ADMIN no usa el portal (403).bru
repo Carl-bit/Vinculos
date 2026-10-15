@@ -1,0 +1,21 @@
+meta {
+  name: ADMIN no usa el portal (403)
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/portal/citas
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenAdmin}}
+}
+
+tests {
+  test("status 403", function () {
+    expect(res.status).to.equal(403);
+  });
+}

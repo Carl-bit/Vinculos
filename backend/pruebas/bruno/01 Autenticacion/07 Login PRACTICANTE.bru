@@ -1,0 +1,32 @@
+meta {
+  name: Login PRACTICANTE
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "practicante@centro-prueba.cl",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  bru.setVar("tokenPracticante", res.body.accessToken);
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+  test("entrega access y refresh", function () {
+    expect(res.body.accessToken).to.be.a("string");
+    expect(res.body.refreshToken).to.be.a("string");
+  });
+}

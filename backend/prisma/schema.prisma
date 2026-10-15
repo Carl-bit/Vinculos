@@ -81,7 +81,8 @@ model ConfiguracionCentro {
   cobroInasistenciaPorcentaje       Decimal     @default(0) @map("cobro_inasistencia_porcentaje") @db.Decimal(5, 2)
   comisionCentroPorcentaje          Decimal     @default(0) @map("comision_centro_porcentaje") @db.Decimal(5, 2)
   /// 02i: horas antes de la cita en que sale el recordatorio (0 = desactivado).
-  recordatorioHorasAntes            Int         @default(24) @map("recordatorio_horas_antes")
+  /// 02j: si esta activo, mayor que plazoAvisoCancelacionHoras (CHECK).
+  recordatorioHorasAntes            Int         @default(48) @map("recordatorio_horas_antes")
   updatedAt                         DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("configuracion_centro")

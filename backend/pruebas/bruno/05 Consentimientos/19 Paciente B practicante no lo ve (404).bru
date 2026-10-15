@@ -1,0 +1,21 @@
+meta {
+  name: Paciente B: practicante no lo ve (404)
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/pacientes/{{pacBId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenPracticante}}
+}
+
+tests {
+  test("status 404", function () {
+    expect(res.status).to.equal(404);
+  });
+}

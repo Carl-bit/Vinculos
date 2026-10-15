@@ -1,0 +1,27 @@
+meta {
+  name: Profesional 3 acepta
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/derivaciones/{{derivacionId}}/respuesta
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf3}}
+}
+
+body:json {
+  {
+    "acepta": true
+  }
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

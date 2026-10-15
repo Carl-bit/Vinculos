@@ -91,8 +91,7 @@ export async function recalcularRutHmac(prisma: PrismaClient, llavero: Llavero, 
         id: f.id,
         hmac: llavero.hmacRut(llavero.descifrar(Buffer.from(f.rut), aad(t.tabla, 'rut', f.id))),
       }));
-      const actualizar = (x: { id: string; hmac: Buffer }) =>
-        prisma.$executeRaw`UPDATE ${tabla} SET rut_hmac = ${x.hmac} WHERE ${columnaId} = ${x.id}::uuid`;
+      const actualizar = (x: { id: string; hmac: Buffer }) => prisma.$executeRaw`UPDATE ${tabla} SET rut_hmac = ${x.hmac} WHERE ${columnaId} = ${x.id}::uuid`;
       try {
         await prisma.$transaction(nuevos.map(actualizar));
         r.actualizadas += nuevos.length;

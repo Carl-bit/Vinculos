@@ -1,4 +1,4 @@
-# Estado de la fase de API (02a-02i)
+# Estado de la fase de API (02a-02j)
 
 Prompts: 02a-02i (entregados en la conversacion). Reglas: CLAUDE.md (seccion
 API), `docs/seguridad/requisitos_02_apis.md`, `matriz_permisos.md`.
@@ -14,6 +14,7 @@ Integraciones y mensajeria: `docs/api/integraciones.md`.
 | `20261015000000_ajustes_y_cobros` | 02h | A1 propuesta/aprobacion de `profesional_tipos_atencion`; A2 `tipos_documento_clinico` (B), `documentos_clinicos`, `envios_documento`, `descargas_documento`; A3 triggers de avisos de derivacion; A6 `salas_videollamada`, `feeds_calendario` + `feed_calendario()`; B `citas.monto`/`cancelada_en`, pagos solo via funciones, vista `estado_pago_citas`, boleta unica por cita, `resoluciones_cita`, arriendos por periodo, `liquidaciones`, configuracion de cancelacion y comision |
 | `20261016000000_mensajeria_enums` | 02i | valores de enum (eventos nuevos, PENDIENTE/ENVIADO/FALLIDO, canal, destinatario, respuesta del recordatorio): migracion aparte porque un ADD VALUE no se usa en la misma transaccion |
 | `20261016000100_mensajeria_recordatorios_documentos` | 02i | `notificaciones` por canal (BANDEJA/CORREO; WHATSAPP reservado) con cola y backoff y contenido cifrado; `plantillas_mensaje` (B, ejemplos cargados); `preferencias_notificacion`; `notificar()`/`encolar_notificacion`; `recordatorios_cita` + `configuracion_centro.recordatorio_horas_antes`; `citas.secuencia` (SEQUENCE) y feed con canceladas; plantilla por tipo de documento; `adjuntos_ficha`; aviso de consentimiento por vencer |
+| `20261017000000_recordatorio_antes_de_cancelacion` | 02j | `recordatorio_horas_antes` default 48 y CHECK `configuracion_centro_recordatorio_antes_de_cancelacion` (activo -> mayor que `plazo_aviso_cancelacion_horas`); silos con recordatorio <= plazo se movieron al minimo coherente |
 
 Todas siguen el checklist de tabla nueva: categoria A (salvo
 `tipos_documento_clinico` y `plantillas_mensaje`, B), ENABLE + FORCE RLS, politicas por rol +
@@ -36,16 +37,19 @@ cifrado en `registro.ts`, casos en `seguridad_bd.sql` y filas en la matriz.
 
 ## Tests
 
-- `npm run test:e2e`: 113 casos de integracion (Jest + Supertest) contra un
+- `npm run test:e2e`: 116 casos de integracion (Jest + Supertest) contra un
   Postgres 18 efimero (`test/bd/levantar.sh`: migraciones, seed, llaves de
   prueba). Por archivo: 02a 22, 02b 19, 02c 13, 02d 12, 02e 8, 02f 8, 02g 8,
-  02h-ajustes 8, 02h-cobros 5, 02h-simulacro-hmac 1, 02i-mensajeria 9.
+  02h-ajustes 8, 02h-cobros 5, 02h-simulacro-hmac 1, 02i-mensajeria 10,
+  02j-openapi 2. Si el puerto por defecto cae en un rango reservado por
+  Windows (Hyper-V), usar `PUERTO_TEST=5440 npm run test:e2e` y
+  `PUERTO=5441 sh prisma/tests/correr_tests_bd.sh`.
 - `npx jest`: 29 unitarios (cifrado y contingencia 16; programacion de jobs
   con reloj simulado 5, incluye recordatorios y consentimientos por vencer;
   integraciones 8: modos de videollamada, regla del .ics, UID/SEQUENCE/CANCEL
   y que ningun modulo importe una implementacion concreta).
-- `sh prisma/tests/correr_tests_bd.sh`: 99 casos SQL (02i: 96-99 y redefine
-  88 y 91) + `migrate diff` + arranque real de la API + scripts de llaves.
+- `sh prisma/tests/correr_tests_bd.sh`: 100 casos SQL (02i: 96-99 y redefine
+  88 y 91; 02j: 100) + `migrate diff` + arranque real de la API + scripts de llaves.
 
 ## Decisiones de 02h
 
@@ -106,6 +110,40 @@ cifrado en `registro.ts`, casos en `seguridad_bd.sql` y filas en la matriz.
   ruta futura a almacenamiento de objetos documentada.
 - **Videollamada**: solo nivel 1 (enlace propio) en uso; Jitsi (nivel 2)
   queda implementado y desactivado por configuracion.
+
+## 02j: preparacion para pruebas manuales
+
+- **Recordatorio vs. cancelacion**: regla en la BD (CHECK sobre la fila de
+  `configuracion_centro`), asi aplica cambie el recordatorio o el plazo;
+  23514 -> 422 con mensaje propio. 0 sigue desactivando el recordatorio.
+- **OpenAPI**: `@nestjs/swagger` con el plugin del CLI (DTOs desde
+  class-validator y JSDoc). `/docs` y `/docs-json` fuera de produccion
+  (`DOCS_API` lo fuerza). `@Roles` agrega JWT, la lista de roles y los
+  errores 400/401/403/404/409/422; `@Publico` 400/429; 413 en adjuntos y
+  documentos. Tags por modulo. `npm run openapi:exportar` ->
+  `docs/api/openapi.json` (modo preview: sin BD ni KEK). Las respuestas 2xx
+  van sin esquema (los servicios devuelven tipos de Prisma, no clases).
+- **BD local sin Docker**: `infra/scripts/bd_local.sh` (`npm run bd:local --
+  iniciar|detener|recrear`), cluster propio en `infra/local/pg` (ignorado
+  por git); `recrear` solo necesita al dueño.
+- **Centro demo**: `prisma/seed-demo.ts` (`npm run seed:demo`), por la API
+  real levantada en el mismo proceso; como dueño solo el practicante
+  expirado y las citas pasadas. Idempotente por marca (usuario GESTION).
+  `npm run demo:reset` = recrear la BD local + seed demo; se niega con
+  `NODE_ENV=production` o BD no local. Se agrego `profesional3` (dos
+  candidatos de derivacion ademas del origen).
+- **Correo local**: Mailpit (binario de Windows). Verificado el 2026-10-12:
+  confirmacion, reprogramacion y cancelacion llegan con `sesion.ics`
+  (PUBLISH / CANCEL, mismo UID, SEQUENCE creciente); el recordatorio llega
+  con el enlace de un solo uso (sin `.ics`, como se diseño en 02i); el
+  documento emitido llega como enlace y la descarga con sesion del paciente
+  entrega el PDF.
+- **Coleccion Bruno** `backend/pruebas/bruno/` (121 requests, 158 tests,
+  todos OK sobre datos recien reseteados) y guion
+  `docs/pruebas/guion_manual.md`.
+- **ESLint + Prettier** (`eslint.config.mjs`, `.prettierrc`, ancho 160 = p99
+  del codigo existente). Solo formato y tres ajustes sin efecto funcional
+  (ver entrega 02j).
 
 ## Pendiente / no probado
 

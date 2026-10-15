@@ -1,0 +1,31 @@
+meta {
+  name: Verificacion previa
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/citas/verificacion
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenGestion}}
+}
+
+body:json {
+  {
+    "profesionalId": "{{idProf1}}",
+    "modalidad": "PRESENCIAL",
+    "espacioId": "{{boxId}}",
+    "inicio": "{{citaInicio}}",
+    "fin": "{{citaFin}}"
+  }
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}

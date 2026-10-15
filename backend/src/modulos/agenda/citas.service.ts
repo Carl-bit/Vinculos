@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  GoneException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, GoneException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Cita, ModalidadAtencion, Prisma } from '@prisma/client';
@@ -230,9 +223,7 @@ export class CitasService {
     const hasta = new Date(Math.max(desde.getTime() + DIA, h.fin.getTime() + 7 * DIA));
     const huecos = (await this.agenda.huecos(h.profesionalId, desde, hasta)).filter((x) => x.modalidad === h.modalidad);
     const ocupacion =
-      h.modalidad === 'PRESENCIAL' && h.espacioId
-        ? (await this.agenda.ocupacion(desde, hasta)).filter((o) => o.espacio_id === h.espacioId)
-        : [];
+      h.modalidad === 'PRESENCIAL' && h.espacioId ? (await this.agenda.ocupacion(desde, hasta)).filter((o) => o.espacio_id === h.espacioId) : [];
     const boxLibre = (inicio: number, fin: number) => !ocupacion.some((o) => o.inicio.getTime() < fin && o.fin.getTime() > inicio);
 
     const motivos: string[] = [];

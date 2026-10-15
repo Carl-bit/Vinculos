@@ -1,0 +1,27 @@
+meta {
+  name: Recordatorio: consultar (token del correo)
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/recordatorios/{{tokenRecordatorio}}
+  body: none
+  auth: none
+}
+
+tests {
+  const token = bru.getEnvVar("tokenRecordatorio");
+  if (!token) {
+    test("sin token: pegar en el entorno el del correo de recordatorio (Mailpit)", function () {});
+  } else {
+    test("vigente", function () {
+      expect(res.status).to.equal(200);
+      expect(res.body.vigente).to.equal(true);
+    });
+  }
+}
+
+docs {
+  Copiar el token del enlace del correo "Recordatorio de su cita" en Mailpit a la variable tokenRecordatorio del entorno.
+}

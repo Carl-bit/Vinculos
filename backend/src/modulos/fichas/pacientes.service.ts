@@ -72,21 +72,23 @@ export class PacientesService {
       throw new BadRequestException('profesionalId es obligatorio');
     }
     const id = randomUUID();
-    const paciente = await tx.paciente.create({
-      data: {
-        id,
-        nombre: dto.nombre,
-        apellido: dto.apellido,
-        rut: claro(dto.rut),
-        rutHmac: dto.rut ? this.llavero.hmacRut(dto.rut) : null,
-        fechaNacimiento: dto.fechaNacimiento,
-        email: dto.email,
-        telefono: claro(dto.telefono),
-        profesionalId,
-        tipoAtencionId: dto.tipoAtencionId,
-      },
-      select: VISTA_PACIENTE,
-    }).catch(rutDuplicado);
+    const paciente = await tx.paciente
+      .create({
+        data: {
+          id,
+          nombre: dto.nombre,
+          apellido: dto.apellido,
+          rut: claro(dto.rut),
+          rutHmac: dto.rut ? this.llavero.hmacRut(dto.rut) : null,
+          fechaNacimiento: dto.fechaNacimiento,
+          email: dto.email,
+          telefono: claro(dto.telefono),
+          profesionalId,
+          tipoAtencionId: dto.tipoAtencionId,
+        },
+        select: VISTA_PACIENTE,
+      })
+      .catch(rutDuplicado);
     let fichaId: string | null = null;
     if (actor.rol === 'ADMIN' || actor.rol === 'PROFESIONAL') {
       fichaId = (await tx.fichaClinica.create({ data: { pacienteId: id }, select: { id: true } })).id;
@@ -112,19 +114,21 @@ export class PacientesService {
   async editar(id: string, dto: EditarPacienteDto) {
     const tx = this.bd.tx();
     encontrado(await tx.paciente.findFirst({ where: { id, deletedAt: null }, select: { id: true } }), 'Paciente');
-    const paciente = await tx.paciente.update({
-      where: { id },
-      data: {
-        nombre: dto.nombre,
-        apellido: dto.apellido,
-        rut: claro(dto.rut),
-        rutHmac: dto.rut ? this.llavero.hmacRut(dto.rut) : undefined,
-        fechaNacimiento: dto.fechaNacimiento,
-        email: dto.email,
-        telefono: dto.telefono === undefined ? undefined : claro(dto.telefono),
-      },
-      select: VISTA_PACIENTE,
-    }).catch(rutDuplicado);
+    const paciente = await tx.paciente
+      .update({
+        where: { id },
+        data: {
+          nombre: dto.nombre,
+          apellido: dto.apellido,
+          rut: claro(dto.rut),
+          rutHmac: dto.rut ? this.llavero.hmacRut(dto.rut) : undefined,
+          fechaNacimiento: dto.fechaNacimiento,
+          email: dto.email,
+          telefono: dto.telefono === undefined ? undefined : claro(dto.telefono),
+        },
+        select: VISTA_PACIENTE,
+      })
+      .catch(rutDuplicado);
     return vistaPaciente(paciente);
   }
 

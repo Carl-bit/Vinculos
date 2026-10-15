@@ -1,0 +1,31 @@
+meta {
+  name: Enviar documento por enlace
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/documentos-clinicos/{{documentoId}}/envios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+body:json {
+  {
+    "modo": "ENLACE"
+  }
+}
+
+tests {
+  test("status 201", function () {
+    expect(res.status).to.equal(201);
+  });
+}
+
+docs {
+  El correo llega a Mailpit con un enlace /documentos-clinicos/descarga/<token>: abrirlo con sesion del paciente descarga el PDF (guion, paso 3.6).
+}

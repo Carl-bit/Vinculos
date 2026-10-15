@@ -1,0 +1,24 @@
+meta {
+  name: Busqueda por RUT (tratante)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/pacientes?rut=11.111.111-1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenProf1}}
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+  test("un resultado", function () {
+    expect(res.body).to.have.length(1);
+  });
+}
