@@ -14,6 +14,9 @@
  * cargar desde cero: npm run demo:reset (recrea la BD local). Se niega con
  * NODE_ENV=production. Usuarios y contraseña: docs/pruebas/guion_manual.md.
  */
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -21,6 +24,7 @@ import { PrismaClient } from '@prisma/client';
 
 import { AppModule } from '../src/app.module';
 import { configurarApp } from '../src/configurar-app';
+import { codigoTotp } from '../src/core/auth/totp';
 import { dvRut } from '../src/core/validacion/validadores';
 
 const logger = new Logger('SeedDemo');
@@ -28,6 +32,8 @@ const PASSWORD = process.env.SEED_PASSWORD ?? 'dev-password';
 const DOMINIO = 'centro-prueba.cl';
 const MARCA = `gestion@${DOMINIO}`;
 const DIA = 86_400_000;
+/** Secretos TOTP de las cuentas demo (03a: obligatorio para el equipo clinico). Fuera de git. */
+const ARCHIVO_TOTP = join(__dirname, '..', '..', 'infra', 'local', 'totp-demo.txt');
 
 const rut = (cuerpo: string) => `${cuerpo}-${dvRut(cuerpo)}`;
 
@@ -93,7 +99,18 @@ async function main(): Promise<void> {
     }
     return (texto ? JSON.parse(texto) : {}) as Cuerpo & { id: string };
   };
-  const login = async (email: string) => (await llamar(null, 'POST', '/auth/login', { email, password: PASSWORD })).accessToken as string;
+  // Segundo factor (03a): se enrola en el primer login y el secreto queda en ARCHIVO_TOTP para entrar a mano.
+  const secretosTotp = new Map<string, string>();
+  const login = async (email: string) => {
+    const r = await llamar(null, 'POST', '/auth/login', { email, password: PASSWORD });
+    if (!r.requiereTotp) {
+      return r.accessToken as string;
+    }
+    if (!secretosTotp.has(email)) {
+      secretosTotp.set(email, (await llamar(null, 'POST', '/auth/totp/enrolamiento', { desafio: r.desafio })).secreto as string);
+    }
+    return (await llamar(null, 'POST', '/auth/totp', { desafio: r.desafio, codigo: codigoTotp(secretosTotp.get(email)!) })).accessToken as string;
+  };
 
   try {
     // --- Centro y equipo -------------------------------------------------------
@@ -306,9 +323,13 @@ async function main(): Promise<void> {
   } finally {
     await app.close();
     await dueno.$disconnect();
+    if (secretosTotp.size) {
+      mkdirSync(join(ARCHIVO_TOTP, '..'), { recursive: true });
+      writeFileSync(ARCHIVO_TOTP, [...secretosTotp].map(([email, s]) => `${email} ${s}`).join('\n') + '\n');
+    }
   }
   // El logger de la app (pino, nivel warn) ya no esta: aviso final directo.
-  process.stdout.write(`Centro demo cargado. Usuarios @${DOMINIO}, contraseña "${PASSWORD}" (ver docs/pruebas/guion_manual.md)
+  process.stdout.write(`Centro demo cargado. Usuarios @${DOMINIO}, contraseña "${PASSWORD}"; secretos TOTP en infra/local/totp-demo.txt (ver docs/pruebas/guion_manual.md)
 `);
 }
 

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -9,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   StreamableFile,
   UploadedFile,
@@ -24,7 +26,14 @@ import { AdjuntosService } from './adjuntos.service';
 import { CatalogosRetencionService } from './catalogos-retencion.service';
 import { DocumentosService } from './documentos.service';
 import {
+  AccesoTemporalDto,
+  AltaDto,
+  BorradorDto,
   BuscarPacientesDto,
+  ConfirmarBorradorDto,
+  ConsentimientoAtencionDto,
+  InvitarPacienteDto,
+  ListarBorradoresDto,
   CatalogoDto,
   CrearAdultoResponsableDto,
   CrearEvolucionDto,
@@ -40,19 +49,25 @@ import {
 } from './dto/fichas.dto';
 import { EvolucionesService } from './evoluciones.service';
 import { PacientesService } from './pacientes.service';
+import { SeguimientoService } from './seguimiento.service';
+import { Modulo } from '../../core/modulos/modulos';
 
 const Uuid = new ParseUUIDPipe();
 
 /** Respuesta binaria descargable (sin cache: datos clinicos). */
 const archivo = (contenido: Buffer, tipo: string, nombre: string) =>
   new StreamableFile(contenido, { type: tipo, disposition: `attachment; filename="${encodeURIComponent(nombre)}"` });
-const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
+const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE'] as const;
 
 /** Roles segun matriz_permisos.md (pacientes, adultos_responsables, fichas_clinicas). */
 @ApiTags(TAGS.fichas)
 @Controller('pacientes')
+@Modulo('FICHAS')
 export class PacientesController {
-  constructor(private readonly pacientes: PacientesService) {}
+  constructor(
+    private readonly pacientes: PacientesService,
+    private readonly seguimiento: SeguimientoService,
+  ) {}
 
   @Post()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
@@ -63,7 +78,7 @@ export class PacientesController {
   @Get()
   @Roles(...TODOS)
   listar(@Query() filtro: BuscarPacientesDto) {
-    return this.pacientes.listar(filtro.rut);
+    return this.pacientes.listar(filtro);
   }
 
   @Get(':id')
@@ -102,11 +117,137 @@ export class PacientesController {
   abrirFicha(@Param('id', Uuid) id: string) {
     return this.pacientes.abrirFicha(id);
   }
+
+  /** Invitacion de cuenta: el paciente (desde 14 años) o su adulto responsable si es menor. */
+  @Post(':id/invitacion')
+  @Roles('ADMIN', 'GESTION')
+  invitar(@Param('id', Uuid) id: string, @Body() dto: InvitarPacienteDto) {
+    return this.pacientes.invitar(id, dto);
+  }
+
+  /** Posible duplicado revisado (D-2: nunca se fusiona por nombre). */
+  @Post(':id/duplicado-revisado')
+  @HttpCode(200)
+  @Roles('ADMIN', 'GESTION')
+  duplicadoRevisado(@Param('id', Uuid) id: string) {
+    return this.pacientes.duplicadoRevisado(id);
+  }
+
+  /** Politicas y consentimientos aceptados (version, canal, otorgante). */
+  @Get(':id/aceptaciones')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
+  aceptaciones(@Param('id', Uuid) id: string) {
+    return this.pacientes.aceptaciones(id);
+  }
+
+  /** Consentimiento informado de atencion firmado en el centro (respaldo obligatorio). */
+  @Post(':id/consentimiento-atencion')
+  @Roles('ADMIN', 'GESTION')
+  consentimientoAtencion(@Param('id', Uuid) id: string, @Body() dto: ConsentimientoAtencionDto) {
+    return this.pacientes.consentimientoAtencion(id, dto.respaldoRef, dto.adultoResponsableId);
+  }
+
+  /** Enlace de un solo uso por correo para el consentimiento de atencion. */
+  @Post(':id/consentimiento-atencion/enlace')
+  @Roles('ADMIN', 'GESTION')
+  enlaceConsentimiento(@Param('id', Uuid) id: string) {
+    return this.pacientes.enlaceConsentimientoAtencion(id);
+  }
+
+  /** Alta: el tratante, con fecha y motivo (cifrado). La ficha se conserva. */
+  @Post(':id/alta')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  alta(@Param('id', Uuid) id: string, @Body() dto: AltaDto) {
+    return this.seguimiento.registrarAlta(id, dto.fecha, dto.motivo);
+  }
+
+  @Get(':id/altas')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  altas(@Param('id', Uuid) id: string) {
+    return this.seguimiento.altas(id);
+  }
+
+  /** Lo que el paciente respondio en el match al pedir hora (solo el tratante; ADMIN/GESTION nunca). */
+  @Get(':id/respuestas-match')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  respuestasMatch(@Param('id', Uuid) id: string) {
+    return this.seguimiento.respuestasMatch(id);
+  }
+
+  /** Acceso clinico temporal (reemplazo o interconsulta): ADMIN o el tratante. */
+  @Post(':id/accesos-temporales')
+  @Roles('ADMIN', 'PROFESIONAL')
+  otorgarAcceso(@Param('id', Uuid) id: string, @Body() dto: AccesoTemporalDto) {
+    return this.seguimiento.otorgarAccesoTemporal(id, dto);
+  }
+
+  @Get(':id/accesos-temporales')
+  @Roles('ADMIN', 'PROFESIONAL')
+  accesosTemporales(@Param('id', Uuid) id: string) {
+    return this.seguimiento.accesosTemporales(id);
+  }
+}
+
+/** Seguimiento clinico (03a): borradores, accesos temporales recibidos y estado de fichas. */
+@ApiTags(TAGS.fichas)
+@Controller()
+@Modulo('FICHAS')
+export class SeguimientoController {
+  constructor(private readonly seguimiento: SeguimientoService) {}
+
+  /** Borradores propios (solo su autor los ve). */
+  @Get('borradores')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  borradores(@Query() filtro: ListarBorradoresDto) {
+    return this.seguimiento.borradores(filtro.fichaId);
+  }
+
+  @Post('fichas/:fichaId/borradores')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  crearBorrador(@Param('fichaId', Uuid) fichaId: string, @Body() dto: BorradorDto) {
+    return this.seguimiento.crearBorrador(fichaId, dto);
+  }
+
+  /** Guardado automatico. */
+  @Put('borradores/:id')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  guardarBorrador(@Param('id', Uuid) id: string, @Body() dto: BorradorDto) {
+    return this.seguimiento.guardarBorrador(id, dto);
+  }
+
+  @Delete('borradores/:id')
+  @HttpCode(204)
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  descartarBorrador(@Param('id', Uuid) id: string) {
+    return this.seguimiento.descartarBorrador(id);
+  }
+
+  /** Pasa a evolucion (append-only) y el borrador se elimina. */
+  @Post('borradores/:id/confirmacion')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  confirmarBorrador(@Param('id', Uuid) id: string, @Body() dto: ConfirmarBorradorDto) {
+    return this.seguimiento.confirmarBorrador(id, dto);
+  }
+
+  /** ADMIN: todos; PROFESIONAL: recibidos y de sus pacientes. */
+  @Get('accesos-temporales')
+  @Roles('ADMIN', 'PROFESIONAL')
+  accesosTemporales() {
+    return this.seguimiento.accesosTemporales();
+  }
+
+  /** Vista administrativa: ultima/proxima sesion y sesiones sin cerrar por paciente (sin contenido clinico). */
+  @Get('profesionales/:id/estado-fichas')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  estadoFichas(@Param('id', Uuid) id: string) {
+    return this.seguimiento.estadoFichas(id);
+  }
 }
 
 /** Evoluciones: solo el tratante. ADMIN, GESTION, PACIENTE y supervisor nunca (supervision: 02e). */
 @ApiTags(TAGS.fichas)
 @Controller('fichas/:fichaId/evoluciones')
+@Modulo('FICHAS')
 export class EvolucionesController {
   constructor(private readonly evoluciones: EvolucionesService) {}
 
@@ -125,6 +266,7 @@ export class EvolucionesController {
 
 @ApiTags(TAGS.fichas)
 @Controller()
+@Modulo('FICHAS')
 export class CatalogosClinicosController {
   constructor(private readonly catalogos: CatalogosRetencionService) {}
 
@@ -174,6 +316,7 @@ export class CatalogosClinicosController {
 /** Revision anual de retencion: solo ADMIN. */
 @ApiTags(TAGS.fichas)
 @Controller('retencion')
+@Modulo('FICHAS')
 export class RetencionController {
   constructor(private readonly catalogos: CatalogosRetencionService) {}
 
@@ -199,6 +342,7 @@ export class RetencionController {
 /** Catalogo (B) de tipos de documento clinico: el equipo lee; ADMIN escribe; nunca DELETE. */
 @ApiTags(TAGS.fichas)
 @Controller('tipos-documento-clinico')
+@Modulo('FICHAS')
 export class TiposDocumentoController {
   constructor(private readonly documentos: DocumentosService) {}
 
@@ -228,6 +372,7 @@ export class TiposDocumentoController {
  */
 @ApiTags(TAGS.fichas)
 @Controller('documentos-clinicos')
+@Modulo('FICHAS')
 export class DocumentosController {
   constructor(private readonly documentos: DocumentosService) {}
 
@@ -239,14 +384,14 @@ export class DocumentosController {
   }
 
   @Get()
-  @Roles('PROFESIONAL', 'PRACTICANTE', 'PACIENTE')
+  @Roles('PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
   listar(@Query('pacienteId', new ParseUUIDPipe({ optional: true })) pacienteId?: string) {
     return this.documentos.listar(pacienteId);
   }
 
   /** Destino del enlace del correo: exige sesion del paciente; registra la descarga. PDF generado al entregar. */
   @Get('descarga/:token')
-  @Roles('PACIENTE')
+  @Roles('PACIENTE', 'RESPONSABLE')
   async descargar(@Param('token') token: string) {
     const { nombreArchivo, pdf } = await this.documentos.descargar(token);
     return archivo(pdf, 'application/pdf', nombreArchivo);
@@ -266,7 +411,7 @@ export class DocumentosController {
 
   @Post(':id/solicitud-adjunto')
   @HttpCode(200)
-  @Roles('PACIENTE')
+  @Roles('PACIENTE', 'RESPONSABLE')
   solicitarAdjunto(@Param('id', Uuid) id: string) {
     return this.documentos.solicitarAdjunto(id);
   }
@@ -280,6 +425,7 @@ export class DocumentosController {
  */
 @ApiTags(TAGS.fichas)
 @Controller()
+@Modulo('FICHAS')
 export class AdjuntosFichaController {
   constructor(private readonly adjuntos: AdjuntosService) {}
 

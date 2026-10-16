@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/styles.css">
+<script src="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent-2-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-2-600); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: 500; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+  .msf { font-variation-settings: 'FILL' 1; }
+  .row { transition: box-shadow .18s ease; }
+  .row:hover { box-shadow: var(--shadow-md); }
+</style>
+</helmet>
+
+<div style="position:fixed;bottom:18px;right:18px;z-index:50;display:flex;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:999px;padding:4px;box-shadow:var(--shadow-lg)">
+  <sc-for list="{{ modes }}" as="md" hint-placeholder-count="2">
+    <button type="button" onClick="{{ md.pick }}" style="border:none;background:{{ md.bg }};font-family:var(--font-body);color:{{ md.fg }};font-weight:800;font-size:12.5px;padding:8px 16px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:7px">
+      <span class="ms" style="font-size:16px">{{ md.icon }}</span>{{ md.label }}
+    </button>
+  </sc-for>
+</div>
+
+<!-- ============ MODO PRIVADO ============ -->
+<sc-if value="{{ isPrivate }}" hint-placeholder-val="{{ true }}">
+  <div style="display:grid;grid-template-columns:246px 1fr;min-height:100vh;align-items:stretch;background:var(--color-neutral-300)">
+
+    <aside style="background:var(--color-bg);border-right:1px solid var(--color-divider);box-shadow:var(--shadow-md);z-index:2;padding:22px 16px 24px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:9px;padding:0 8px">
+        <span style="width:10px;height:10px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block;flex:none"></span>
+        <div style="min-width:0">
+          <div style="font-family:var(--font-body);font-weight:900;font-size:17px;letter-spacing:-0.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Centro Ejemplo</div>
+          <div style="font-size:11px;font-weight:700;color:var(--color-neutral-600)">Salud mental y terapia</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <a href="./Admin - Dashboard.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+          <span class="ms" style="font-size:19px;flex:none">space_dashboard</span><span style="flex:1">Inicio</span>
+        </a>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <span style="font-size:10.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);padding:0 8px 6px">Módulos</span>
+        <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+          <a href="{{ n.href }}" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }}" style-hover="background:var(--color-accent-200)">
+            <span class="ms" style="font-size:19px;flex:none">{{ n.icon }}</span><span style="flex:1">{{ n.label }}</span>
+          </a>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <span style="font-size:10.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);padding:0 8px 6px">Centro</span>
+        <a href="./Admin - Configuracion.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+          <span class="ms" style="font-size:19px;flex:none">settings</span><span style="flex:1">Configuración</span>
+        </a>
+        <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+          <span class="ms" style="font-size:19px;flex:none">public</span><span style="flex:1">Página pública</span>
+        </a>
+      </div>
+
+      <a href="./Admin - Mi Perfil.dc.html" style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 10px 12px;border-top:1px solid var(--color-divider);border-radius:12px;color:var(--color-text)" style-hover="background:var(--color-accent-200);color:var(--color-text)">
+        <span style="width:30px;height:30px;border-radius:999px;background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);background-image:url(./assets/marcela-1.png);background-size:cover;background-position:center top;flex:none"></span>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:13px;font-weight:800;letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marcela Rivas</div>
+          <div style="font-size:11.5px;color:var(--color-neutral-600);font-weight:600">Directora</div>
+        </div>
+        <span class="ms" style="font-size:18px;color:var(--color-neutral-500)">logout</span>
+      </a>
+    </aside>
+
+    <main style="padding:30px clamp(24px,3.4vw,48px) 56px;min-width:0">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="display:inline-flex;color:var(--color-accent-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:9px;border-bottom:2px solid var(--color-accent-500)">Equipo del centro</div>
+        <span style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600)">Selecciona a un integrante para ver y editar su perfil</span>
+      </div>
+
+      <div style="display:flex;gap:6px;overflow-x:auto;padding:6px 4px 14px;margin-bottom:22px">
+        <sc-for list="{{ team }}" as="m" hint-placeholder-count="6">
+          <button type="button" onClick="{{ m.pick }}" style="font-family:var(--font-body);flex:none;width:112px;border:none;background:{{ m.bg }};border-radius:var(--radius-lg);padding:12px 8px 13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:9px" style-hover="background:var(--color-accent-200)">
+            <span style="width:58px;height:58px;border-radius:999px;background:var(--color-neutral-200);border:{{ m.ringW }} solid {{ m.ring }};background-image:url({{ m.photo }});background-size:cover;background-position:center top;display:grid;place-items:center;flex:none">
+              <sc-if value="{{ m.noPhoto }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:17px;font-weight:900;letter-spacing:-0.02em;color:var(--color-neutral-700)">{{ m.initials }}</span>
+              </sc-if>
+            </span>
+            <span style="min-width:0;text-align:center">
+              <span style="display:block;font-size:12.5px;font-weight:{{ m.nameWeight }};letter-spacing:-0.015em;line-height:1.25;color:{{ m.nameColor }}">{{ m.name }}</span>
+              <span style="display:block;font-size:10.5px;font-weight:700;color:var(--color-neutral-600);margin-top:3px">{{ m.role }}</span>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:26px">
+        <div style="position:relative;flex:none">
+          <span style="width:96px;height:96px;border-radius:999px;background:var(--color-accent-2-200);border:2px solid var(--color-accent-2-500);background-image:url({{ curPhoto }});background-size:cover;background-position:center top;display:grid;place-items:center">
+            <sc-if value="{{ curNoPhoto }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:28px;font-weight:900;letter-spacing:-0.03em;color:var(--color-accent-2-700)">{{ curInitials }}</span>
+            </sc-if>
+          </span>
+          <button type="button" style="position:absolute;right:-4px;bottom:-4px;border:1.5px solid var(--color-neutral-400);background:var(--color-bg);color:var(--color-text);width:34px;height:34px;border-radius:999px;cursor:pointer;display:grid;place-items:center;box-shadow:var(--shadow-sm)" style-hover="background:var(--color-accent-200)"><span class="ms" style="font-size:18px">photo_camera</span></button>
+        </div>
+        <div style="min-width:0">
+          <h1 style="font-family:var(--font-body);font-weight:900;font-size:34px;line-height:1.05;letter-spacing:-0.03em;margin:0">{{ curName }}</h1>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px">
+            <span style="font-size:14px;font-weight:700;color:var(--color-neutral-700)">{{ curEspecialidad }}</span>
+            <span style="font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;background:var(--color-accent-2-200);color:var(--color-accent-2-700);border:1px solid var(--color-accent-2-500);border-radius:999px;padding:4px 12px">{{ roleTag }}</span>
+            <span style="font-size:12.5px;font-weight:700;color:var(--color-neutral-600);display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px">{{ selfIcon }}</span>{{ selfNote }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;align-items:start">
+
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-md)">
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0 0 6px">Descripción y datos de contacto</h2>
+            <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 18px;display:flex;align-items:center;gap:7px"><span class="ms" style="font-size:16px">public</span>Estos datos se muestran en tu perfil público del centro</p>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px">
+              <sc-for list="{{ fields }}" as="f" hint-placeholder-count="5">
+                <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+                  <label style="font-size:12px;font-weight:800;color:var(--color-neutral-700)">{{ f.label }}</label>
+                  <input type="text" value="{{ f.value }}" onChange="{{ f.set }}" style="font-family:var(--font-body);font-size:13.5px;font-weight:600;padding:11px 17px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text);min-width:0"></input>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:16px">
+              <label style="font-size:12px;font-weight:800;color:var(--color-neutral-700)">Mi historia · texto del perfil público</label>
+              <textarea rows="7" value="{{ bio }}" onChange="{{ setBio }}" style="font-family:var(--font-body);width:100%;box-sizing:border-box;font-size:13.5px;font-weight:600;line-height:1.55;padding:14px 18px;border-radius:18px;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text);resize:vertical"></textarea>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <label style="font-size:12px;font-weight:800;color:var(--color-neutral-700)">Rol dentro del centro</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-for list="{{ roles }}" as="r" hint-placeholder-count="3">
+                  <button type="button" onClick="{{ r.pick }}" style="border:1.5px solid {{ r.border }};background:{{ r.bg }};font-family:var(--font-body);color:{{ r.fg }};font-weight:800;font-size:12.5px;padding:9px 16px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:7px" style-hover="border-color:var(--color-accent-2-500)"><span class="ms" style="font-size:16px">{{ r.icon }}</span>{{ r.label }}</button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ isPracticante }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:13px;background:var(--color-accent-200);border:1px solid var(--color-accent-500);border-radius:18px;padding:14px 17px;margin-top:6px;flex-wrap:wrap">
+                  <span class="ms" style="font-size:19px;color:var(--color-accent-700);flex:none">event_busy</span>
+                  <div style="flex:1 1 180px;min-width:0">
+                    <div style="font-size:13px;font-weight:900;color:var(--color-accent-900)">Cuenta temporal</div>
+                    <div style="font-size:12px;font-weight:700;color:var(--color-accent-900)">El acceso se cierra automáticamente en esta fecha (RF-27)</div>
+                  </div>
+                  <input type="text" defaultValue="31/12/2026" style="font-family:var(--font-body);width:120px;text-align:center;font-size:13.5px;font-weight:800;padding:10px 14px;border-radius:999px;border:1.5px solid var(--color-accent-500);background:var(--color-bg);color:var(--color-text);flex:none"></input>
+                </div>
+              </sc-if>
+            </div>
+          </section>
+
+          <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-md)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                  <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0">Calificaciones</h2>
+                  <span style="font-size:10.5px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;background:var(--color-neutral-200);color:var(--color-neutral-800);border:1px solid var(--color-neutral-500);border-radius:999px;padding:3px 10px">Solo lectura</span>
+                </div>
+                <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0;text-wrap:pretty">Las calificaciones son anónimas y no pueden editarse ni eliminarse.</p>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:13px 18px">
+                <span style="font-family:var(--font-body);font-weight:900;font-size:30px;line-height:1;letter-spacing:-0.035em">{{ curRating }}</span>
+                <div>
+                  <div style="display:flex;gap:2px;color:var(--color-accent-600);margin-bottom:4px">
+                    <sc-for list="{{ stars }}" as="st" hint-placeholder-count="5">
+                      <span class="ms {{ st.cls }}" style="font-size:17px;color:{{ st.color }}">{{ st.icon }}</span>
+                    </sc-for>
+                  </div>
+                  <div style="font-size:11.5px;font-weight:700;color:var(--color-neutral-600)">{{ curReviewCount }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <sc-for list="{{ reviews }}" as="rv" hint-placeholder-count="3">
+                <div class="row" style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:16px 18px">
+                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px">
+                    <span style="width:26px;height:26px;border-radius:999px;background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);display:grid;place-items:center;flex:none"><span class="ms" style="font-size:15px;color:var(--color-accent-2-700)">verified_user</span></span>
+                    <span style="font-size:12.5px;font-weight:800">Paciente verificado</span>
+                    <span style="font-size:12px;font-weight:700;color:var(--color-neutral-600)">· {{ rv.when }}</span>
+                    <span style="display:flex;gap:1px;margin-left:auto">
+                      <sc-for list="{{ rv.stars }}" as="s2" hint-placeholder-count="5">
+                        <span class="ms {{ s2.cls }}" style="font-size:15px;color:{{ s2.color }}">{{ s2.icon }}</span>
+                      </sc-for>
+                    </span>
+                  </div>
+                  <p style="font-size:13.5px;font-weight:600;line-height:1.55;color:var(--color-neutral-800);margin:0;text-wrap:pretty">{{ rv.text }}</p>
+                </div>
+              </sc-for>
+              <sc-if value="{{ noReviews }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;gap:12px;background:var(--color-neutral-100);border:1.5px dashed var(--color-neutral-400);border-radius:18px;padding:18px 20px">
+                  <span class="ms" style="font-size:19px;color:var(--color-neutral-600);flex:none">rate_review</span>
+                  <p style="font-size:13px;font-weight:700;color:var(--color-neutral-700);margin:0;text-wrap:pretty">Todavía no hay calificaciones para esta cuenta. Aparecen cuando los pacientes califican una sesión completada.</p>
+                </div>
+              </sc-if>
+            </div>
+          </section>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-md)">
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0 0 18px">Horas e información de pacientes</h2>
+
+            <div style="display:flex;align-items:center;gap:14px;background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);border-radius:18px;padding:16px 18px;margin-bottom:12px;flex-wrap:wrap">
+              <span class="ms" style="font-size:21px;color:var(--color-accent-2-700);flex:none">event_upcoming</span>
+              <div style="flex:1 1 160px;min-width:0">
+                <div style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent-2-800);margin-bottom:4px">Próxima sesión</div>
+                <div style="font-size:15px;font-weight:900;letter-spacing:-0.02em;color:var(--color-accent-2-900)">{{ curNext }}</div>
+              </div>
+              <a href="./Admin - Agenda y Espacios.dc.html" style="border:1px solid var(--color-accent-2-700);background:var(--color-bg);color:var(--color-accent-2-700);font-weight:800;font-size:12.5px;padding:8px 15px;border-radius:999px;flex:none">Ver agenda</a>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px">
+              <sc-for list="{{ stats }}" as="s" hint-placeholder-count="3">
+                <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:15px 17px">
+                  <div style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">{{ s.label }}</div>
+                  <div style="font-family:var(--font-body);font-weight:900;font-size:26px;line-height:1;letter-spacing:-0.035em">{{ s.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:11px">
+              <span style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">Pacientes a su cargo</span>
+              <a href="./Admin - Fichas y Pacientes.dc.html" style="font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px"><span class="ms" style="font-size:16px">folder_shared</span>Ver mis fichas</a>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+              <sc-for list="{{ patients }}" as="pt" hint-placeholder-count="4">
+                <div class="row" style="display:flex;align-items:center;gap:13px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:14px 16px;flex-wrap:wrap">
+                  <span style="width:32px;height:32px;border-radius:999px;background:var(--color-neutral-200);border:1px solid var(--color-neutral-400);display:grid;place-items:center;font-size:11.5px;font-weight:800;color:var(--color-neutral-800);flex:none">{{ pt.initials }}</span>
+                  <div style="flex:1 1 130px;min-width:0">
+                    <div style="font-size:13.5px;font-weight:900;letter-spacing:-0.015em">{{ pt.name }}</div>
+                    <div style="font-size:12px;font-weight:600;color:var(--color-neutral-600)">{{ pt.next }}</div>
+                  </div>
+                  <span style="font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;background:{{ pt.bg }};color:{{ pt.fg }};border:1px solid {{ pt.bd }};border-radius:999px;padding:4px 11px;flex:none;white-space:nowrap">{{ pt.state }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;gap:11px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:14px 16px">
+              <span class="ms" style="font-size:18px;color:var(--color-neutral-600);flex:none">lock</span>
+              <p style="font-size:12px;font-weight:700;color:var(--color-neutral-700);margin:0;text-wrap:pretty">Este panel muestra solo estado administrativo. El contenido clínico vive en la ficha de cada paciente.</p>
+            </div>
+          </section>
+
+          <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-left:5px solid var(--color-accent-600);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-md)">
+            <div style="display:flex;align-items:center;gap:11px;margin-bottom:8px">
+              <span class="ms" style="font-size:22px;color:var(--color-accent-700);flex:none">menu_book</span>
+              <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0">Protocolo del centro</h2>
+            </div>
+            <p style="font-size:13.5px;font-weight:600;line-height:1.6;color:var(--color-neutral-700);margin:0 0 18px;text-wrap:pretty">Normas internas de funcionamiento: horarios, uso de boxes, cierre de fichas, cancelaciones y manejo de datos de pacientes. Lectura obligatoria al ingresar al equipo.</p>
+            <div style="display:flex;align-items:center;gap:13px;flex-wrap:wrap">
+              <button type="button" onClick="{{ openProto }}" style="border:none;background:var(--color-accent-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:14px;padding:13px 22px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-700)"><span class="ms" style="font-size:18px">description</span>Ver protocolo del centro</button>
+              <span style="font-size:12px;font-weight:700;color:var(--color-neutral-600);flex:1 1 140px;text-wrap:pretty">{{ protoRead }}</span>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <sc-if value="{{ protoOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:fixed;inset:0;z-index:60;background:rgba(32,30,29,0.42);display:grid;place-items:center;padding:24px">
+          <div style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:min(680px,100%);max-height:86vh;display:flex;flex-direction:column">
+            <div style="display:flex;align-items:flex-start;gap:16px;padding:28px 30px 18px;border-bottom:1px solid var(--color-divider)">
+              <div style="min-width:0;flex:1">
+                <div style="font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:8px">Centro Ejemplo · documento interno</div>
+                <h2 style="font-family:var(--font-body);font-weight:900;font-size:24px;letter-spacing:-0.03em;margin:0 0 5px;line-height:1.1">Protocolo del centro</h2>
+                <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0">Versión vigente · actualizada en agosto de 2026</p>
+              </div>
+              <button type="button" onClick="{{ closeProto }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text);width:34px;height:34px;border-radius:999px;cursor:pointer;display:grid;place-items:center;flex:none" style-hover="background:var(--color-accent-200)"><span class="ms" style="font-size:18px">close</span></button>
+            </div>
+            <div style="overflow-y:auto;padding:24px 30px 8px;display:flex;flex-direction:column;gap:20px">
+              <sc-for list="{{ protocol }}" as="p" hint-placeholder-count="5">
+                <div style="display:flex;gap:15px">
+                  <span style="width:30px;height:30px;border-radius:999px;background:var(--color-accent-200);border:1px solid var(--color-accent-500);display:grid;place-items:center;font-size:12.5px;font-weight:900;color:var(--color-accent-700);flex:none">{{ p.n }}</span>
+                  <div style="min-width:0">
+                    <div style="font-size:14.5px;font-weight:900;letter-spacing:-0.02em;margin-bottom:6px">{{ p.title }}</div>
+                    <p style="font-size:14px;font-weight:500;line-height:1.65;color:var(--color-neutral-800);margin:0;text-wrap:pretty">{{ p.text }}</p>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 30px 26px;border-top:1px solid var(--color-divider)">
+              <button type="button" onClick="{{ ackProto }}" style="border:none;background:var(--color-accent-2-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:14px;padding:13px 22px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-2-700)"><span class="ms" style="font-size:18px">check</span>Marcar como leído</button>
+              <span style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);flex:1 1 180px;text-wrap:pretty">El registro de lectura queda visible para la dirección del centro.</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:24px;padding:22px 24px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--shadow-md)">
+        <button type="button" style="border:none;background:var(--color-accent-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:14.5px;padding:15px 28px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-700)"><span class="ms" style="font-size:19px">save</span>{{ saveLabel }}</button>
+        <span style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);flex:1 1 200px;text-wrap:pretty">Los cambios se reflejan también en el perfil público del centro.</span>
+        <a href="./Admin - Dashboard.dc.html" style="font-size:13px;font-weight:800;color:var(--color-neutral-700);flex:none" style-hover="color:var(--color-accent-700)">Salir sin guardar</a>
+      </div>
+    </main>
+  </div>
+</sc-if>
+
+<!-- ============ MODO PÚBLICO ============ -->
+<sc-if value="{{ isPublic }}" hint-placeholder-val="{{ false }}">
+  <div style="background:var(--color-bg);min-height:100vh">
+    <div style="max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,40px) 72px">
+
+      <header style="display:flex;align-items:center;gap:20px;padding:22px 0">
+        <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:9px;color:var(--color-text)" style-hover="color:var(--color-text)">
+          <span style="width:11px;height:11px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block"></span>
+          <span style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.04em">Centro Ejemplo</span>
+        </a>
+        <nav style="display:flex;gap:26px;margin-left:auto;font-size:14.5px;font-weight:700">
+          <a href="./Equipo Publico.dc.html" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Equipo</a>
+          <a href="./Match Publico.dc.html" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Match terapéutico</a>
+        </nav>
+        <a href="./Inicio de Sesion.dc.html" style="border:1.5px solid var(--color-neutral-400);color:var(--color-text);font-weight:800;font-size:14px;padding:10px 20px;border-radius:999px" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500);color:var(--color-text)">Iniciar sesión</a>
+      </header>
+
+      <a href="./Equipo Publico.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:var(--color-neutral-700);margin:clamp(16px,3vw,30px) 0 22px" style-hover="color:var(--color-accent-700)"><span class="ms" style="font-size:18px">arrow_back</span>Volver al equipo</a>
+
+      <div style="display:flex;gap:clamp(20px,3vw,36px);flex-wrap:wrap;align-items:flex-start;margin-bottom:34px">
+        <span style="width:clamp(140px,18vw,196px);height:clamp(140px,18vw,196px);border-radius:var(--radius-lg);background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);background-image:url({{ curPhoto }});background-size:cover;background-position:center top;display:grid;place-items:center;flex:none;filter:saturate(0.82) contrast(0.94)">
+          <sc-if value="{{ curNoPhoto }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family:var(--font-body);font-size:48px;font-weight:900;letter-spacing:-0.04em;color:var(--color-accent-2-700)">{{ curInitials }}</span>
+          </sc-if>
+        </span>
+        <div style="flex:1 1 320px;min-width:280px">
+          <div style="display:inline-flex;color:var(--color-accent-2-700);font-size:11.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:11px;border-bottom:2px solid var(--color-accent-2-600);margin-bottom:18px">Equipo del centro</div>
+          <h1 style="font-family:var(--font-body);font-weight:900;font-size:clamp(30px,4vw,46px);line-height:1;letter-spacing:-0.035em;margin:0 0 10px">{{ curName }}</h1>
+          <p style="font-size:17px;font-weight:700;color:var(--color-neutral-700);margin:0 0 16px">{{ publicSub }}</p>
+
+          <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:20px">
+            <sc-for list="{{ tags }}" as="tg" hint-placeholder-count="4">
+              <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:800;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:999px;padding:8px 15px">
+                <span class="ms" style="font-size:17px;color:var(--color-accent-2-700)">{{ tg.icon }}</span>{{ tg.label }}
+              </span>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <a href="./Paciente - Pedir Hora.dc.html" style="background:var(--color-accent-600);color:var(--color-neutral-100);font-weight:800;font-size:15px;padding:15px 28px;border-radius:999px;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-700);color:var(--color-neutral-100)"><span class="ms" style="font-size:19px">calendar_month</span>Agendar una hora</a>
+            <a href="./Equipo Publico.dc.html" style="border:1.5px solid var(--color-neutral-400);color:var(--color-text);font-weight:800;font-size:15px;padding:15px 26px;border-radius:999px;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500);color:var(--color-text)"><span class="ms" style="font-size:19px">groups</span>Ver otros profesionales</a>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:start">
+
+        <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+          <section style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:clamp(26px,3vw,34px) clamp(26px,3vw,36px);box-shadow:var(--shadow-sm)">
+            <div style="display:inline-flex;color:var(--color-accent-2-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:10px;border-bottom:2px solid var(--color-accent-2-600);margin-bottom:20px">Mi historia</div>
+
+            <p style="font-family:var(--font-body);font-weight:900;font-size:clamp(21px,2.4vw,27px);line-height:1.25;letter-spacing:-0.03em;margin:0 0 22px;text-wrap:pretty">{{ storyLead }}</p>
+
+            <div style="display:flex;flex-direction:column;gap:16px;font-size:15.5px;font-weight:500;line-height:1.7;color:var(--color-neutral-800)">
+              <sc-for list="{{ storyRest }}" as="p" hint-placeholder-count="2">
+                <p style="margin:0;text-wrap:pretty">{{ p }}</p>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;gap:14px;margin-top:24px;padding-top:22px;border-top:1px solid var(--color-divider)">
+              <span class="ms" style="font-size:22px;color:var(--color-accent-700);flex:none">format_quote</span>
+              <p style="font-family:var(--font-body);font-weight:800;font-size:16.5px;line-height:1.5;letter-spacing:-0.02em;margin:0;text-wrap:pretty">{{ quote }}</p>
+            </div>
+          </section>
+
+          <section style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:26px 28px;box-shadow:var(--shadow-sm)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:20px">
+              <div>
+                <h2 style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.025em;margin:0 0 6px">Lo que dicen sus pacientes</h2>
+                <p style="font-size:13.5px;font-weight:600;color:var(--color-neutral-600);margin:0">Calificaciones anónimas de personas atendidas en el centro.</p>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:18px;padding:13px 18px">
+                <span style="font-family:var(--font-body);font-weight:900;font-size:32px;line-height:1;letter-spacing:-0.035em">{{ curRating }}</span>
+                <div>
+                  <div style="display:flex;gap:2px;margin-bottom:4px">
+                    <sc-for list="{{ stars }}" as="st" hint-placeholder-count="5">
+                      <span class="ms {{ st.cls }}" style="font-size:18px;color:{{ st.color }}">{{ st.icon }}</span>
+                    </sc-for>
+                  </div>
+                  <div style="font-size:12px;font-weight:700;color:var(--color-neutral-600)">{{ curReviewCount }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+              <sc-for list="{{ reviews }}" as="rv" hint-placeholder-count="3">
+                <div style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:18px;padding:18px 20px">
+                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+                    <span style="width:28px;height:28px;border-radius:999px;background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);display:grid;place-items:center;flex:none"><span class="ms" style="font-size:16px;color:var(--color-accent-2-700)">verified_user</span></span>
+                    <span style="font-size:13px;font-weight:800">Paciente verificado</span>
+                    <span style="font-size:12.5px;font-weight:700;color:var(--color-neutral-600)">· {{ rv.when }}</span>
+                    <span style="display:flex;gap:1px;margin-left:auto">
+                      <sc-for list="{{ rv.stars }}" as="s2" hint-placeholder-count="5">
+                        <span class="ms {{ s2.cls }}" style="font-size:16px;color:{{ s2.color }}">{{ s2.icon }}</span>
+                      </sc-for>
+                    </span>
+                  </div>
+                  <p style="font-size:14.5px;font-weight:500;line-height:1.6;color:var(--color-neutral-800);margin:0;text-wrap:pretty">{{ rv.text }}</p>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:14px;background:var(--color-accent-200);border:1px solid var(--color-accent-500);border-radius:18px;padding:17px 19px;flex-wrap:wrap">
+              <span class="ms" style="font-size:20px;color:var(--color-accent-700);flex:none">rate_review</span>
+              <p style="font-size:13.5px;font-weight:700;color:var(--color-accent-900);margin:0;flex:1 1 200px;text-wrap:pretty">Tuviste una sesión con {{ curShort }} el 26 de agosto y aún no la calificas.</p>
+              <button type="button" style="border:none;background:var(--color-accent-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:13.5px;padding:12px 20px;border-radius:999px;cursor:pointer;flex:none" style-hover="background:var(--color-accent-700)">Calificar a este profesional</button>
+            </div>
+          </section>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+          <section style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:26px 28px;box-shadow:var(--shadow-sm)">
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.025em;margin:0 0 6px">Próximas horas disponibles</h2>
+            <p style="font-size:13.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 18px">Disponibilidad tomada de la agenda del centro.</p>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+              <sc-for list="{{ slots }}" as="sl" hint-placeholder-count="4">
+                <button type="button" style="border:1.5px solid var(--color-neutral-400);background:var(--color-bg);font-family:var(--font-body);color:var(--color-text);border-radius:18px;padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:13px;text-align:left" style-hover="border-color:var(--color-accent-500);background:var(--color-accent-200)">
+                  <span class="ms" style="font-size:19px;color:var(--color-accent-2-700);flex:none">schedule</span>
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font-size:14px;font-weight:900;letter-spacing:-0.015em">{{ sl.day }}</span>
+                    <span style="display:block;font-size:12.5px;font-weight:600;color:var(--color-neutral-600)">{{ sl.detail }}</span>
+                  </span>
+                  <span class="ms" style="font-size:18px;color:var(--color-neutral-500);flex:none">arrow_forward</span>
+                </button>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <sc-for list="{{ facts }}" as="ft" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:12px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:18px;padding:14px 17px">
+                  <span class="ms" style="font-size:19px;color:var(--color-accent-2-700);flex:none">{{ ft.icon }}</span>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:3px">{{ ft.label }}</div>
+                    <div style="font-size:14px;font-weight:800;letter-spacing:-0.015em">{{ ft.value }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1020}}">
+const BIO = "Empecé atendiendo en un colegio municipal de La Florida, con una sala prestada y treinta niños en lista de espera. Ahí aprendí lo que todavía guía mi trabajo: un niño no llega solo a terapia. Llega con una familia cansada, un profesor preocupado y una historia que cada uno cuenta distinto. Mi primer trabajo es escuchar todas esas versiones antes de proponer nada.\n\nHoy trabajo con niños desde los 4 años y con adolescentes hasta los 18. Con los más pequeños uso juego y dibujo, porque es su idioma; con los adolescentes, conversación directa y sin rodeos.";
+
+const BIO_OLD = "Trabajo con niños, niñas y adolescentes desde un enfoque sistémico, incorporando siempre a la familia en el proceso. Las primeras sesiones son de conocimiento mutuo: parto por entender cómo se ve el problema desde la mirada del niño y desde la del adulto que lo acompaña, y recién entonces acordamos objetivos concretos. Uso juego y material gráfico con los más pequeños, y trabajo con pauta más conversacional desde los 12 años.";
+
+const TEAM = [
+  {
+    id: "mr", initials: "MR", name: "Marcela Rivas Bustos", short: "Marcela Rivas", photo: "./assets/marcela-1.png",
+    especialidad: "Psicóloga clínica · adultos y parejas", anos: "16 años",
+    telefono: "+56 9 8811 2233", correo: "marcela.rivas@centroejemplo.cl", role: "madre",
+    self: true, next: "Hoy, 12:00 · Box 2",
+    bio: "Llevo dieciséis años atendiendo adultos, la mayoría llegando por ansiedad o por un duelo que no termina de cerrar. Trabajo con sesiones semanales de 50 minutos, tareas concretas entre encuentros y revisión de objetivos cada seis semanas.\n\nDesde 2019 dirijo el centro. Eso significa que además de atender, respondo por cómo funciona el equipo: la agenda, los protocolos y que nadie quede atendiendo sin supervisión.",
+    quote: "Prefiero decir de entrada cuánto puede durar un proceso antes que prometer alivio en tres sesiones.",
+    rating: "4,9", ratingN: 5, reviewCount: "48 calificaciones",
+    reviews: [
+      { when: "hace 3 semanas", n: 5, text: "Muy clara para poner objetivos y revisarlos. Sentí que el proceso tenía un rumbo desde la segunda sesión." },
+      { when: "hace 2 meses", n: 5, text: "Me acompañó en un duelo largo sin apurar nada. Agradezco la honestidad con los tiempos." }
+    ],
+    stats: [
+      { label: "Sesiones esta semana", value: "18" },
+      { label: "Pacientes activos", value: "22" },
+      { label: "Fichas sin cerrar", value: "1" }
+    ],
+    patients: [
+      { initials: "IB", name: "Ignacio Bravo", next: "Hoy, 09:00 · Box 2", state: "Ficha sin cerrar", kind: "warn" },
+      { initials: "VD", name: "Valentina Díaz", next: "Hoy, 12:00 · Box 2", state: "Al día", kind: "ok" },
+      { initials: "PA", name: "Pablo y Ana", next: "Miércoles, 15:00 · Box 3", state: "Por confirmar", kind: "warn" },
+      { initials: "TH", name: "Tomás Herrera", next: "Viernes, 16:00 · Box 3", state: "Al día", kind: "ok" }
+    ],
+    tags: [
+      { icon: "psychology", label: "Terapia cognitivo-conductual" },
+      { icon: "diversity_3", label: "Adultos y parejas" },
+      { icon: "videocam", label: "Presencial y online" },
+      { icon: "payments", label: "$38.000 por sesión" }
+    ]
+  },
+  {
+    id: "jt", initials: "JT", name: "Javier Tapia Ortiz", short: "Javier Tapia", photo: "./assets/javier-1.png",
+    especialidad: "Psicólogo infanto-juvenil", anos: "11 años",
+    telefono: "+56 9 7744 5566", correo: "javier.tapia@centroejemplo.cl", role: "profesional",
+    next: "Martes, 17:00 · Box 1",
+    bio: "Trabajo con niños y adolescentes, casi siempre derivados por el colegio. La evaluación la hago por etapas y con la familia presente desde la primera reunión.\n\nCoordino directamente con profesores y equipos de convivencia escolar cuando el caso lo pide. Muchas veces el cambio empieza ahí y no en la consulta.",
+    quote: "Un niño no llega solo: llega con una familia y un colegio que también están cansados.",
+    rating: "4,7", ratingN: 5, reviewCount: "26 calificaciones",
+    reviews: [
+      { when: "hace 1 mes", n: 5, text: "Coordinó con el colegio de mi hijo sin que yo tuviera que insistir. Eso nos cambió el año." },
+      { when: "hace 3 meses", n: 4, text: "Buen trato con los adolescentes. Los horarios de tarde se llenan rápido." }
+    ],
+    stats: [
+      { label: "Sesiones esta semana", value: "9" },
+      { label: "Pacientes activos", value: "12" },
+      { label: "Fichas sin cerrar", value: "1" }
+    ],
+    patients: [
+      { initials: "MF", name: "Matías Fuenzalida", next: "Martes, 17:00 · Box 1", state: "Al día", kind: "ok" },
+      { initials: "CR", name: "Camilo Reyes", next: "Lunes, 16:00 · Box 3", state: "Ficha sin cerrar", kind: "warn" },
+      { initials: "AV", name: "Antonia Vera", next: "Miércoles, 15:00 · Box 1", state: "Al día", kind: "ok" },
+      { initials: "EN", name: "Emilia Navarro", next: "Viernes, 17:30 · Box 2", state: "Por confirmar", kind: "warn" }
+    ],
+    tags: [
+      { icon: "school", label: "Coordinación con colegios" },
+      { icon: "child_care", label: "Niños y adolescentes" },
+      { icon: "home_work", label: "Solo presencial" },
+      { icon: "payments", label: "$30.000 por sesión" }
+    ]
+  },
+  {
+    id: "cs", initials: "CS", name: "Camila Soto Lagos", short: "Camila Soto", photo: "./assets/camila-1.png",
+    especialidad: "Psicóloga infantil y adolescente", anos: "9 años",
+    telefono: "+56 9 7654 3210", correo: "camila.soto@centroejemplo.cl", role: "profesional",
+    next: "Hoy, 16:00 · Box 3",
+    bio: BIO,
+    quote: "No prometo procesos rápidos. Prometo que vamos a saber en qué estamos trabajando y por qué.",
+    rating: "4,8", ratingN: 5, reviewCount: "32 calificaciones",
+    reviews: [
+      { when: "hace 2 semanas", n: 5, text: "Mi hija llegó muy cerrada a la primera sesión y salió contándome cosas que no me había dicho en meses. La forma de trabajar con la familia nos ordenó a todos." },
+      { when: "hace 1 mes", n: 5, text: "Puntual, clara y directa con los objetivos. Me explicó qué esperar del proceso sin prometer resultados rápidos, lo que agradecí mucho." },
+      { when: "hace 2 meses", n: 4, text: "Muy buena atención. Lo único es que los horarios disponibles en la tarde son pocos y a veces cuesta calzar con el colegio." }
+    ],
+    stats: [
+      { label: "Sesiones esta semana", value: "11" },
+      { label: "Pacientes activos", value: "14" },
+      { label: "Fichas sin cerrar", value: "2" }
+    ],
+    patients: [
+      { initials: "IF", name: "Isidora Fuentes", next: "Mañana, 10:00 · Box 2", state: "Al día", kind: "ok" },
+      { initials: "MB", name: "Matías Bravo", next: "Jueves, 17:00 · Box 3", state: "Pago pendiente", kind: "warn" },
+      { initials: "AR", name: "Antonia Reyes", next: "Sin hora agendada", state: "Por reagendar", kind: "neutral" },
+      { initials: "TC", name: "Tomás Cárdenas", next: "Viernes, 15:00 · Box 1", state: "Al día", kind: "ok" }
+    ],
+    tags: [
+      { icon: "school", label: "Enfoque sistémico" },
+      { icon: "family_restroom", label: "Niños y adolescentes" },
+      { icon: "videocam", label: "Presencial y online" },
+      { icon: "payments", label: "$32.000 por sesión" }
+    ]
+  },
+  {
+    id: "np", initials: "NP", name: "Nicolás Peña Aravena", short: "Nicolás Peña", photo: "./assets/nicolas-1.png",
+    especialidad: "Psicólogo clínico · estrés laboral", anos: "7 años",
+    telefono: "+56 9 5522 9911", correo: "nicolas.pena@centroejemplo.cl", role: "profesional",
+    next: "Martes, 12:00 · Box 4",
+    bio: "Atiendo adultos que llegan desbordados por el trabajo: insomnio, irritabilidad, la sensación de no poder parar. Son procesos breves, de ocho a doce sesiones, con herramientas de manejo diario y un alta planificada.\n\nAntes trabajé cuatro años en salud ocupacional, así que conozco bien el lado de la empresa y lo que sí se puede negociar en una jornada.",
+    quote: "El alta se conversa desde la primera sesión: no es un premio, es el objetivo.",
+    rating: "4,6", ratingN: 5, reviewCount: "19 calificaciones",
+    reviews: [
+      { when: "hace 2 semanas", n: 5, text: "Procesos cortos y concretos. Salí con herramientas que uso todas las semanas." },
+      { when: "hace 2 meses", n: 4, text: "Muy ordenado. Me habría gustado tener más horas disponibles en la mañana." }
+    ],
+    stats: [
+      { label: "Sesiones esta semana", value: "8" },
+      { label: "Pacientes activos", value: "10" },
+      { label: "Fichas sin cerrar", value: "1" }
+    ],
+    patients: [
+      { initials: "TH", name: "Tomás Herrera", next: "Martes, 12:00 · Box 4", state: "Por confirmar", kind: "warn" },
+      { initials: "CR", name: "Camilo Reyes", next: "Jueves, 18:00 · Box 4", state: "Ficha sin cerrar", kind: "warn" },
+      { initials: "RS", name: "Rodrigo Salas", next: "Viernes, 09:30 · Box 4", state: "Al día", kind: "ok" }
+    ],
+    tags: [
+      { icon: "work", label: "Estrés y burnout laboral" },
+      { icon: "person", label: "Adultos" },
+      { icon: "videocam", label: "Presencial y online" },
+      { icon: "payments", label: "$34.000 por sesión" }
+    ]
+  },
+  {
+    id: "jn", initials: "JN", name: "Josefa Núñez Cerda", short: "Josefa Núñez", photo: "",
+    especialidad: "Práctica supervisada", anos: "En formación",
+    telefono: "+56 9 4411 7788", correo: "josefa.nunez@centroejemplo.cl", role: "practicante",
+    next: "Martes, 09:30 · Box 2",
+    bio: "Estoy en práctica profesional en el centro. Tomo las primeras acogidas y apoyo el seguimiento de casos activos, siempre con supervisión semanal de la dirección.\n\nMe interesa el trabajo con adultos jóvenes y la primera consulta, ese momento en que alguien decide pedir ayuda por primera vez.",
+    quote: "La primera consulta es la más difícil de pedir. Trato de que valga la pena haber llamado.",
+    rating: "—", ratingN: 0, reviewCount: "Sin calificaciones aún",
+    reviews: [],
+    stats: [
+      { label: "Sesiones esta semana", value: "4" },
+      { label: "Pacientes activos", value: "2" },
+      { label: "Fichas sin cerrar", value: "0" }
+    ],
+    patients: [
+      { initials: "IL", name: "Isidora Lagos", next: "Martes, 09:30 · Box 2", state: "Al día", kind: "ok" },
+      { initials: "BC", name: "Benjamín Cortés", next: "Sin hora agendada", state: "Lista de espera", kind: "neutral" }
+    ],
+    tags: [
+      { icon: "school", label: "Práctica supervisada" },
+      { icon: "record_voice_over", label: "Primeras acogidas" },
+      { icon: "home_work", label: "Solo presencial" },
+      { icon: "payments", label: "Sin costo para el paciente" }
+    ]
+  },
+  {
+    id: "fv", initials: "FV", name: "Fernanda Vidal Rojas", short: "Fernanda Vidal", photo: "",
+    especialidad: "Neuropsicóloga", anos: "13 años",
+    telefono: "+56 9 3399 2211", correo: "fernanda.vidal@centroejemplo.cl", role: "profesional",
+    next: "Miércoles, 09:00 · Box 3",
+    bio: "Hago evaluaciones de funciones cognitivas: atención, memoria, funciones ejecutivas. Cada evaluación toma dos bloques de dos horas y termina en un informe con recomendaciones concretas para la familia y el colegio o el trabajo.\n\nNo hago psicoterapia. Cuando el informe muestra que hace falta, derivo internamente al profesional del equipo que corresponda.",
+    quote: "Un informe sirve si alguien puede aplicarlo el lunes siguiente. Ese es el estándar.",
+    rating: "4,9", ratingN: 5, reviewCount: "21 calificaciones",
+    reviews: [
+      { when: "hace 1 mes", n: 5, text: "El informe fue clarísimo y el colegio pudo usarlo de inmediato. Explicó cada resultado sin tecnicismos." },
+      { when: "hace 4 meses", n: 5, text: "Muy rigurosa. La evaluación tomó dos sesiones largas pero valió la pena." }
+    ],
+    stats: [
+      { label: "Sesiones esta semana", value: "6" },
+      { label: "Evaluaciones activas", value: "5" },
+      { label: "Informes pendientes", value: "1" }
+    ],
+    patients: [
+      { initials: "MF", name: "Matías Fuenzalida", next: "Miércoles, 09:00 · Box 3", state: "Derivado", kind: "neutral" },
+      { initials: "TS", name: "Trinidad Silva", next: "Viernes, 10:00 · Box 3", state: "Al día", kind: "ok" }
+    ],
+    tags: [
+      { icon: "neurology", label: "Evaluación neuropsicológica" },
+      { icon: "groups", label: "Niños, adolescentes y adultos" },
+      { icon: "home_work", label: "Solo presencial" },
+      { icon: "payments", label: "$120.000 por evaluación" }
+    ]
+  }
+];
+
+const PT_KIND = {
+  ok: { bg: "var(--color-accent-2-200)", fg: "var(--color-accent-2-900)", bd: "var(--color-accent-2-500)" },
+  warn: { bg: "var(--color-accent-200)", fg: "var(--color-accent-900)", bd: "var(--color-accent-500)" },
+  neutral: { bg: "var(--color-neutral-200)", fg: "var(--color-neutral-800)", bd: "var(--color-neutral-500)" }
+};
+
+const PROTOCOL = [
+  { n: "1", title: "Horarios y presencia en el centro", text: "Los bloques comprometidos en la agenda se cumplen íntegros. Cualquier cambio permanente de horario se solicita a la dirección con dos semanas de anticipación y se refleja en la agenda antes de entrar en vigencia." },
+  { n: "2", title: "Uso de boxes y espacios comunes", text: "El box se reserva desde la agenda del centro y se entrega ordenado al terminar el bloque. No se guardan objetos personales ni material de pacientes en los boxes: el material clínico se archiva bajo llave en la oficina de dirección." },
+  { n: "3", title: "Cierre de fichas", text: "La ficha de cada sesión se cierra el mismo día de atención. La liquidación del período solo considera sesiones con ficha cerrada, y las fichas pendientes aparecen en el panel de la dirección." },
+  { n: "4", title: "Cancelaciones y ausencias", text: "Las cancelaciones del profesional se avisan al paciente y a la coordinación con 24 horas de anticipación. Si el paciente no asiste sin aviso, se registra la inasistencia en la ficha administrativa y se aplica el arancel según el reglamento informado al ingreso." },
+  { n: "5", title: "Manejo de datos y secreto profesional", text: "El contenido clínico es visible únicamente para el profesional tratante. La dirección accede solo a datos administrativos. No se comparten antecedentes de pacientes por canales personales, ni se extraen registros del sistema sin una solicitud formal de datos." },
+  { n: "6", title: "Derivaciones internas", text: "Toda derivación entre profesionales del centro se coordina en reunión de equipo y se registra en la ficha administrativa del paciente, indicando quién deriva, a quién y por qué motivo administrativo." },
+  { n: "7", title: "Supervisión de practicantes", text: "Los practicantes atienden siempre bajo supervisión y con revisión semanal de casos. Su cuenta tiene fecha de término definida al momento de crearla y el acceso se cierra automáticamente en esa fecha." }
+];
+
+const REVIEWS = [
+  { when: "hace 2 semanas", n: 5, text: "Mi hija llegó muy cerrada a la primera sesión y salió contándome cosas que no me había dicho en meses. La forma de trabajar con la familia nos ordenó a todos." },
+  { when: "hace 1 mes", n: 5, text: "Puntual, clara y directa con los objetivos. Me explicó qué esperar del proceso sin prometer resultados rápidos, lo que agradecí mucho." },
+  { when: "hace 2 meses", n: 4, text: "Muy buena atención. Lo único es que los horarios disponibles en la tarde son pocos y a veces cuesta calzar con el colegio." }
+];
+
+const starRow = n => [1, 2, 3, 4, 5].map(i => ({
+  icon: i <= n ? "star" : "star_border",
+  color: i <= n ? "var(--color-accent-600)" : "var(--color-neutral-400)",
+  cls: i <= n ? "msf" : ""
+}));
+
+class Component extends DCLogic {
+  state = {
+    protoOpen: false, protoAck: false,
+    mode: "privado",
+    sel: "mr",
+    data: TEAM.reduce((acc, m) => {
+      acc[m.id] = {
+        nombre: m.name, especialidad: m.especialidad, anos: m.anos,
+        telefono: m.telefono, correo: m.correo, bio: m.bio, role: m.role
+      };
+      return acc;
+    }, {})
+  };
+
+  patch(k, v) {
+    this.setState(s => ({
+      data: Object.assign({}, s.data, {
+        [s.sel]: Object.assign({}, s.data[s.sel], { [k]: v })
+      })
+    }));
+  }
+
+  componentDidMount() {
+    const h = (window.location.hash || "").toLowerCase();
+    if (h.indexOf("publico") === -1) return;
+    const id = h.split("-")[1];
+    const hit = TEAM.find(m => m.id === id);
+    this.setState(hit ? { mode: "publico", sel: hit.id } : { mode: "publico" });
+  }
+
+  navItems() {
+    const item = (icon, label, href, opts) => Object.assign({
+      icon, label, href, weight: 600, color: "var(--color-text)", bg: "transparent"
+    }, opts || {});
+    return [
+      item("folder_shared", "Fichas y Pacientes", "./Admin - Fichas y Pacientes.dc.html"),
+      item("calendar_month", "Agenda y Espacios", "./Admin - Agenda y Espacios.dc.html"),
+      item("groups", "Equipo", "./Admin - Perfil Profesional.dc.html", { weight: 800, color: "var(--color-accent-2-700)", bg: "var(--color-accent-2-200)" }),
+      item("join", "Match Terapéutico", "./Admin - Match Configuracion.dc.html"),
+      item("payments", "Cobros", "./Admin - Cobros.dc.html")
+    ];
+  }
+
+  setField(k) {
+    return e => this.patch(k, e.target.value);
+  }
+
+  renderVals() {
+    const cur = TEAM.find(m => m.id === this.state.sel) || TEAM[0];
+    const f = this.state.data[cur.id];
+    const role = f.role;
+    const firstName = f.nombre.split(/\s+/)[0];
+
+    return {
+      team: TEAM.map(m => {
+        const on = m.id === this.state.sel;
+        const nm = this.state.data[m.id].nombre;
+        return {
+          initials: m.initials, photo: m.photo, noPhoto: !m.photo,
+          name: nm.split(/\s+/).slice(0, 2).join(" "),
+          role: this.state.data[m.id].role === "madre" ? "Cuenta madre"
+            : this.state.data[m.id].role === "practicante" ? "Practicante" : "Profesional",
+          pick: () => this.setState({ sel: m.id }),
+          ring: on ? "var(--color-accent-600)" : "var(--color-neutral-400)",
+          ringW: on ? "3px" : "1.5px",
+          bg: on ? "var(--color-accent-200)" : "transparent",
+          nameColor: on ? "var(--color-accent-900)" : "var(--color-text)",
+          nameWeight: on ? "900" : "700"
+        };
+      }),
+      curName: f.nombre,
+      curShort: firstName,
+      curEspecialidad: f.especialidad,
+      curPhoto: cur.photo,
+      curNoPhoto: !cur.photo,
+      curInitials: cur.initials,
+      curNext: cur.next,
+      curRating: cur.rating,
+      curReviewCount: cur.reviewCount,
+      hasReviews: cur.reviews.length > 0,
+      noReviews: cur.reviews.length === 0,
+      selfNote: cur.self ? "Estás viendo tu propio perfil" : "Estás viendo el perfil de otro profesional",
+      selfIcon: cur.self ? "visibility" : "supervisor_account",
+      saveLabel: "Guardar cambios de " + f.nombre.split(/\s+/).slice(0, 2).join(" "),
+      publicSub: f.especialidad + " · " + (/a(ñ|n)os/i.test(f.anos) ? f.anos + " de experiencia" : f.anos),
+      storyLead: f.bio.split("\n\n").filter(p => p.trim())[0] || "",
+      storyRest: f.bio.split("\n\n").filter(p => p.trim()).slice(1),
+      quote: cur.quote,
+      modes: [
+        { k: "privado", label: "Vista privada", icon: "lock" },
+        { k: "publico", label: "Vista pública", icon: "public" }
+      ].map(m => ({
+        label: m.label, icon: m.icon,
+        pick: () => this.setState({ mode: m.k }),
+        bg: this.state.mode === m.k ? "var(--color-accent-2-600)" : "transparent",
+        fg: this.state.mode === m.k ? "var(--color-neutral-100)" : "var(--color-text)"
+      })),
+      protoOpen: this.state.protoOpen,
+      openProto: () => this.setState({ protoOpen: true }),
+      closeProto: () => this.setState({ protoOpen: false }),
+      ackProto: () => this.setState({ protoOpen: false, protoAck: true }),
+      protoRead: this.state.protoAck
+        ? "Leído y confirmado."
+        : "Sin registro de lectura para esta cuenta.",
+      protocol: PROTOCOL,
+      isPrivate: this.state.mode === "privado",
+      isPublic: this.state.mode === "publico",
+      nav: this.navItems(),
+
+      fields: [
+        { label: "Nombre completo", value: f.nombre, set: this.setField("nombre") },
+        { label: "Especialidad", value: f.especialidad, set: this.setField("especialidad") },
+        { label: "Años de experiencia", value: f.anos, set: this.setField("anos") },
+        { label: "Teléfono", value: f.telefono, set: this.setField("telefono") },
+        { label: "Correo", value: f.correo, set: this.setField("correo") }
+      ],
+      bio: f.bio,
+      setBio: e => this.patch("bio", e.target.value),
+
+      roles: [
+        { k: "madre", label: "Cuenta madre", icon: "shield_person" },
+        { k: "profesional", label: "Profesional", icon: "person" },
+        { k: "practicante", label: "Practicante", icon: "school" }
+      ].map(r => ({
+        label: r.label, icon: r.icon,
+        pick: () => this.patch("role", r.k),
+        border: role === r.k ? "var(--color-accent-2-600)" : "var(--color-neutral-400)",
+        bg: role === r.k ? "var(--color-accent-2-200)" : "var(--color-neutral-100)",
+        fg: role === r.k ? "var(--color-accent-2-900)" : "var(--color-text)"
+      })),
+      isPracticante: role === "practicante",
+      roleTag: role === "madre" ? "Cuenta madre" : (role === "practicante" ? "Practicante" : "Profesional"),
+
+      stars: starRow(cur.ratingN),
+      reviews: cur.reviews.map(r => ({ when: r.when, text: r.text, stars: starRow(r.n) })),
+
+      stats: cur.stats,
+      patients: cur.patients.map(p => Object.assign({
+        initials: p.initials, name: p.name, next: p.next, state: p.state
+      }, PT_KIND[p.kind])),
+
+      tags: cur.tags,
+      slots: [
+        { day: "Martes 8 de septiembre", detail: "16:00 · Presencial, Box 3" },
+        { day: "Miércoles 9 de septiembre", detail: "11:00 · Online" },
+        { day: "Jueves 10 de septiembre", detail: "09:00 · Presencial, Box 3" },
+        { day: "Viernes 11 de septiembre", detail: "18:00 · Online" }
+      ],
+      facts: [
+        { icon: "translate", label: "Idiomas", value: "Español, inglés" },
+        { icon: "assignment", label: "Convenios", value: "FONASA y particular" },
+        { icon: "schedule", label: "Duración de la sesión", value: "50 minutos" }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

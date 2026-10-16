@@ -3,7 +3,9 @@ import { ApiTags } from '@nestjs/swagger';
 import { EstadoDerivacion } from '@prisma/client';
 
 import { TAGS } from '../../core/docs/openapi';
+import { Modulo } from '../../core/modulos/modulos';
 import { Roles } from '../../core/auth/decoradores';
+import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
 import { DerivacionesService } from './derivaciones.service';
 import {
   CancelarDerivacionDto,
@@ -22,6 +24,7 @@ const Uuid = new ParseUUIDPipe();
 /** Roles segun matriz_permisos.md (funciones de derivacion). La BD valida el detalle (tratante, supervisor, bandeja). */
 @ApiTags(TAGS.derivaciones)
 @Controller('derivaciones')
+@Modulo('FICHAS')
 export class DerivacionesController {
   constructor(private readonly derivaciones: DerivacionesService) {}
 
@@ -94,11 +97,15 @@ export class DerivacionesController {
 /** Consentimientos y avisos: responde el paciente (o su adulto responsable) o ADMIN/GESTION con respaldo. */
 @ApiTags(TAGS.derivaciones)
 @Controller()
+@Modulo('FICHAS')
 export class ConsentimientosController {
-  constructor(private readonly derivaciones: DerivacionesService) {}
+  constructor(
+    private readonly derivaciones: DerivacionesService,
+    private readonly correos: CorreosCuenta,
+  ) {}
 
   @Get('consentimientos')
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
   listar() {
     return this.derivaciones.consentimientos();
   }
@@ -111,28 +118,42 @@ export class ConsentimientosController {
 
   @Post('consentimientos/:id/respuesta')
   @HttpCode(200)
-  @Roles('PACIENTE', 'ADMIN', 'GESTION')
+  @Roles('PACIENTE', 'RESPONSABLE', 'ADMIN', 'GESTION')
   responder(@Param('id', Uuid) id: string, @Body() dto: ResponderConsentimientoDto) {
     return this.derivaciones.responderConsentimiento(id, dto);
   }
 
   @Post('consentimientos/:id/revocacion')
   @HttpCode(200)
-  @Roles('PACIENTE', 'ADMIN', 'GESTION')
+  @Roles('PACIENTE', 'RESPONSABLE', 'ADMIN', 'GESTION')
   revocar(@Param('id', Uuid) id: string, @Body() dto: RevocarConsentimientoDto) {
     return this.derivaciones.revocarConsentimiento(id, dto);
   }
 
   @Get('avisos-consentimiento')
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
   avisos() {
     return this.derivaciones.avisos();
   }
 
   @Post('avisos-consentimiento/:id/respuesta')
   @HttpCode(200)
-  @Roles('PACIENTE', 'ADMIN', 'GESTION')
+  @Roles('PACIENTE', 'RESPONSABLE', 'ADMIN', 'GESTION')
   responderAviso(@Param('id', Uuid) id: string, @Body() dto: ResponderAvisoDto) {
     return this.derivaciones.responderAviso(id, dto);
+  }
+
+  /** D-3: enlace de un solo uso por correo para responder la solicitud (al paciente o a su adulto responsable). */
+  @Post('consentimientos/:id/enlace')
+  @Roles('ADMIN', 'GESTION')
+  enlaceConsentimiento(@Param('id', Uuid) id: string) {
+    return this.correos.enlaceConsentimiento(id);
+  }
+
+  /** D-3: enlace de un solo uso para responder (o oponerse a) un aviso de cambio de supervisor. */
+  @Post('avisos-consentimiento/:id/enlace')
+  @Roles('ADMIN', 'GESTION')
+  enlaceAviso(@Param('id', Uuid) id: string) {
+    return this.correos.enlaceConsentimiento(id);
   }
 }

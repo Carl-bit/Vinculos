@@ -1,9 +1,32 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 
 import { TAGS } from '../../core/docs/openapi';
 import { Roles } from '../../core/auth/decoradores';
+import { IMAGEN_MAX_BYTES } from '../../core/imagenes/imagenes';
+import { CentroService } from './centro.service';
 import {
+  BajaRolDto,
+  ContenidoPublicoDto,
+  FiltroDirectorioDto,
+  HorarioDto,
+  OtorgarRolDto,
+  PoliticaDto,
   CambiarPasswordDto,
   CrearUsuarioDto,
   EditarConfiguracionDto,
@@ -16,7 +39,8 @@ import {
 import { EquipoAccesoService } from './equipo-acceso.service';
 import { UsuariosService } from './usuarios.service';
 
-const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
+const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE'] as const;
+const EQUIPO = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE'] as const;
 const Uuid = new ParseUUIDPipe();
 
 /** Roles segun docs/seguridad/matriz_permisos.md (usuarios, configuracion_centro). */
@@ -67,6 +91,34 @@ export class UsuariosController {
   editar(@Param('id', Uuid) id: string, @Body() dto: EditarUsuarioDto) {
     return this.usuarios.editar(id, dto);
   }
+
+  /** Reenvia la invitacion de una cuenta de equipo (enlace de un solo uso para fijar la contraseña). */
+  @Post(':id/invitacion')
+  @Roles('ADMIN')
+  invitar(@Param('id', Uuid) id: string) {
+    return this.usuarios.invitar(id);
+  }
+
+  /** C-1: segundo rol (PROFESIONAL) de una cuenta ADMIN o GESTION. */
+  @Post(':id/roles')
+  @Roles('ADMIN')
+  otorgarRol(@Param('id', Uuid) id: string, @Body() dto: OtorgarRolDto) {
+    return this.usuarios.otorgarRol(id, dto.rol);
+  }
+
+  /** Baja de un rol adicional (no de la cuenta). */
+  @Post(':id/roles/PROFESIONAL/baja')
+  @Roles('ADMIN')
+  bajaRol(@Param('id', Uuid) id: string, @Body() dto: BajaRolDto) {
+    return this.usuarios.bajaRol(id, 'PROFESIONAL', dto.fechaEfectiva);
+  }
+
+  @Post(':id/totp/reinicio')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  reiniciarTotp(@Param('id', Uuid) id: string) {
+    return this.usuarios.reiniciarTotp(id);
+  }
 }
 
 @ApiTags(TAGS.nucleo)
@@ -84,6 +136,76 @@ export class ConfiguracionController {
   @Roles('ADMIN')
   editar(@Body() dto: EditarConfiguracionDto) {
     return this.usuarios.editarConfiguracion(dto);
+  }
+}
+
+/** Datos del centro (03a): contenido publico, logo, politicas, horario, modulos y dashboard. */
+@ApiTags(TAGS.nucleo)
+@Controller()
+export class CentroController {
+  constructor(private readonly centro: CentroService) {}
+
+  /** Modulos contratados: el front oculta los inactivos; la API responde 403 en sus rutas. */
+  @Get('modulos')
+  @Roles(...TODOS)
+  modulos() {
+    return this.centro.modulos();
+  }
+
+  @Get('configuracion/contenido-publico')
+  @Roles(...EQUIPO)
+  contenido() {
+    return this.centro.contenido();
+  }
+
+  @Patch('configuracion/contenido-publico')
+  @Roles('ADMIN')
+  editarContenido(@Body() dto: ContenidoPublicoDto) {
+    return this.centro.editarContenido(dto);
+  }
+
+  @Post('configuracion/logo')
+  @Roles('ADMIN')
+  @UseInterceptors(FileInterceptor('imagen', { limits: { fileSize: IMAGEN_MAX_BYTES } }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', required: ['imagen'], properties: { imagen: { type: 'string', format: 'binary', description: 'JPEG, PNG o WebP' } } } })
+  subirLogo(@UploadedFile() imagen?: Express.Multer.File) {
+    if (!imagen) {
+      throw new BadRequestException('Falta la imagen (campo "imagen", multipart/form-data)');
+    }
+    return this.centro.subirLogo(imagen.buffer);
+  }
+
+  /** Todas las versiones (la vigente de cada tipo es la de mayor version). */
+  @Get('politicas')
+  @Roles(...EQUIPO)
+  politicas() {
+    return this.centro.politicas();
+  }
+
+  @Post('politicas')
+  @Roles('ADMIN')
+  publicarPolitica(@Body() dto: PoliticaDto) {
+    return this.centro.publicarPolitica(dto.tipo, dto.texto);
+  }
+
+  @Get('configuracion/horario')
+  @Roles(...EQUIPO)
+  horario() {
+    return this.centro.horario();
+  }
+
+  @Put('configuracion/horario')
+  @Roles('ADMIN')
+  reemplazarHorario(@Body() dto: HorarioDto) {
+    return this.centro.reemplazarHorario(dto.bloques);
+  }
+
+  /** ADMIN/GESTION: agregados del centro (sin datos clinicos). PROFESIONAL/PRACTICANTE: los suyos. */
+  @Get('reportes/dashboard')
+  @Roles(...EQUIPO)
+  dashboard() {
+    return this.centro.dashboard();
   }
 }
 
@@ -171,12 +293,12 @@ export class DirectorioController {
   /** Contacto solo ADMIN/GESTION; PRACTICANTE solo ve a su supervisor (la funcion lo filtra). */
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  equipoInterno() {
-    return this.equipo.directorio();
+  equipoInterno(@Query() filtro: FiltroDirectorioDto) {
+    return this.equipo.directorio(filtro);
   }
 
   @Get('mi-equipo')
-  @Roles('PACIENTE')
+  @Roles('PACIENTE', 'RESPONSABLE')
   miEquipo() {
     return this.equipo.miEquipoTratante();
   }

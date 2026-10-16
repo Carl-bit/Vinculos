@@ -54,8 +54,14 @@ describe('programacion de jobs (reloj simulado)', () => {
 
   const de = (job: string) => disparos.filter((d) => d.job === job);
 
-  it('cada 10 minutos: ofertas de derivacion, avisos vencidos, consentimientos por vencer y recordatorios de citas', () => {
-    for (const job of ['expirar_ofertas_derivacion', 'cerrar_avisos_vencidos', 'avisar_consentimientos_por_vencer', 'enviar_recordatorios']) {
+  it('cada 10 minutos: ofertas de derivacion, avisos vencidos, consentimientos por vencer, recordatorios y solicitudes de hora', () => {
+    for (const job of [
+      'expirar_ofertas_derivacion',
+      'cerrar_avisos_vencidos',
+      'avisar_consentimientos_por_vencer',
+      'enviar_recordatorios',
+      'limpiar_solicitudes',
+    ]) {
       expect(de(job)).toHaveLength(144);
       expect(de(job).every((d) => d.en.getUTCMinutes() % 10 === 0 && d.en.getUTCSeconds() === 0)).toBe(true);
     }
@@ -83,6 +89,7 @@ describe('programacion de jobs (reloj simulado)', () => {
         'cerrar_avisos_vencidos',
         'avisar_consentimientos_por_vencer',
         'enviar_recordatorios',
+        'limpiar_solicitudes',
         'procesar_bajas',
         'enviar_notificaciones',
         'verificar_canarios',

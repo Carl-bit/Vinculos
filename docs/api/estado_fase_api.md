@@ -1,4 +1,4 @@
-# Estado de la fase de API (02a-02j)
+# Estado de la fase de API (02a-03a)
 
 Prompts: 02a-02i (entregados en la conversacion). Reglas: CLAUDE.md (seccion
 API), `docs/seguridad/requisitos_02_apis.md`, `matriz_permisos.md`.
@@ -15,6 +15,8 @@ Integraciones y mensajeria: `docs/api/integraciones.md`.
 | `20261016000000_mensajeria_enums` | 02i | valores de enum (eventos nuevos, PENDIENTE/ENVIADO/FALLIDO, canal, destinatario, respuesta del recordatorio): migracion aparte porque un ADD VALUE no se usa en la misma transaccion |
 | `20261016000100_mensajeria_recordatorios_documentos` | 02i | `notificaciones` por canal (BANDEJA/CORREO; WHATSAPP reservado) con cola y backoff y contenido cifrado; `plantillas_mensaje` (B, ejemplos cargados); `preferencias_notificacion`; `notificar()`/`encolar_notificacion`; `recordatorios_cita` + `configuracion_centro.recordatorio_horas_antes`; `citas.secuencia` (SEQUENCE) y feed con canceladas; plantilla por tipo de documento; `adjuntos_ficha`; aviso de consentimiento por vencer |
 | `20261017000000_recordatorio_antes_de_cancelacion` | 02j | `recordatorio_horas_antes` default 48 y CHECK `configuracion_centro_recordatorio_antes_de_cancelacion` (activo -> mayor que `plazo_aviso_cancelacion_horas`); silos con recordatorio <= plazo se movieron al minimo coherente |
+| `20261018000000_03a_enums` | 03a-1 | valores de enum: rol RESPONSABLE, cita SOLICITADA, medio de pago CONVENIO, avisos HORA_LIBERADA, ACCESO_CLINICO_TEMPORAL, SOLICITUD_HORA, CIERRE_REQUERIDO y alerta BAJA_CON_BORRADORES |
+| `20261018000100_03a_cuentas_portal_agenda` | 03a-1 | varios roles por cuenta, tokens por correo y TOTP, politicas y aceptaciones, menores y RESPONSABLE, citas SOLICITADA y solicitudes de hora sin cuenta, horario del centro y por box, lista de espera, perfil publico ampliado, match configurable, imagenes publicas, modulos activables, reseñas, acceso clinico temporal, borradores de evolucion, altas, liquidacion por cita realizada, reportes (ver `docs/front/brechas.md` seccion 6) |
 
 Todas siguen el checklist de tabla nueva: categoria A (salvo
 `tipos_documento_clinico` y `plantillas_mensaje`, B), ENABLE + FORCE RLS, politicas por rol +
@@ -34,9 +36,11 @@ cifrado en `registro.ts`, casos en `seguridad_bd.sql` y filas en la matriz.
 | derivaciones (02f) | `derivaciones` (`pendientes`, `:id/oferta`, `:id/respuesta`, `:id/cancelacion`, `:id/candidatos`, `:id/practicantes`, reintegro), `consentimientos` (`solicitudes`, `:id/respuesta`, `:id/revocacion`), `avisos-consentimiento` |
 | match (02g) | `publico/{profesionales, profesionales/:id/disponibilidad, match}` (anonimo, rate limit), `portal/{equipo,citas,citas/:id/datos-pago,mensajes,epicrisis}`, `mensajes`, `epicrisis` |
 | cobros (02h) | `cobros/citas` (`:id`, `:id/pagos`, `:id/resolucion`), `cobros/pagos/:id/anulacion`, `cobros/arriendos`, `cobros/liquidaciones` (`:id/emision`, `:id/pago`) |
+| 03a-1 | `auth/{cambio-rol,totp,totp/enrolamiento,activacion,recuperacion(/confirmacion),enlace-acceso(/confirmacion),correo/verificacion}`; `usuarios/:id/{roles,roles/PROFESIONAL/baja,invitacion,totp/reinicio}`; `configuracion/{horario,logo,contenido-publico}`, `modulos`, `politicas`, `reportes/dashboard`; `pacientes/:id/{invitacion,duplicado-revisado,consentimiento-atencion(/enlace),aceptaciones,alta,altas,accesos-temporales,respuestas-match}`, `accesos-temporales`, `borradores` (`fichas/:fichaId/borradores`, `:id/confirmacion`), `profesionales/:id/estado-fichas`; `espacios/:id/horario`, `citas/:id/{aprobacion,cierre-requerido,profesional}`, `lista-espera` (`:id/cierre`); `profesionales/{yo,:id}/foto`, `profesionales/yo/resenas`; `match/{preguntas,opciones,metricas}`, `resenas` (`:id/moderacion`); `portal/{pacientes,mis-datos,consentimiento-atencion,resenas}`; `publico/{centro,cuestionario,match,solicitudes(/verificacion),politicas/:tipo,imagenes/:id,profesionales/:id/resenas,resenas/:id/reporte,consentimientos/{consulta,respuesta}}`; `cobros/reporte(/pdf)`, `cobros/liquidaciones/:id/pdf`; `consentimientos/:id/enlace`, `avisos-consentimiento/:id/enlace` |
 
 ## Tests
 
+- 03a-1: `npm run test:e2e` 135 casos (03a-alineacion 19 nuevos); `npx jest` 34 unitarios (totp y reglas del match); `correr_tests_bd.sh` 115 casos SQL (101-115 nuevos; 46, 49, 67, 78, 89, 95 ajustados). Detalle por fase anterior:
 - `npm run test:e2e`: 116 casos de integracion (Jest + Supertest) contra un
   Postgres 18 efimero (`test/bd/levantar.sh`: migraciones, seed, llaves de
   prueba). Por archivo: 02a 22, 02b 19, 02c 13, 02d 12, 02e 8, 02f 8, 02g 8,
@@ -138,12 +142,36 @@ cifrado en `registro.ts`, casos en `seguridad_bd.sql` y filas en la matriz.
   con el enlace de un solo uso (sin `.ics`, como se diseño en 02i); el
   documento emitido llega como enlace y la descarga con sesion del paciente
   entrega el PDF.
-- **Coleccion Bruno** `backend/pruebas/bruno/` (121 requests, 158 tests,
-  todos OK sobre datos recien reseteados) y guion
-  `docs/pruebas/guion_manual.md`.
+- Guion `docs/pruebas/guion_manual.md`. (La coleccion Bruno de 02j se
+  elimino en 03a: las pruebas manuales se hacen en Postman.)
 - **ESLint + Prettier** (`eslint.config.mjs`, `.prettierrc`, ancho 160 = p99
   del codigo existente). Solo formato y tres ajustes sin efecto funcional
   (ver entrega 02j).
+
+## Decisiones de 03a-1
+
+Decisiones del usuario y su resolucion: `docs/front/brechas.md` (seccion 6).
+Ademas, al implementar:
+
+- **Cuenta invitada**: el CHECK `usuarios_cuenta_cerrada_vacia` acepta una
+  cuenta abierta sin contraseña (invitacion pendiente); solo entra al
+  activarla con el token.
+- **Liquidacion (C-11)**: cuenta pagos cobrados por el centro de citas
+  REALIZADAS (CONFIRMADA, terminada, sin inasistencia) por la fecha de la
+  cita. Ya no resta devoluciones (solo existen en citas canceladas, que no se
+  liquidan). Un pago no se anula si su cita cae en un periodo emitido.
+  **PENDIENTE (decision del usuario, 2026-10-15)**: se mantiene asi por
+  ahora; queda por decidir si los cobros por cancelacion tardia e
+  inasistencia (que el centro si retiene) se liquidan al profesional.
+- **Menores (D-4)**: menos de 14 sin cuenta; 14 a 17 cuenta restringida; el
+  adulto responsable con cuenta (rol RESPONSABLE) ve citas, pagos y documentos
+  emitidos, nunca la ficha ni los mensajes del adolescente. **Validacion
+  legal pendiente**: la edad de 14 y el alcance del adulto responsable deben
+  revisarse con la Ley 21.331 (salud mental), la Ley 20.584 (derechos y
+  deberes del paciente) y la Ley 21.719 (datos personales) antes de operar
+  con pacientes reales.
+- **Centro demo**: el seed demo enrola el TOTP de las cuentas del equipo y
+  deja los secretos en `infra/local/totp-demo.txt` (fuera de git).
 
 ## Pendiente / no probado
 
@@ -163,3 +191,10 @@ cifrado en `registro.ts`, casos en `seguridad_bd.sql` y filas en la matriz.
   Dominio propio por centro (SPF/DKIM) y firma electronica de documentos:
   pendientes. Pagina del portal para el enlace del recordatorio: es del
   frontend (fase siguiente).
+- 03a-1: preferencias de notificacion para RESPONSABLE no implementadas;
+  correos de cuenta (invitacion, verificacion, recuperacion) sin reintento;
+  RUT obligatorio solo para pacientes creados por solicitud (se exige al
+  registrar la primera evolucion); el tratante tambien puede limpiar
+  `posible_duplicado` en la BD. `seed:demo` no se corrio contra 03a.
+  La coleccion Bruno se elimino (las pruebas manuales se hacen en Postman). Campos clinicos
+  por especialidad y mensajeria interna: 03a-2.

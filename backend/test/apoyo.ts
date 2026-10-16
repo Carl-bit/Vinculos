@@ -16,11 +16,14 @@ import request = require('supertest');
 import { AppModule } from '../src/app.module';
 import { Llavero, type FilaLlave } from '../src/common/crypto/cifrado';
 import { configurarApp } from '../src/configurar-app';
+import { codigoTotp } from '../src/core/auth/totp';
 import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
 import { NotificacionesService } from '../src/core/notificaciones/notificaciones.service';
 import { leerEntorno } from './bd/global';
 
 export const CLAVE = 'clave-de-prueba-123';
+/** Secretos TOTP enrolados (por usuario), compartidos entre apps del mismo proceso de tests. */
+const secretosTotp = new Map<string, string>();
 const HASH = bcrypt.hashSync(CLAVE, 4);
 
 export function prepararEntorno(extra: Record<string, string> = {}) {
@@ -51,6 +54,8 @@ export interface AppPrueba {
   dueno: PrismaClient;
   datos: Fixtures;
   token: (u: UsuarioPrueba) => Promise<string>;
+  /** Login completo (con TOTP si corresponde) con un rol elegido; devuelve el cuerpo con los tokens. */
+  login: (u: UsuarioPrueba, rol?: Rol) => Promise<{ accessToken: string; refreshToken: string; rol: Rol; roles: Rol[] }>;
   cerrar: () => Promise<void>;
 }
 
@@ -67,23 +72,40 @@ export async function crearApp(extra: Record<string, string> = {}, modulosExtra:
   const dueno = new PrismaClient({ datasourceUrl: e.ownerUrl });
   const http = () => request(app.getHttpServer());
   const tokens = new Map<string, string>();
+  // 03a: TOTP obligatorio para roles clinicos: el helper enrola la primera vez y responde el desafio.
+  const login = async (u: UsuarioPrueba, rol?: Rol) => {
+    let r = await http().post('/api/auth/login').send({ email: u.email, password: CLAVE, rol });
+    if (r.status === 200 && r.body.requiereTotp) {
+      const desafio = r.body.desafio as string;
+      if (!secretosTotp.has(u.id)) {
+        const e = await http().post('/api/auth/totp/enrolamiento').send({ desafio });
+        if (e.status !== 200) {
+          throw new Error(`enrolamiento TOTP de prueba fallo (${e.status}) para ${u.rol}`);
+        }
+        secretosTotp.set(u.id, e.body.secreto as string);
+      }
+      r = await http().post('/api/auth/totp').send({ desafio, codigo: codigoTotp(secretosTotp.get(u.id)!) });
+    }
+    if (r.status !== 200) {
+      throw new Error(`login de prueba fallo (${r.status}) para ${u.rol}`);
+    }
+    return r.body as { accessToken: string; refreshToken: string; rol: Rol; roles: Rol[] };
+  };
   return {
     app,
     http,
     logs,
     dueno,
     datos: new Fixtures(dueno),
+    login,
     token: async (u) => {
       const guardado = tokens.get(u.id);
       if (guardado) {
         return guardado;
       }
-      const r = await http().post('/api/auth/login').send({ email: u.email, password: CLAVE });
-      if (r.status !== 200) {
-        throw new Error(`login de prueba fallo (${r.status}) para ${u.rol}`);
-      }
-      tokens.set(u.id, r.body.accessToken as string);
-      return r.body.accessToken as string;
+      const { accessToken } = await login(u);
+      tokens.set(u.id, accessToken);
+      return accessToken;
     },
     cerrar: async () => {
       await app.close();

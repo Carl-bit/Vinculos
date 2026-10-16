@@ -411,3 +411,44 @@ Estado y decisiones de la fase de API: `docs/api/estado_fase_api.md`.
 - 02i: una politica que lee otra tabla con RLS cuya politica lee la primera
   es recursiva (42P17 -> 500): se resuelve con una funcion SECURITY DEFINER
   (`tipo_documento_del_paciente`).
+
+## 14. Alineacion con el diseño (03a-1)
+
+Decisiones: `docs/front/brechas.md` (seccion 6). Migraciones
+`20261018000000_03a_enums` y `20261018000100_03a_cuentas_portal_agenda`.
+
+- **Varios roles por cuenta** (C-1): `usuarios.rol` es el rol principal y
+  `roles_adicionales` los otros (solo ADMIN+PROFESIONAL y
+  GESTION+PROFESIONAL). La sesion lleva un solo rol activo; la BD sigue
+  recibiendo un unico `app.current_rol` y `acceso_vigente()` exige que el
+  usuario tenga ese rol (`tiene_rol`). `auth/cambio-rol` emite un token
+  nuevo; la auditoria guarda el rol de la sesion.
+- **Login en dos pasos**: contraseña -> desafio; TOTP obligatorio para
+  cuentas con acceso clinico (PROFESIONAL, PRACTICANTE, o PROFESIONAL como rol
+  adicional; secreto cifrado en `usuarios.totp_secreto`), opcional para el
+  resto. Solo ADMIN reinicia un TOTP.
+- **Tokens por correo** (`tokens_correo`): invitacion, verificacion,
+  recuperacion, acceso del paciente (C-6), cambio de correo (C-9) y
+  consentimiento; solo el SHA-256, un solo uso, vencimiento. Solo funciones
+  SECURITY DEFINER los emiten y consumen; la respuesta de recuperacion y de
+  enlace de acceso es identica exista o no la cuenta. Los correos de cuenta
+  salen directo por el `ProveedorCorreo` (no por la cola de notificaciones).
+- **Rutas publicas** (`@Publico`, rate limit): solicitudes de hora, match,
+  equipo, reseñas (lectura y reporte), politicas, consentimiento por enlace,
+  imagenes. Sin contexto de usuario: todo pasa por funciones SECURITY DEFINER
+  que devuelven solo columnas publicas.
+- **RESPONSABLE** (D-4): rol nuevo del adulto responsable con cuenta. Ve
+  citas, pagos y documentos emitidos de los menores a su cargo
+  (`pacientes_a_cargo()`), nunca la ficha ni los mensajes del adolescente.
+  `app_pacientes_plenos()` separa al paciente adulto del adolescente con
+  cuenta restringida.
+- **Modulos activables**: `ModulosGuard` global + `@Modulo(...)`; un modulo
+  apagado en `configuracion_centro` responde 403 (`modulo_inactivo`).
+- **Imagenes publicas**: multipart, tipo validado por contenido, re-codificadas
+  a WebP sin metadatos (sharp), servidas sin autenticacion. Unica columna
+  bytea sin cifrar (`BYTEA_PUBLICOS`).
+- **Errores nuevos**: un cambio de profesional de una cita hacia quien no es
+  tratante ni tiene acceso temporal de escritura -> 422; citas fuera del
+  horario del centro o del box -> 422; hora retenida por otra solicitud -> 409.
+- **Funciones void**: se llaman con `$executeRaw` (Prisma no deserializa
+  `void` en `$queryRaw` -> 500).

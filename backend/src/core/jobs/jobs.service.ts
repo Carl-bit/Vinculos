@@ -99,6 +99,19 @@ export class JobsService implements OnApplicationBootstrap {
     });
   }
 
+  /**
+   * 03a: vence retenciones de solicitudes de hora sin verificar, borra
+   * respuestas del match de solicitudes no concretadas pasado el plazo (D-6)
+   * y elimina solicitudes vencidas antiguas.
+   */
+  @Cron(CronExpression.EVERY_10_MINUTES, { name: 'limpiar_solicitudes' })
+  limpiarSolicitudes(): Promise<ResultadoJob> {
+    return this.conLock('limpiar_solicitudes', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT limpiar_solicitudes() AS n`;
+      return n;
+    });
+  }
+
   @Cron('0 3 * * *', { name: 'verificar_canarios', timeZone: 'America/Santiago' })
   async verificarCanarios(): Promise<ResultadoJob> {
     return this.conLock('verificar_canarios', async () => ((await this.llavero.verificarYRegistrar()) ? 1 : 0));

@@ -5,6 +5,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma, type TipoNotificacion } from '@prisma/client';
 
 import { texto } from '../../core/bd/claro';
+import { generarPdfTabla } from '../../core/documentos/pdf';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
@@ -27,6 +28,13 @@ export interface EstadoPagoCita {
 
 /** Fecha (AAAA-MM-DD) de un Date de DTO, para columnas date. */
 const dia = (d: Date) => d.toISOString().slice(0, 10);
+
+export interface ReporteCobros {
+  desde: string;
+  hasta: string;
+  profesionales: { profesional_id: string; nombre: string | null; sesiones: number; cobrado: number; pendiente: number; comision_estimada: number }[];
+  medios: { medio: string; pagos: number; monto: number }[];
+}
 
 /**
  * Cobros (02h). Toda escritura con reglas de estado va por funciones de la BD
@@ -165,6 +173,58 @@ export class CobrosService {
     const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
       SELECT generar_liquidacion(${dto.profesionalId}::uuid, ${dia(dto.desde)}::date, ${dia(dto.hasta)}::date) AS id`;
     return encontrado(await this.bd.tx().liquidacion.findUnique({ where: { id } }), 'Liquidacion');
+  }
+
+  /** Cobros por profesional del periodo (sesiones realizadas, cobrado, pendiente, comision) y medios de pago. */
+  async reporte(desde: Date, hasta: Date) {
+    const [{ r }] = await this.bd.tx().$queryRaw<[{ r: ReporteCobros }]>`SELECT reporte_cobros(${dia(desde)}::date, ${dia(hasta)}::date) AS r`;
+    return r;
+  }
+
+  async reportePdf(desde: Date, hasta: Date): Promise<Buffer> {
+    const r = await this.reporte(desde, hasta);
+    const pesos = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`;
+    const t = r.profesionales.reduce((a, p) => ({ s: a.s + p.sesiones, c: a.c + p.cobrado, p: a.p + p.pendiente, m: a.m + p.comision_estimada }), {
+      s: 0,
+      c: 0,
+      p: 0,
+      m: 0,
+    });
+    return generarPdfTabla({
+      centro: await this.nombreCentro(),
+      titulo: 'Reporte de cobros',
+      subtitulo: `Periodo ${r.desde} a ${r.hasta} (citas por fecha de inicio)`,
+      columnas: ['Profesional', 'Sesiones', 'Cobrado', 'Pendiente', 'Comision'],
+      filas: [
+        ...r.profesionales.map((p) => [p.nombre ?? 'Profesional', p.sesiones, pesos(p.cobrado), pesos(p.pendiente), pesos(p.comision_estimada)]),
+        ['Total', t.s, pesos(t.c), pesos(t.p), pesos(t.m)],
+      ],
+      pie: [`Medios de pago: ${r.medios.map((m) => `${m.medio} ${m.pagos} (${pesos(m.monto)})`).join(', ') || 'sin pagos'}`],
+    });
+  }
+
+  /** PDF de una liquidacion (ADMIN/GESTION; el profesional las suyas emitidas, RLS). */
+  async liquidacionPdf(id: string): Promise<Buffer> {
+    const l = encontrado(await this.bd.tx().liquidacion.findUnique({ where: { id } }), 'Liquidacion');
+    const pesos = (n: number) => `$${n.toLocaleString('es-CL')}`;
+    return generarPdfTabla({
+      centro: await this.nombreCentro(),
+      titulo: `Liquidacion ${l.estado.toLowerCase()}`,
+      subtitulo: `Periodo ${dia(l.periodoDesde)} a ${dia(l.periodoHasta)}`,
+      columnas: ['Concepto', 'Monto'],
+      filas: [
+        ['Cobrado por el centro (citas realizadas)', pesos(l.totalCobrado)],
+        [`Comision del centro (${l.comisionPorcentaje.toString()}%)`, `-${pesos(l.comision)}`],
+        ['Arriendos del periodo', `-${pesos(l.arriendos)}`],
+        ['Total a pagar', pesos(l.total)],
+      ],
+      pie: [`Profesional: ${l.profesionalId}`],
+    });
+  }
+
+  private async nombreCentro(): Promise<string> {
+    const c = await this.bd.tx().configuracionCentro.findUnique({ where: { id: true }, select: { nombreCentro: true } });
+    return c?.nombreCentro ?? 'Centro';
   }
 
   async avanzarLiquidacion(id: string, estado: 'EMITIDA' | 'PAGADA') {

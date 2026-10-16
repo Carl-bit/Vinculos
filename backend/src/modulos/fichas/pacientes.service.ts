@@ -1,14 +1,18 @@
 import { randomUUID } from 'node:crypto';
 
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 
 import { registrarAcceso } from '../../core/bd/auditoria';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
+import { HORA, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
 import { conflicto, esSqlstate } from '../../core/errores/sqlstate';
-import type { CrearAdultoResponsableDto, CrearPacienteDto, EditarPacienteDto } from './dto/fichas.dto';
+import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
+import type { BuscarPacientesDto, CrearAdultoResponsableDto, CrearPacienteDto, EditarPacienteDto, InvitarPacienteDto } from './dto/fichas.dto';
+
+const MAYORIA_EDAD_MS = 18 * 365.25 * 86_400_000;
 
 const VISTA_PACIENTE = {
   id: true,
@@ -21,6 +25,9 @@ const VISTA_PACIENTE = {
   profesionalId: true,
   codigoSeudonimo: true,
   tipoAtencionId: true,
+  contactoEmergencia: true,
+  creadoPorSolicitud: true,
+  posibleDuplicado: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.PacienteSelect;
@@ -44,7 +51,7 @@ function rutDuplicado(error: unknown): never {
   throw esSqlstate(error, '23505') ? conflicto('pacientes_rut_hmac_key') : error;
 }
 
-const vistaPaciente = (p: Paciente) => ({ ...p, rut: texto(p.rut), telefono: texto(p.telefono) });
+const vistaPaciente = (p: Paciente) => ({ ...p, rut: texto(p.rut), telefono: texto(p.telefono), contactoEmergencia: texto(p.contactoEmergencia) });
 const vistaAdulto = (a: Adulto) => ({ ...a, rut: texto(a.rut), telefono: texto(a.telefono) });
 
 /**
@@ -57,6 +64,7 @@ export class PacientesService {
   constructor(
     private readonly bd: ContextoBd,
     private readonly llavero: LlaveroService,
+    private readonly correos: CorreosCuenta,
   ) {}
 
   /**
@@ -85,6 +93,7 @@ export class PacientesService {
           telefono: claro(dto.telefono),
           profesionalId,
           tipoAtencionId: dto.tipoAtencionId,
+          contactoEmergencia: claro(dto.contactoEmergencia),
         },
         select: VISTA_PACIENTE,
       })
@@ -97,10 +106,22 @@ export class PacientesService {
     return { ...vistaPaciente(paciente), fichaId };
   }
 
-  /** Lista segun la RLS del rol; con rut, busqueda exacta por el indice ciego. */
-  async listar(rut?: string) {
+  /**
+   * Lista segun la RLS del rol; con rut, busqueda exacta por el indice ciego.
+   * Filtros (03a): tratante, menores, posibles duplicados, derivados y nombre.
+   */
+  async listar(filtro: BuscarPacientesDto = {}) {
+    const where: Prisma.PacienteWhereInput = { deletedAt: null };
+    if (filtro.rut) where.rutHmac = this.llavero.hmacRut(filtro.rut);
+    if (filtro.profesionalId) where.profesionalId = filtro.profesionalId;
+    if (filtro.menores) where.fechaNacimiento = { gt: new Date(Date.now() - MAYORIA_EDAD_MS) };
+    if (filtro.duplicados) where.posibleDuplicado = true;
+    if (filtro.derivados) where.fichaClinica = { derivaciones: { some: { estado: 'ACEPTADA' } } };
+    if (filtro.nombre) {
+      where.OR = [{ nombre: { contains: filtro.nombre, mode: 'insensitive' } }, { apellido: { contains: filtro.nombre, mode: 'insensitive' } }];
+    }
     const filas = await this.bd.tx().paciente.findMany({
-      where: { deletedAt: null, ...(rut ? { rutHmac: this.llavero.hmacRut(rut) } : {}) },
+      where,
       select: VISTA_PACIENTE,
       orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
     });
@@ -108,7 +129,11 @@ export class PacientesService {
   }
 
   async obtener(id: string) {
-    return vistaPaciente(encontrado(await this.bd.tx().paciente.findFirst({ where: { id, deletedAt: null }, select: VISTA_PACIENTE }), 'Paciente'));
+    const p = await this.bd.tx().paciente.findFirst({ where: { id, deletedAt: null }, select: VISTA_PACIENTE });
+    if (!p) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+    return vistaPaciente(p);
   }
 
   async editar(id: string, dto: EditarPacienteDto) {
@@ -125,11 +150,75 @@ export class PacientesService {
           fechaNacimiento: dto.fechaNacimiento,
           email: dto.email,
           telefono: dto.telefono === undefined ? undefined : claro(dto.telefono),
+          contactoEmergencia: dto.contactoEmergencia === undefined ? undefined : claro(dto.contactoEmergencia),
         },
         select: VISTA_PACIENTE,
       })
       .catch(rutDuplicado);
     return vistaPaciente(paciente);
+  }
+
+  /** GESTION/ADMIN concilian un posible duplicado (D-2): se revisa a mano; nunca se fusiona por nombre. */
+  async duplicadoRevisado(id: string) {
+    await this.obtener(id);
+    return vistaPaciente(await this.bd.tx().paciente.update({ where: { id }, data: { posibleDuplicado: false }, select: VISTA_PACIENTE }));
+  }
+
+  /**
+   * Invitacion de cuenta (ADMIN/GESTION, 03a): el paciente desde los 14
+   * años; si es menor, su adulto responsable (cuenta RESPONSABLE). Enlace de
+   * un solo uso por correo, enviado despues del COMMIT.
+   */
+  async invitar(pacienteId: string, dto: InvitarPacienteDto) {
+    const p = await this.obtener(pacienteId);
+    const menor = p.fechaNacimiento.getTime() > Date.now() - MAYORIA_EDAD_MS;
+    const { token, hash } = nuevoTokenCorreo();
+    const vence = new Date(Date.now() + 72 * HORA);
+    const tx = this.bd.tx();
+    let email: string;
+    if (menor && dto.adultoResponsableId) {
+      [{ email }] = await tx.$queryRaw<[{ email: string }]>`
+        SELECT crear_invitacion_responsable(${dto.adultoResponsableId}::uuid, ${dto.email ?? null}, ${hash}, ${vence}) AS email`;
+    } else if (menor && !dto.adultoResponsableId && p.fechaNacimiento.getTime() > Date.now() - 14 * 365.25 * 86_400_000) {
+      throw new BadRequestException('Menor de 14: la cuenta es del adulto responsable (indicar adultoResponsableId)');
+    } else {
+      [{ email }] = await tx.$queryRaw<[{ email: string }]>`
+        SELECT crear_invitacion_paciente(${pacienteId}::uuid, ${dto.email ?? null}, ${hash}, ${vence}) AS email`;
+    }
+    this.bd.alConfirmar(() => this.correos.enviar('INVITACION', email, token, vence));
+    return { pacienteId, invitacionVence: vence };
+  }
+
+  /** Consentimiento informado de atencion registrado por ADMIN/GESTION con respaldo (D-3, canal PRESENCIAL). */
+  async consentimientoAtencion(pacienteId: string, respaldoRef: string, adultoId?: string) {
+    await this.obtener(pacienteId);
+    const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
+      SELECT registrar_aceptacion('CONSENTIMIENTO_ATENCION', ${pacienteId}::uuid, ${adultoId ?? null}::uuid, ${respaldoRef}) AS id`;
+    return { id, pacienteId };
+  }
+
+  /** Enlace de consentimiento de atencion por correo (D-3). */
+  async enlaceConsentimientoAtencion(pacienteId: string) {
+    await this.obtener(pacienteId);
+    return this.correos.enlaceConsentimiento(pacienteId);
+  }
+
+  /** Politicas aceptadas por el paciente (version y canal), segun la RLS. */
+  async aceptaciones(pacienteId: string) {
+    await this.obtener(pacienteId);
+    return this.bd.tx().aceptacionPolitica.findMany({
+      where: { pacienteId },
+      select: {
+        id: true,
+        canal: true,
+        otorgadoPor: true,
+        adultoResponsableId: true,
+        respaldoRef: true,
+        aceptadaEn: true,
+        politica: { select: { tipo: true, version: true } },
+      },
+      orderBy: { aceptadaEn: 'desc' },
+    });
   }
 
   async crearAdultoResponsable(pacienteId: string, dto: CrearAdultoResponsableDto) {

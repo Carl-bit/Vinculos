@@ -1,5 +1,5 @@
-import { DecisionRetencion, EstadoTipoSesion, ModoEnvioDocumento, NivelRiesgo } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { AlcanceAccesoTemporal, DecisionRetencion, EstadoTipoSesion, ModoEnvioDocumento, MotivoAccesoTemporal, NivelRiesgo } from '@prisma/client';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayUnique,
@@ -60,6 +60,13 @@ export class CrearPacienteDto {
   @IsOptional()
   @IsUUID()
   tipoAtencionId?: string;
+
+  /** Contacto de emergencia (nombre, relacion y telefono en texto libre; cifrado). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 300)
+  contactoEmergencia?: string;
 }
 
 /** Datos administrativos. El tratante solo cambia via derivacion. */
@@ -96,7 +103,17 @@ export class EditarPacienteDto {
   @ValidateIf((_o, v) => v !== null)
   @Matches(TELEFONO_CL, { message: 'telefono: formato +56XXXXXXXXX' })
   telefono?: string | null;
+
+  /** null lo borra. */
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @Recortar()
+  @IsString()
+  @Length(1, 300)
+  contactoEmergencia?: string | null;
 }
+
+const booleano = () => Transform(({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value));
 
 export class BuscarPacientesDto {
   /** Busqueda exacta por RUT (indice ciego rut_hmac). */
@@ -104,6 +121,36 @@ export class BuscarPacientesDto {
   @NormalizarRut()
   @IsRut()
   rut?: string;
+
+  /** 03a: tratante (selector de profesional). */
+  @IsOptional()
+  @IsUUID()
+  profesionalId?: string;
+
+  /** Solo menores de 18. */
+  @IsOptional()
+  @booleano()
+  @IsBoolean()
+  menores?: boolean;
+
+  /** Solo posibles duplicados por conciliar (D-2). */
+  @IsOptional()
+  @booleano()
+  @IsBoolean()
+  duplicados?: boolean;
+
+  /** Solo llegados por derivacion aceptada. */
+  @IsOptional()
+  @booleano()
+  @IsBoolean()
+  derivados?: boolean;
+
+  /** Busqueda por nombre o apellido (contiene). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 120)
+  nombre?: string;
 }
 
 export class CrearAdultoResponsableDto {
@@ -160,6 +207,11 @@ export class CrearEvolucionDto {
   @IsOptional()
   @IsUUID()
   corrigeAId?: string;
+
+  /** 03a: sesion que se cierra con esta evolucion (cita del mismo paciente). */
+  @IsOptional()
+  @IsUUID()
+  citaId?: string;
 }
 
 export class ProponerTipoSesionDto {
@@ -268,4 +320,101 @@ export class EnviarDocumentoDto {
   @IsOptional()
   @IsEnum(ModoEnvioDocumento)
   modo?: ModoEnvioDocumento;
+}
+
+/** Invitacion de cuenta (03a): al paciente (desde 14 años) o, si es menor, a su adulto responsable. */
+export class InvitarPacienteDto {
+  /** Por defecto el correo registrado. */
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(254)
+  email?: string;
+
+  /** Menor de 18: la invitacion es para este adulto responsable (cuenta RESPONSABLE). */
+  @IsOptional()
+  @IsUUID()
+  adultoResponsableId?: string;
+}
+
+/** Alta del paciente (03a): la registra el tratante; el motivo se cifra. */
+export class AltaDto {
+  @Type(() => Date)
+  @IsDate()
+  fecha!: Date;
+
+  @Recortar()
+  @IsString()
+  @Length(3, 2000)
+  motivo!: string;
+}
+
+/** Consentimiento informado de atencion registrado por ADMIN/GESTION (presencial, con respaldo). */
+export class ConsentimientoAtencionDto {
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  respaldoRef!: string;
+
+  /** Menor de 18: adulto responsable que firma. */
+  @IsOptional()
+  @IsUUID()
+  adultoResponsableId?: string;
+}
+
+/** Acceso clinico temporal (C-4, C-5): se corta solo al vencer. */
+export class AccesoTemporalDto {
+  @IsUUID()
+  profesionalId!: string;
+
+  @IsEnum(MotivoAccesoTemporal)
+  motivo!: MotivoAccesoTemporal;
+
+  @IsEnum(AlcanceAccesoTemporal)
+  alcance!: AlcanceAccesoTemporal;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  desde?: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  hasta!: Date;
+}
+
+/** Borrador de evolucion (C-8): texto libre, guardado automatico. */
+export class BorradorDto {
+  @IsString()
+  @Length(1, MAX_TEXTO_CLINICO)
+  contenido!: string;
+
+  @IsOptional()
+  @IsUUID()
+  citaId?: string;
+}
+
+export class ListarBorradoresDto {
+  @IsOptional()
+  @IsUUID()
+  fichaId?: string;
+}
+
+/** Confirmar un borrador: los campos estructurados de la evolucion (las notas son el borrador). */
+export class ConfirmarBorradorDto {
+  @IsUUID()
+  tipoSesionId!: string;
+
+  @IsEnum(NivelRiesgo)
+  nivelRiesgo!: NivelRiesgo;
+
+  @IsOptional()
+  @IsUUID()
+  estadoAvanceId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(20)
+  @IsUUID('all', { each: true })
+  intervencionIds?: string[];
 }

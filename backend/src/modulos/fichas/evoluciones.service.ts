@@ -27,6 +27,7 @@ const VISTA_EVOLUCION = {
   autorRegistro: true,
   nivelRiesgo: true,
   corrigeAId: true,
+  citaId: true,
   createdAt: true,
   tipoSesion: { select: { id: true, nombre: true } },
   estadoAvance: { select: { id: true, nombre: true } },
@@ -47,6 +48,7 @@ function vista(e: Evolucion) {
     intervenciones: e.intervenciones.map((i) => i.intervencion),
     nivelRiesgo: e.nivelRiesgo,
     corrigeAId: e.corrigeAId,
+    citaId: e.citaId,
     createdAt: e.createdAt,
   };
 }
@@ -92,6 +94,7 @@ export class EvolucionesService {
         estadoAvanceId: dto.estadoAvanceId,
         nivelRiesgo: dto.nivelRiesgo,
         corrigeAId: dto.corrigeAId,
+        citaId: dto.citaId,
       },
       select: { id: true },
     });

@@ -3,13 +3,20 @@ import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
 
 import { TAGS } from '../../core/docs/openapi';
+import { Modulo } from '../../core/modulos/modulos';
 import { Publico, Roles } from '../../core/auth/decoradores';
 import { AgendaService } from './agenda.service';
+import { ListaEsperaService } from './lista-espera.service';
 import { CitasService } from './citas.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
 import { RecordatoriosService } from './recordatorios.service';
 import {
+  CerrarListaEsperaDto,
   CrearBloqueoAgendaDto,
+  CrearListaEsperaDto,
+  CubrirCitaDto,
+  FiltroListaEsperaDto,
+  HorarioEspacioDto,
   CrearCitaDto,
   CrearDisponibilidadDto,
   CrearEspacioDto,
@@ -22,11 +29,12 @@ import {
 } from './dto/agenda.dto';
 
 const Uuid = new ParseUUIDPipe();
-const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
+const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE'] as const;
 const EQUIPO_AGENDA = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE'] as const;
 
 @ApiTags(TAGS.agenda)
 @Controller('espacios')
+@Modulo('AGENDA')
 export class EspaciosController {
   constructor(private readonly agenda: AgendaService) {}
 
@@ -48,6 +56,19 @@ export class EspaciosController {
     return this.agenda.editarEspacio(id, dto);
   }
 
+  /** Horario de funcionamiento del box (vacio = el del centro). */
+  @Get(':id/horario')
+  @Roles(...EQUIPO_AGENDA)
+  horario(@Param('id', Uuid) id: string) {
+    return this.agenda.horarioEspacio(id);
+  }
+
+  @Put(':id/horario')
+  @Roles('ADMIN', 'GESTION')
+  reemplazarHorario(@Param('id', Uuid) id: string, @Body() dto: HorarioEspacioDto) {
+    return this.agenda.reemplazarHorarioEspacio(id, dto.bloques);
+  }
+
   /** Ocupacion de boxes (citas confirmadas + soft-locks), sin pacientes. */
   @Get('ocupacion')
   @Roles(...EQUIPO_AGENDA)
@@ -59,6 +80,7 @@ export class EspaciosController {
 /** Disponibilidad semanal y bloqueos: el propio y ADMIN/GESTION (RLS). */
 @ApiTags(TAGS.agenda)
 @Controller('profesionales/:profesionalId')
+@Modulo('AGENDA')
 export class AgendaProfesionalController {
   constructor(private readonly agenda: AgendaService) {}
 
@@ -116,6 +138,7 @@ export class AgendaProfesionalController {
 /** Soft-locks con TTL (cada uno los suyos). */
 @ApiTags(TAGS.agenda)
 @Controller('agenda/horarios-tomados')
+@Modulo('AGENDA')
 export class HorariosTomadosController {
   constructor(private readonly agenda: AgendaService) {}
 
@@ -141,6 +164,7 @@ export class HorariosTomadosController {
 /** Citas: ADMIN/GESTION todas; PROFESIONAL/PRACTICANTE las propias; PACIENTE solo lee las suyas. */
 @ApiTags(TAGS.agenda)
 @Controller('citas')
+@Modulo('AGENDA')
 export class CitasController {
   constructor(private readonly citas: CitasService) {}
 
@@ -193,11 +217,62 @@ export class CitasController {
   enlace(@Param('id', Uuid) id: string) {
     return this.citas.enlace(id);
   }
+
+  /** Aprobar una cita SOLICITADA (paciente nuevo de un profesional que aprueba). */
+  @Post(':id/aprobacion')
+  @HttpCode(200)
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  aprobar(@Param('id', Uuid) id: string) {
+    return this.citas.aprobar(id);
+  }
+
+  /** "Cubrir sesion": otro profesional con acceso clinico temporal vigente (si no, 422). Cambiar de tratante = derivacion. */
+  @Patch(':id/profesional')
+  @Roles('ADMIN', 'GESTION')
+  cubrir(@Param('id', Uuid) id: string, @Body() dto: CubrirCitaDto) {
+    return this.citas.cubrir(id, dto.profesionalId);
+  }
+
+  /** "Requerir cierre": aviso al profesional (sesion sin evolucion registrada). */
+  @Post(':id/cierre-requerido')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  requerirCierre(@Param('id', Uuid) id: string) {
+    return this.citas.requerirCierre(id);
+  }
+}
+
+/** Lista de espera por profesional o tipo de atencion (03a). */
+@ApiTags(TAGS.agenda)
+@Controller('lista-espera')
+@Modulo('AGENDA')
+export class ListaEsperaController {
+  constructor(private readonly lista: ListaEsperaService) {}
+
+  @Get()
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
+  listar(@Query() filtro: FiltroListaEsperaDto) {
+    return this.lista.listar(filtro);
+  }
+
+  @Post()
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
+  crear(@Body() dto: CrearListaEsperaDto) {
+    return this.lista.crear(dto);
+  }
+
+  @Post(':id/cierre')
+  @HttpCode(200)
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
+  cerrar(@Param('id', Uuid) id: string, @Body() dto: CerrarListaEsperaDto) {
+    return this.lista.cerrar(id, dto.estado);
+  }
 }
 
 /** Sala de videollamada y feed iCal: cada profesional o practicante los suyos (02h). */
 @ApiTags(TAGS.agenda)
 @Controller('profesionales/yo')
+@Modulo('AGENDA')
 export class IntegracionesAgendaController {
   constructor(private readonly integraciones: IntegracionesAgendaService) {}
 

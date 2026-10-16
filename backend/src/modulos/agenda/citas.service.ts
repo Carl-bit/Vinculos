@@ -6,7 +6,9 @@ import type { Cita, ModalidadAtencion, Prisma } from '@prisma/client';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { MENSAJE_POR_RESTRICCION } from '../../core/errores/sqlstate';
-import { EVENTOS, type CitaCancelada, type CitaConfirmada } from '../../core/eventos/eventos';
+import { EVENTOS, type CitaCancelada, type CitaConfirmada, type NotificacionSolicitada } from '../../core/eventos/eventos';
+import { HORA, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
+import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
 import { AgendaService } from './agenda.service';
 import type { CrearCitaDto, FiltroCitasDto, HorarioDto, ReprogramarCitaDto } from './dto/agenda.dto';
 import { ProveedorVideollamada } from '../../core/integraciones/videollamada';
@@ -57,6 +59,7 @@ export class CitasService {
     private readonly video: ProveedorVideollamada,
     private readonly eventos: EventEmitter2,
     private readonly config: ConfigService,
+    private readonly correos: CorreosCuenta,
   ) {}
 
   async listar(filtro: FiltroCitasDto) {
@@ -132,6 +135,9 @@ export class CitasService {
     if (actual.estado === 'CANCELADA') {
       throw new ConflictException('Una cita cancelada no se reprograma');
     }
+    if (actual.estado === 'SOLICITADA') {
+      throw new ConflictException('La cita esta por aprobar: apruebela o cancelela antes de moverla');
+    }
     const modalidad = dto.modalidad ?? actual.modalidad;
     const espacioId = modalidad === 'PRESENCIAL' ? (dto.espacioId ?? actual.espacioId ?? undefined) : undefined;
     const horario: HorarioDto = { profesionalId: actual.profesionalId, modalidad, espacioId, inicio: dto.inicio, fin: dto.fin };
@@ -146,6 +152,55 @@ export class CitasService {
     const conEnlace = await this.generarEnlace(cita);
     this.emitirConfirmada(EVENTOS.CITA_REPROGRAMADA, cita, conEnlace);
     return cita;
+  }
+
+  /**
+   * Aprobar una cita SOLICITADA (C-15): el tratante, ADMIN o GESTION. Queda
+   * CONFIRMADA (la BD fija el monto) y, si el paciente llego por el portal y
+   * aun no tiene cuenta, se le invita (o a su adulto responsable).
+   */
+  async aprobar(id: string) {
+    const tx = this.bd.tx();
+    await tx.$queryRaw`SELECT aprobar_cita_solicitada(${id}::uuid)`;
+    const cita = await this.obtener(id);
+    const conEnlace = await this.generarEnlace(cita);
+    this.emitirConfirmada(EVENTOS.CITA_CONFIRMADA, cita, conEnlace);
+    const { token, hash } = nuevoTokenCorreo();
+    const vence = new Date(Date.now() + 72 * HORA);
+    const [inv] = await tx.$queryRaw<{ email: string; rol: string }[]>`SELECT email, rol::text FROM invitar_tras_aprobar(${id}::uuid, ${hash}, ${vence})`;
+    if (inv) {
+      this.bd.alConfirmar(() => this.correos.enviar('INVITACION', inv.email, token, vence));
+    }
+    return { ...cita, invitacion: inv ? { rol: inv.rol, vence } : null };
+  }
+
+  /**
+   * "Cubrir sesion" (C-5): la cita pasa a otro profesional solo si tiene
+   * acceso clinico temporal vigente en ese horario (si no, 422 de la BD:
+   * citas_profesional_con_acceso). Para cambiar de tratante: derivacion.
+   */
+  async cubrir(id: string, profesionalId: string) {
+    const actual = await this.obtener(id);
+    if (actual.estado !== 'CONFIRMADA') {
+      throw new ConflictException('Solo se cubre una cita confirmada');
+    }
+    const cita = await this.bd.tx().cita.update({ where: { id }, data: { profesionalId, enlaceOnline: null }, select: VISTA });
+    const conEnlace = await this.generarEnlace(cita);
+    this.emitirConfirmada(EVENTOS.CITA_REPROGRAMADA, cita, conEnlace);
+    return cita;
+  }
+
+  /** "Requerir cierre" (ADMIN): avisa al profesional que la sesion sigue sin evolucion registrada. */
+  async requerirCierre(id: string) {
+    const cita = await this.obtener(id);
+    const evento: NotificacionSolicitada = {
+      actor: this.bd.usuario(),
+      tipo: 'CIERRE_REQUERIDO',
+      destino: { usuarioId: cita.profesionalId },
+      referenciaId: id,
+    };
+    this.bd.alConfirmar(() => this.eventos.emitAsync(EVENTOS.NOTIFICACION_SOLICITADA, evento));
+    return { citaId: id, avisado: true };
   }
 
   /** POR_REPROGRAMAR: tratante saliente, revocacion o baja (lista para reprogramar y avisar). */

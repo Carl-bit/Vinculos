@@ -3,7 +3,7 @@ import type { Rol } from '@prisma/client';
 
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
-import type { IniciarBajaDto, OtorgarAccesoDto } from './dto/nucleo.dto';
+import type { FiltroDirectorioDto, IniciarBajaDto, OtorgarAccesoDto } from './dto/nucleo.dto';
 
 /**
  * Accesos de practicantes, bajas, bandeja de reasignacion, alertas y
@@ -81,19 +81,32 @@ export class EquipoAccesoService {
     return { id, atendida: true };
   }
 
-  /** Telefono cifrado: solo llega a ADMIN/GESTION; AAD usuarios:telefono:<id>. */
-  async directorio() {
+  /**
+   * Telefono cifrado: solo llega a ADMIN/GESTION; AAD usuarios:telefono:<id>.
+   * Filtros del selector de equipo (03a): rol (principal o adicional), tipo de
+   * atencion aprobado y nombre.
+   */
+  async directorio(filtro: FiltroDirectorioDto = {}) {
     const filas = await this.bd.tx().$queryRaw<
-      { id: string; nombre: string; rol: Rol; tipos_atencion: string[]; email: string | null; telefono: Uint8Array | null }[]
-    >`SELECT id, nombre, rol, tipos_atencion, email, telefono FROM directorio_interno()`;
-    return filas.map((f) => ({
-      id: f.id,
-      nombre: f.nombre,
-      rol: f.rol,
-      tiposAtencion: f.tipos_atencion,
-      email: f.email,
-      telefono: this.llavero.descifrarCampo(f.telefono, 'usuarios', 'telefono', f.id),
-    }));
+      { id: string; nombre: string; rol: Rol; roles: Rol[]; tipos_atencion: string[]; email: string | null; telefono: Uint8Array | null }[]
+    >`SELECT id, nombre, rol, roles::text[] AS roles, tipos_atencion, email, telefono FROM directorio_interno()`;
+    const nombre = filtro.nombre?.toLocaleLowerCase('es');
+    return filas
+      .filter(
+        (f) =>
+          (!filtro.rol || f.roles.includes(filtro.rol)) &&
+          (!filtro.tipoAtencion || f.tipos_atencion.includes(filtro.tipoAtencion)) &&
+          (!nombre || (f.nombre ?? '').toLocaleLowerCase('es').includes(nombre)),
+      )
+      .map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        rol: f.rol,
+        roles: f.roles,
+        tiposAtencion: f.tipos_atencion,
+        email: f.email,
+        telefono: this.llavero.descifrarCampo(f.telefono, 'usuarios', 'telefono', f.id),
+      }));
   }
 
   miEquipoTratante() {

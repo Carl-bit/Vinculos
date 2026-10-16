@@ -63,6 +63,13 @@ compara ese registro con las columnas bytea reales de la BD.
 | `notificaciones.asunto`, `notificaciones.cuerpo` (02i, CLINICO) | Mensaje armado con la plantilla (bandeja y correo): nombres, horario y enlaces de una atencion de salud. Lo escribe el job (cifrado por la API, AAD `notificaciones:<columna>:<id>`). |
 | `recordatorios_cita.enlace` (02i, CLINICO) | URL con el token para confirmar o cancelar, solo para armar el mensaje. Para validar se guarda aparte su SHA-256 (`token_hash`). Id generado por la API. |
 | `adjuntos_ficha.contenido` (02i, CLINICO) | Archivo externo de la ficha (informe, imagen) en base64. Id generado por la API. |
+| `usuarios.totp_secreto` (03a, IDENTIFICACION) | Secreto del segundo factor: con el se generan codigos validos. |
+| `pacientes.contacto_emergencia` (03a, IDENTIFICACION) | Nombre y telefono de un tercero. Lo leen el tratante y ADMIN/GESTION. |
+| `solicitudes_hora.telefono`, `rut`, `adulto_telefono` (03a, IDENTIFICACION) | Contacto e identidad de quien pide hora sin cuenta. |
+| `solicitudes_hora.respuestas` (03a, CLINICO) | Respuestas del match (motivo de consulta). Se borran a los 30 dias si no se concreta la atencion (configurable) y al alta. |
+| `resenas.texto`, `resenas.feedback_privado` (03a, CLINICO) | Texto libre del paciente sobre su atencion. El feedback privado solo lo lee el profesional. |
+| `altas_paciente.motivo` (03a, CLINICO) | Motivo clinico del alta. |
+| `borradores_evolucion.contenido` (03a, CLINICO) | Borrador de evolucion; solo lo lee su autor y se elimina al confirmarlo como evolucion. |
 
 | No se cifra | Por que |
 |---|---|
@@ -73,6 +80,8 @@ compara ese registro con las columnas bytea reales de la BD.
 | `email` de login | Se busca en el login (`credenciales_login`); es la llave de acceso. |
 | Montos, pagos, liquidaciones (02h) | La BD calcula saldos, sobrepago y liquidaciones con ellos. Lo sensible del cobro (datos bancarios, emisor de la boleta) si va cifrado. |
 | `feeds_calendario.token_hash`, `envios_documento.token_hash` (02h), `recordatorios_cita.token_hash` (02i) | SHA-256 de un token aleatorio de 256 bits: no revela el token; se busca por igualdad. |
+| `imagenes_publicas.contenido` (03a) | Foto de perfil y logo: se sirven sin autenticacion en el portal publico. Se re-codifican a WebP sin metadatos (EXIF) y se guardan aparte de los adjuntos clinicos. Unica excepcion bytea (`BYTEA_PUBLICOS` en `registro.ts`), excluida de los tests de "sin texto plano". |
+| `tokens_correo.token_hash` (03a) | SHA-256 del token de invitacion, verificacion, recuperacion o consentimiento; un solo uso. |
 | Direcciones | Hoy no existen columnas de direccion; cuando se agreguen, van cifradas. |
 
 ## Modelo de amenazas

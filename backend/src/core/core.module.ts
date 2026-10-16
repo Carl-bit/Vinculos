@@ -12,6 +12,8 @@ import type { DestinationStream } from 'pino';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtGuard, RolesGuard } from './auth/guards';
+import { ModulosGuard } from './modulos/modulos';
+import { CorreosCuenta } from './notificaciones/correos-cuenta';
 import { BdModule } from './bd/bd.module';
 import { validarEntorno } from './config/entorno';
 import { CryptoModule } from './crypto/crypto.module';
@@ -83,6 +85,8 @@ export class CoreModule {
       providers: [
         AuthService,
         JobsService,
+        CorreosCuenta,
+        ModulosGuard,
         NotificacionesService,
         // Integraciones: los modulos dependen solo de las interfaces; la
         // implementacion se elige aqui por configuracion (integraciones.md).
@@ -105,10 +109,11 @@ export class CoreModule {
         { provide: ProveedorCalendario, useClass: CalendarioIcs },
         { provide: APP_GUARD, useClass: JwtGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
+        { provide: APP_GUARD, useExisting: ModulosGuard },
         { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
         { provide: APP_FILTER, useClass: FiltroErrores },
       ],
-      exports: [JobsService, NotificacionesService, ProveedorCorreo, ProveedorVideollamada, ProveedorCalendario],
+      exports: [JobsService, NotificacionesService, ProveedorCorreo, ProveedorVideollamada, ProveedorCalendario, CorreosCuenta, ModulosGuard],
     };
   }
 }

@@ -85,6 +85,38 @@ export class PerfilDto {
   @IsOptional()
   @IsBoolean()
   cobroDirecto?: boolean;
+
+  /** D-7: emite boleta reembolsable (isapre o seguro complementario). */
+  @IsOptional()
+  @IsBoolean()
+  boletaReembolsable?: boolean;
+
+  /** D-7: convenios con los que atiende (FONASA, isapres...). Filtra el match por prevision. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  convenios?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  idiomas?: string[];
+
+  /** Frase destacada del perfil publico. */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @MaxLength(300)
+  citaDestacada?: string;
+
+  /** C-15: las solicitudes de pacientes nuevos quedan por aprobar (SOLICITADA). */
+  @IsOptional()
+  @IsBoolean()
+  requiereAprobacionNuevos?: boolean;
 }
 
 export class EditarPerfilDto {
@@ -128,6 +160,38 @@ export class EditarPerfilDto {
   @IsOptional()
   @IsBoolean()
   cobroDirecto?: boolean;
+
+  /** D-7: emite boleta reembolsable (isapre o seguro complementario). */
+  @IsOptional()
+  @IsBoolean()
+  boletaReembolsable?: boolean;
+
+  /** D-7: convenios con los que atiende (FONASA, isapres...). Filtra el match por prevision. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  convenios?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  idiomas?: string[];
+
+  /** Frase destacada del perfil publico. */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @MaxLength(300)
+  citaDestacada?: string;
+
+  /** C-15: las solicitudes de pacientes nuevos quedan por aprobar (SOLICITADA). */
+  @IsOptional()
+  @IsBoolean()
+  requiereAprobacionNuevos?: boolean;
 }
 
 export class MargenDto {

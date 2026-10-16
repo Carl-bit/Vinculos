@@ -5,8 +5,8 @@
 Guion por flujo y rol, preparacion del entorno (BD local con
 `npm run bd:local -- iniciar`, datos demo con `npm run seed:demo` y
 `npm run demo:reset`, correo en Mailpit) y usuarios demo:
-`docs/pruebas/guion_manual.md`. Coleccion Bruno versionada en `bruno/`
-(`bru run --env local -r` desde esa carpeta, sobre datos recien reseteados).
+`docs/pruebas/guion_manual.md`. Las requests manuales se hacen en Postman
+(coleccion fuera del repo).
 
 ## Integracion (sin Docker)
 

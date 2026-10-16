@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/styles.css">
+<script src="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent-2-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-2-600); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: 500; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+  .msf { font-variation-settings: 'FILL' 1; }
+  .opt { transition: box-shadow .16s ease, transform .16s ease; }
+  .opt:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 999px; background: var(--color-neutral-300); outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 30px; height: 30px; border-radius: 999px; background: var(--color-accent-600); border: 3px solid var(--color-bg); box-shadow: var(--shadow-md); cursor: pointer; }
+  input[type="range"]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 999px; background: var(--color-accent-600); border: 3px solid var(--color-bg); cursor: pointer; }
+</style>
+</helmet>
+
+<div style="position:fixed;bottom:18px;right:18px;z-index:50;display:flex;background:var(--color-neutral-100);border:1px solid var(--color-neutral-400);border-radius:999px;padding:4px;box-shadow:var(--shadow-lg)">
+  <sc-for list="{{ devices }}" as="dv" hint-placeholder-count="2">
+    <button type="button" onClick="{{ dv.pick }}" style="border:none;background:{{ dv.bg }};font-family:var(--font-body);color:{{ dv.fg }};font-weight:800;font-size:12.5px;padding:8px 16px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:7px">
+      <span class="ms" style="font-size:16px">{{ dv.icon }}</span>{{ dv.label }}
+    </button>
+  </sc-for>
+</div>
+
+<div style="min-height:100vh;background:var(--color-bg)">
+
+  <header style="display:flex;align-items:center;gap:20px;max-width:1180px;margin:0 auto;padding:22px clamp(20px,4vw,40px)">
+    <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:9px;color:var(--color-text)" style-hover="color:var(--color-text)">
+      <span style="width:11px;height:11px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block"></span>
+      <span style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.04em">Centro Ejemplo</span>
+    </a>
+    <nav style="display:flex;gap:26px;margin-left:auto;font-size:14.5px;font-weight:700;flex-wrap:wrap">
+      <a href="./Landing.dc.html#equipo" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Equipo</a>
+      <a href="./Paciente - Pedir Hora.dc.html" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Pedir una hora</a>
+    </nav>
+    <a href="./Inicio de Sesion.dc.html" style="border:1.5px solid var(--color-neutral-400);color:var(--color-text);font-weight:800;font-size:14px;padding:10px 20px;border-radius:999px;white-space:nowrap" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500);color:var(--color-text)">Iniciar sesión</a>
+  </header>
+
+  <div style="display:flex;gap:clamp(20px,3vw,40px);align-items:flex-start;justify-content:center;max-width:1180px;margin:0 auto;padding:clamp(10px,2vw,26px) clamp(20px,4vw,40px) 80px">
+
+    <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+      <aside style="flex:0 0 292px;width:292px;position:sticky;top:24px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:26px 24px;box-shadow:var(--shadow-sm)">
+        <div style="display:inline-flex;color:var(--color-accent-2-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:10px;border-bottom:2px solid var(--color-accent-2-600);margin-bottom:20px">Match terapéutico</div>
+
+        <div style="font-family:var(--font-body);font-weight:900;font-size:34px;line-height:1;letter-spacing:-0.035em;margin-bottom:6px">{{ pct }}%</div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--color-neutral-600);margin-bottom:12px">{{ stepLabel }}</div>
+        <div style="height:8px;border-radius:999px;background:var(--color-neutral-300);overflow:hidden;margin-bottom:24px">
+          <div style="height:100%;border-radius:999px;background:var(--color-accent-600);width:{{ pctW }}"></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <sc-for list="{{ outline }}" as="o" hint-placeholder-count="7">
+            <button type="button" onClick="{{ o.go }}" style="font-family:var(--font-body);text-align:left;width:100%;border:none;background:{{ o.bg }};border-radius:14px;padding:11px 12px;cursor:{{ o.cursor }};display:flex;align-items:flex-start;gap:11px">
+              <span class="ms {{ o.iconCls }}" style="font-size:19px;color:{{ o.iconColor }};flex:none;margin-top:1px">{{ o.icon }}</span>
+              <span style="min-width:0;flex:1">
+                <span style="display:block;font-size:13px;font-weight:{{ o.weight }};letter-spacing:-0.015em;color:{{ o.color }};line-height:1.3">{{ o.title }}</span>
+                <span style="display:block;font-size:11.5px;font-weight:600;color:var(--color-neutral-600);margin-top:3px;line-height:1.35">{{ o.summary }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--color-divider)">
+          <span class="ms" style="font-size:17px;color:var(--color-neutral-600);flex:none">lock</span>
+          <p style="font-size:11.5px;font-weight:600;line-height:1.5;color:var(--color-neutral-600);margin:0;text-wrap:pretty">Tus respuestas se usan solo para sugerirte un profesional del centro.</p>
+        </div>
+      </aside>
+    </sc-if>
+
+    <main style="flex:1 1 auto;min-width:0;max-width:{{ mainMax }};width:100%;background:{{ frameBg }};border:{{ frameBorder }};border-radius:{{ frameRadius }};padding:{{ framePad }};box-shadow:{{ frameShadow }};box-sizing:border-box">
+
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom:22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px">
+            <span style="font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent-700)">Match terapéutico</span>
+            <span style="font-size:12px;font-weight:800;color:var(--color-neutral-600)">{{ stepLabel }}</span>
+          </div>
+          <div style="height:8px;border-radius:999px;background:var(--color-neutral-300);overflow:hidden">
+            <div style="height:100%;border-radius:999px;background:var(--color-accent-600);width:{{ pctW }}"></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isQuestion }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <h1 style="font-family:var(--font-body);font-weight:900;font-size:clamp(25px,3.2vw,36px);line-height:1.08;letter-spacing:-0.035em;margin:0 0 10px;text-wrap:balance">{{ qTitle }}</h1>
+          <p style="font-size:15.5px;line-height:1.6;font-weight:500;color:var(--color-neutral-700);margin:0 0 26px;max-width:56ch;text-wrap:pretty">{{ qHelp }}</p>
+        </div>
+      </sc-if>
+
+      <!-- 1 · motivos -->
+      <sc-if value="{{ isMotivos }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px">
+            <sc-for list="{{ motivos }}" as="m" hint-placeholder-count="10">
+              <button type="button" class="opt" onClick="{{ m.toggle }}" style="font-family:var(--font-body);cursor:pointer;font-size:14px;font-weight:800;padding:12px 20px;border-radius:999px;background:{{ m.bg }};color:{{ m.fg }};border:1.5px solid {{ m.bd }};display:flex;align-items:center;gap:9px">
+                <span class="ms {{ m.iconCls }}" style="font-size:18px">{{ m.icon }}</span>{{ m.label }}
+              </button>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:800;color:{{ countColor }}">
+            <span class="ms" style="font-size:17px">checklist</span>{{ motivoCount }}
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- 2 · para quién -->
+      <sc-if value="{{ isQuien }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+          <sc-for list="{{ quienes }}" as="q" hint-placeholder-count="4">
+            <button type="button" class="opt" onClick="{{ q.pick }}" style="font-family:var(--font-body);text-align:left;cursor:pointer;background:{{ q.bg }};border:1.5px solid {{ q.bd }};border-radius:var(--radius-lg);padding:20px 18px;display:flex;flex-direction:column;gap:12px">
+              <span style="width:48px;height:48px;border-radius:999px;background:{{ q.iconBg }};border:1px solid {{ q.bd }};display:grid;place-items:center;flex:none"><span class="ms" style="font-size:24px;color:{{ q.iconFg }}">{{ q.icon }}</span></span>
+              <span style="min-width:0">
+                <span style="display:block;font-size:16px;font-weight:900;letter-spacing:-0.02em;color:{{ q.fg }};margin-bottom:4px">{{ q.label }}</span>
+                <span style="display:block;font-size:12.5px;font-weight:600;color:var(--color-neutral-600);line-height:1.4">{{ q.note }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- 3 · intensidad -->
+      <sc-if value="{{ isIntensidad }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:26px 24px 20px;margin-bottom:16px">
+            <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:22px">
+              <span style="font-family:var(--font-body);font-weight:900;font-size:52px;line-height:0.9;letter-spacing:-0.04em;color:var(--color-accent-700)">{{ intensidad }}</span>
+              <span style="font-size:13px;font-weight:800;color:var(--color-neutral-600)">de 10</span>
+              <span style="margin-left:auto;font-size:15px;font-weight:900;letter-spacing:-0.02em;background:var(--color-accent-200);border:1px solid var(--color-accent-500);color:var(--color-accent-900);border-radius:999px;padding:8px 18px">{{ intensidadLabel }}</span>
+            </div>
+            <input type="range" min="1" max="10" step="1" value="{{ intensidad }}" onChange="{{ setIntensidad }}"></input>
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--color-neutral-600);margin-top:10px">
+              <span>Apenas lo noto</span>
+              <span>Me cuesta funcionar</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:11px;background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);border-radius:18px;padding:15px 17px">
+            <span class="ms" style="font-size:19px;color:var(--color-accent-2-700);flex:none">info</span>
+            <p style="font-size:13px;font-weight:700;color:var(--color-accent-2-900);margin:0;text-wrap:pretty">{{ intensidadNote }}</p>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- 4 · relato -->
+      <sc-if value="{{ isRelato }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <textarea rows="8" value="{{ relato }}" onChange="{{ setRelato }}" placeholder="Ej. Hace unos meses que duermo mal y me cuesta concentrarme en el trabajo. No sé si es solo cansancio." style="font-family:var(--font-body);width:100%;box-sizing:border-box;font-size:15.5px;font-weight:500;line-height:1.65;padding:18px 20px;border-radius:20px;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text);resize:vertical;margin-bottom:12px"></textarea>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px">
+            <span style="font-size:12.5px;font-weight:700;color:var(--color-neutral-600);margin-left:auto">{{ relatoCount }}</span>
+          </div>
+          <div style="display:flex;gap:11px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:15px 17px">
+            <span class="ms" style="font-size:19px;color:var(--color-neutral-700);flex:none">lock</span>
+            <p style="font-size:13px;font-weight:700;color:var(--color-neutral-700);margin:0;text-wrap:pretty">Lo que escribas acá lo lee únicamente el profesional que te sea asignado. No queda visible para la administración del centro.</p>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- 5 · horarios -->
+      <sc-if value="{{ isHorario }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:11px">
+            <span style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600)">Días que te acomodan</span>
+            <span style="font-size:12.5px;font-weight:800;color:{{ diasColor }}">{{ diasCount }}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:26px">
+            <sc-for list="{{ dias }}" as="d" hint-placeholder-count="6">
+              <button type="button" onClick="{{ d.toggle }}" style="font-family:var(--font-body);cursor:{{ d.cursor }};font-size:14px;font-weight:800;padding:12px 20px;border-radius:999px;background:{{ d.bg }};color:{{ d.fg }};border:1.5px solid {{ d.bd }};opacity:{{ d.op }}">{{ d.label }}</button>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:11px">
+            <span style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600)">Franjas horarias</span>
+            <span style="font-size:12.5px;font-weight:800;color:{{ franjasColor }}">{{ franjasCount }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+            <sc-for list="{{ franjas }}" as="fr" hint-placeholder-count="4">
+              <button type="button" class="opt" onClick="{{ fr.toggle }}" style="font-family:var(--font-body);text-align:left;cursor:{{ fr.cursor }};background:{{ fr.bg }};border:1.5px solid {{ fr.bd }};border-radius:18px;padding:15px 17px;display:flex;align-items:center;gap:12px;opacity:{{ fr.op }}">
+                <span class="ms" style="font-size:21px;color:{{ fr.iconFg }};flex:none">{{ fr.icon }}</span>
+                <span style="min-width:0">
+                  <span style="display:block;font-size:14.5px;font-weight:900;letter-spacing:-0.02em;color:{{ fr.fg }}">{{ fr.label }}</span>
+                  <span style="display:block;font-size:12px;font-weight:600;color:var(--color-neutral-600);margin-top:2px">{{ fr.range }}</span>
+                </span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- 6 · previsión y modalidad -->
+      <sc-if value="{{ isPrefs }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:11px">Previsión de salud</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px">
+            <sc-for list="{{ previsiones }}" as="p" hint-placeholder-count="3">
+              <button type="button" onClick="{{ p.pick }}" style="font-family:var(--font-body);cursor:pointer;font-size:14px;font-weight:800;padding:12px 22px;border-radius:999px;background:{{ p.bg }};color:{{ p.fg }};border:1.5px solid {{ p.bd }}">{{ p.label }}</button>
+            </sc-for>
+          </div>
+
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:11px">Modalidad de atención</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+            <sc-for list="{{ modalidades }}" as="md" hint-placeholder-count="3">
+              <button type="button" class="opt" onClick="{{ md.pick }}" style="font-family:var(--font-body);text-align:left;cursor:pointer;background:{{ md.bg }};border:1.5px solid {{ md.bd }};border-radius:18px;padding:16px 18px;display:flex;align-items:center;gap:12px">
+                <span class="ms" style="font-size:21px;color:{{ md.iconFg }};flex:none">{{ md.icon }}</span>
+                <span style="font-size:14.5px;font-weight:900;letter-spacing:-0.02em;color:{{ md.fg }}">{{ md.label }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- 7 · contacto -->
+      <sc-if value="{{ isContacto }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
+            <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+              <label style="font-size:12px;font-weight:800;color:var(--color-neutral-700)">Tu nombre</label>
+              <input type="text" value="{{ nombre }}" onChange="{{ setNombre }}" placeholder="Nombre y apellido" style="font-family:var(--font-body);font-size:15px;font-weight:600;padding:14px 20px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text);min-width:0"></input>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+              <label style="font-size:12px;font-weight:800;color:var(--color-neutral-700)">Tu correo</label>
+              <input type="text" value="{{ correo }}" onChange="{{ setCorreo }}" placeholder="nombre@correo.cl" style="font-family:var(--font-body);font-size:15px;font-weight:600;padding:14px 20px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text);min-width:0"></input>
+            </div>
+          </div>
+          <div style="display:flex;gap:11px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:15px 17px">
+            <span class="ms" style="font-size:19px;color:var(--color-neutral-700);flex:none">mail</span>
+            <p style="font-size:13px;font-weight:700;color:var(--color-neutral-700);margin:0;text-wrap:pretty">Te enviamos el resultado del match por correo para que puedas retomarlo cuando quieras. No compartimos tus datos fuera del centro.</p>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- Resultado -->
+      <sc-if value="{{ isResultado }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:inline-flex;color:var(--color-accent-2-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:10px;border-bottom:2px solid var(--color-accent-2-600);margin-bottom:20px">Tu resultado</div>
+
+          <section style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px 26px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <span class="ms" style="font-size:20px;color:var(--color-accent-700)">psychology_alt</span>
+              <h2 style="font-family:var(--font-body);font-weight:900;font-size:18px;letter-spacing:-0.025em;margin:0">Tu análisis personalizado</h2>
+            </div>
+            <p style="font-size:15.5px;font-weight:500;line-height:1.7;color:var(--color-neutral-800);margin:0 0 16px;text-wrap:pretty">{{ analisis }}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <sc-for list="{{ resumenChips }}" as="rc" hint-placeholder-count="4">
+                <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:999px;padding:7px 14px">
+                  <span class="ms" style="font-size:16px;color:var(--color-accent-2-700)">{{ rc.icon }}</span>{{ rc.label }}
+                </span>
+              </sc-for>
+            </div>
+          </section>
+
+          <section style="background:var(--color-bg);border:1.5px solid var(--color-accent-500);border-radius:var(--radius-lg);padding:26px;box-shadow:var(--shadow-lg);margin-bottom:16px">
+            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;margin-bottom:18px">
+              <span style="width:104px;height:104px;border-radius:var(--radius-lg);background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);background-image:url({{ pro.photo }});background-size:cover;background-position:center top;display:grid;place-items:center;flex:none;filter:saturate(0.86) contrast(0.96)">
+                <sc-if value="{{ pro.noPhoto }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-family:var(--font-body);font-size:30px;font-weight:900;letter-spacing:-0.03em;color:var(--color-accent-2-700)">{{ pro.initials }}</span>
+                </sc-if>
+              </span>
+              <div style="flex:1 1 240px;min-width:220px">
+                <span style="display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;background:var(--color-accent-600);color:var(--color-neutral-100);border-radius:999px;padding:5px 13px;margin-bottom:11px">
+                  <span class="ms msf" style="font-size:15px">star</span>Mejor match
+                </span>
+                <h2 style="font-family:var(--font-body);font-weight:900;font-size:clamp(24px,2.8vw,30px);line-height:1.05;letter-spacing:-0.03em;margin:0 0 7px">{{ pro.name }}</h2>
+                <p style="font-size:14.5px;font-weight:700;color:var(--color-neutral-700);margin:0 0 4px">{{ pro.title }}</p>
+                <p style="font-size:13.5px;font-weight:600;color:var(--color-neutral-600);margin:0">{{ pro.base }}</p>
+              </div>
+            </div>
+
+            <div style="background:var(--color-accent-100);border:1px solid var(--color-accent-500);border-radius:18px;padding:17px 19px;margin-bottom:18px">
+              <div style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:7px">Por qué te lo recomendamos</div>
+              <p style="font-size:14.5px;font-weight:600;line-height:1.6;color:var(--color-accent-900);margin:0;text-wrap:pretty">{{ porQue }}</p>
+            </div>
+
+            <sc-if value="{{ hasCaveat }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;gap:12px;background:var(--color-neutral-100);border:1px solid var(--color-neutral-500);border-radius:18px;padding:16px 18px;margin-bottom:18px">
+                <span class="ms" style="font-size:19px;color:var(--color-neutral-700);flex:none">info</span>
+                <p style="font-size:13.5px;font-weight:700;line-height:1.55;color:var(--color-neutral-800);margin:0;text-wrap:pretty">{{ caveat }}</p>
+              </div>
+            </sc-if>
+
+            <button type="button" onClick="{{ toggleDetail }}" style="width:100%;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:14px;padding:13px 20px;border-radius:999px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:{{ detailGap }}" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)">
+              <span class="ms" style="font-size:18px">{{ detailIcon }}</span>{{ detailLabel }}
+            </button>
+
+            <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:20px">
+                <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="4">
+                  <div>
+                    <div style="display:flex;align-items:center;gap:9px;margin-bottom:11px">
+                      <span class="ms" style="font-size:18px;color:var(--color-accent-2-700);flex:none">{{ sec.icon }}</span>
+                      <span style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600)">{{ sec.title }}</span>
+                    </div>
+                    <sc-if value="{{ sec.isText }}" hint-placeholder-val="{{ true }}">
+                      <p style="font-size:14.5px;font-weight:500;line-height:1.7;color:var(--color-neutral-800);margin:0;text-wrap:pretty">{{ sec.text }}</p>
+                    </sc-if>
+                    <sc-if value="{{ sec.isList }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-direction:column;gap:9px">
+                        <sc-for list="{{ sec.items }}" as="it" hint-placeholder-count="3">
+                          <div style="display:flex;gap:11px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:16px;padding:13px 16px">
+                            <span class="ms" style="font-size:17px;color:var(--color-accent-2-700);flex:none">{{ it.icon }}</span>
+                            <span style="min-width:0">
+                              <span style="display:block;font-size:14px;font-weight:800;letter-spacing:-0.015em">{{ it.title }}</span>
+                              <span style="display:block;font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin-top:2px">{{ it.note }}</span>
+                            </span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ sec.isTags }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-wrap:wrap;gap:8px">
+                        <sc-for list="{{ sec.tags }}" as="tg" hint-placeholder-count="4">
+                          <span style="font-size:12.5px;font-weight:800;background:{{ tg.bg }};border:1px solid {{ tg.bd }};color:{{ tg.fg }};border-radius:999px;padding:7px 14px">{{ tg.label }}</span>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </section>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+            <a href="./Admin - Perfil Profesional.dc.html#publico" style="background:var(--color-accent-600);color:var(--color-neutral-100);font-weight:800;font-size:15px;padding:16px 30px;border-radius:999px;display:flex;align-items:center;gap:10px;flex:1 1 240px;justify-content:center" style-hover="background:var(--color-accent-700);color:var(--color-neutral-100)"><span class="ms" style="font-size:19px">calendar_month</span>Ver perfil y agendar</a>
+            <button type="button" onClick="{{ restart }}" style="border:1.5px solid var(--color-neutral-400);background:transparent;font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:15px;padding:16px 26px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:10px;flex:0 1 auto;justify-content:center" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)"><span class="ms" style="font-size:19px">restart_alt</span>Repetir el match</button>
+          </div>
+
+          <div style="display:flex;gap:11px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:15px 17px">
+            <span class="ms" style="font-size:19px;color:var(--color-neutral-700);flex:none">group</span>
+            <p style="font-size:13px;font-weight:700;color:var(--color-neutral-700);margin:0;text-wrap:pretty">Si prefieres otro profesional, puedes revisar al equipo completo y pedir hora con quien quieras. <a href="./Landing.dc.html#equipo">Ver todo el equipo</a></p>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isQuestion }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:30px;padding-top:22px;border-top:1px solid var(--color-divider)">
+          <sc-if value="{{ canBack }}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{ back }}" style="border:1.5px solid var(--color-neutral-400);background:transparent;font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:14.5px;padding:14px 22px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)"><span class="ms" style="font-size:18px">arrow_back</span>Atrás</button>
+          </sc-if>
+          <button type="button" onClick="{{ next }}" style="border:none;background:{{ nextBg }};font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:15px;padding:16px 30px;border-radius:999px;cursor:{{ nextCursor }};display:flex;align-items:center;gap:10px;margin-left:auto;opacity:{{ nextOp }}">{{ nextLabel }}<span class="ms" style="font-size:19px">arrow_forward</span></button>
+        </div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--color-neutral-600);margin-top:12px;text-align:right">{{ nextHint }}</div>
+      </sc-if>
+
+    </main>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:940}}">
+const MOTIVOS = [
+  { k: "ansiedad", label: "Ansiedad", icon: "air" },
+  { k: "estres", label: "Estrés", icon: "bolt" },
+  { k: "animo", label: "Ánimo bajo", icon: "cloud" },
+  { k: "duelo", label: "Duelo", icon: "favorite" },
+  { k: "sueno", label: "Problemas de sueño", icon: "bedtime" },
+  { k: "pareja", label: "Conflictos de pareja", icon: "diversity_1" },
+  { k: "familia", label: "Dinámica familiar", icon: "family_restroom" },
+  { k: "trabajo", label: "Trabajo o estudios", icon: "work" },
+  { k: "autoestima", label: "Autoestima", icon: "self_improvement" },
+  { k: "conducta", label: "Conducta de un hijo o hija", icon: "child_care" }
+];
+
+const QUIENES = [
+  { k: "adulto", label: "Para mí", note: "Persona adulta", icon: "person" },
+  { k: "adolescente", label: "Adolescente", note: "Entre 12 y 18 años", icon: "school" },
+  { k: "infantil", label: "Niño o niña", note: "Hasta los 11 años", icon: "child_care" },
+  { k: "pareja", label: "En pareja", note: "Sesiones de a dos", icon: "diversity_1" }
+];
+
+const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+const FRANJAS = [
+  { k: "manana", label: "Mañana", range: "08:00 – 12:00", icon: "wb_twilight" },
+  { k: "mediodia", label: "Mediodía", range: "12:00 – 15:00", icon: "light_mode" },
+  { k: "tarde", label: "Tarde", range: "15:00 – 19:00", icon: "wb_sunny" },
+  { k: "noche", label: "Noche", range: "19:00 – 21:00", icon: "dark_mode" }
+];
+
+const PREVISIONES = ["FONASA", "Isapre", "Particular"];
+
+const MODALIDADES = [
+  { k: "online", label: "Online", icon: "videocam" },
+  { k: "presencial", label: "Presencial", icon: "meeting_room" },
+  { k: "indistinto", label: "Sin preferencia", icon: "swap_horiz" }
+];
+
+const ESCALA = [
+  { max: 2, label: "Apenas lo noto", note: "Con orientación breve suele bastar. Igual te sugerimos un profesional." },
+  { max: 4, label: "Me molesta a ratos", note: "Aparece en momentos puntuales y no interfiere con tu rutina." },
+  { max: 6, label: "Me afecta bastante", note: "Está presente la mayoría de los días y te cuesta dejarlo de lado." },
+  { max: 8, label: "Me cuesta seguir el día", note: "Interfiere con tu trabajo, tus estudios o tus relaciones cercanas." },
+  { max: 10, label: "Me supera", note: "Si estás en riesgo, llama a Salud Responde al 600 360 7777, disponible las 24 horas." }
+];
+
+// RF-58: cada sección existe solo si el profesional la completó en su perfil.
+const PROS = {
+  mr: {
+    initials: "MR", name: "Marcela Rivas", photo: "./assets/marcela-1.png",
+    title: "Psicóloga clínica · adultos y parejas",
+    online: true, previsiones: ["FONASA", "Isapre", "Particular"], grupos: ["adulto", "pareja"],
+    base: "Psicología, Universidad de Chile (2009)",
+    bio: "Llevo dieciséis años atendiendo adultos, la mayoría llegando por ansiedad o por un duelo que no termina de cerrar. Desde 2019 dirijo el centro, y sigo atendiendo porque es donde el trabajo se entiende.",
+    enfoque: "Trabajo con terapia cognitivo-conductual: revisamos juntos qué pensamientos aparecen antes de que te sientas mal, y probamos formas distintas de responder a ellos. Vas a salir de cada sesión con algo concreto que hacer durante la semana.",
+    posgrado: [
+      { title: "Magíster en Psicología Clínica Adultos", note: "Pontificia Universidad Católica de Chile · 2014" },
+      { title: "Diplomado en Terapia de Pareja", note: "Universidad Adolfo Ibáñez · 2017" }
+    ],
+    experiencia: [
+      { title: "Directora clínica · Centro Ejemplo", note: "2019 a la fecha" },
+      { title: "Psicóloga clínica · COSAM Providencia", note: "2012 – 2019" }
+    ],
+    especialidades: ["Ansiedad", "Duelo", "Terapia de pareja", "Estrés laboral"],
+    categorias: ["Adultos", "Parejas", "Presencial y online"]
+  },
+  jt: {
+    initials: "JT", name: "Javier Tapia", photo: "./assets/javier-1.png",
+    title: "Psicólogo infanto-juvenil",
+    online: false, previsiones: ["FONASA", "Particular"], grupos: ["adolescente"],
+    base: "Psicología, Universidad de Santiago (2014)",
+    bio: "Trabajo con adolescentes derivados casi siempre por el colegio. La evaluación la hago por etapas y con la familia presente desde la primera reunión.",
+    enfoque: "Parto por entender cómo se ve el problema desde el adolescente y desde el adulto que lo acompaña, porque casi nunca coinciden. Recién cuando tengo las dos versiones proponemos objetivos, y los revisamos cada cierto tiempo con ambos.",
+    posgrado: null,
+    experiencia: [
+      { title: "Psicólogo infanto-juvenil · Centro Ejemplo", note: "2021 a la fecha" },
+      { title: "Programa de convivencia escolar · Municipalidad de Ñuñoa", note: "2016 – 2021" }
+    ],
+    especialidades: ["Adolescencia", "Conducta escolar", "Ansiedad"],
+    categorias: ["Adolescentes", "Solo presencial"]
+  },
+  cs: {
+    initials: "CS", name: "Camila Soto", photo: "./assets/camila-1.png",
+    title: "Psicóloga infantil y adolescente",
+    online: true, previsiones: ["Isapre", "Particular"], grupos: ["infantil", "adolescente"],
+    base: "Psicología, Universidad Diego Portales (2016)",
+    bio: "Empecé atendiendo en un colegio municipal de La Florida, con una sala prestada y treinta niños en lista de espera. Ahí aprendí que un niño no llega solo a terapia.",
+    enfoque: "Uso juego y dibujo con los más pequeños, porque es su idioma. Con la familia trabajo la forma en que se están hablando, que suele ser donde el problema se sostiene.",
+    posgrado: [
+      { title: "Diplomado en Terapia Sistémica Familiar", note: "Universidad Alberto Hurtado · 2019" }
+    ],
+    experiencia: null,
+    especialidades: ["Infancia", "Terapia familiar", "Conducta"],
+    categorias: ["Niños", "Adolescentes", "Familias", "Presencial y online"]
+  }
+};
+
+const GRUPO_CAT = { adulto: "Adultos", pareja: "Parejas", adolescente: "Adolescentes", infantil: "Niños" };
+
+const STEPS = [
+  { k: "motivos", nav: "Motivo de consulta", title: "¿Qué te trae al centro?", help: "Marca todo lo que sientas que te está pasando. Puedes elegir varios; nos sirve para entender por dónde partir." },
+  { k: "quien", nav: "Para quién es", title: "¿Para quién es la atención?", help: "El equipo se organiza por edad y tipo de proceso, así que esto define bastante la recomendación." },
+  { k: "intensidad", nav: "Intensidad", title: "¿Qué tan fuerte lo sientes?", help: "Piensa en las últimas dos semanas y en el motivo que más te pesa." },
+  { k: "relato", nav: "Tu relato", title: "Cuéntanos con tus palabras", help: "No hace falta que sea largo ni ordenado. Escribe lo que se te venga a la cabeza." },
+  { k: "horario", nav: "Disponibilidad", title: "¿Cuándo puedes venir?", help: "Elige hasta tres días y hasta tres franjas horarias. Con eso buscamos horas reales en la agenda." },
+  { k: "prefs", nav: "Previsión y modalidad", title: "Previsión y modalidad", help: "Esto nos permite mostrarte solo profesionales con los que efectivamente puedes atenderte." },
+  { k: "contacto", nav: "Tus datos", title: "¿Cómo te contactamos?", help: "Último paso antes de ver tu resultado." },
+  { k: "resultado", nav: "Tu resultado", title: "", help: "" }
+];
+
+class Component extends DCLogic {
+  state = {
+    device: "escritorio", step: 0, detail: false,
+    motivos: [], quien: null, intensidad: 6, relato: "",
+    dias: [], franjas: [], prevision: null, modalidad: null,
+    nombre: "", correo: ""
+  };
+
+  toggleIn(key, val, max) {
+    this.setState(s => {
+      const has = s[key].indexOf(val) !== -1;
+      if (!has && max && s[key].length >= max) return null;
+      return { [key]: has ? s[key].filter(x => x !== val) : s[key].concat([val]) };
+    });
+  }
+
+  escala() {
+    return ESCALA.find(e => this.state.intensidad <= e.max) || ESCALA[ESCALA.length - 1];
+  }
+
+  match() {
+    const s = this.state;
+    const grupo = s.quien || "adulto";
+    const order = [PROS.mr, PROS.jt, PROS.cs].filter(p => p.grupos.indexOf(grupo) !== -1);
+    const pool = order.length ? order : [PROS.mr];
+    const okMod = p => s.modalidad !== "online" || p.online;
+    const okPrev = p => !s.prevision || p.previsiones.indexOf(s.prevision) !== -1;
+    const exact = pool.find(p => okMod(p) && okPrev(p));
+    if (exact) return { pro: exact, caveat: null };
+    const partial = pool.find(okMod) || pool.find(okPrev) || pool[0];
+    const faltas = [];
+    if (!okMod(partial)) faltas.push("no atiende online, solo presencial en el centro");
+    if (!okPrev(partial)) faltas.push("no trabaja con " + s.prevision + ", su atención es " + partial.previsiones.join(" o "));
+    return { pro: partial, caveat: partial.name.split(" ")[0] + " es quien trabaja este tipo de consulta en el centro, pero " + faltas.join(" y ") + ". Puedes agendar igual o escribirnos para revisar alternativas." };
+  }
+
+  quienFrase() {
+    const q = this.state.quien;
+    if (q === "pareja") return "ustedes como pareja";
+    if (q === "adolescente") return "un adolescente";
+    if (q === "infantil") return "un niño o niña";
+    return "ti";
+  }
+
+  valid(k) {
+    const s = this.state;
+    if (k === "motivos") return s.motivos.length > 0;
+    if (k === "quien") return !!s.quien;
+    if (k === "relato") return s.relato.trim().length >= 10;
+    if (k === "horario") return s.dias.length > 0 && s.franjas.length > 0;
+    if (k === "prefs") return !!s.prevision && !!s.modalidad;
+    if (k === "contacto") return s.nombre.trim().length > 1 && s.correo.indexOf("@") > 0;
+    return true;
+  }
+
+  summaryFor(k) {
+    const s = this.state;
+    const names = ks => ks.map(x => (MOTIVOS.find(m => m.k === x) || {}).label).filter(Boolean);
+    if (k === "motivos") return s.motivos.length ? names(s.motivos).join(", ") : "Sin responder";
+    if (k === "quien") return s.quien ? (QUIENES.find(q => q.k === s.quien) || {}).label : "Sin responder";
+    if (k === "intensidad") return this.escala().label + " · " + s.intensidad + "/10";
+    if (k === "relato") return s.relato.trim() ? s.relato.trim().slice(0, 46) + (s.relato.trim().length > 46 ? "…" : "") : "Sin responder";
+    if (k === "horario") return (s.dias.length ? s.dias.join(", ") : "Sin días") + (s.franjas.length ? " · " + s.franjas.map(f => (FRANJAS.find(x => x.k === f) || {}).label).join(", ") : "");
+    if (k === "prefs") return [s.prevision, s.modalidad ? (MODALIDADES.find(m => m.k === s.modalidad) || {}).label : null].filter(Boolean).join(" · ") || "Sin responder";
+    if (k === "contacto") return s.nombre.trim() || "Sin responder";
+    return "";
+  }
+
+  renderVals() {
+    const s = this.state;
+    const cur = STEPS[s.step];
+    const isRes = cur.k === "resultado";
+    const mobile = s.device === "movil";
+    const pct = Math.round((s.step / (STEPS.length - 1)) * 100);
+    const esc = this.escala();
+    const mt = this.match();
+    const pro = mt.pro;
+    const ok = this.valid(cur.k);
+
+    const chip = (on, disabled) => ({
+      bg: on ? "var(--color-accent-600)" : "var(--color-neutral-100)",
+      fg: on ? "var(--color-neutral-100)" : "var(--color-text)",
+      bd: on ? "var(--color-accent-600)" : "var(--color-neutral-400)",
+      op: disabled ? "0.45" : "1",
+      cursor: disabled ? "not-allowed" : "pointer"
+    });
+
+    const motivoNames = s.motivos.map(k => (MOTIVOS.find(m => m.k === k) || {}).label).filter(Boolean);
+    const joinY = arr => arr.length > 1 ? arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1] : (arr[0] || "");
+
+    const sections = [];
+    if (pro.bio) sections.push({ title: "Sobre mí", icon: "person", isText: true, isList: false, isTags: false, text: pro.bio });
+    if (pro.enfoque) sections.push({ title: "Enfoque terapéutico", icon: "psychology", isText: true, isList: false, isTags: false, text: pro.enfoque });
+    if (pro.posgrado && pro.posgrado.length) sections.push({
+      title: "Formación de posgrado", icon: "school", isText: false, isList: true, isTags: false,
+      items: pro.posgrado.map(x => ({ icon: "workspace_premium", title: x.title, note: x.note }))
+    });
+    if (pro.experiencia && pro.experiencia.length) sections.push({
+      title: "Experiencia", icon: "history", isText: false, isList: true, isTags: false,
+      items: pro.experiencia.map(x => ({ icon: "badge", title: x.title, note: x.note }))
+    });
+    if (pro.especialidades && pro.especialidades.length) sections.push({
+      title: "Especialidades", icon: "verified", isText: false, isList: false, isTags: true,
+      tags: pro.especialidades.map(t => ({ label: t, bg: "var(--color-accent-200)", bd: "var(--color-accent-500)", fg: "var(--color-accent-900)" }))
+    });
+    if (pro.categorias && pro.categorias.length) sections.push({
+      title: "Categorías", icon: "sell", isText: false, isList: false, isTags: true,
+      tags: pro.categorias.map(t => ({ label: t, bg: "var(--color-accent-2-200)", bd: "var(--color-accent-2-500)", fg: "var(--color-accent-2-900)" }))
+    });
+
+    return {
+      devices: [
+        { k: "escritorio", label: "Escritorio", icon: "desktop_windows" },
+        { k: "movil", label: "Móvil", icon: "smartphone" }
+      ].map(d => ({
+        label: d.label, icon: d.icon,
+        pick: () => this.setState({ device: d.k }),
+        bg: s.device === d.k ? "var(--color-accent-2-600)" : "transparent",
+        fg: s.device === d.k ? "var(--color-neutral-100)" : "var(--color-text)"
+      })),
+      isDesktop: !mobile,
+      isMobile: mobile,
+      mainMax: mobile ? "412px" : "720px",
+      frameBg: mobile ? "var(--color-neutral-100)" : "transparent",
+      frameBorder: mobile ? "1px solid var(--color-divider)" : "none",
+      frameRadius: mobile ? "32px" : "0",
+      framePad: mobile ? "26px 22px 30px" : "6px 0 0",
+      frameShadow: mobile ? "var(--shadow-lg)" : "none",
+
+      pct: pct,
+      pctW: pct + "%",
+      stepLabel: isRes ? "Resultado" : "Paso " + (s.step + 1) + " de " + (STEPS.length - 1),
+      outline: STEPS.map((st, i) => {
+        const done = i < s.step;
+        const active = i === s.step;
+        return {
+          title: st.nav,
+          summary: done ? this.summaryFor(st.k) : (active ? "Respondiendo ahora" : "Pendiente"),
+          go: () => { if (done) this.setState({ step: i }); },
+          cursor: done ? "pointer" : "default",
+          bg: active ? "var(--color-accent-200)" : "transparent",
+          color: active ? "var(--color-accent-900)" : "var(--color-text)",
+          weight: active ? "900" : "700",
+          icon: done ? "check_circle" : (active ? "radio_button_checked" : "radio_button_unchecked"),
+          iconCls: done ? "msf" : "",
+          iconColor: done ? "var(--color-accent-2-700)" : (active ? "var(--color-accent-700)" : "var(--color-neutral-400)")
+        };
+      }),
+
+      isQuestion: !isRes,
+      qTitle: cur.title,
+      qHelp: cur.help,
+      isMotivos: cur.k === "motivos",
+      isQuien: cur.k === "quien",
+      isIntensidad: cur.k === "intensidad",
+      isRelato: cur.k === "relato",
+      isHorario: cur.k === "horario",
+      isPrefs: cur.k === "prefs",
+      isContacto: cur.k === "contacto",
+      isResultado: isRes,
+
+      motivos: MOTIVOS.map(m => {
+        const on = s.motivos.indexOf(m.k) !== -1;
+        return Object.assign({ label: m.label, icon: m.icon, iconCls: on ? "msf" : "", toggle: () => this.toggleIn("motivos", m.k) }, chip(on, false));
+      }),
+      motivoCount: s.motivos.length ? s.motivos.length + (s.motivos.length === 1 ? " motivo seleccionado" : " motivos seleccionados") : "Selecciona al menos uno",
+      countColor: s.motivos.length ? "var(--color-accent-2-700)" : "var(--color-neutral-600)",
+
+      quienes: QUIENES.map(q => {
+        const on = s.quien === q.k;
+        return {
+          label: q.label, note: q.note, icon: q.icon,
+          pick: () => this.setState({ quien: q.k }),
+          bg: on ? "var(--color-accent-200)" : "var(--color-neutral-100)",
+          bd: on ? "var(--color-accent-600)" : "var(--color-neutral-400)",
+          fg: on ? "var(--color-accent-900)" : "var(--color-text)",
+          iconBg: on ? "var(--color-bg)" : "var(--color-accent-2-200)",
+          iconFg: on ? "var(--color-accent-700)" : "var(--color-accent-2-700)"
+        };
+      }),
+
+      intensidad: s.intensidad,
+      setIntensidad: e => this.setState({ intensidad: Number(e.target.value) }),
+      intensidadLabel: esc.label,
+      intensidadNote: esc.note,
+
+      relato: s.relato,
+      setRelato: e => this.setState({ relato: e.target.value }),
+      relatoCount: s.relato.trim().length + " caracteres · mínimo 10",
+
+      dias: DIAS.map(d => {
+        const on = s.dias.indexOf(d) !== -1;
+        const blocked = !on && s.dias.length >= 3;
+        return Object.assign({ label: d, toggle: () => this.toggleIn("dias", d, 3) }, chip(on, blocked));
+      }),
+      diasCount: s.dias.length + " de 3",
+      diasColor: s.dias.length ? "var(--color-accent-2-700)" : "var(--color-neutral-600)",
+      franjas: FRANJAS.map(f => {
+        const on = s.franjas.indexOf(f.k) !== -1;
+        const blocked = !on && s.franjas.length >= 3;
+        return {
+          label: f.label, range: f.range, icon: f.icon,
+          toggle: () => this.toggleIn("franjas", f.k, 3),
+          bg: on ? "var(--color-accent-200)" : "var(--color-neutral-100)",
+          bd: on ? "var(--color-accent-600)" : "var(--color-neutral-400)",
+          fg: on ? "var(--color-accent-900)" : "var(--color-text)",
+          iconFg: on ? "var(--color-accent-700)" : "var(--color-accent-2-700)",
+          op: blocked ? "0.45" : "1",
+          cursor: blocked ? "not-allowed" : "pointer"
+        };
+      }),
+      franjasCount: s.franjas.length + " de 3",
+      franjasColor: s.franjas.length ? "var(--color-accent-2-700)" : "var(--color-neutral-600)",
+
+      previsiones: PREVISIONES.map(p => {
+        const on = s.prevision === p;
+        return Object.assign({ label: p, pick: () => this.setState({ prevision: p }) }, chip(on, false));
+      }),
+      modalidades: MODALIDADES.map(m => {
+        const on = s.modalidad === m.k;
+        return {
+          label: m.label, icon: m.icon,
+          pick: () => this.setState({ modalidad: m.k }),
+          bg: on ? "var(--color-accent-200)" : "var(--color-neutral-100)",
+          bd: on ? "var(--color-accent-600)" : "var(--color-neutral-400)",
+          fg: on ? "var(--color-accent-900)" : "var(--color-text)",
+          iconFg: on ? "var(--color-accent-700)" : "var(--color-accent-2-700)"
+        };
+      }),
+
+      nombre: s.nombre,
+      setNombre: e => this.setState({ nombre: e.target.value }),
+      correo: s.correo,
+      setCorreo: e => this.setState({ correo: e.target.value }),
+
+      canBack: s.step > 0,
+      back: () => this.setState(st => ({ step: Math.max(0, st.step - 1) })),
+      next: () => { if (ok) this.setState(st => ({ step: Math.min(STEPS.length - 1, st.step + 1) })); },
+      nextLabel: s.step === STEPS.length - 2 ? "Ver mi resultado" : "Continuar",
+      nextBg: ok ? "var(--color-accent-600)" : "var(--color-neutral-500)",
+      nextOp: ok ? "1" : "0.55",
+      nextCursor: ok ? "pointer" : "not-allowed",
+      nextHint: ok ? "" : (cur.k === "relato" ? "Escribe al menos 10 caracteres para continuar." : "Responde para continuar."),
+
+      analisis: "Nos contaste que lo que más pesa es " + (motivoNames.length ? joinY(motivoNames).toLowerCase() : "lo que estás viviendo") +
+        ", con una intensidad de " + s.intensidad + " sobre 10: " + esc.label.toLowerCase() + ". La atención es para " + this.quienFrase() +
+        ", en modalidad " + (s.modalidad ? (MODALIDADES.find(m => m.k === s.modalidad) || {}).label.toLowerCase() : "por definir") +
+        ". Con eso buscamos a alguien del equipo que trabaje ese motivo y tenga horas en los días que marcaste.",
+      resumenChips: [
+        { icon: "checklist", label: motivoNames.length + (motivoNames.length === 1 ? " motivo" : " motivos") },
+        { icon: "monitor_heart", label: "Intensidad " + s.intensidad + "/10" },
+        { icon: "person", label: s.quien ? (QUIENES.find(q => q.k === s.quien) || {}).label : "Sin definir" },
+        { icon: "schedule", label: s.dias.length ? s.dias.join(" · ") : "Horario flexible" },
+        { icon: "assignment", label: s.prevision || "Previsión sin definir" }
+      ],
+
+      pro: { name: pro.name, title: pro.title, base: pro.base, photo: pro.photo, noPhoto: !pro.photo, initials: pro.initials },
+      porQue: pro.name.split(" ")[0] + " atiende " + (pro.categorias.indexOf(GRUPO_CAT[s.quien]) !== -1 ? GRUPO_CAT[s.quien] : pro.categorias[0]).toLowerCase() + " y trabaja " +
+        joinY(pro.especialidades.slice(0, 2)).toLowerCase() + ". Tiene horas disponibles en " +
+        (s.dias.length ? joinY(s.dias.slice(0, 2)).toLowerCase() : "varios días de la semana") + ".",
+      caveat: mt.caveat,
+      hasCaveat: !!mt.caveat,
+
+      showDetail: s.detail,
+      toggleDetail: () => this.setState(st => ({ detail: !st.detail })),
+      detailLabel: s.detail ? "Ocultar detalle del profesional" : "Ver más sobre este profesional",
+      detailIcon: s.detail ? "expand_less" : "expand_more",
+      detailGap: s.detail ? "22px" : "0px",
+      sections: sections,
+
+      restart: () => this.setState({
+        step: 0, detail: false, motivos: [], quien: null, intensidad: 6, relato: "",
+        dias: [], franjas: [], prevision: null, modalidad: null, nombre: "", correo: ""
+      })
+    };
+  }
+}
+
+</script>
+</body>
+</html>

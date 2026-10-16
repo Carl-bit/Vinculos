@@ -20,7 +20,7 @@ export class NotificacionesController {
   constructor(private readonly bd: ContextoBd) {}
 
   @Get()
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
   listar() {
     // Sin creadaPorId: un candidato de derivacion no debe saber quien rechazo antes (02h).
     return this.bd.tx().notificacion.findMany({
@@ -44,9 +44,10 @@ export class NotificacionesController {
 
   /** Bandeja propia: mensajes ya armados (el job los arma en menos de un minuto). */
   @Get('bandeja')
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
   async bandeja(@Actor() actor: UsuarioActual) {
-    const propio = actor.rol === 'PACIENTE' ? { pacienteId: await this.pacienteActual() } : { usuarioId: actor.id };
+    // RESPONSABLE (03a): los suyos y los de sus menores a cargo (la RLS los filtra).
+    const propio = actor.rol === 'PACIENTE' ? { pacienteId: await this.pacienteActual() } : actor.rol === 'RESPONSABLE' ? {} : { usuarioId: actor.id };
     return this.bd.tx().notificacion.findMany({
       where: { ...propio, canal: 'BANDEJA', estado: 'ENVIADO' },
       select: { id: true, tipo: true, referenciaId: true, asunto: true, cuerpo: true, creadaEn: true },

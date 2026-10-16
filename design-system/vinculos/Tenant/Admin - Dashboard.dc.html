@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/styles.css">
+<script src="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; background: var(--color-neutral-300); color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent-2-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-2-600); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: 500; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+</style>
+</helmet>
+
+<div style="display:grid;grid-template-columns:246px 1fr;min-height:100vh;align-items:stretch">
+
+  <aside style="background:var(--color-bg);border-right:1px solid var(--color-divider);box-shadow:var(--shadow-md);z-index:2;padding:22px 16px 24px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:9px;padding:0 8px">
+      <span style="width:10px;height:10px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block"></span>
+      <span style="font-family:var(--font-body);font-weight:900;font-size:17px;letter-spacing:-0.04em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Centro Ejemplo</span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <a href="./Admin - Dashboard.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:800;color:var(--color-accent-2-700);background:var(--color-accent-2-200)">
+        <span class="ms" style="font-size:19px;flex:none">space_dashboard</span>
+        <span style="flex:1">Inicio</span>
+      </a>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:10.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);padding:0 8px 6px">Módulos</span>
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <a href="{{ n.href }}" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:{{ n.color }};background:transparent" style-hover="background:var(--color-accent-200)">
+          <span class="ms" style="font-size:19px;flex:none">{{ n.icon }}</span>
+          <span style="flex:1">{{ n.label }}</span>
+          <sc-if value="{{ n.off }}" hint-placeholder-val="{{ false }}">
+            <span class="ms" style="font-size:15px;color:var(--color-neutral-500)">lock</span>
+          </sc-if>
+        </a>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:10.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);padding:0 8px 6px">Centro</span>
+      <a href="./Admin - Configuracion.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+        <span class="ms" style="font-size:19px;flex:none">settings</span><span style="flex:1">Configuración</span>
+      </a>
+      <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+        <span class="ms" style="font-size:19px;flex:none">public</span><span style="flex:1">Página pública</span>
+      </a>
+    </div>
+
+<a href="./Admin - Mi Perfil.dc.html" style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 10px 12px;border-top:1px solid var(--color-divider);border-radius:12px;color:var(--color-text)" style-hover="background:var(--color-accent-200);color:var(--color-text)">
+      <span style="width:30px;height:30px;border-radius:999px;background:var(--color-accent-200);border:1px solid var(--color-accent-500);display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--color-accent-700);flex:none">MR</span>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:13px;font-weight:800;letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marcela Rivas</div>
+        <div style="font-size:11.5px;color:var(--color-neutral-600);font-weight:600">Directora</div>
+      </div>
+    </a>
+  </aside>
+
+  <main style="padding:30px clamp(24px,3.4vw,48px) 56px;min-width:0">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:30px">
+      <div>
+        <div style="display:inline-flex;color:var(--color-accent-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:10px;border-bottom:2px solid var(--color-accent-500);margin-bottom:16px">Jueves 3 de septiembre</div>
+        <h1 style="font-family:var(--font-body);font-weight:900;font-size:34px;line-height:1.05;letter-spacing:-0.03em;margin:0">Hola, Marcela</h1>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="button" style="border:1.5px solid var(--color-neutral-400);background:var(--color-bg);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13.5px;padding:11px 20px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:8px" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)"><span class="ms" style="font-size:18px">person_add</span>Nuevo paciente</button>
+        <button type="button" style="border:none;background:var(--color-accent-2-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:13.5px;padding:11px 20px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:8px" style-hover="background:var(--color-accent-2-700)"><span class="ms" style="font-size:18px">event</span>Agendar sesión</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px">
+      <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+        <div style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:20px 22px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm);transition:box-shadow .2s ease" style-hover="box-shadow:var(--shadow-lg)">
+          <span style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600)">{{ s.label }}</span>
+          <span style="font-family:var(--font-body);font-weight:900;font-size:40px;line-height:0.95;letter-spacing:-0.04em">{{ s.value }}</span>
+          <span style="font-size:12.5px;font-weight:700;color:{{ s.noteColor }}">{{ s.note }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <section style="margin-bottom:16px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:14px">
+        <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0">Módulos del centro</h2>
+        <a href="./Admin - Configuracion.dc.html" style="font-size:12.5px;font-weight:800">Gestionar módulos</a>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px">
+        <sc-for list="{{ modules }}" as="m" hint-placeholder-count="5">
+          <a href="{{ m.href }}" style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:22px;display:flex;flex-direction:column;gap:14px;color:var(--color-text);box-shadow:var(--shadow-sm);transition:box-shadow .2s ease,transform .2s ease;opacity:{{ m.opacity }}" style-hover="box-shadow:var(--shadow-lg);transform:translateY(-2px);color:var(--color-text)">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="width:38px;height:38px;border-radius:999px;background:{{ m.iconBg }};border:1px solid {{ m.iconBd }};display:grid;place-items:center;flex:none"><span class="ms" style="font-size:20px;color:{{ m.iconFg }}">{{ m.icon }}</span></span>
+              <span style="font-family:var(--font-body);font-weight:900;font-size:16.5px;letter-spacing:-0.02em;flex:1">{{ m.name }}</span>
+              <span class="ms" style="font-size:18px;color:var(--color-neutral-500)">{{ m.chev }}</span>
+            </div>
+            <p style="font-size:13.5px;line-height:1.5;color:var(--color-neutral-700);margin:0;font-weight:600;text-wrap:pretty">{{ m.body }}</p>
+            <span style="font-size:11.5px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:{{ m.metaColor }};padding-top:4px;border-top:1px solid var(--color-divider)">{{ m.meta }}</span>
+          </a>
+        </sc-for>
+      </div>
+    </section>
+
+    <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start">
+      <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:20px 22px 22px;box-shadow:var(--shadow-md)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px">
+          <h2 style="font-family:var(--font-body);font-weight:900;font-size:18px;letter-spacing:-0.02em;margin:0">Tus sesiones de hoy</h2>
+          <a href="./Admin - Agenda y Espacios.dc.html" style="font-size:12.5px;font-weight:800">Ver agenda</a>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ agenda }}" as="a" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:16px;padding:13px 0;border-bottom:1px solid var(--color-divider)">
+              <span style="font-size:14px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;width:46px;flex:none">{{ a.time }}</span>
+              <span style="width:3px;height:30px;border-radius:999px;background:{{ a.color }};flex:none"></span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14.5px;font-weight:800;letter-spacing:-0.01em">{{ a.patient }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600)">{{ a.kind }}</div>
+              </div>
+              <span style="font-size:12px;font-weight:800;color:var(--color-neutral-600);border:1px solid var(--color-divider);border-radius:999px;padding:4px 11px">{{ a.box }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:20px 22px 22px;box-shadow:var(--shadow-md)">
+        <h2 style="font-family:var(--font-body);font-weight:900;font-size:18px;letter-spacing:-0.02em;margin:0 0 16px">Pendientes</h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <sc-for list="{{ todos }}" as="t" hint-placeholder-count="4">
+            <div style="display:flex;gap:12px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--color-divider)">
+              <span class="ms" style="font-size:19px;color:{{ t.color }};flex:none">{{ t.icon }}</span>
+              <div style="min-width:0;flex:1">
+                <div style="font-size:14px;font-weight:800;letter-spacing:-0.01em;line-height:1.35;text-wrap:pretty">{{ t.title }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600)">{{ t.meta }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1020}}">
+class Component extends DCLogic {
+  renderVals() {
+    const on = {
+      iconBg: "var(--color-accent-2-200)", iconBd: "var(--color-accent-2-500)",
+      iconFg: "var(--color-accent-2-700)", chev: "arrow_forward", opacity: 1,
+      metaColor: "var(--color-accent-2-700)"
+    };
+    const off = {
+      iconBg: "var(--color-neutral-200)", iconBd: "var(--color-divider)",
+      iconFg: "var(--color-neutral-500)", chev: "lock", opacity: 0.72,
+      metaColor: "var(--color-neutral-600)"
+    };
+    const mod = (icon, name, body, meta, href, active) =>
+      Object.assign({ icon, name, body, meta, href }, active ? on : off);
+
+    const navItem = (icon, label, href, isOff) => ({
+      icon, label, href, off: !!isOff,
+      color: isOff ? "var(--color-neutral-600)" : "var(--color-text)"
+    });
+
+    return {
+      nav: [
+        navItem("folder_shared", "Fichas y Pacientes", "./Admin - Fichas y Pacientes.dc.html"),
+        navItem("calendar_month", "Agenda y Espacios", "./Admin - Agenda y Espacios.dc.html"),
+        navItem("groups", "Equipo", "./Admin - Perfil Profesional.dc.html"),
+        navItem("join", "Match Terapéutico", "./Admin - Match Configuracion.dc.html"),
+        navItem("payments", "Cobros", "./Admin - Cobros.dc.html")
+      ],
+      stats: [
+        { label: "Pacientes activos", value: "148", note: "+6 este mes", noteColor: "var(--color-accent-2-700)" },
+        { label: "Sesiones hoy", value: "12", note: "3 por confirmar", noteColor: "var(--color-accent-700)" },
+        { label: "Ocupación de boxes", value: "78%", note: "4 boxes · 09:00 a 20:00", noteColor: "var(--color-neutral-600)" },
+        { label: "Fichas por cerrar", value: "5", note: "de sesiones de ayer", noteColor: "var(--color-accent-700)" }
+      ],
+      modules: [
+        mod("folder_shared", "Fichas y Pacientes", "Historial, campos propios por especialidad y adjuntos por paciente.", "148 pacientes", "./Admin - Fichas y Pacientes.dc.html", true),
+        mod("calendar_month", "Agenda y Espacios", "Reservas por profesional y por box, con duración y bloques propios.", "12 sesiones hoy", "./Admin - Agenda y Espacios.dc.html", true),
+        mod("groups", "Equipo", "Roles, perfiles, practicantes y cuentas temporales del centro.", "9 personas", "./Admin - Perfil Profesional.dc.html", true),
+        mod("join", "Match Terapéutico", "Cuestionario de derivación para asignar el profesional adecuado.", "Activo", "./Admin - Match Configuracion.dc.html", true),
+        mod("payments", "Cobros", "Liquidaciones por derivación, comisiones y reportes por período.", "No contratado", "./Admin - Cobros.dc.html", false)
+      ],
+      agenda: [
+        { time: "09:00", patient: "Ignacio Bravo", kind: "Individual · seguimiento", box: "Box 2", color: "var(--color-accent-2-600)" },
+        { time: "10:30", patient: "Familia Rojas", kind: "Familiar · primera sesión", box: "Box 1", color: "var(--color-accent-600)" },
+        { time: "12:00", patient: "Valentina Díaz", kind: "Individual · seguimiento", box: "Box 2", color: "var(--color-accent-2-600)" },
+        { time: "16:00", patient: "Pablo y Ana", kind: "Pareja · seguimiento", box: "Box 3", color: "var(--color-accent-2-600)" }
+      ],
+      todos: [
+        { icon: "edit_note", title: "5 fichas sin cerrar", meta: "Sesiones del 2 de septiembre", color: "var(--color-accent-700)" },
+        { icon: "how_to_reg", title: "Confirmar 3 horas de mañana", meta: "Recordatorio no enviado", color: "var(--color-accent-700)" },
+        { icon: "badge", title: "Practicante por activar", meta: "Josefa Núñez · cuenta temporal", color: "var(--color-accent-2-700)" },
+        { icon: "description", title: "Consentimiento pendiente", meta: "Familia Rojas · primera sesión", color: "var(--color-neutral-600)" }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

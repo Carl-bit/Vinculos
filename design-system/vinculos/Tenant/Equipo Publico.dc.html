@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/styles.css">
+<script src="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent-2-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-2-600); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: 500; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+  .msf { font-variation-settings: 'FILL' 1; }
+  .pcard { transition: box-shadow .18s ease; }
+  .pcard:hover { box-shadow: var(--shadow-lg); }
+</style>
+</helmet>
+
+<div style="max-width:1180px;margin:0 auto;padding:0 clamp(20px,4vw,40px) 80px">
+
+  <header style="display:flex;align-items:center;gap:20px;padding:22px 0">
+    <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:9px;color:var(--color-text)" style-hover="color:var(--color-text)">
+      <span style="width:11px;height:11px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block"></span>
+      <span style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.04em">Centro Ejemplo</span>
+    </a>
+    <nav style="display:flex;gap:26px;margin-left:auto;font-size:14.5px;font-weight:700;flex-wrap:wrap">
+      <a href="./Landing.dc.html#servicios" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Servicios</a>
+      <a href="./Match Publico.dc.html" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Match terapéutico</a>
+      <a href="./Paciente - Pedir Hora.dc.html" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Pedir una hora</a>
+    </nav>
+    <a href="./Inicio de Sesion.dc.html" style="border:1.5px solid var(--color-neutral-400);color:var(--color-text);font-weight:800;font-size:14px;padding:10px 20px;border-radius:999px;white-space:nowrap" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500);color:var(--color-text)">Iniciar sesión</a>
+  </header>
+
+  <section style="padding:clamp(18px,3vw,38px) 0 clamp(24px,3vw,34px)">
+    <div style="display:inline-flex;color:var(--color-accent-700);font-size:11.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:11px;border-bottom:2px solid var(--color-accent-500);margin-bottom:22px">Conoce a nuestro equipo</div>
+    <h1 style="font-family:var(--font-body);font-weight:900;font-size:clamp(34px,5vw,58px);line-height:0.99;letter-spacing:-0.035em;margin:0 0 18px;max-width:24ch;text-wrap:balance">Quiénes somos, qué hacemos y con quién puedes atenderte</h1>
+    <p style="font-size:17.5px;line-height:1.6;color:var(--color-neutral-700);margin:0;max-width:56ch;text-wrap:pretty">Cada ficha muestra la formación, el enfoque y las especialidades de la persona. Puedes pedir hora directamente con quien quieras, sin crear una cuenta antes.</p>
+  </section>
+
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid var(--color-divider);margin-bottom:26px">
+    <span style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--color-neutral-600);margin-right:6px">Filtrar por atención</span>
+    <sc-for list="{{ filters }}" as="fl" hint-placeholder-count="5">
+      <button type="button" onClick="{{ fl.pick }}" style="font-family:var(--font-body);cursor:pointer;font-size:13.5px;font-weight:800;padding:10px 18px;border-radius:999px;background:{{ fl.bg }};color:{{ fl.fg }};border:1.5px solid {{ fl.bd }}" style-hover="border-color:var(--color-accent-500)">{{ fl.label }}</button>
+    </sc-for>
+    <span style="font-size:13px;font-weight:700;color:var(--color-neutral-600);margin-left:auto">{{ resultCount }}</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px;align-items:start">
+    <sc-for list="{{ team }}" as="t" hint-placeholder-count="6">
+      <article class="pcard" style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-sm)">
+
+        <div style="display:flex;gap:17px;align-items:flex-start;margin-bottom:16px">
+          <span style="width:88px;height:88px;border-radius:999px;background:var(--color-accent-2-200);border:1.5px solid var(--color-accent-2-500);background-image:url({{ t.photo }});background-size:cover;background-position:center top;display:grid;place-items:center;flex:none;filter:saturate(0.86) contrast(0.96)">
+            <sc-if value="{{ t.noPhoto }}" hint-placeholder-val="{{ false }}">
+              <span style="font-family:var(--font-body);font-size:26px;font-weight:900;letter-spacing:-0.03em;color:var(--color-accent-2-700)">{{ t.initials }}</span>
+            </sc-if>
+          </span>
+          <div style="min-width:0;flex:1">
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:21px;line-height:1.08;letter-spacing:-0.03em;margin:0 0 6px">{{ t.name }}</h2>
+            <p style="font-size:13.5px;font-weight:700;color:var(--color-neutral-700);margin:0 0 4px;text-wrap:pretty">{{ t.title }}</p>
+            <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 10px">{{ t.base }}</p>
+            <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+              <sc-if value="{{ t.hasRating }}" hint-placeholder-val="{{ true }}">
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;color:var(--color-accent-700)"><span class="ms msf" style="font-size:16px">star</span>{{ t.rating }}<span style="font-weight:600;color:var(--color-neutral-600)">{{ t.ratingN }}</span></span>
+              </sc-if>
+              <sc-if value="{{ t.noRating }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:12.5px;font-weight:700;color:var(--color-neutral-600)">Sin calificaciones aún</span>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px">
+          <sc-for list="{{ t.facts }}" as="fc" hint-placeholder-count="3">
+            <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:999px;padding:7px 14px">
+              <span class="ms" style="font-size:16px;color:var(--color-accent-2-700)">{{ fc.icon }}</span>{{ fc.label }}
+            </span>
+          </sc-for>
+        </div>
+
+        <p style="font-size:14.5px;font-weight:500;line-height:1.65;color:var(--color-neutral-800);margin:0 0 16px;text-wrap:pretty">{{ t.lead }}</p>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <a href="./Paciente - Pedir Hora.dc.html" style="background:var(--color-accent-600);color:var(--color-neutral-100);font-weight:800;font-size:14px;padding:13px 22px;border-radius:999px;display:flex;align-items:center;gap:9px;flex:1 1 auto;justify-content:center" style-hover="background:var(--color-accent-700);color:var(--color-neutral-100)"><span class="ms" style="font-size:18px">calendar_month</span>Pedir hora con {{t.first}}</a>
+          <a href="{{ t.href }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-bg);color:var(--color-text);font-weight:800;font-size:14px;padding:13px 20px;border-radius:999px;display:flex;align-items:center;gap:8px;flex:none;white-space:nowrap" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500);color:var(--color-text)"><span class="ms" style="font-size:18px">arrow_forward</span>Ver perfil completo</a>
+        </div>
+      </article>
+    </sc-for>
+  </div>
+
+  <section style="margin:clamp(30px,5vw,58px) 0 0;background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);border-radius:var(--radius-lg);padding:clamp(28px,4vw,48px);display:flex;align-items:center;justify-content:space-between;gap:30px;flex-wrap:wrap;box-shadow:var(--shadow-md)">
+    <div style="flex:1 1 300px;min-width:0">
+      <h2 style="font-family:var(--font-body);font-weight:900;font-size:clamp(25px,3vw,34px);line-height:1.06;letter-spacing:-0.03em;margin:0 0 10px;text-wrap:balance">¿No sabes con quién atenderte?</h2>
+      <p style="font-size:16px;color:var(--color-accent-2-900);margin:0;font-weight:600;max-width:48ch;text-wrap:pretty">Responde siete preguntas sobre lo que te trae al centro y te sugerimos a alguien del equipo, con sus horas disponibles.</p>
+    </div>
+    <a href="./Match Publico.dc.html" style="background:var(--color-accent-600);color:var(--color-neutral-100);font-weight:800;font-size:15px;padding:16px 30px;border-radius:999px;display:flex;align-items:center;gap:10px;flex:none" style-hover="background:var(--color-accent-700);color:var(--color-neutral-100)"><span class="ms" style="font-size:19px">join</span>Hacer el match terapéutico</a>
+  </section>
+
+  <footer style="display:flex;gap:22px;flex-wrap:wrap;align-items:center;padding:30px 0 0;font-size:13px;font-weight:600;color:var(--color-neutral-600)">
+    <span>© 2026 Centro Ejemplo</span>
+    <a href="./Landing.dc.html">Volver al inicio</a>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:7px">Plataforma <span style="font-weight:900;color:var(--color-neutral-700)">Vínculos</span></span>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:1000}}">
+// RF-58: cada sección se muestra solo si el profesional completó esa información.
+const TEAM = [
+  {
+    id: "mr", initials: "MR", name: "Marcela Rivas", photo: "./assets/marcela-1.png",
+    title: "Psicóloga clínica · adultos y parejas", base: "Psicología, Universidad de Chile (2009)",
+    grupos: ["adulto", "pareja"], price: "$38.000", modalidad: "Presencial y online", anos: "16 años",
+    rating: "4,9", ratingN: 5, reviewCount: "(48)",
+    lead: "Atiende adultos que llegan por ansiedad o por un duelo que no termina de cerrar, con sesiones semanales de 50 minutos y revisión de objetivos cada seis semanas.",
+    bio: "Llevo dieciséis años atendiendo adultos, la mayoría llegando por ansiedad o por un duelo que no termina de cerrar. Desde 2019 dirijo el centro, y sigo atendiendo porque es donde el trabajo se entiende.",
+    enfoque: "Trabajo con terapia cognitivo-conductual: revisamos juntos qué pensamientos aparecen antes de que te sientas mal, y probamos formas distintas de responder a ellos. Vas a salir de cada sesión con algo concreto que hacer durante la semana.",
+    posgrado: [
+      { title: "Magíster en Psicología Clínica Adultos", note: "Pontificia Universidad Católica de Chile · 2014" },
+      { title: "Diplomado en Terapia de Pareja", note: "Universidad Adolfo Ibáñez · 2017" }
+    ],
+    experiencia: [
+      { title: "Directora clínica · Centro Ejemplo", note: "2019 a la fecha" },
+      { title: "Psicóloga clínica · COSAM Providencia", note: "2012 – 2019" }
+    ],
+    especialidades: ["Ansiedad", "Duelo", "Terapia de pareja", "Estrés laboral"],
+    categorias: ["Adultos", "Parejas", "Presencial y online"],
+    reviews: [
+      { when: "hace 3 semanas", n: 5, text: "Muy clara para poner objetivos y revisarlos. Sentí que el proceso tenía un rumbo desde la segunda sesión." },
+      { when: "hace 2 meses", n: 5, text: "Me acompañó en un duelo largo sin apurar nada. Agradezco la honestidad con los tiempos." }
+    ]
+  },
+  {
+    id: "jt", initials: "JT", name: "Javier Tapia", photo: "./assets/javier-1.png",
+    title: "Psicólogo infanto-juvenil", base: "Psicología, Universidad de Santiago (2014)",
+    grupos: ["adolescente"], price: "$30.000", modalidad: "Solo presencial", anos: "11 años",
+    rating: "4,7", ratingN: 5, reviewCount: "(26)",
+    lead: "Trabaja con adolescentes derivados casi siempre por el colegio, con la familia presente desde la primera reunión y coordinación directa con el establecimiento.",
+    bio: "Trabajo con adolescentes derivados casi siempre por el colegio. La evaluación la hago por etapas y con la familia presente desde la primera reunión.",
+    enfoque: "Parto por entender cómo se ve el problema desde el adolescente y desde el adulto que lo acompaña, porque casi nunca coinciden. Recién cuando tengo las dos versiones proponemos objetivos, y los revisamos cada cierto tiempo con ambos.",
+    posgrado: null,
+    experiencia: [
+      { title: "Psicólogo infanto-juvenil · Centro Ejemplo", note: "2021 a la fecha" },
+      { title: "Programa de convivencia escolar · Municipalidad de Ñuñoa", note: "2016 – 2021" }
+    ],
+    especialidades: ["Adolescencia", "Conducta escolar", "Ansiedad"],
+    categorias: ["Adolescentes", "Solo presencial"],
+    reviews: [
+      { when: "hace 1 mes", n: 5, text: "Coordinó con el colegio de mi hijo sin que yo tuviera que insistir. Eso nos cambió el año." },
+      { when: "hace 3 meses", n: 4, text: "Buen trato con los adolescentes. Los horarios de tarde se llenan rápido." }
+    ]
+  },
+  {
+    id: "cs", initials: "CS", name: "Camila Soto", photo: "./assets/camila-1.png",
+    title: "Psicóloga infantil y adolescente", base: "Psicología, Universidad Diego Portales (2016)",
+    grupos: ["infantil", "adolescente"], price: "$32.000", modalidad: "Presencial y online", anos: "9 años",
+    rating: "4,8", ratingN: 5, reviewCount: "(32)",
+    lead: "Atiende niños desde los 4 años y adolescentes hasta los 18, con juego y dibujo para los más pequeños y trabajo directo con la familia.",
+    bio: "Empecé atendiendo en un colegio municipal de La Florida, con una sala prestada y treinta niños en lista de espera. Ahí aprendí que un niño no llega solo a terapia: llega con una familia cansada y un profesor preocupado.",
+    enfoque: "Uso juego y dibujo con los más pequeños, porque es su idioma. Con la familia trabajo la forma en que se están hablando, que suele ser donde el problema se sostiene. Los objetivos los acordamos juntos una vez que entiendo cómo se ve el problema desde adentro.",
+    posgrado: [
+      { title: "Diplomado en Terapia Sistémica Familiar", note: "Universidad Alberto Hurtado · 2019" }
+    ],
+    experiencia: null,
+    especialidades: ["Infancia", "Terapia familiar", "Conducta"],
+    categorias: ["Niños", "Adolescentes", "Familias", "Presencial y online"],
+    reviews: [
+      { when: "hace 2 semanas", n: 5, text: "Mi hija llegó muy cerrada a la primera sesión y salió contándome cosas que no me había dicho en meses." },
+      { when: "hace 1 mes", n: 5, text: "Clara y directa con los objetivos. Me explicó qué esperar sin prometer resultados rápidos." }
+    ]
+  },
+  {
+    id: "np", initials: "NP", name: "Nicolás Peña", photo: "./assets/nicolas-1.png",
+    title: "Psicólogo clínico · estrés laboral", base: "Psicología, Universidad de Valparaíso (2018)",
+    grupos: ["adulto"], price: "$34.000", modalidad: "Presencial y online", anos: "7 años",
+    rating: "4,6", ratingN: 5, reviewCount: "(19)",
+    lead: "Atiende adultos desbordados por el trabajo, en procesos breves de ocho a doce sesiones con herramientas de manejo diario y un alta planificada.",
+    bio: "Atiendo adultos que llegan desbordados por el trabajo: insomnio, irritabilidad, la sensación de no poder parar. Antes trabajé cuatro años en salud ocupacional, así que conozco bien el lado de la empresa y lo que sí se puede negociar en una jornada.",
+    enfoque: "Los procesos son breves y con un objetivo definido de entrada: ocho a doce sesiones, herramientas concretas para el día a día y una fecha de alta que conversamos desde la primera sesión.",
+    posgrado: [
+      { title: "Diplomado en Psicología Laboral y Salud Ocupacional", note: "Universidad de Chile · 2021" }
+    ],
+    experiencia: [
+      { title: "Psicólogo clínico · Centro Ejemplo", note: "2022 a la fecha" },
+      { title: "Salud ocupacional · Mutual de Seguridad", note: "2018 – 2022" }
+    ],
+    especialidades: ["Estrés y burnout", "Insomnio", "Ansiedad"],
+    categorias: ["Adultos", "Presencial y online"],
+    reviews: [
+      { when: "hace 2 semanas", n: 5, text: "Procesos cortos y concretos. Salí con herramientas que uso todas las semanas." },
+      { when: "hace 2 meses", n: 4, text: "Muy ordenado. Me habría gustado tener más horas disponibles en la mañana." }
+    ]
+  },
+  {
+    id: "fv", initials: "FV", name: "Fernanda Vidal", photo: "",
+    title: "Neuropsicóloga · evaluación cognitiva", base: "Psicología, Universidad de Concepción (2012)",
+    grupos: ["adulto", "adolescente", "infantil"], price: "$120.000 la evaluación", modalidad: "Solo presencial", anos: "13 años",
+    rating: "4,9", ratingN: 5, reviewCount: "(21)",
+    lead: "Evalúa atención, memoria y funciones ejecutivas en dos bloques de dos horas, y entrega un informe con recomendaciones para la familia, el colegio o el trabajo.",
+    bio: "Hago evaluaciones de funciones cognitivas: atención, memoria, funciones ejecutivas. No hago psicoterapia; cuando el informe muestra que hace falta, derivo internamente al profesional del equipo que corresponda.",
+    enfoque: "Cada evaluación toma dos bloques de dos horas y termina en un informe escrito en lenguaje claro, con recomendaciones que el colegio o el trabajo puedan aplicar la semana siguiente.",
+    posgrado: [
+      { title: "Magíster en Neuropsicología Clínica", note: "Universidad del Desarrollo · 2016" }
+    ],
+    experiencia: [
+      { title: "Neuropsicóloga · Centro Ejemplo", note: "2020 a la fecha" },
+      { title: "Unidad de neurología infantil · Hospital Barros Luco", note: "2014 – 2020" }
+    ],
+    especialidades: ["Evaluación neuropsicológica", "Atención y memoria", "Informes escolares"],
+    categorias: ["Niños", "Adolescentes", "Adultos", "Solo presencial"],
+    reviews: [
+      { when: "hace 1 mes", n: 5, text: "El informe fue clarísimo y el colegio pudo usarlo de inmediato. Explicó cada resultado sin tecnicismos." },
+      { when: "hace 4 meses", n: 5, text: "Muy rigurosa. La evaluación tomó dos sesiones largas pero valió la pena." }
+    ]
+  },
+  {
+    id: "jn", initials: "JN", name: "Josefa Núñez", photo: "",
+    title: "Práctica profesional supervisada", base: "Psicología, Universidad Alberto Hurtado (en práctica)",
+    grupos: ["adulto"], price: "Sin costo para el paciente", modalidad: "Solo presencial", anos: "En formación",
+    rating: null, ratingN: 0, reviewCount: "",
+    lead: "Toma las primeras acogidas del centro y apoya el seguimiento de casos activos, siempre con supervisión semanal de la dirección.",
+    bio: "Estoy en práctica profesional en el centro. Me interesa el trabajo con adultos jóvenes y la primera consulta, ese momento en que alguien decide pedir ayuda por primera vez.",
+    enfoque: "En la primera acogida escucho sin apurar y ordenamos juntos qué es lo que más urge. De ahí salimos con un plan claro: seguir conmigo bajo supervisión o pasar al profesional del equipo que corresponda.",
+    posgrado: null,
+    experiencia: null,
+    especialidades: ["Primeras acogidas", "Adultos jóvenes"],
+    categorias: ["Adultos", "Solo presencial", "Atención supervisada"],
+    reviews: []
+  }
+];
+
+const FILTERS = [
+  { k: "todos", label: "Todo el equipo" },
+  { k: "adulto", label: "Adultos" },
+  { k: "pareja", label: "Parejas" },
+  { k: "adolescente", label: "Adolescentes" },
+  { k: "infantil", label: "Niños" }
+];
+
+const starRow = n => [1, 2, 3, 4, 5].map(i => ({
+  icon: i <= n ? "star" : "star_border",
+  color: i <= n ? "var(--color-accent-600)" : "var(--color-neutral-400)",
+  cls: i <= n ? "msf" : ""
+}));
+
+class Component extends DCLogic {
+  state = { filter: "todos", open: {} };
+
+  sectionsFor(m) {
+    const out = [];
+    if (m.bio) out.push({ title: "Sobre mí", icon: "person", isText: true, isList: false, isTags: false, text: m.bio });
+    if (m.enfoque) out.push({ title: "Enfoque terapéutico", icon: "psychology", isText: true, isList: false, isTags: false, text: m.enfoque });
+    if (m.posgrado && m.posgrado.length) out.push({
+      title: "Formación de posgrado", icon: "school", isText: false, isList: true, isTags: false,
+      items: m.posgrado.map(x => ({ icon: "workspace_premium", title: x.title, note: x.note }))
+    });
+    if (m.experiencia && m.experiencia.length) out.push({
+      title: "Experiencia", icon: "history", isText: false, isList: true, isTags: false,
+      items: m.experiencia.map(x => ({ icon: "badge", title: x.title, note: x.note }))
+    });
+    if (m.especialidades && m.especialidades.length) out.push({
+      title: "Especialidades", icon: "verified", isText: false, isList: false, isTags: true,
+      tags: m.especialidades.map(t => ({ label: t, bg: "var(--color-accent-200)", bd: "var(--color-accent-500)", fg: "var(--color-accent-900)" }))
+    });
+    if (m.categorias && m.categorias.length) out.push({
+      title: "Categorías", icon: "sell", isText: false, isList: false, isTags: true,
+      tags: m.categorias.map(t => ({ label: t, bg: "var(--color-accent-2-200)", bd: "var(--color-accent-2-500)", fg: "var(--color-accent-2-900)" }))
+    });
+    return out;
+  }
+
+  renderVals() {
+    const f = this.state.filter;
+    const shown = TEAM.filter(m => f === "todos" || m.grupos.indexOf(f) !== -1);
+
+    return {
+      filters: FILTERS.map(x => ({
+        label: x.label,
+        pick: () => this.setState({ filter: x.k }),
+        bg: f === x.k ? "var(--color-accent-600)" : "var(--color-neutral-100)",
+        fg: f === x.k ? "var(--color-neutral-100)" : "var(--color-text)",
+        bd: f === x.k ? "var(--color-accent-600)" : "var(--color-neutral-400)"
+      })),
+      resultCount: shown.length === TEAM.length
+        ? TEAM.length + " profesionales"
+        : shown.length + (shown.length === 1 ? " profesional" : " profesionales") + " de " + TEAM.length,
+
+      team: shown.map(m => {
+        return {
+          name: m.name, first: m.name.split(" ")[0], title: m.title, base: m.base,
+          photo: m.photo, noPhoto: !m.photo, initials: m.initials, lead: m.lead,
+          hasRating: !!m.rating, noRating: !m.rating,
+          rating: m.rating, ratingN: m.reviewCount,
+          facts: [
+            { icon: "payments", label: m.price },
+            { icon: m.modalidad === "Solo presencial" ? "meeting_room" : "videocam", label: m.modalidad },
+            { icon: "history", label: m.anos === "En formación" ? "En formación" : m.anos + " de experiencia" }
+          ],
+          href: "./Admin - Perfil Profesional.dc.html#publico-" + m.id
+        };
+      })
+    };
+  }
+}
+
+</script>
+</body>
+</html>

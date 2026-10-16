@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/styles.css">
+<script src="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; background: var(--color-neutral-300); color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent-2-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-2-600); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: 500; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+  .chip { cursor: pointer; transition: box-shadow .16s ease, transform .16s ease; }
+  .chip:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .boxrow { transition: box-shadow .18s ease; }
+  .boxrow:hover { box-shadow: var(--shadow-lg); }
+</style>
+</helmet>
+
+<div style="display:grid;grid-template-columns:246px 1fr;min-height:100vh;align-items:stretch">
+
+  <aside style="background:var(--color-bg);border-right:1px solid var(--color-divider);box-shadow:var(--shadow-md);z-index:2;padding:22px 16px 24px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:9px;padding:0 8px">
+      <span style="width:10px;height:10px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block"></span>
+      <span style="font-family:var(--font-body);font-weight:900;font-size:17px;letter-spacing:-0.04em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Centro Ejemplo</span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <a href="./Admin - Dashboard.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+        <span class="ms" style="font-size:19px;flex:none">space_dashboard</span>
+        <span style="flex:1">Inicio</span>
+      </a>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:10.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);padding:0 8px 6px">Módulos</span>
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <a href="{{ n.href }}" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }}" style-hover="background:var(--color-accent-200)">
+          <span class="ms" style="font-size:19px;flex:none">{{ n.icon }}</span>
+          <span style="flex:1">{{ n.label }}</span>
+          <sc-if value="{{ n.off }}" hint-placeholder-val="{{ false }}">
+            <span class="ms" style="font-size:15px;color:var(--color-neutral-500)">lock</span>
+          </sc-if>
+        </a>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:10.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);padding:0 8px 6px">Centro</span>
+      <a href="./Admin - Configuracion.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+        <span class="ms" style="font-size:19px;flex:none">settings</span><span style="flex:1">Configuración</span>
+      </a>
+      <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+        <span class="ms" style="font-size:19px;flex:none">public</span><span style="flex:1">Página pública</span>
+      </a>
+    </div>
+
+<a href="./Admin - Mi Perfil.dc.html" style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 10px 12px;border-top:1px solid var(--color-divider);border-radius:12px;color:var(--color-text)" style-hover="background:var(--color-accent-200);color:var(--color-text)">
+      <span style="width:30px;height:30px;border-radius:999px;background:var(--color-accent-200);border:1px solid var(--color-accent-500);display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--color-accent-700);flex:none">MR</span>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:13px;font-weight:800;letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marcela Rivas</div>
+        <div style="font-size:11.5px;color:var(--color-neutral-600);font-weight:600">Directora</div>
+      </div>
+    </a>
+  </aside>
+
+  <main style="padding:30px clamp(24px,3.4vw,48px) 56px;min-width:0">
+
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:8px">
+      <div>
+        <div style="display:inline-flex;color:var(--color-accent-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:10px;border-bottom:2px solid var(--color-accent-500);margin-bottom:16px">Agenda y Espacios</div>
+        <h1 style="font-family:var(--font-body);font-weight:900;font-size:34px;line-height:1.05;letter-spacing:-0.03em;margin:0">Coordinación del centro</h1>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button type="button" onClick="{{ newBox }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-bg);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13.5px;padding:11px 20px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:8px" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)"><span class="ms" style="font-size:18px">add</span>Agregar espacio</button>
+        <button type="button" style="border:none;background:var(--color-accent-2-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:13.5px;padding:11px 20px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:8px" style-hover="background:var(--color-accent-2-700)"><span class="ms" style="font-size:18px">event</span>Agendar sesión</button>
+      </div>
+    </div>
+
+    <p style="font-size:13px;font-weight:600;color:var(--color-neutral-600);margin:0 0 22px;display:flex;align-items:center;gap:8px">
+      <span class="ms" style="font-size:17px">groups</span>Vista de coordinación · todas las agendas del centro
+    </p>
+
+    <div style="display:flex;gap:6px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:999px;padding:4px;width:fit-content;box-shadow:var(--shadow-sm);margin-bottom:20px">
+      <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="3">
+        <button type="button" onClick="{{ tab.onClick }}" style="border:none;font-family:var(--font-body);cursor:pointer;font-size:13.5px;font-weight:800;padding:9px 20px;border-radius:999px;background:{{ tab.bg }};color:{{ tab.color }};display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:18px">{{ tab.icon }}</span>{{ tab.label }}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ isCal }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px">
+          <div style="display:flex;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:999px;padding:3px">
+            <sc-for list="{{ modes }}" as="md" hint-placeholder-count="2">
+              <button type="button" onClick="{{ md.onClick }}" style="border:none;font-family:var(--font-body);cursor:pointer;font-size:12.5px;font-weight:800;padding:8px 17px;border-radius:999px;background:{{ md.bg }};color:{{ md.color }}">{{ md.label }}</button>
+            </sc-for>
+          </div>
+          <span style="font-size:13.5px;font-weight:800;color:var(--color-neutral-700)">Semana del 31 de agosto</span>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-left:auto;align-items:center">
+            <sc-for list="{{ legend }}" as="lg" hint-placeholder-count="4">
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--color-neutral-700)">
+                <span style="width:11px;height:11px;border-radius:4px;background:{{ lg.color }};border:1px solid {{ lg.border }}"></span>{{ lg.label }}
+              </span>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ conflict }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:11px;background:var(--color-accent-200);border:1.5px solid var(--color-accent-600);border-radius:var(--radius-lg);padding:14px 18px;margin-bottom:16px">
+            <span class="ms" style="font-size:20px;color:var(--color-accent-700)">error</span>
+            <span style="font-size:13.5px;font-weight:700;color:var(--color-accent-900);flex:1">{{ conflict }}</span>
+            <button type="button" onClick="{{ clearConflict }}" style="border:none;background:transparent;color:var(--color-accent-700);font-family:var(--font-body);font-weight:800;font-size:12.5px;cursor:pointer;padding:6px 10px;border-radius:999px" style-hover="background:var(--color-accent-300)">Entendido</button>
+          </div>
+        </sc-if>
+
+        <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);overflow:hidden">
+          <div style="display:grid;grid-template-columns:74px repeat(5,minmax(0,1fr));background:var(--color-neutral-200);border-bottom:1px solid var(--color-divider)">
+            <span style="padding:12px 10px;font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">Hora</span>
+            <sc-for list="{{ days }}" as="dh" hint-placeholder-count="5">
+              <span style="padding:12px 12px;font-size:12.5px;font-weight:900;letter-spacing:-0.01em;border-left:1px solid var(--color-divider)">{{ dh }}</span>
+            </sc-for>
+          </div>
+          <sc-for list="{{ rows }}" as="row" hint-placeholder-count="11">
+            <div style="display:grid;grid-template-columns:74px repeat(5,minmax(0,1fr));border-bottom:1px solid var(--color-divider);min-height:62px">
+              <span style="padding:10px;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--color-neutral-600);background:var(--color-neutral-100)">{{ row.label }}</span>
+              <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="5">
+                <div style="border-left:1px solid var(--color-divider);padding:5px;display:flex;flex-direction:column;gap:5px;background:{{ cell.bg }};min-width:0">
+                  <sc-for list="{{ cell.items }}" as="sess" hint-placeholder-count="0">
+                    <button type="button" class="chip" onClick="{{ sess.onClick }}" style="text-align:left;font-family:var(--font-body);border:1.5px solid {{ sess.border }};border-left:4px solid {{ sess.accent }};background:{{ sess.bg }};border-radius:12px;padding:7px 9px;display:flex;flex-direction:column;gap:2px;min-width:0">
+                      <span style="font-size:12px;font-weight:900;letter-spacing:-0.01em;color:{{ sess.fg }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">{{ sess.title }}</span>
+                      <span style="font-size:11px;font-weight:700;color:var(--color-neutral-700);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">{{ sess.sub }}</span>
+                      <span style="font-size:10px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:{{ sess.stateFg }}">{{ sess.stateLabel }}</span>
+                    </button>
+                  </sc-for>
+                  <sc-if value="{{ cell.free }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:11px;font-weight:600;color:var(--color-neutral-500);padding:4px 6px">Libre</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </section>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isBoxes }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ boxes }}" as="bx" hint-placeholder-count="4">
+          <div class="boxrow" style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:22px 24px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:26px;flex-wrap:wrap">
+            <span style="width:42px;height:42px;border-radius:999px;background:{{ bx.tint }};border:1px solid {{ bx.border }};display:grid;place-items:center;flex:none"><span class="ms" style="font-size:21px;color:{{ bx.accent }}">meeting_room</span></span>
+            <div style="min-width:150px">
+              <div style="font-family:var(--font-body);font-weight:900;font-size:18px;letter-spacing:-0.02em">{{ bx.name }}</div>
+              <div style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600)">{{ bx.note }}</div>
+            </div>
+            <div style="min-width:120px">
+              <div style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:4px">Funcionamiento</div>
+              <div style="font-size:14px;font-weight:800;font-variant-numeric:tabular-nums">{{ bx.hours }}</div>
+            </div>
+            <div style="min-width:120px">
+              <div style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:4px">Sesión por defecto</div>
+              <div style="font-size:14px;font-weight:800">{{ bx.duration }} min</div>
+            </div>
+            <div style="flex:1 1 180px;min-width:160px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px">
+                <span style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">Ocupación</span>
+                <span style="font-size:13px;font-weight:900;font-variant-numeric:tabular-nums">{{ bx.load }}%</span>
+              </div>
+              <span style="height:7px;border-radius:999px;background:var(--color-neutral-300);display:block;overflow:hidden">
+                <span style="display:block;height:100%;border-radius:999px;background:{{ bx.accent }};width:{{ bx.width }}"></span>
+              </span>
+            </div>
+            <button type="button" onClick="{{ bx.edit }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13px;padding:10px 18px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:8px;flex:none" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)"><span class="ms" style="font-size:17px">edit</span>Editar</button>
+          </div>
+        </sc-for>
+        <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:4px 0 0;display:flex;align-items:center;gap:8px">
+          <span class="ms" style="font-size:17px">lock_clock</span>Un espacio no admite dos reservas en el mismo bloque horario.
+        </p>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isPros }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ pros }}" as="pro" hint-placeholder-count="4">
+          <div class="boxrow" style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:22px 24px;box-shadow:var(--shadow-sm)">
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+              <span style="width:38px;height:38px;border-radius:999px;background:{{ pro.tint }};border:1px solid {{ pro.border }};display:grid;place-items:center;font-size:12.5px;font-weight:900;color:{{ pro.accent }};flex:none">{{ pro.initials }}</span>
+              <div style="min-width:0">
+                <div style="font-family:var(--font-body);font-weight:900;font-size:17px;letter-spacing:-0.02em">{{ pro.name }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600)">{{ pro.role }}</div>
+              </div>
+              <span style="font-size:12.5px;font-weight:800;color:var(--color-neutral-700);margin-left:auto">{{ pro.hoursWeek }}</span>
+              <button type="button" onClick="{{ pro.edit }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13px;padding:10px 18px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:8px;flex:none" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)"><span class="ms" style="font-size:17px">schedule</span>Editar horario</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+              <sc-for list="{{ pro.schedule }}" as="blk" hint-placeholder-count="5">
+                <div style="background:{{ blk.bg }};border:1px solid {{ blk.border }};border-radius:14px;padding:11px 13px">
+                  <div style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:4px">{{ blk.day }}</div>
+                  <div style="font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ blk.fg }}">{{ blk.hours }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ sel }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed;inset:0;z-index:40;background:color-mix(in srgb, var(--color-neutral-900) 38%, transparent);display:grid;place-items:center;padding:24px;box-sizing:border-box">
+        <div style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:460px;overflow:hidden">
+          <div style="padding:22px 24px;border-bottom:1px solid var(--color-divider);background:var(--color-neutral-100)">
+            <div style="font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:6px">{{ sel.when }}</div>
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:21px;letter-spacing:-0.03em;margin:0">{{ sel.patient }}</h2>
+          </div>
+          <div style="padding:22px 24px">
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
+              <sc-for list="{{ sel.facts }}" as="ft" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:11px">
+                  <span class="ms" style="font-size:18px;color:var(--color-neutral-600);flex:none">{{ ft.icon }}</span>
+                  <span style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);width:96px;flex:none">{{ ft.label }}</span>
+                  <span style="font-size:14px;font-weight:800;letter-spacing:-0.01em">{{ ft.value }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <sc-if value="{{ sel.needsAction }}" hint-placeholder-val="{{ false }}">
+              <div style="background:var(--color-accent-200);border:1px solid var(--color-accent-500);border-radius:var(--radius-lg);padding:16px 18px">
+                <div style="font-size:13.5px;font-weight:800;color:var(--color-accent-900);margin-bottom:12px;text-wrap:pretty">{{ sel.actionNote }}</div>
+                <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">
+                  <button type="button" onClick="{{ confirmSel }}" style="border:none;background:var(--color-accent-2-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:13px;padding:10px 18px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:7px" style-hover="background:var(--color-accent-2-700)"><span class="ms" style="font-size:17px">check</span>Confirmar</button>
+                </div>
+                <div style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:9px">Reasignar a otro profesional</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <sc-for list="{{ sel.reassign }}" as="ra" hint-placeholder-count="3">
+                    <button type="button" onClick="{{ ra.onClick }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:12.5px;padding:9px 15px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:7px" style-hover="background:var(--color-bg);border-color:var(--color-accent-600)">
+                      <span style="width:9px;height:9px;border-radius:999px;background:{{ ra.color }}"></span>{{ ra.name }}
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ sel.holdNote }}" hint-placeholder-val="{{ false }}">
+              <div style="background:var(--color-neutral-200);border:1px solid var(--color-neutral-400);border-radius:var(--radius-lg);padding:15px 18px;font-size:13.5px;font-weight:700;color:var(--color-neutral-800);text-wrap:pretty">{{ sel.holdNote }}</div>
+            </sc-if>
+          </div>
+          <div style="padding:16px 24px 22px;display:flex;gap:10px;justify-content:flex-end">
+            <button type="button" onClick="{{ closeSel }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13px;padding:10px 20px;border-radius:999px;cursor:pointer" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ editBox }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed;inset:0;z-index:41;background:color-mix(in srgb, var(--color-neutral-900) 38%, transparent);display:grid;place-items:center;padding:24px;box-sizing:border-box">
+        <div style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:440px;overflow:hidden">
+          <div style="padding:22px 24px;border-bottom:1px solid var(--color-divider);background:var(--color-neutral-100)">
+            <div style="font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:6px">{{ editBox.kicker }}</div>
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:21px;letter-spacing:-0.03em;margin:0">{{ editBox.title }}</h2>
+          </div>
+          <div style="padding:22px 24px;display:flex;flex-direction:column;gap:16px">
+            <label style="display:flex;flex-direction:column;gap:7px">
+              <span style="font-size:13px;font-weight:800">Nombre del espacio</span>
+              <input type="text" value="{{ editBox.name }}" onChange="{{ setBoxName }}" style="font-family:var(--font-body);font-size:14.5px;padding:12px 17px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text)"></input>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <label style="display:flex;flex-direction:column;gap:7px">
+                <span style="font-size:13px;font-weight:800">Abre</span>
+                <input type="time" value="{{ editBox.open }}" onChange="{{ setBoxOpen }}" style="font-family:var(--font-body);font-size:14.5px;padding:12px 17px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text)"></input>
+              </label>
+              <label style="display:flex;flex-direction:column;gap:7px">
+                <span style="font-size:13px;font-weight:800">Cierra</span>
+                <input type="time" value="{{ editBox.close }}" onChange="{{ setBoxClose }}" style="font-family:var(--font-body);font-size:14.5px;padding:12px 17px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);color:var(--color-text)"></input>
+              </label>
+            </div>
+            <div>
+              <span style="font-size:13px;font-weight:800;display:block;margin-bottom:9px">Duración de sesión por defecto</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <sc-for list="{{ durations }}" as="du" hint-placeholder-count="4">
+                  <button type="button" onClick="{{ du.onClick }}" style="font-family:var(--font-body);cursor:pointer;font-size:13px;font-weight:800;padding:9px 17px;border-radius:999px;background:{{ du.bg }};color:{{ du.color }};border:1.5px solid {{ du.border }}">{{ du.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="padding:16px 24px 22px;display:flex;gap:10px;justify-content:flex-end">
+            <button type="button" onClick="{{ cancelBox }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13px;padding:10px 20px;border-radius:999px;cursor:pointer" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)">Cancelar</button>
+            <button type="button" onClick="{{ saveBox }}" style="border:none;background:var(--color-accent-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:13px;padding:10px 22px;border-radius:999px;cursor:pointer" style-hover="background:var(--color-accent-700)">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ editPro }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed;inset:0;z-index:41;background:color-mix(in srgb, var(--color-neutral-900) 38%, transparent);display:grid;place-items:center;padding:24px;box-sizing:border-box">
+        <div style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:520px;overflow:hidden">
+          <div style="padding:22px 24px;border-bottom:1px solid var(--color-divider);background:var(--color-neutral-100)">
+            <div style="font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:6px">Horario de atención</div>
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:21px;letter-spacing:-0.03em;margin:0">{{ editPro.name }}</h2>
+          </div>
+          <div style="padding:22px 24px;display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ editPro.rows }}" as="er" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--color-divider)">
+                <button type="button" onClick="{{ er.toggle }}" style="border:1.5px solid {{ er.border }};background:{{ er.bg }};color:{{ er.color }};font-family:var(--font-body);font-weight:800;font-size:13px;padding:8px 16px;border-radius:999px;cursor:pointer;width:104px;flex:none">{{ er.day }}</button>
+                <span style="font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;color:{{ er.textColor }};flex:1">{{ er.hours }}</span>
+              </div>
+            </sc-for>
+            <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0">Sobre este horario se calcula la disponibilidad del calendario.</p>
+          </div>
+          <div style="padding:16px 24px 22px;display:flex;gap:10px;justify-content:flex-end">
+            <button type="button" onClick="{{ cancelPro }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-neutral-100);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13px;padding:10px 20px;border-radius:999px;cursor:pointer" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)">Cancelar</button>
+            <button type="button" onClick="{{ savePro }}" style="border:none;background:var(--color-accent-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:13px;padding:10px 22px;border-radius:999px;cursor:pointer" style-hover="background:var(--color-accent-700)">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1020}}">
+const DAYS = ["Lunes 31", "Martes 1", "Miércoles 2", "Jueves 3", "Viernes 4"];
+const HOURS = [9, 10, 11, 12, 15, 16, 17, 18, 19];
+
+const PROS = [
+  { id: "mr", initials: "MR", name: "Marcela Rivas", role: "Psicóloga clínica · Directora", accent: "var(--color-accent-2-700)", tint: "var(--color-accent-2-200)", border: "var(--color-accent-2-500)" },
+  { id: "jt", initials: "JT", name: "Javier Tapia", role: "Psicólogo infanto-juvenil", accent: "var(--color-accent-700)", tint: "var(--color-accent-200)", border: "var(--color-accent-500)" },
+  { id: "cs", initials: "CS", name: "Camila Soto", role: "Psicóloga de pareja y familia", accent: "var(--color-accent-2-800)", tint: "var(--color-accent-2-100)", border: "var(--color-accent-2-500)" },
+  { id: "np", initials: "NP", name: "Nicolás Peña", role: "Psicólogo clínico", accent: "var(--color-neutral-700)", tint: "var(--color-neutral-200)", border: "var(--color-neutral-500)" }
+];
+
+const SCHEDULES = {
+  mr: { lun: "09:00 – 14:00", mar: "09:00 – 18:00", mie: "12:00 – 20:00", jue: "09:00 – 18:00", vie: "09:00 – 14:00" },
+  jt: { lun: "15:00 – 20:00", mar: "15:00 – 20:00", mie: "", jue: "15:00 – 20:00", vie: "15:00 – 19:00" },
+  cs: { lun: "10:00 – 16:00", mar: "", mie: "10:00 – 16:00", jue: "10:00 – 18:00", vie: "" },
+  np: { lun: "", mar: "09:00 – 13:00", mie: "09:00 – 13:00", jue: "16:00 – 20:00", vie: "09:00 – 13:00" }
+};
+
+const DAY_KEYS = [["lun", "Lunes"], ["mar", "Martes"], ["mie", "Miércoles"], ["jue", "Jueves"], ["vie", "Viernes"]];
+
+const SESSIONS = [
+  { id: 1, day: 0, hour: 9, patient: "Ignacio Bravo", pro: "mr", box: "Box 2", state: "confirmada" },
+  { id: 2, day: 0, hour: 11, patient: "Javiera Molina", pro: "cs", box: "Box 1", state: "confirmada" },
+  { id: 3, day: 0, hour: 16, patient: "Camilo Reyes", pro: "jt", box: "Box 3", state: "porconfirmar" },
+  { id: 4, day: 1, hour: 10, patient: "Valentina Díaz", pro: "mr", box: "Box 2", state: "confirmada" },
+  { id: 5, day: 1, hour: 12, patient: "Tomás Herrera", pro: "np", box: "Box 4", state: "reservando" },
+  { id: 6, day: 1, hour: 17, patient: "Matías Fuenzalida", pro: "jt", box: "Box 1", state: "confirmada" },
+  { id: 7, day: 2, hour: 10, patient: "Sofía Carrasco", pro: "cs", box: "Box 3", state: "confirmada" },
+  { id: 8, day: 2, hour: 15, patient: "Pablo y Ana", pro: "mr", box: "Box 3", state: "porconfirmar" },
+  { id: 15, day: 2, hour: 15, patient: "Antonia Vera", pro: "jt", box: "Box 1", state: "confirmada" },
+  { id: 9, day: 3, hour: 9, patient: "Ignacio Bravo", pro: "mr", box: "Box 2", state: "confirmada" },
+  { id: 10, day: 3, hour: 10, patient: "Familia Rojas", pro: "mr", box: "Box 1", state: "confirmada" },
+  { id: 11, day: 3, hour: 16, patient: "Pablo y Ana", pro: "mr", box: "Box 3", state: "confirmada" },
+  { id: 12, day: 3, hour: 18, patient: "Camilo Reyes", pro: "np", box: "Box 4", state: "porconfirmar" },
+  { id: 13, day: 4, hour: 11, patient: "Javiera Molina", pro: "cs", box: "Box 1", state: "confirmada" },
+  { id: 14, day: 4, hour: 17, patient: "Matías Fuenzalida", pro: "jt", box: "Box 2", state: "reservando" }
+];
+
+const STATE_STYLE = {
+  confirmada: { label: "Confirmada", bg: "var(--color-neutral-100)", border: "var(--color-divider)", stateFg: "var(--color-neutral-600)" },
+  porconfirmar: { label: "Por confirmar", bg: "var(--color-accent-200)", border: "var(--color-accent-500)", stateFg: "var(--color-accent-700)" },
+  reservando: { label: "Reservando…", bg: "var(--color-neutral-200)", border: "var(--color-neutral-500)", stateFg: "var(--color-neutral-700)" }
+};
+
+const BOX_STYLE = {
+  "Box 1": { accent: "var(--color-accent-2-700)", tint: "var(--color-accent-2-200)", border: "var(--color-accent-2-500)" },
+  "Box 2": { accent: "var(--color-accent-700)", tint: "var(--color-accent-200)", border: "var(--color-accent-500)" },
+  "Box 3": { accent: "var(--color-accent-2-800)", tint: "var(--color-accent-2-100)", border: "var(--color-accent-2-500)" },
+  "Box 4": { accent: "var(--color-neutral-700)", tint: "var(--color-neutral-200)", border: "var(--color-neutral-500)" }
+};
+
+const TABS = [
+  { key: "cal", label: "Calendario consolidado", icon: "calendar_month" },
+  { key: "boxes", label: "Espacios", icon: "meeting_room" },
+  { key: "pros", label: "Horarios del equipo", icon: "schedule" }
+];
+
+class Component extends DCLogic {
+  state = {
+    tab: "cal", mode: "pro", selected: null, conflict: "",
+    sessions: SESSIONS, editBox: null, editPro: null,
+    boxes: [
+      { name: "Box 1", note: "Sala amplia · trabajo familiar", open: "09:00", close: "20:00", duration: 50, load: 82 },
+      { name: "Box 2", note: "Consulta individual", open: "09:00", close: "20:00", duration: 50, load: 78 },
+      { name: "Box 3", note: "Sala de pareja", open: "10:00", close: "20:00", duration: 60, load: 71 },
+      { name: "Box 4", note: "Consulta individual · turnos de mañana", open: "09:00", close: "14:00", duration: 45, load: 54 }
+    ]
+  };
+
+  proById(id) { return PROS.find(p => p.id === id); }
+
+  navItems() {
+    const item = (icon, label, href, opts) => Object.assign({
+      icon, label, href, off: false, weight: 600, color: "var(--color-text)", bg: "transparent"
+    }, opts || {});
+    return [
+      item("folder_shared", "Fichas y Pacientes", "./Admin - Fichas y Pacientes.dc.html"),
+      item("calendar_month", "Agenda y Espacios", "#", { weight: 800, color: "var(--color-accent-2-700)", bg: "var(--color-accent-2-200)" }),
+      item("groups", "Equipo", "./Admin - Perfil Profesional.dc.html"),
+      item("join", "Match Terapéutico", "./Admin - Match Configuracion.dc.html"),
+      item("payments", "Cobros", "./Admin - Cobros.dc.html")
+    ];
+  }
+
+  grid() {
+    const byPro = this.state.mode === "pro";
+    return HOURS.map(h => ({
+      label: (h < 10 ? "0" : "") + h + ":00",
+      cells: DAYS.map((d, di) => {
+        const items = this.state.sessions.filter(s => s.day === di && s.hour === h).map(s => {
+          const pro = this.proById(s.pro);
+          const box = BOX_STYLE[s.box] || BOX_STYLE["Box 1"];
+          const st = STATE_STYLE[s.state];
+          return {
+            title: s.patient,
+            sub: byPro ? pro.name + " · " + s.box : s.box + " · " + pro.name,
+            accent: byPro ? pro.accent : box.accent,
+            fg: byPro ? pro.accent : box.accent,
+            bg: st.bg, border: st.border, stateFg: st.stateFg, stateLabel: st.label,
+            onClick: () => this.setState({ selected: s.id, conflict: "" })
+          };
+        });
+        return { items, free: items.length === 0, bg: items.length ? "transparent" : "var(--color-neutral-100)" };
+      })
+    }));
+  }
+
+  selection() {
+    const s = this.state.sessions.find(x => x.id === this.state.selected);
+    if (!s) return null;
+    const pro = this.proById(s.pro);
+    const st = STATE_STYLE[s.state];
+    const busy = this.state.sessions.filter(x => x.day === s.day && x.hour === s.hour && x.id !== s.id).map(x => x.pro);
+    return {
+      patient: s.patient,
+      when: DAYS[s.day] + " · " + ((s.hour < 10 ? "0" : "") + s.hour + ":00"),
+      facts: [
+        { icon: "person", label: "Profesional", value: pro.name },
+        { icon: "meeting_room", label: "Espacio", value: s.box },
+        { icon: "flag", label: "Estado", value: st.label }
+      ],
+      needsAction: s.state === "porconfirmar",
+      actionNote: "El profesional no ha confirmado esta hora. Puedes confirmarla o reasignarla sin perder el bloque.",
+      holdNote: s.state === "reservando" ? "El horario está retenido mientras se completa la reserva. Nadie más puede tomar este bloque en Box " + s.box.replace("Box ", "") + "." : null,
+      reassign: PROS.filter(p => p.id !== s.pro).map(p => ({
+        name: p.name, color: p.accent,
+        onClick: () => {
+          if (busy.includes(p.id)) {
+            this.setState({ conflict: p.name + " ya tiene una sesión a esa hora. El bloque se mantiene con " + pro.name + "." });
+            return;
+          }
+          if (!SCHEDULES[p.id][DAY_KEYS[s.day][0]]) {
+            this.setState({ conflict: p.name + " no atiende los " + DAY_KEYS[s.day][1].toLowerCase() + ". El bloque se mantiene con " + pro.name + "." });
+            return;
+          }
+          this.setState(prev => ({
+            selected: null, conflict: "",
+            sessions: prev.sessions.map(x => x.id === s.id ? Object.assign({}, x, { pro: p.id, state: "confirmada" }) : x)
+          }));
+        }
+      }))
+    };
+  }
+
+  renderVals() {
+    const t = this.state.tab, m = this.state.mode;
+    const eb = this.state.editBox, ep = this.state.editPro;
+    const legend = this.state.mode === "pro"
+      ? PROS.map(p => ({ label: p.name.split(" ")[0], color: p.tint, border: p.accent }))
+      : Object.keys(BOX_STYLE).map(k => ({ label: k, color: BOX_STYLE[k].tint, border: BOX_STYLE[k].accent }));
+
+    return {
+      nav: this.navItems(),
+      tabs: TABS.map(x => ({
+        label: x.label, icon: x.icon,
+        onClick: () => this.setState({ tab: x.key, selected: null }),
+        bg: t === x.key ? "var(--color-accent-2-600)" : "transparent",
+        color: t === x.key ? "var(--color-neutral-100)" : "var(--color-neutral-700)"
+      })),
+      isCal: t === "cal", isBoxes: t === "boxes", isPros: t === "pros",
+      modes: [{ k: "box", l: "Por box" }, { k: "pro", l: "Por profesional" }].map(x => ({
+        label: x.l,
+        onClick: () => this.setState({ mode: x.k }),
+        bg: m === x.k ? "var(--color-accent-600)" : "transparent",
+        color: m === x.k ? "var(--color-neutral-100)" : "var(--color-neutral-700)"
+      })),
+      legend: legend.concat([{ label: "Por confirmar", color: "var(--color-accent-200)", border: "var(--color-accent-600)" }, { label: "Reservando", color: "var(--color-neutral-200)", border: "var(--color-neutral-600)" }]),
+      days: DAYS,
+      rows: this.grid(),
+      conflict: this.state.conflict,
+      clearConflict: () => this.setState({ conflict: "" }),
+      sel: this.selection(),
+      closeSel: () => this.setState({ selected: null }),
+      confirmSel: () => this.setState(prev => ({
+        selected: null,
+        sessions: prev.sessions.map(x => x.id === prev.selected ? Object.assign({}, x, { state: "confirmada" }) : x)
+      })),
+      boxes: this.state.boxes.map((b, i) => Object.assign({}, b, BOX_STYLE[b.name] || BOX_STYLE["Box 4"], {
+        hours: b.open + " a " + b.close,
+        width: b.load + "%",
+        edit: () => this.setState({ editBox: Object.assign({ index: i }, b) })
+      })),
+      newBox: () => this.setState({ tab: "boxes", editBox: { index: -1, name: "Box 5", note: "Nuevo espacio", open: "09:00", close: "20:00", duration: 50, load: 0 } }),
+      editBox: eb ? Object.assign({}, eb, {
+        kicker: eb.index < 0 ? "Nuevo espacio" : "Editar espacio",
+        title: eb.index < 0 ? "Agregar espacio" : eb.name
+      }) : null,
+      setBoxName: e => this.setState({ editBox: Object.assign({}, this.state.editBox, { name: e.target.value }) }),
+      setBoxOpen: e => this.setState({ editBox: Object.assign({}, this.state.editBox, { open: e.target.value }) }),
+      setBoxClose: e => this.setState({ editBox: Object.assign({}, this.state.editBox, { close: e.target.value }) }),
+      durations: [30, 45, 50, 60].map(d => ({
+        label: d + " min",
+        onClick: () => this.setState({ editBox: Object.assign({}, this.state.editBox, { duration: d }) }),
+        bg: eb && eb.duration === d ? "var(--color-accent-2-600)" : "var(--color-neutral-100)",
+        color: eb && eb.duration === d ? "var(--color-neutral-100)" : "var(--color-neutral-700)",
+        border: eb && eb.duration === d ? "var(--color-accent-2-600)" : "var(--color-neutral-400)"
+      })),
+      cancelBox: () => this.setState({ editBox: null }),
+      saveBox: () => this.setState(prev => {
+        const b = prev.editBox;
+        const clean = { name: b.name, note: b.note, open: b.open, close: b.close, duration: b.duration, load: b.load };
+        const boxes = b.index < 0 ? prev.boxes.concat([clean]) : prev.boxes.map((x, i) => i === b.index ? clean : x);
+        return { boxes, editBox: null };
+      }),
+      pros: PROS.map(p => {
+        const sch = (this.state.editPro && this.state.editPro.id === p.id) ? this.state.editPro.sch : SCHEDULES[p.id];
+        const days = DAY_KEYS.filter(([k]) => sch[k]).length;
+        return Object.assign({}, p, {
+          hoursWeek: days + " días de atención",
+          schedule: DAY_KEYS.map(([k, label]) => ({
+            day: label,
+            hours: sch[k] || "No atiende",
+            bg: sch[k] ? p.tint : "var(--color-neutral-100)",
+            border: sch[k] ? p.border : "var(--color-divider)",
+            fg: sch[k] ? p.accent : "var(--color-neutral-500)"
+          })),
+          edit: () => this.setState({ editPro: { id: p.id, name: p.name, sch: Object.assign({}, SCHEDULES[p.id]) } })
+        });
+      }),
+      editPro: ep ? {
+        name: ep.name,
+        rows: DAY_KEYS.map(([k, label]) => {
+          const on = !!ep.sch[k];
+          return {
+            day: label,
+            hours: on ? ep.sch[k] : "No atiende",
+            toggle: () => this.setState(prev => {
+              const sch = Object.assign({}, prev.editPro.sch);
+              sch[k] = sch[k] ? "" : "09:00 – 18:00";
+              return { editPro: Object.assign({}, prev.editPro, { sch }) };
+            }),
+            bg: on ? "var(--color-accent-2-600)" : "var(--color-neutral-100)",
+            color: on ? "var(--color-neutral-100)" : "var(--color-neutral-700)",
+            border: on ? "var(--color-accent-2-600)" : "var(--color-neutral-400)",
+            textColor: on ? "var(--color-text)" : "var(--color-neutral-500)"
+          };
+        })
+      } : null,
+      cancelPro: () => this.setState({ editPro: null }),
+      savePro: () => {
+        const ep2 = this.state.editPro;
+        if (ep2) DAY_KEYS.forEach(([k]) => { SCHEDULES[ep2.id][k] = ep2.sch[k]; });
+        this.setState({ editPro: null });
+      }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

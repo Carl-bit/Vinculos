@@ -1,6 +1,24 @@
-import { EstadoCita, ModalidadAtencion, ModoVideollamada, MotivoBloqueoAgenda } from '@prisma/client';
+import { EstadoCita, EstadoListaEspera, ModalidadAtencion, ModoVideollamada, MotivoBloqueoAgenda } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDate, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUrl, IsUUID, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsDate,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUrl,
+  IsUUID,
+  Length,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
 
 import { Recortar } from '../../../core/validacion/validadores';
 
@@ -9,6 +27,20 @@ export class CrearEspacioDto {
   @IsString()
   @Length(1, 80)
   nombre!: string;
+
+  /** Descripcion corta (sala amplia, trabajo familiar...). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 200)
+  nota?: string;
+
+  /** Duracion de sesion sugerida para este box (presentacion). */
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(240)
+  duracionDefectoMin?: number;
 }
 
 export class EditarEspacioDto {
@@ -21,6 +53,20 @@ export class EditarEspacioDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  /** Descripcion corta (sala amplia, trabajo familiar...). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 200)
+  nota?: string;
+
+  /** Duracion de sesion sugerida para este box (presentacion). */
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(240)
+  duracionDefectoMin?: number;
 }
 
 export class RangoDto {
@@ -148,4 +194,72 @@ export class SalaDto {
   @IsUrl({ protocols: ['https'], require_protocol: true })
   @MaxLength(500)
   enlace?: string;
+}
+
+export class BloqueEspacioDto {
+  /** ISO: 1 = lunes ... 7 = domingo. */
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  diaSemana!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  inicioMin!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  finMin!: number;
+}
+
+/** Horario de funcionamiento del box (reemplazo completo; vacio = el del centro). */
+export class HorarioEspacioDto {
+  @IsArray()
+  @ArrayMaxSize(28)
+  @ValidateNested({ each: true })
+  @Type(() => BloqueEspacioDto)
+  bloques!: BloqueEspacioDto[];
+}
+
+/** "Cubrir sesion" (C-5): otro profesional con acceso clinico temporal vigente en ese horario. */
+export class CubrirCitaDto {
+  @IsUUID()
+  profesionalId!: string;
+}
+
+/** Lista de espera por profesional o tipo de atencion (al menos uno). */
+export class CrearListaEsperaDto {
+  @IsUUID()
+  pacienteId!: string;
+
+  @ValidateIf((o: CrearListaEsperaDto) => !o.tipoAtencionId)
+  @IsUUID()
+  profesionalId?: string;
+
+  @ValidateIf((o: CrearListaEsperaDto) => !o.profesionalId)
+  @IsUUID()
+  tipoAtencionId?: string;
+
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 500)
+  preferencias?: string;
+}
+
+export class FiltroListaEsperaDto {
+  @IsOptional()
+  @IsUUID()
+  profesionalId?: string;
+
+  @IsOptional()
+  @IsEnum(EstadoListaEspera)
+  estado?: EstadoListaEspera;
+}
+
+export class CerrarListaEsperaDto {
+  @IsIn([EstadoListaEspera.ASIGNADA, EstadoListaEspera.CANCELADA])
+  estado!: 'ASIGNADA' | 'CANCELADA';
 }

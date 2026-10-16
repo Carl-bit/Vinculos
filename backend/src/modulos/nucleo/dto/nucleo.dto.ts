@@ -1,7 +1,11 @@
-import { Rol, ModeloCobro } from '@prisma/client';
+import { Rol, ModeloCobro, TipoPolitica } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
+  IsHexColor,
+  IsIn,
   IsDate,
   IsEmail,
   IsEnum,
@@ -16,6 +20,7 @@ import {
   MaxLength,
   Min,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 
 import { IsRut, NormalizarRut, Recortar, TELEFONO_CL } from '../../../core/validacion/validadores';
@@ -36,10 +41,15 @@ export class CrearUsuarioDto {
   @IsEnum(Rol)
   rol!: Rol;
 
-  /** Contraseña inicial (el usuario la cambia en /usuarios/yo/password). */
+  /**
+   * Contraseña inicial (el usuario la cambia en /usuarios/yo/password). Sin
+   * contraseña (03a): la cuenta queda sin acceso hasta que la persona active
+   * la invitacion que se le envia por correo.
+   */
+  @IsOptional()
   @IsString()
   @Length(10, 200)
-  password!: string;
+  password?: string;
 
   @IsOptional()
   @Matches(TELEFONO_CL, { message: 'telefono: formato +56XXXXXXXXX' })
@@ -195,6 +205,30 @@ export class EditarConfiguracionDto {
   @Min(0)
   @Max(168)
   recordatorioHorasAntes?: number;
+
+  /** 03a (C-11): liquidar solo citas realizadas con evolucion registrada. */
+  @IsOptional()
+  @IsBoolean()
+  liquidarExigeEvolucion?: boolean;
+
+  /** 03a: el match ofrece "prefiero filtrar yo mismo". */
+  @IsOptional()
+  @IsBoolean()
+  matchFiltroDirecto?: boolean;
+
+  /** 03a (D-6): dias que se guardan las respuestas del match de una solicitud no concretada. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  diasRetencionRespuestasMatch?: number;
+
+  /** 03a (C-15): minutos que se retiene la hora mientras se verifica el correo. */
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(120)
+  minutosRetencionSolicitud?: number;
 }
 
 export class OtorgarAccesoDto {
@@ -222,4 +256,115 @@ export class IniciarBajaDto {
   @Type(() => Date)
   @IsDate()
   fechaEfectiva!: Date;
+}
+
+/** 03a (C-1): segundo rol de una cuenta ADMIN o GESTION. */
+export class OtorgarRolDto {
+  @IsIn([Rol.PROFESIONAL])
+  rol!: 'PROFESIONAL';
+}
+
+export class BajaRolDto {
+  @Type(() => Date)
+  @IsDate()
+  fechaEfectiva!: Date;
+}
+
+export class ServicioPublicoDto {
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 40)
+  icono?: string;
+
+  @Recortar()
+  @IsString()
+  @Length(1, 120)
+  titulo!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(1, 600)
+  texto!: string;
+}
+
+/** Contenido de la pagina publica del centro (ADMIN). null borra el campo. */
+export class ContenidoPublicoDto {
+  @IsOptional() @Recortar() @IsString() @Length(1, 160) heroTitulo?: string | null;
+  @IsOptional() @Recortar() @IsString() @Length(1, 1000) heroTexto?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => ServicioPublicoDto)
+  servicios?: ServicioPublicoDto[];
+
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @minusculas() @IsEmail() @MaxLength(254) contactoCorreo?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @Matches(TELEFONO_CL, { message: 'telefono: formato +56XXXXXXXXX' }) contactoTelefono?: string | null;
+  @IsOptional() @Recortar() @IsString() @Length(1, 300) direccion?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @Matches(TELEFONO_CL, { message: 'whatsapp: formato +56XXXXXXXXX' }) whatsapp?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @Matches(/^@?[A-Za-z0-9._]{1,30}$/, { message: 'instagram: usuario sin espacios' }) instagram?:
+    string | null;
+  @IsOptional() @Recortar() @IsString() @Length(1, 2000) mision?: string | null;
+  @IsOptional() @Recortar() @IsString() @Length(1, 2000) vision?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorMarca?: string | null;
+}
+
+export class PoliticaDto {
+  @IsEnum(TipoPolitica)
+  tipo!: TipoPolitica;
+
+  @IsString()
+  @Length(20, 50000)
+  texto!: string;
+}
+
+export class BloqueHorarioDto {
+  /** ISO: 1 = lunes ... 7 = domingo. */
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  diaSemana!: number;
+
+  /** Minutos desde la medianoche de Chile (0-1440). */
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  inicioMin!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  finMin!: number;
+}
+
+/** Reemplaza el horario completo (vacio = sin restriccion). */
+export class HorarioDto {
+  @IsArray()
+  @ArrayMaxSize(28)
+  @ValidateNested({ each: true })
+  @Type(() => BloqueHorarioDto)
+  bloques!: BloqueHorarioDto[];
+}
+
+/** Filtros del selector de equipo (directorio). */
+export class FiltroDirectorioDto {
+  @IsOptional()
+  @IsEnum(Rol)
+  rol?: Rol;
+
+  /** Nombre del tipo de atencion aprobado. */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 120)
+  tipoAtencion?: string;
+
+  /** Busqueda por nombre (contiene, sin mayusculas). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 120)
+  nombre?: string;
 }

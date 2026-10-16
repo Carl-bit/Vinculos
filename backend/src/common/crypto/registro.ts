@@ -64,7 +64,40 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Notificacion', campo: 'cuerpo', tabla: 'notificaciones', columna: 'cuerpo', categoria: 'CLINICO', id: 'id' },
   { modelo: 'RecordatorioCita', campo: 'enlace', tabla: 'recordatorios_cita', columna: 'enlace', categoria: 'CLINICO', id: 'id' },
   { modelo: 'AdjuntoFicha', campo: 'contenido', tabla: 'adjuntos_ficha', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
+  // 03a: segundo factor, contacto de emergencia, solicitud de hora sin cuenta (contacto y respuestas del match),
+  // reseñas (texto y feedback privado), alta y borradores de evolucion.
+  { modelo: 'Usuario', campo: 'totpSecreto', tabla: 'usuarios', columna: 'totp_secreto', categoria: 'IDENTIFICACION', id: 'id' },
+  {
+    modelo: 'Paciente',
+    campo: 'contactoEmergencia',
+    tabla: 'pacientes',
+    columna: 'contacto_emergencia',
+    categoria: 'IDENTIFICACION',
+    id: 'id',
+  },
+  { modelo: 'SolicitudHora', campo: 'telefono', tabla: 'solicitudes_hora', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'SolicitudHora', campo: 'rut', tabla: 'solicitudes_hora', columna: 'rut', categoria: 'IDENTIFICACION', id: 'id' },
+  {
+    modelo: 'SolicitudHora',
+    campo: 'adultoTelefono',
+    tabla: 'solicitudes_hora',
+    columna: 'adulto_telefono',
+    categoria: 'IDENTIFICACION',
+    id: 'id',
+  },
+  { modelo: 'SolicitudHora', campo: 'respuestas', tabla: 'solicitudes_hora', columna: 'respuestas', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'Resena', campo: 'texto', tabla: 'resenas', columna: 'texto', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'Resena', campo: 'feedbackPrivado', tabla: 'resenas', columna: 'feedback_privado', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'AltaPaciente', campo: 'motivo', tabla: 'altas_paciente', columna: 'motivo', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'BorradorEvolucion', campo: 'contenido', tabla: 'borradores_evolucion', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
 ];
+
+/**
+ * Columnas bytea que NO se cifran por diseño: imagenes publicas (foto de
+ * perfil y logo, 03a), servidas sin autenticacion. Los tests de "sin texto
+ * plano" y de registro = BD las excluyen.
+ */
+export const BYTEA_PUBLICOS = ['imagenes_publicas.contenido'] as const;
 
 export function campoCifrado(modelo: string, campo: string): CampoCifrado | undefined {
   return CAMPOS_CIFRADOS.find((c) => c.modelo === modelo && c.campo === campo);

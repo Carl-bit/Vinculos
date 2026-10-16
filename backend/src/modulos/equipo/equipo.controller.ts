@@ -1,8 +1,12 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 
 import { TAGS } from '../../core/docs/openapi';
-import { Roles } from '../../core/auth/decoradores';
+import { Actor, Roles } from '../../core/auth/decoradores';
+import { Modulo } from '../../core/modulos/modulos';
+import type { UsuarioActual } from '../../core/bd/contexto-bd.service';
+import { IMAGEN_MAX_BYTES } from '../../core/imagenes/imagenes';
 import {
   AsignarTiposAtencionDto,
   CambiarSupervisorDto,
@@ -23,11 +27,19 @@ import { EquipoService } from './equipo.service';
 import { SupervisionService } from './supervision.service';
 
 const Uuid = new ParseUUIDPipe();
-const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE'] as const;
+
+function exigirImagen(imagen?: Express.Multer.File): Buffer {
+  if (!imagen) {
+    throw new BadRequestException('Falta la imagen (campo "imagen", multipart/form-data)');
+  }
+  return imagen.buffer;
+}
+const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE'] as const;
 
 /** Perfil, datos privados y tarifas: el propio escribe; ADMIN/GESTION leen (matriz_permisos.md). */
 @ApiTags(TAGS.equipo)
 @Controller('profesionales')
+@Modulo('EQUIPO')
 export class PerfilesController {
   constructor(private readonly equipo: EquipoService) {}
 
@@ -35,6 +47,33 @@ export class PerfilesController {
   @Roles('PROFESIONAL')
   guardarMiPerfil(@Body() dto: PerfilDto) {
     return this.equipo.guardarMiPerfil(dto);
+  }
+
+  /** Foto de perfil propia (JPEG, PNG o WebP; se publica sin metadatos). */
+  @Post('yo/foto')
+  @Roles('PROFESIONAL')
+  @UseInterceptors(FileInterceptor('imagen', { limits: { fileSize: IMAGEN_MAX_BYTES } }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', required: ['imagen'], properties: { imagen: { type: 'string', format: 'binary' } } } })
+  subirMiFoto(@Actor() actor: UsuarioActual, @UploadedFile() imagen?: Express.Multer.File) {
+    return this.equipo.subirFoto(actor.id, exigirImagen(imagen));
+  }
+
+  /** ADMIN sube la foto de otro integrante. */
+  @Post(':id/foto')
+  @Roles('ADMIN')
+  @UseInterceptors(FileInterceptor('imagen', { limits: { fileSize: IMAGEN_MAX_BYTES } }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', required: ['imagen'], properties: { imagen: { type: 'string', format: 'binary' } } } })
+  subirFoto(@Param('id', Uuid) id: string, @UploadedFile() imagen?: Express.Multer.File) {
+    return this.equipo.subirFoto(id, exigirImagen(imagen));
+  }
+
+  /** Reseñas recibidas con su estado y el feedback privado (solo el propio). */
+  @Get('yo/resenas')
+  @Roles('PROFESIONAL')
+  misResenas() {
+    return this.equipo.misResenas();
   }
 
   @Get(':id/perfil')
@@ -113,6 +152,7 @@ export class PerfilesController {
 
 @ApiTags(TAGS.equipo)
 @Controller('trayectoria')
+@Modulo('EQUIPO')
 export class TrayectoriaController {
   constructor(private readonly equipo: EquipoService) {}
 
@@ -144,6 +184,7 @@ export class TrayectoriaController {
 /** Catalogo (B): todos leen; ADMIN escribe; nunca DELETE (se desactiva). */
 @ApiTags(TAGS.equipo)
 @Controller('tipos-atencion')
+@Modulo('EQUIPO')
 export class TiposAtencionController {
   constructor(private readonly equipo: EquipoService) {}
 
@@ -175,6 +216,7 @@ export class TiposAtencionController {
 
 @ApiTags(TAGS.equipo)
 @Controller()
+@Modulo('EQUIPO')
 export class SupervisionController {
   constructor(private readonly supervision: SupervisionService) {}
 

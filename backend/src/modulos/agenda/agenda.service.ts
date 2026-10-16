@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { DisponibilidadProfesional, ModalidadAtencion } from '@prisma/client';
 
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
-import type { CrearBloqueoAgendaDto, CrearDisponibilidadDto, CrearEspacioDto, EditarEspacioDto, HorarioDto } from './dto/agenda.dto';
+import type { BloqueEspacioDto, CrearBloqueoAgendaDto, CrearDisponibilidadDto, CrearEspacioDto, EditarEspacioDto, HorarioDto } from './dto/agenda.dto';
 
 /** Minutos desde la medianoche -> "HH:MM" (solo presentacion; 1440 = "24:00", fin del dia). */
 export function hora(minutos: number): string {
@@ -41,6 +41,19 @@ export class AgendaService {
   /** Nunca DELETE: se desactiva. */
   editarEspacio(id: string, dto: EditarEspacioDto) {
     return this.bd.tx().espacio.update({ where: { id }, data: dto });
+  }
+
+  horarioEspacio(espacioId: string) {
+    return this.bd.tx().horarioEspacio.findMany({ where: { espacioId }, orderBy: [{ diaSemana: 'asc' }, { inicioMin: 'asc' }] });
+  }
+
+  /** Reemplaza el horario del box (03a). Las citas presenciales nuevas en el box deben caer dentro (trigger). */
+  async reemplazarHorarioEspacio(espacioId: string, bloques: BloqueEspacioDto[]) {
+    const tx = this.bd.tx();
+    await tx.espacio.findUniqueOrThrow({ where: { id: espacioId }, select: { id: true } });
+    await tx.horarioEspacio.deleteMany({ where: { espacioId } });
+    await tx.horarioEspacio.createMany({ data: bloques.map((b) => ({ ...b, espacioId })) });
+    return this.horarioEspacio(espacioId);
   }
 
   /** Espacio, inicio y fin de citas confirmadas y soft-locks activos (sin pacientes). */

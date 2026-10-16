@@ -176,12 +176,15 @@ describe('02b nucleo', () => {
 
     it('POST /usuarios/yo/password: exige la actual; revoca los refresh tokens', async () => {
       const u = await t.datos.usuario('PROFESIONAL');
-      const login = await t.http().post('/api/auth/login').send({ email: u.email, password: CLAVE });
+      const login = { body: await t.login(u) };
       const h = auth(login.body.accessToken);
       expect((await t.http().post('/api/usuarios/yo/password').set(h).send({ actual: 'mala', nueva: 'otra-clave-larga' })).status).toBe(401);
       expect((await t.http().post('/api/usuarios/yo/password').set(h).send({ actual: CLAVE, nueva: 'otra-clave-larga' })).status).toBe(204);
       expect((await t.http().post('/api/auth/refresh').send({ refreshToken: login.body.refreshToken })).status).toBe(401);
-      expect((await t.http().post('/api/auth/login').send({ email: u.email, password: 'otra-clave-larga' })).status).toBe(200);
+      // TOTP (03a): la contraseña nueva pasa el primer factor y pide el segundo.
+      const nuevo = await t.http().post('/api/auth/login').send({ email: u.email, password: 'otra-clave-larga' });
+      expect(nuevo.status).toBe(200);
+      expect(nuevo.body.requiereTotp).toBe(true);
     });
 
     it('GET /usuarios y PATCH /usuarios/:id: solo ADMIN', async () => {

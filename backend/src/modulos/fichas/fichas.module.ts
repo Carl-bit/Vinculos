@@ -13,8 +13,10 @@ import {
   EvolucionesController,
   PacientesController,
   RetencionController,
+  SeguimientoController,
   TiposDocumentoController,
 } from './fichas.controller';
+import { SeguimientoService } from './seguimiento.service';
 import { PacientesService } from './pacientes.service';
 
 /** Fichas y Pacientes (02c; documentos clinicos 02h; adjuntos 02i). Depende solo del Nucleo (core). */
@@ -36,7 +38,8 @@ import { PacientesService } from './pacientes.service';
     TiposDocumentoController,
     DocumentosController,
     AdjuntosFichaController,
+    SeguimientoController,
   ],
-  providers: [PacientesService, EvolucionesService, CatalogosRetencionService, DocumentosService, AdjuntosService],
+  providers: [PacientesService, EvolucionesService, CatalogosRetencionService, DocumentosService, AdjuntosService, SeguimientoService],
 })
 export class FichasModule {}

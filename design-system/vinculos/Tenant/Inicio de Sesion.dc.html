@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/styles.css">
+<script src="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent-2-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-2-600); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: 500; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+  @keyframes drift { 0% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(3%,-4%,0) scale(1.06); } 100% { transform: translate3d(0,0,0) scale(1); } }
+  .glass { backdrop-filter: blur(22px) saturate(1.15); -webkit-backdrop-filter: blur(22px) saturate(1.15); }
+</style>
+</helmet>
+
+<div style="position:relative;min-height:100vh;overflow:hidden;display:flex;flex-direction:column">
+
+  <!-- fondo: paciente -->
+  <sc-if value="{{ isPatient }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;background:var(--color-accent-2-100);overflow:hidden">
+      <span style="position:absolute;top:-14%;left:-8%;width:52vw;height:52vw;border-radius:999px;background:var(--color-accent-2-300);filter:blur(60px);opacity:0.85;animation:drift 22s ease-in-out infinite;display:block"></span>
+      <span style="position:absolute;bottom:-20%;right:-6%;width:46vw;height:46vw;border-radius:999px;background:var(--color-accent-2-200);filter:blur(70px);opacity:0.9;animation:drift 28s ease-in-out infinite reverse;display:block"></span>
+      <span style="position:absolute;top:32%;right:22%;width:26vw;height:26vw;border-radius:999px;background:var(--color-bg);filter:blur(60px);opacity:0.75;animation:drift 34s ease-in-out infinite;display:block"></span>
+    </div>
+  </sc-if>
+
+  <!-- fondo: profesional -->
+  <sc-if value="{{ isPro }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:var(--color-accent-100);overflow:hidden">
+      <span style="position:absolute;top:-18%;right:-10%;width:56vw;height:56vw;border-radius:999px;background:var(--color-accent-300);filter:blur(60px);opacity:0.85;animation:drift 24s ease-in-out infinite;display:block"></span>
+      <span style="position:absolute;bottom:-22%;left:-8%;width:48vw;height:48vw;border-radius:999px;background:var(--color-accent-200);filter:blur(70px);opacity:0.9;animation:drift 30s ease-in-out infinite reverse;display:block"></span>
+      <span style="position:absolute;top:26%;left:24%;width:24vw;height:24vw;border-radius:999px;background:var(--color-bg);filter:blur(60px);opacity:0.7;animation:drift 36s ease-in-out infinite;display:block"></span>
+    </div>
+  </sc-if>
+
+  <header style="position:relative;display:flex;align-items:center;gap:20px;padding:26px clamp(20px,4vw,44px)">
+    <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:9px;color:var(--color-text)" style-hover="color:var(--color-text)">
+      <span style="width:11px;height:11px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block"></span>
+      <span style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.04em">Centro Ejemplo</span>
+    </a>
+    <a href="./Landing.dc.html" style="margin-left:auto;font-size:13.5px;font-weight:800;color:var(--color-text);display:flex;align-items:center;gap:7px" style-hover="color:var(--color-accent-2-700)"><span class="ms" style="font-size:18px">arrow_back</span>Volver al sitio</a>
+  </header>
+
+  <main style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;padding:clamp(16px,3vw,40px) clamp(20px,4vw,44px) clamp(28px,4vw,52px)">
+    <div class="glass" style="width:100%;max-width:452px;background:rgba(255,252,246,0.66);border:1px solid rgba(255,255,255,0.75);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:clamp(26px,3vw,34px) clamp(24px,3vw,34px) clamp(24px,3vw,30px)">
+
+      <div style="display:flex;background:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.7);border-radius:999px;padding:4px;margin-bottom:24px">
+        <sc-for list="{{ roles }}" as="r" hint-placeholder-count="2">
+          <button type="button" onClick="{{ r.pick }}" style="flex:1;border:none;background:{{ r.bg }};font-family:var(--font-body);color:{{ r.fg }};font-weight:800;font-size:13.5px;padding:11px 14px;border-radius:999px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s ease">
+            <span class="ms" style="font-size:18px">{{ r.icon }}</span>{{ r.label }}
+          </button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ isPatient }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:inline-flex;color:var(--color-accent-2-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:9px;border-bottom:2px solid var(--color-accent-2-600);margin-bottom:18px">Acceso de pacientes</div>
+          <h1 style="font-family:var(--font-body);font-weight:900;font-size:clamp(27px,3vw,33px);line-height:1.05;letter-spacing:-0.03em;margin:0 0 10px">Hola de nuevo.</h1>
+          <p style="font-size:14.5px;line-height:1.6;color:var(--color-neutral-700);margin:0 0 24px;text-wrap:pretty">Entra para ver tus horas agendadas, reagendar y revisar los datos de tu profesional.</p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPro }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:inline-flex;color:var(--color-accent-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:9px;border-bottom:2px solid var(--color-accent-500);margin-bottom:18px">Acceso del equipo</div>
+          <h1 style="font-family:var(--font-body);font-weight:900;font-size:clamp(27px,3vw,33px);line-height:1.05;letter-spacing:-0.03em;margin:0 0 10px">Bienvenido de vuelta.</h1>
+          <p style="font-size:14.5px;line-height:1.6;color:var(--color-neutral-700);margin:0 0 24px;text-wrap:pretty">Ingresa con tu cuenta del centro para ver tu agenda, tus fichas y los módulos activos.</p>
+        </div>
+      </sc-if>
+
+      <form onSubmit="{{ submit }}" style="display:flex;flex-direction:column;gap:16px">
+        <label style="display:flex;flex-direction:column;gap:7px">
+          <span style="font-size:12.5px;font-weight:800">{{ userLabel }}</span>
+          <input type="text" value="{{ email }}" onChange="{{ setEmail }}" placeholder="{{ userPlaceholder }}" style="font-family:var(--font-body);font-size:15px;padding:14px 18px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.9);background:rgba(255,255,255,0.72);color:var(--color-text)"></input>
+        </label>
+
+        <label style="display:flex;flex-direction:column;gap:7px">
+          <span style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12.5px;font-weight:800">Contraseña<a href="#" style="font-size:12px;font-weight:700">¿La olvidaste?</a></span>
+          <span style="position:relative;display:block">
+            <input type="{{ pwType }}" value="{{ password }}" onChange="{{ setPassword }}" placeholder="••••••••" style="font-family:var(--font-body);width:100%;box-sizing:border-box;font-size:15px;padding:14px 56px 14px 18px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.9);background:rgba(255,255,255,0.72);color:var(--color-text)"></input>
+            <button type="button" onClick="{{ togglePw }}" title="{{ pwLabel }}" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);border:none;background:transparent;color:var(--color-neutral-600);cursor:pointer;padding:8px;border-radius:999px;display:grid;place-items:center" style-hover="background:var(--color-accent-200);color:var(--color-accent-700)"><span class="ms" style="font-size:20px">{{ pwIcon }}</span></button>
+          </span>
+        </label>
+
+        <label style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;color:var(--color-neutral-700);cursor:pointer">
+          <input type="checkbox" checked="{{ remember }}" onChange="{{ toggleRemember }}" style="width:17px;height:17px;accent-color:var(--color-accent-2-600);cursor:pointer"></input>
+          Mantener sesión iniciada
+        </label>
+
+        <sc-if value="{{ isPatient }}" hint-placeholder-val="{{ true }}">
+          <a href="./Paciente - Mi Cuenta.dc.html" style="margin-top:4px;text-align:center;background:var(--color-accent-2-600);color:var(--color-neutral-100);font-weight:800;font-size:15px;padding:16px 28px;border-radius:999px" style-hover="background:var(--color-accent-2-700);color:var(--color-neutral-100)">Entrar a mi cuenta</a>
+        </sc-if>
+        <sc-if value="{{ isPro }}" hint-placeholder-val="{{ false }}">
+          <a href="./Admin - Dashboard.dc.html" style="margin-top:4px;text-align:center;background:var(--color-accent-600);color:var(--color-neutral-100);font-weight:800;font-size:15px;padding:16px 28px;border-radius:999px" style-hover="background:var(--color-accent-700);color:var(--color-neutral-100)">Entrar al panel</a>
+        </sc-if>
+      </form>
+
+      <div style="display:flex;align-items:center;gap:14px;margin:22px 0">
+        <span style="flex:1;height:1px;background:rgba(255,255,255,0.9)"></span>
+        <span style="font-size:11.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600)">o</span>
+        <span style="flex:1;height:1px;background:rgba(255,255,255,0.9)"></span>
+      </div>
+
+      <button type="button" style="width:100%;border:1.5px solid rgba(255,255,255,0.95);background:rgba(255,255,255,0.55);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:14.5px;padding:14px 24px;border-radius:999px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px" style-hover="background:rgba(255,255,255,0.85)">
+        <span class="ms" style="font-size:19px">mail</span>Recibir enlace de acceso por correo
+      </button>
+
+      <sc-if value="{{ isPatient }}" hint-placeholder-val="{{ true }}">
+        <p style="font-size:13.5px;font-weight:600;color:var(--color-neutral-700);margin:20px 0 0;text-align:center">¿Primera vez en el centro? <a href="./Paciente - Pedir Hora.dc.html" style="font-weight:800">Pide tu primera hora</a> y creamos tu cuenta en el camino.</p>
+      </sc-if>
+      <sc-if value="{{ isPro }}" hint-placeholder-val="{{ false }}">
+        <p style="font-size:13.5px;font-weight:600;color:var(--color-neutral-700);margin:20px 0 0;text-align:center">¿Eres practicante con cuenta temporal? <a href="#" style="font-weight:800">Usa tu código de invitación</a>.</p>
+      </sc-if>
+    </div>
+  </main>
+
+  <footer style="position:relative;display:flex;gap:20px;justify-content:center;flex-wrap:wrap;font-size:12.5px;color:var(--color-neutral-700);font-weight:600;padding:0 clamp(20px,4vw,44px) 28px">
+    <span>Plataforma Vínculos</span>
+    <a href="#">Privacidad</a>
+    <a href="#">Soporte</a>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { role: "paciente", email: "", password: "", show: false, remember: true };
+
+  renderVals() {
+    const role = this.state.role;
+    const patient = role === "paciente";
+
+    return {
+      roles: [
+        { k: "paciente", label: "Soy paciente", icon: "person" },
+        { k: "profesional", label: "Soy del equipo", icon: "badge" }
+      ].map(r => ({
+        label: r.label, icon: r.icon,
+        pick: () => this.setState({ role: r.k }),
+        bg: role === r.k ? (r.k === "paciente" ? "var(--color-accent-2-600)" : "var(--color-accent-600)") : "transparent",
+        fg: role === r.k ? "var(--color-neutral-100)" : "var(--color-text)"
+      })),
+      isPatient: patient,
+      isPro: !patient,
+
+      userLabel: patient ? "Correo o RUT" : "Correo del centro",
+      userPlaceholder: patient ? "tu@correo.cl o 12.345.678-9" : "nombre@centroejemplo.cl",
+
+      email: this.state.email,
+      password: this.state.password,
+      pwType: this.state.show ? "text" : "password",
+      pwLabel: this.state.show ? "Ocultar contraseña" : "Ver contraseña",
+      pwIcon: this.state.show ? "visibility_off" : "visibility",
+      remember: this.state.remember,
+      setEmail: e => this.setState({ email: e.target.value }),
+      setPassword: e => this.setState({ password: e.target.value }),
+      togglePw: () => this.setState(s => ({ show: !s.show })),
+      toggleRemember: e => this.setState({ remember: e.target.checked }),
+      submit: e => e.preventDefault()
+    };
+  }
+}
+
+</script>
+</body>
+</html>

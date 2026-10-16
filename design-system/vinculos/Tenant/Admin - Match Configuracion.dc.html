@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/styles.css">
+<script src="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; background: var(--color-neutral-300); color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent-2-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-2-600); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: 500; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+  .qrow { transition: box-shadow .18s ease; }
+  .qrow:hover { box-shadow: var(--shadow-md); }
+</style>
+</helmet>
+
+<div style="display:grid;grid-template-columns:246px 1fr;min-height:100vh;align-items:stretch">
+
+  <aside style="background:var(--color-bg);border-right:1px solid var(--color-divider);box-shadow:var(--shadow-md);z-index:2;padding:22px 16px 24px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:9px;padding:0 8px">
+      <span style="width:10px;height:10px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block;flex:none"></span>
+      <div style="min-width:0">
+        <div style="font-family:var(--font-body);font-weight:900;font-size:17px;letter-spacing:-0.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Centro Ejemplo</div>
+        <div style="font-size:11px;font-weight:700;color:var(--color-neutral-600)">Salud mental y terapia</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <a href="./Admin - Dashboard.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+        <span class="ms" style="font-size:19px;flex:none">space_dashboard</span>
+        <span style="flex:1">Inicio</span>
+      </a>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:10.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);padding:0 8px 6px">Módulos</span>
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <a href="{{ n.href }}" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:{{ n.weight }};color:{{ n.color }};background:{{ n.bg }}" style-hover="background:var(--color-accent-200)">
+          <span class="ms" style="font-size:19px;flex:none">{{ n.icon }}</span>
+          <span style="flex:1">{{ n.label }}</span>
+          <sc-if value="{{ n.off }}" hint-placeholder-val="{{ false }}">
+            <span class="ms" style="font-size:15px;color:var(--color-neutral-500)">lock</span>
+          </sc-if>
+        </a>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:10.5px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-600);padding:0 8px 6px">Centro</span>
+      <a href="./Admin - Configuracion.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+        <span class="ms" style="font-size:19px;flex:none">settings</span><span style="flex:1">Configuración</span>
+      </a>
+      <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--color-text)" style-hover="background:var(--color-accent-200)">
+        <span class="ms" style="font-size:19px;flex:none">public</span><span style="flex:1">Página pública</span>
+      </a>
+    </div>
+
+    <a href="./Admin - Mi Perfil.dc.html" style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px 10px 12px;border-top:1px solid var(--color-divider);border-radius:12px;color:var(--color-text)" style-hover="background:var(--color-accent-200);color:var(--color-text)">
+      <span style="width:30px;height:30px;border-radius:999px;background:var(--color-accent-200);border:1px solid var(--color-accent-500);display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--color-accent-700);flex:none">MR</span>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:13px;font-weight:800;letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Marcela Rivas</div>
+        <div style="font-size:11.5px;color:var(--color-neutral-600);font-weight:600">Directora</div>
+      </div>
+      <span class="ms" style="font-size:18px;color:var(--color-neutral-500)">logout</span>
+    </a>
+  </aside>
+
+  <main style="padding:30px clamp(24px,3.4vw,48px) 56px;min-width:0">
+
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:8px">
+      <div>
+        <div style="display:inline-flex;color:var(--color-accent-700);font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:10px;border-bottom:2px solid var(--color-accent-500);margin-bottom:16px">Match Terapéutico</div>
+        <h1 style="font-family:var(--font-body);font-weight:900;font-size:34px;line-height:1.05;letter-spacing:-0.03em;margin:0">Configuración del match</h1>
+      </div>
+      <a href="./Match Publico.dc.html" style="border:1.5px solid var(--color-neutral-400);background:var(--color-bg);color:var(--color-text);font-weight:800;font-size:13.5px;padding:11px 20px;border-radius:999px;display:flex;align-items:center;gap:8px" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500);color:var(--color-text)"><span class="ms" style="font-size:18px">open_in_new</span>Ver cuestionario público</a>
+    </div>
+
+    <p style="font-size:13px;font-weight:600;color:var(--color-neutral-600);margin:0 0 22px;display:flex;align-items:center;gap:8px">
+      <span class="ms" style="font-size:17px">tune</span>Define qué se pregunta al paciente y cómo se muestran los resultados en la página del centro
+    </p>
+
+    <sc-if value="{{ showAgendaNote }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;align-items:center;gap:14px;background:var(--color-accent-200);border:1px solid var(--color-accent-500);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:20px;box-shadow:var(--shadow-sm)">
+        <span class="ms" style="font-size:21px;color:var(--color-accent-700);flex:none">event_busy</span>
+        <p style="font-size:13.5px;font-weight:700;color:var(--color-accent-900);margin:0;flex:1;text-wrap:pretty">Sin Agenda y Espacios activo, los resultados no muestran disponibilidad en tiempo real.</p>
+        <button type="button" onClick="{{ toggleAgenda }}" style="border:1px solid var(--color-accent-700);background:var(--color-bg);font-family:var(--font-body);color:var(--color-accent-700);font-weight:800;font-size:12.5px;padding:8px 15px;border-radius:999px;cursor:pointer;flex:none" style-hover="background:var(--color-accent-100)">Simular con Agenda activa</button>
+      </div>
+    </sc-if>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start">
+
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+
+        <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-md)">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:6px">
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0">Preguntas del cuestionario</h2>
+            <span style="font-size:12.5px;font-weight:700;color:var(--color-neutral-600)">{{ activeCount }}</span>
+          </div>
+          <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 18px">Las preguntas apagadas no se le muestran al paciente ni se usan para filtrar.</p>
+
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <sc-for list="{{ questions }}" as="q" hint-placeholder-count="5">
+              <div class="qrow" style="display:flex;align-items:center;gap:14px;background:{{ q.rowBg }};border:1px solid {{ q.rowBorder }};border-radius:18px;padding:15px 17px">
+                <span class="ms" style="font-size:20px;color:{{ q.iconColor }};flex:none">{{ q.icon }}</span>
+                <div style="flex:1 1 160px;min-width:140px">
+                  <div style="font-size:14.5px;font-weight:900;letter-spacing:-0.015em">{{ q.label }}</div>
+                  <div style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);text-wrap:pretty">{{ q.note }}</div>
+                </div>
+                <sc-if value="{{ q.custom }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:10.5px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;background:var(--color-accent-200);color:var(--color-accent-700);border:1px solid var(--color-accent-500);border-radius:999px;padding:3px 10px;flex:none">Propia del centro</span>
+                </sc-if>
+                <button type="button" onClick="{{ q.toggle }}" style="border:none;background:{{ q.trackBg }};width:46px;height:26px;border-radius:999px;cursor:pointer;padding:3px;display:flex;justify-content:{{ q.knobPos }};flex:none;transition:background .2s ease">
+                  <span style="width:20px;height:20px;border-radius:999px;background:var(--color-neutral-100);display:block;box-shadow:var(--shadow-sm)"></span>
+                </button>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ adding }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:14px;padding:16px 18px;background:var(--color-neutral-100);border:1.5px dashed var(--color-accent-500);border-radius:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <input type="text" value="{{ newQuestion }}" onChange="{{ setNewQuestion }}" placeholder="Ej. ¿Tienes previsión o seguro complementario?" style="font-family:var(--font-body);flex:1 1 220px;min-width:200px;font-size:14px;padding:12px 17px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-bg);color:var(--color-text)"></input>
+              <button type="button" onClick="{{ saveQuestion }}" style="border:none;background:var(--color-accent-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:13px;padding:11px 20px;border-radius:999px;cursor:pointer" style-hover="background:var(--color-accent-700)">Agregar</button>
+              <button type="button" onClick="{{ cancelQuestion }}" style="border:1.5px solid var(--color-neutral-400);background:var(--color-bg);font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13px;padding:11px 18px;border-radius:999px;cursor:pointer" style-hover="background:var(--color-accent-200)">Cancelar</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ canAdd }}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{ startAdd }}" style="margin-top:14px;width:100%;border:1.5px solid var(--color-neutral-400);background:transparent;font-family:var(--font-body);color:var(--color-text);font-weight:800;font-size:13.5px;padding:13px 20px;border-radius:999px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px" style-hover="background:var(--color-accent-200);border-color:var(--color-accent-500)"><span class="ms" style="font-size:18px">add</span>Agregar pregunta propia del centro</button>
+          </sc-if>
+        </section>
+
+        <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-md)">
+          <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0 0 6px">Filtro directo</h2>
+          <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 18px">Permite al paciente saltarse el cuestionario y filtrar el equipo por su cuenta.</p>
+          <div style="display:flex;align-items:center;gap:14px;background:{{ directRowBg }};border:1px solid {{ directRowBorder }};border-radius:18px;padding:16px 18px">
+            <span class="ms" style="font-size:20px;color:{{ directIconColor }};flex:none">tune</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14.5px;font-weight:900;letter-spacing:-0.015em">"Prefiero filtrar yo mismo"</div>
+              <div style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600)">{{ directNote }}</div>
+            </div>
+            <button type="button" onClick="{{ toggleDirect }}" style="border:none;background:{{ directTrackBg }};width:46px;height:26px;border-radius:999px;cursor:pointer;padding:3px;display:flex;justify-content:{{ directKnobPos }};flex:none;transition:background .2s ease">
+              <span style="width:20px;height:20px;border-radius:999px;background:var(--color-neutral-100);display:block;box-shadow:var(--shadow-sm)"></span>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+
+        <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-md)">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:18px">
+            <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0">Métricas básicas</h2>
+            <span style="font-size:12.5px;font-weight:700;color:var(--color-neutral-600)">Últimos 30 días</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px">
+            <sc-for list="{{ metrics }}" as="mt" hint-placeholder-count="3">
+              <div style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:16px 18px">
+                <div style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">{{ mt.label }}</div>
+                <div style="font-family:var(--font-body);font-weight:900;font-size:28px;line-height:1;letter-spacing:-0.035em;margin-bottom:6px">{{ mt.value }}</div>
+                <div style="font-size:12px;font-weight:700;color:{{ mt.noteColor }}">{{ mt.note }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:11px">Más recomendados en el período</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ ranking }}" as="rk" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+                  <span style="font-size:13.5px;font-weight:800">{{ rk.name }}</span>
+                  <span style="font-size:13px;font-weight:900;font-variant-numeric:tabular-nums">{{ rk.count }}</span>
+                </div>
+                <span style="height:7px;border-radius:999px;background:var(--color-neutral-300);display:block;overflow:hidden">
+                  <span style="display:block;height:100%;border-radius:999px;background:{{ rk.color }};width:{{ rk.width }}"></span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-md)">
+          <h2 style="font-family:var(--font-body);font-weight:900;font-size:19px;letter-spacing:-0.025em;margin:0 0 6px">Dependencias del módulo</h2>
+          <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 18px">El match usa datos de otros módulos del centro.</p>
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <sc-for list="{{ deps }}" as="dp" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:13px;background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:18px;padding:14px 17px">
+                <span class="ms" style="font-size:19px;color:{{ dp.color }};flex:none">{{ dp.icon }}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:14px;font-weight:900;letter-spacing:-0.015em">{{ dp.name }}</div>
+                  <div style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);text-wrap:pretty">{{ dp.note }}</div>
+                </div>
+                <span style="font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;background:{{ dp.bg }};color:{{ dp.fg }};border:1px solid {{ dp.bd }};border-radius:999px;padding:4px 11px;flex:none;white-space:nowrap">{{ dp.state }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1020}}">
+const BASE_QUESTIONS = [
+  { key: "motivo", label: "Motivo de consulta", icon: "psychology", note: "Categorías cortas más un texto libre opcional", on: true },
+  { key: "modalidad", label: "Modalidad preferida", icon: "videocam", note: "Presencial u online. Filtra resultados de forma estricta", on: true },
+  { key: "tarifa", label: "Rango de tarifa por sesión", icon: "payments", note: "Muestra solo profesionales dentro del rango", on: true },
+  { key: "genero", label: "Preferencia de género del profesional", icon: "person", note: "Opcional, con alternativa \"sin preferencia\"", on: true },
+  { key: "corriente", label: "Corriente teórica", icon: "school", note: "Incluye la opción \"no conozco corrientes teóricas\"", on: false }
+];
+
+const RANK = [
+  { name: "Marcela Rivas", count: 34, width: "100%", color: "var(--color-accent-2-600)" },
+  { name: "Camila Soto", count: 21, width: "62%", color: "var(--color-accent-2-600)" },
+  { name: "Javier Tapia", count: 17, width: "50%", color: "var(--color-accent-500)" },
+  { name: "Nicolás Peña", count: 9, width: "26%", color: "var(--color-accent-500)" }
+];
+
+class Component extends DCLogic {
+  state = { questions: BASE_QUESTIONS, direct: true, agendaActive: false, adding: false, newQuestion: "" };
+
+  navItems() {
+    const item = (icon, label, href, opts) => Object.assign({
+      icon, label, href, off: false, weight: 600, color: "var(--color-text)", bg: "transparent"
+    }, opts || {});
+    return [
+      item("folder_shared", "Fichas y Pacientes", "./Admin - Fichas y Pacientes.dc.html"),
+      item("calendar_month", "Agenda y Espacios", "./Admin - Agenda y Espacios.dc.html"),
+      item("groups", "Equipo", "./Admin - Perfil Profesional.dc.html"),
+      item("join", "Match Terapéutico", "#", { weight: 800, color: "var(--color-accent-2-700)", bg: "var(--color-accent-2-200)" }),
+      item("payments", "Cobros", "./Admin - Cobros.dc.html")
+    ];
+  }
+
+  renderVals() {
+    const qs = this.state.questions;
+    const on = qs.filter(q => q.on).length;
+    const agenda = this.state.agendaActive;
+
+    return {
+      nav: this.navItems(),
+      activeCount: on + " de " + qs.length + " activas",
+      questions: qs.map((q, i) => ({
+        label: q.label, icon: q.icon, note: q.note, custom: !!q.custom,
+        rowBg: q.on ? "var(--color-accent-2-200)" : "var(--color-neutral-100)",
+        rowBorder: q.on ? "var(--color-accent-2-500)" : "var(--color-divider)",
+        iconColor: q.on ? "var(--color-accent-2-700)" : "var(--color-neutral-500)",
+        trackBg: q.on ? "var(--color-accent-2-600)" : "var(--color-neutral-400)",
+        knobPos: q.on ? "flex-end" : "flex-start",
+        toggle: () => this.setState(s => ({
+          questions: s.questions.map((x, j) => j === i ? Object.assign({}, x, { on: !x.on }) : x)
+        }))
+      })),
+      canAdd: !this.state.adding,
+      adding: this.state.adding,
+      startAdd: () => this.setState({ adding: true }),
+      cancelQuestion: () => this.setState({ adding: false, newQuestion: "" }),
+      newQuestion: this.state.newQuestion,
+      setNewQuestion: e => this.setState({ newQuestion: e.target.value }),
+      saveQuestion: () => {
+        const t = this.state.newQuestion.trim();
+        if (!t) return;
+        this.setState(s => ({
+          adding: false, newQuestion: "",
+          questions: s.questions.concat([{ key: "c" + s.questions.length, label: t, icon: "help", note: "Pregunta creada por el centro", on: true, custom: true }])
+        }));
+      },
+
+      direct: this.state.direct,
+      toggleDirect: () => this.setState(s => ({ direct: !s.direct })),
+      directNote: this.state.direct ? "Visible desde el inicio del cuestionario" : "Oculto: el paciente solo puede responder el cuestionario",
+      directRowBg: this.state.direct ? "var(--color-accent-2-200)" : "var(--color-neutral-100)",
+      directRowBorder: this.state.direct ? "var(--color-accent-2-500)" : "var(--color-divider)",
+      directIconColor: this.state.direct ? "var(--color-accent-2-700)" : "var(--color-neutral-500)",
+      directTrackBg: this.state.direct ? "var(--color-accent-2-600)" : "var(--color-neutral-400)",
+      directKnobPos: this.state.direct ? "flex-end" : "flex-start",
+
+      showAgendaNote: !agenda,
+      toggleAgenda: () => this.setState(s => ({ agendaActive: !s.agendaActive })),
+
+      metrics: [
+        { label: "Cuestionarios completados", value: "81", note: "+14 respecto al mes anterior", noteColor: "var(--color-accent-2-700)" },
+        { label: "Profesional más recomendado", value: "34", note: "Marcela Rivas", noteColor: "var(--color-neutral-600)" },
+        agenda
+          ? { label: "Coincidencias que agendaron", value: "46%", note: "37 de 81 cuestionarios", noteColor: "var(--color-accent-2-700)" }
+          : { label: "Coincidencias que agendaron", value: "—", note: "Requiere Agenda y Espacios", noteColor: "var(--color-accent-700)" }
+      ],
+      ranking: RANK,
+      deps: [
+        { name: "Equipo", icon: "groups", note: "Perfiles y especialidades de los profesionales", state: "Requerido · activo", color: "var(--color-accent-2-700)", bg: "var(--color-accent-2-200)", fg: "var(--color-accent-2-700)", bd: "var(--color-accent-2-500)" },
+        agenda
+          ? { name: "Agenda y Espacios", icon: "calendar_month", note: "Disponibilidad real en los resultados", state: "Opcional · activo", color: "var(--color-accent-2-700)", bg: "var(--color-accent-2-200)", fg: "var(--color-accent-2-700)", bd: "var(--color-accent-2-500)" }
+          : { name: "Agenda y Espacios", icon: "calendar_month", note: "Sin él, los resultados no muestran horas disponibles", state: "Opcional · inactivo", color: "var(--color-neutral-500)", bg: "var(--color-neutral-200)", fg: "var(--color-neutral-800)", bd: "var(--color-neutral-500)" }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

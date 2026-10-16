@@ -241,3 +241,11 @@ terceros.
    los tests.
 4. Antes de habilitarlo en un silo: verificacion de la app en Google y
    evaluacion legal del centro.
+
+## Correos de cuenta (03a)
+
+Invitacion, verificacion de correo, recuperacion, enlace de acceso y enlace
+de consentimiento salen directo por `ProveedorCorreo`
+(`core/notificaciones/correos-cuenta.ts`), no por la cola de
+`notificaciones`: llevan un token de un solo uso que no debe quedar guardado
+en el mensaje cifrado. Sin reintento: si el envio falla se pide de nuevo.

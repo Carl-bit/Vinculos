@@ -122,13 +122,13 @@ describe('02a infraestructura', () => {
 
     it('DTO: email invalido o campo extra -> 400', async () => {
       expect((await t.http().post('/api/auth/login').send({ email: 'x', password: 'y' })).status).toBe(400);
-      expect((await t.http().post('/api/auth/login').send({ email: admin.email, password: 'y', rol: 'ADMIN' })).status).toBe(400);
+      expect((await t.http().post('/api/auth/login').send({ email: admin.email, password: 'y', extra: 'x' })).status).toBe(400);
     });
   });
 
   describe('refresh token', () => {
     it('rota; reusar el anterior revoca la familia', async () => {
-      const login = await t.http().post('/api/auth/login').send({ email: profesional.email, password: 'clave-de-prueba-123' });
+      const login = { body: await t.login(profesional) };
       const r1 = await t.http().post('/api/auth/refresh').send({ refreshToken: login.body.refreshToken });
       expect(r1.status).toBe(200);
       expect(r1.body.refreshToken).not.toBe(login.body.refreshToken);
@@ -139,8 +139,8 @@ describe('02a infraestructura', () => {
 
     it('logout revoca; desactivar al usuario revoca sus sesiones (trigger)', async () => {
       const u = await t.datos.usuario('PROFESIONAL');
-      const a = await t.http().post('/api/auth/login').send({ email: u.email, password: 'clave-de-prueba-123' });
-      const b = await t.http().post('/api/auth/login').send({ email: u.email, password: 'clave-de-prueba-123' });
+      const a = { body: await t.login(u) };
+      const b = { body: await t.login(u) };
       expect((await t.http().post('/api/auth/logout').send({ refreshToken: a.body.refreshToken })).status).toBe(204);
       expect((await t.http().post('/api/auth/refresh').send({ refreshToken: a.body.refreshToken })).status).toBe(401);
       await t.dueno.usuario.update({ where: { id: u.id }, data: { activo: false } });

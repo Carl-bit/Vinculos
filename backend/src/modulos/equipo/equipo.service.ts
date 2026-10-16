@@ -5,6 +5,7 @@ import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { conflicto, esSqlstate } from '../../core/errores/sqlstate';
+import { procesarImagenPublica } from '../../core/imagenes/imagenes';
 import type { DatosPrivadosDto, EditarPerfilDto, EditarTipoAtencionDto, PerfilDto, TarifaDto, TipoAtencionDto, TrayectoriaDto } from './dto/equipo.dto';
 
 const VISTA_PRIVADOS = {
@@ -55,6 +56,41 @@ export class EquipoService {
   async editarPerfil(profesionalId: string, dto: EditarPerfilDto) {
     await this.perfil(profesionalId);
     return this.bd.tx().profesional.update({ where: { usuarioId: profesionalId }, data: dto });
+  }
+
+  /**
+   * Foto de perfil (03a): imagen publica validada por contenido,
+   * redimensionada y sin metadatos; el perfil apunta a su URL publica.
+   */
+  async subirFoto(profesionalId: string, archivo: Buffer) {
+    await this.perfil(profesionalId);
+    const img = await procesarImagenPublica(archivo);
+    const tx = this.bd.tx();
+    const { id } = await tx.imagenPublica.create({
+      data: {
+        tipo: 'FOTO_PERFIL',
+        usuarioId: profesionalId,
+        tipoMime: img.tipoMime,
+        ancho: img.ancho,
+        alto: img.alto,
+        tamanoBytes: img.contenido.length,
+        contenido: new Uint8Array(img.contenido),
+      },
+      select: { id: true },
+    });
+    const fotoUrl = `/api/publico/imagenes/${id}`;
+    await tx.profesional.update({ where: { usuarioId: profesionalId }, data: { fotoUrl } });
+    return { imagenId: id, fotoUrl };
+  }
+
+  /** Reseñas recibidas (D-1): todas sus estados y el feedback privado, solo para el propio. */
+  async misResenas() {
+    const filas = await this.bd.tx().resena.findMany({
+      where: { profesionalId: this.bd.usuario().id },
+      select: { id: true, calificacion: true, texto: true, feedbackPrivado: true, estado: true, mostrarComo: true, creadaEn: true, editadaEn: true },
+      orderBy: { creadaEn: 'desc' },
+    });
+    return filas.map((r) => ({ ...r, texto: texto(r.texto), feedbackPrivado: texto(r.feedbackPrivado) }));
   }
 
   /**

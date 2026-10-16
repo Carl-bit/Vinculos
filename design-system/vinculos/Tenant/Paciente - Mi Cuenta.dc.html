@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/styles.css">
+<script src="../_ds/organic-c5f2d4c8-f91c-4aa7-8c8a-6d0e32c44f5e/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block" rel="stylesheet">
+<style>
+  body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
+  a { color: var(--color-accent-2-700); text-decoration: none; }
+  a:hover { color: var(--color-accent-2-600); }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ms { font-family: 'Material Symbols Rounded'; font-weight: 500; font-style: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr; -webkit-font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+  .row { transition: box-shadow .18s ease; }
+  .row:hover { box-shadow: var(--shadow-md); }
+</style>
+</helmet>
+
+<div style="max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,40px) 72px">
+
+  <header style="display:flex;align-items:center;gap:20px;padding:22px 0">
+    <a href="./Landing.dc.html" style="display:flex;align-items:center;gap:9px;color:var(--color-text)" style-hover="color:var(--color-text)">
+      <span style="width:11px;height:11px;border-radius:999px;background:var(--color-accent-2-600);display:inline-block"></span>
+      <span style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.04em">Centro Ejemplo</span>
+    </a>
+    <nav style="display:flex;gap:26px;margin-left:auto;font-size:14.5px;font-weight:700">
+      <a href="./Paciente - Pedir Hora.dc.html" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Pedir una hora</a>
+      <a href="./Landing.dc.html#equipo" style="color:var(--color-text)" style-hover="color:var(--color-accent-2-700)">Equipo</a>
+    </nav>
+    <span style="display:flex;align-items:center;gap:9px;border:1.5px solid var(--color-neutral-400);border-radius:999px;padding:6px 14px 6px 7px">
+      <span style="width:26px;height:26px;border-radius:999px;background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--color-accent-2-700)">IF</span>
+      <span style="font-size:13.5px;font-weight:800">Isidora Fuentes</span>
+      <span class="ms" style="font-size:17px;color:var(--color-neutral-600)">logout</span>
+    </span>
+  </header>
+
+  <div style="padding:clamp(24px,4vw,44px) 0 30px;max-width:640px">
+    <div style="display:inline-flex;color:var(--color-accent-2-700);font-size:11.5px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;padding-bottom:11px;border-bottom:2px solid var(--color-accent-2-600);margin-bottom:22px">Mi cuenta</div>
+    <h1 style="font-family:var(--font-body);font-weight:900;font-size:clamp(30px,4vw,46px);line-height:1;letter-spacing:-0.035em;margin:0 0 12px;text-wrap:balance">Hola, Isidora.</h1>
+    <p style="font-size:16.5px;line-height:1.6;color:var(--color-neutral-700);margin:0;text-wrap:pretty">Acá ves tus horas, tus datos y puedes escribirle a tu profesional. El contenido de tus sesiones no se guarda en esta vista.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px;align-items:start">
+
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+
+      <!-- Mi profesional -->
+      <section style="background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);border-radius:var(--radius-lg);padding:26px 28px;box-shadow:var(--shadow-sm)">
+        <div style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent-2-800);margin-bottom:16px">Mi profesional</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+          <span style="width:70px;height:70px;border-radius:999px;border:1.5px solid var(--color-accent-2-600);background-image:url(./assets/marcela-1.png);background-size:cover;background-position:center top;flex:none;display:block"></span>
+          <div style="min-width:0;flex:1 1 180px">
+            <div style="font-family:var(--font-body);font-weight:900;font-size:21px;letter-spacing:-0.03em;color:var(--color-accent-2-900)">Marcela Rivas</div>
+            <div style="font-size:13.5px;font-weight:700;color:var(--color-accent-2-800)">Psicóloga clínica · Sesiones de 50 minutos</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:11px;flex-wrap:wrap">
+          <a href="./Paciente - Pedir Hora.dc.html" style="background:var(--color-accent-600);color:var(--color-neutral-100);font-weight:800;font-size:14.5px;padding:14px 24px;border-radius:999px;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-700);color:var(--color-neutral-100)"><span class="ms" style="font-size:19px">calendar_month</span>Pedir una hora</a>
+          <button type="button" onClick="{{ openMsg }}" style="border:1.5px solid var(--color-accent-2-700);background:var(--color-bg);font-family:var(--font-body);color:var(--color-accent-2-900);font-weight:800;font-size:14.5px;padding:14px 22px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-2-100)"><span class="ms" style="font-size:19px">send</span>Enviar un mensaje</button>
+        </div>
+      </section>
+
+      <!-- Historial de horas -->
+      <section id="horas" style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:26px 28px;box-shadow:var(--shadow-sm)">
+        <h2 style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.025em;margin:0 0 6px">Mis horas</h2>
+        <p style="font-size:13.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 18px;text-wrap:pretty">Todas tus sesiones, pasadas y futuras. Para cambiar o cancelar una hora, avísale a tu profesional con 24 horas de anticipación.</p>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+            <button type="button" onClick="{{ t.pick }}" style="font-family:var(--font-body);cursor:pointer;font-size:12.5px;font-weight:800;padding:9px 17px;border-radius:999px;background:{{ t.bg }};color:{{ t.fg }};border:1.5px solid {{ t.border }};white-space:nowrap" style-hover="border-color:var(--color-accent-500)">{{ t.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ sessions }}" as="s" hint-placeholder-count="4">
+            <div class="row" style="background:var(--color-bg);border:1px solid {{ s.cardBorder }};border-radius:18px;padding:16px 18px">
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                <span style="width:40px;height:40px;border-radius:999px;background:{{ s.iconBg }};border:1px solid {{ s.iconBd }};display:grid;place-items:center;flex:none"><span class="ms" style="font-size:20px;color:{{ s.iconFg }}">{{ s.icon }}</span></span>
+                <div style="flex:1 1 170px;min-width:0">
+                  <div style="font-size:14.5px;font-weight:900;letter-spacing:-0.015em">{{ s.day }}</div>
+                  <div style="font-size:13px;font-weight:600;color:var(--color-neutral-600)">{{ s.detail }}</div>
+                </div>
+                <span style="font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;background:{{ s.bg }};color:{{ s.fg }};border:1px solid {{ s.bd }};border-radius:999px;padding:4px 12px;flex:none;white-space:nowrap">{{ s.state }}</span>
+              </div>
+              <sc-if value="{{ s.canRate }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--color-divider)">
+                  <span style="font-size:12.5px;font-weight:700;color:var(--color-neutral-700);flex:1 1 150px;text-wrap:pretty">Aún no has calificado esta sesión. Tu calificación es anónima.</span>
+                  <a href="./Admin - Perfil Profesional.dc.html#publico" style="background:var(--color-accent-600);color:var(--color-neutral-100);font-weight:800;font-size:13px;padding:11px 18px;border-radius:999px;display:flex;align-items:center;gap:8px;flex:none" style-hover="background:var(--color-accent-700);color:var(--color-neutral-100)"><span class="ms" style="font-size:17px">star</span>Calificar esta sesión</a>
+                </div>
+              </sc-if>
+              <sc-if value="{{ s.rated }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12.5px;font-weight:700;color:var(--color-accent-2-800)">
+                  <span class="ms" style="font-size:16px">task_alt</span>Ya calificaste esta sesión
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;gap:11px;margin-top:18px;padding-top:18px;border-top:1px solid var(--color-divider)">
+          <span class="ms" style="font-size:17px;color:var(--color-neutral-600);flex:none">lock</span>
+          <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:0;text-wrap:pretty">Este historial muestra solo la información administrativa de tus horas. No incluye el contenido de las sesiones.</p>
+        </div>
+      </section>
+
+      <!-- Mensajes -->
+      <section id="mensajes" style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:26px 28px;box-shadow:var(--shadow-sm)">
+        <h2 style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.025em;margin:0 0 6px">Escribirle a Marcela</h2>
+        <p style="font-size:13.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 18px;text-wrap:pretty">Marcela responde por correo o teléfono, no dentro de la plataforma.</p>
+
+        <div style="display:flex;gap:12px;background:var(--color-accent-200);border:1px solid var(--color-accent-500);border-radius:18px;padding:16px 18px;margin-bottom:16px">
+          <span class="ms" style="font-size:20px;color:var(--color-accent-700);flex:none">warning</span>
+          <p style="font-size:13px;font-weight:700;color:var(--color-accent-900);margin:0;text-wrap:pretty">Evita incluir detalles clínicos sensibles: este mensaje se reenvía al correo de tu profesional. Para temas delicados, pide una hora.</p>
+        </div>
+
+        <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:13px;background:var(--color-accent-2-200);border:1px solid var(--color-accent-2-500);border-radius:18px;padding:16px 18px;margin-bottom:16px">
+            <span class="ms" style="font-size:20px;color:var(--color-accent-2-700);flex:none">check_circle</span>
+            <p style="font-size:13.5px;font-weight:800;color:var(--color-accent-2-900);margin:0;text-wrap:pretty">Tu mensaje fue enviado. Marcela Rivas lo recibirá también por correo.</p>
+          </div>
+        </sc-if>
+
+        <textarea rows="4" value="{{ draft }}" onChange="{{ setDraft }}" placeholder="Ej. Necesito cambiar mi hora del jueves, ¿tienes disponibilidad en la tarde?" style="font-family:var(--font-body);width:100%;box-sizing:border-box;font-size:14.5px;font-weight:500;line-height:1.6;padding:16px 19px;border-radius:20px;border:1.5px solid var(--color-neutral-400);background:var(--color-bg);color:var(--color-text);resize:vertical;margin-bottom:14px"></textarea>
+
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <button type="button" onClick="{{ send }}" style="border:none;background:var(--color-accent-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:14.5px;padding:14px 26px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:9px" style-hover="background:var(--color-accent-700)"><span class="ms" style="font-size:19px">send</span>Enviar</button>
+          <span style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600)">{{ counter }}</span>
+        </div>
+
+        <div style="margin-top:26px;padding-top:22px;border-top:1px solid var(--color-divider)">
+          <div style="font-size:11px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:14px">Mensajes que has enviado</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ history }}" as="h" hint-placeholder-count="3">
+              <div style="background:var(--color-bg);border:1px solid var(--color-divider);border-radius:18px;padding:16px 18px">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px">
+                  <span class="ms" style="font-size:17px;color:var(--color-accent-2-700);flex:none">north_east</span>
+                  <span style="font-size:12.5px;font-weight:800">Enviado a Marcela Rivas</span>
+                  <span style="font-size:12px;font-weight:700;color:var(--color-neutral-600);margin-left:auto">{{ h.when }}</span>
+                </div>
+                <p style="font-size:14px;font-weight:500;line-height:1.6;color:var(--color-neutral-800);margin:0;text-wrap:pretty">{{ h.text }}</p>
+              </div>
+            </sc-for>
+          </div>
+          <p style="font-size:12.5px;font-weight:600;color:var(--color-neutral-600);margin:16px 0 0;display:flex;align-items:center;gap:8px"><span class="ms" style="font-size:16px">info</span>Las respuestas de tu profesional llegan a tu correo o teléfono, no acá.</p>
+        </div>
+      </section>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+
+      <!-- Mis datos -->
+      <section style="background:var(--color-neutral-100);border:1px solid var(--color-divider);border-radius:var(--radius-lg);padding:26px 28px;box-shadow:var(--shadow-sm)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:6px">
+          <h2 style="font-family:var(--font-body);font-weight:900;font-size:20px;letter-spacing:-0.025em;margin:0">Mis datos</h2>
+          <button type="button" onClick="{{ toggleEdit }}" style="border:none;background:transparent;font-family:var(--font-body);color:var(--color-accent-2-700);font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px" style-hover="color:var(--color-accent-2-600)"><span class="ms" style="font-size:16px">{{ editIcon }}</span>{{ editLabel }}</button>
+        </div>
+        <p style="font-size:13.5px;font-weight:600;color:var(--color-neutral-600);margin:0 0 18px">Puedes corregir tus datos de contacto en cualquier momento.</p>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <sc-for list="{{ fields }}" as="f" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+              <span style="font-size:12px;font-weight:800;color:var(--color-neutral-700)">{{ f.label }}</span>
+              <sc-if value="{{ f.editing }}" hint-placeholder-val="{{ false }}">
+                <input type="text" value="{{ f.value }}" onChange="{{ f.set }}" style="font-family:var(--font-body);font-size:14.5px;font-weight:600;padding:12px 18px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-bg);color:var(--color-text);min-width:0"></input>
+              </sc-if>
+              <sc-if value="{{ f.reading }}" hint-placeholder-val="{{ true }}">
+                <span style="font-size:15px;font-weight:700;letter-spacing:-0.01em">{{ f.value }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--color-divider)">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px">
+            <span class="ms" style="font-size:19px;color:var(--color-accent-700)">family_restroom</span>
+            <span style="font-size:13.5px;font-weight:900;letter-spacing:-0.015em">Adulto responsable</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <sc-for list="{{ guardianFields }}" as="g" hint-placeholder-count="3">
+              <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+                <span style="font-size:12px;font-weight:800;color:var(--color-neutral-700)">{{ g.label }}</span>
+                <sc-if value="{{ g.editing }}" hint-placeholder-val="{{ false }}">
+                  <input type="text" value="{{ g.value }}" onChange="{{ g.set }}" style="font-family:var(--font-body);font-size:14.5px;font-weight:600;padding:12px 18px;border-radius:999px;border:1.5px solid var(--color-neutral-400);background:var(--color-bg);color:var(--color-text);min-width:0"></input>
+                </sc-if>
+                <sc-if value="{{ g.reading }}" hint-placeholder-val="{{ true }}">
+                  <span style="font-size:15px;font-weight:700;letter-spacing:-0.01em">{{ g.value }}</span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}">
+          <button type="button" onClick="{{ toggleEdit }}" style="margin-top:20px;width:100%;border:none;background:var(--color-accent-2-600);font-family:var(--font-body);color:var(--color-neutral-100);font-weight:800;font-size:14.5px;padding:14px 24px;border-radius:999px;cursor:pointer" style-hover="background:var(--color-accent-2-700)">Guardar mis datos</button>
+        </sc-if>
+      </section>
+
+      <section style="background:var(--color-bg);border:1.5px dashed var(--color-neutral-400);border-radius:var(--radius-lg);padding:24px 26px">
+        <div style="display:flex;gap:12px">
+          <span class="ms" style="font-size:20px;color:var(--color-neutral-600);flex:none">lock</span>
+          <p style="font-size:13.5px;font-weight:700;line-height:1.6;color:var(--color-neutral-700);margin:0;text-wrap:pretty">Las notas de tus sesiones son parte de tu ficha clínica y solo tu profesional puede verlas. Si necesitas una copia, pídela directamente en el centro.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:980}}">
+const HISTORY = [
+  { when: "2 de septiembre", text: "Hola Marcela, quería confirmar si la hora del jueves sigue en pie. Gracias." },
+  { when: "21 de agosto", text: "Necesito cambiar mi hora de la próxima semana por un tema de trabajo. ¿Tienes algo después de las 18:00?" },
+  { when: "4 de agosto", text: "Buenas tardes, ¿la sesión de mañana es online o presencial? No me quedó claro." }
+];
+
+const EST = {
+  Confirmada: { bg: "var(--color-accent-2-200)", fg: "var(--color-accent-2-900)", bd: "var(--color-accent-2-500)" },
+  Completada: { bg: "var(--color-neutral-200)", fg: "var(--color-neutral-800)", bd: "var(--color-neutral-500)" },
+  Cancelada: { bg: "var(--color-accent-200)", fg: "var(--color-accent-900)", bd: "var(--color-accent-500)" },
+  "Por confirmar": { bg: "var(--color-accent-200)", fg: "var(--color-accent-900)", bd: "var(--color-accent-500)" }
+};
+
+const SESSIONS = [
+  { when: "futura", day: "Jueves 10 de septiembre", hora: "10:00", pro: "Marcela Rivas", mod: "Presencial, Box 2", state: "Confirmada" },
+  { when: "futura", day: "Jueves 17 de septiembre", hora: "10:00", pro: "Marcela Rivas", mod: "Online", state: "Confirmada" },
+  { when: "futura", day: "Jueves 24 de septiembre", hora: "10:00", pro: "Marcela Rivas", mod: "Presencial, Box 2", state: "Por confirmar" },
+  { when: "pasada", day: "Jueves 3 de septiembre", hora: "10:00", pro: "Marcela Rivas", mod: "Presencial, Box 2", state: "Completada", rated: false },
+  { when: "pasada", day: "Jueves 27 de agosto", hora: "10:00", pro: "Marcela Rivas", mod: "Online", state: "Completada", rated: false },
+  { when: "pasada", day: "Jueves 20 de agosto", hora: "10:00", pro: "Marcela Rivas", mod: "Presencial, Box 2", state: "Cancelada" },
+  { when: "pasada", day: "Jueves 13 de agosto", hora: "10:00", pro: "Marcela Rivas", mod: "Presencial, Box 2", state: "Completada", rated: true },
+  { when: "pasada", day: "Jueves 6 de agosto", hora: "10:00", pro: "Marcela Rivas", mod: "Online", state: "Completada", rated: true }
+];
+
+const modIcon = s => s.state === "Cancelada" ? "event_busy"
+  : s.state === "Completada" ? "history"
+  : s.mod === "Online" ? "videocam"
+  : s.state === "Por confirmar" ? "schedule" : "event_available";
+
+class Component extends DCLogic {
+  state = {
+    tab: "futura",
+    draft: "", sent: false, editing: false,
+    data: { nombre: "Isidora Fuentes Miranda", nacimiento: "14/03/2010", telefono: "+56 9 5544 3322", correo: "isidora.fuentes@correo.cl" },
+    guardian: { nombre: "Paula Miranda Soto", relacion: "Madre", telefono: "+56 9 8877 6655" },
+    history: HISTORY
+  };
+
+  setGroup(group, k) {
+    return e => {
+      const v = e.target.value;
+      this.setState(s => ({ [group]: Object.assign({}, s[group], { [k]: v }) }));
+    };
+  }
+
+  renderVals() {
+    const ed = this.state.editing;
+    const d = this.state.data;
+    const g = this.state.guardian;
+    const mk = (group, obj) => list => list.map(f => ({
+      label: f.label, value: obj[f.k], editing: ed, reading: !ed,
+      set: this.setGroup(group, f.k)
+    }));
+
+    return {
+      tabs: [
+        { k: "futura", label: "Próximas (" + SESSIONS.filter(s => s.when === "futura").length + ")" },
+        { k: "pasada", label: "Pasadas (" + SESSIONS.filter(s => s.when === "pasada").length + ")" },
+        { k: "all", label: "Todas" }
+      ].map(t => ({
+        label: t.label,
+        pick: () => this.setState({ tab: t.k }),
+        bg: this.state.tab === t.k ? "var(--color-accent-2-600)" : "var(--color-bg)",
+        fg: this.state.tab === t.k ? "var(--color-neutral-100)" : "var(--color-neutral-700)",
+        border: this.state.tab === t.k ? "var(--color-accent-2-600)" : "var(--color-neutral-400)"
+      })),
+      sessions: SESSIONS.filter(s => this.state.tab === "all" || s.when === this.state.tab).map(s => {
+        const e = EST[s.state];
+        const pending = s.state === "Completada" && !s.rated;
+        return {
+          day: s.day,
+          detail: s.hora + " · " + s.mod + " · " + s.pro,
+          state: s.state, icon: modIcon(s),
+          bg: e.bg, fg: e.fg, bd: e.bd,
+          cardBorder: pending ? "var(--color-accent-500)" : "var(--color-divider)",
+          iconBg: s.when === "pasada" ? "var(--color-neutral-200)" : "var(--color-accent-2-200)",
+          iconBd: s.when === "pasada" ? "var(--color-neutral-400)" : "var(--color-accent-2-500)",
+          iconFg: s.when === "pasada" ? "var(--color-neutral-700)" : "var(--color-accent-2-700)",
+          canRate: pending, rated: s.state === "Completada" && !!s.rated
+        };
+      }),
+
+      draft: this.state.draft,
+      setDraft: e => this.setState({ draft: e.target.value, sent: false }),
+      counter: this.state.draft.length ? this.state.draft.length + " caracteres" : "Sin respuestas dentro de la plataforma.",
+      sent: this.state.sent,
+      openMsg: () => {
+        const el = document.getElementById("mensajes");
+        if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 20, behavior: "smooth" });
+      },
+      send: () => {
+        const t = this.state.draft.trim();
+        if (!t) return;
+        this.setState(s => ({
+          sent: true, draft: "",
+          history: [{ when: "hoy", text: t }].concat(s.history)
+        }));
+      },
+      history: this.state.history,
+
+      editing: ed,
+      toggleEdit: () => this.setState(s => ({ editing: !s.editing })),
+      editIcon: ed ? "close" : "edit",
+      editLabel: ed ? "Cancelar" : "Editar",
+      fields: mk("data", d)([
+        { label: "Nombre completo", k: "nombre" },
+        { label: "Fecha de nacimiento", k: "nacimiento" },
+        { label: "Teléfono", k: "telefono" },
+        { label: "Correo", k: "correo" }
+      ]),
+      guardianFields: mk("guardian", g)([
+        { label: "Nombre", k: "nombre" },
+        { label: "Relación con la paciente", k: "relacion" },
+        { label: "Teléfono de contacto", k: "telefono" }
+      ])
+    };
+  }
+}
+
+</script>
+</body>
+</html>
