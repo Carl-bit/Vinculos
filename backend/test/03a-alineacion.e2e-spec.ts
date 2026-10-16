@@ -118,7 +118,10 @@ describe('03a alineacion con el diseño', () => {
       const e = await t.http().post('/api/auth/totp/enrolamiento').send({ desafio: r.body.desafio });
       expect(e.body.uri).toMatch(/^otpauth:\/\/totp\//);
       expect((await t.http().post('/api/auth/totp').send({ desafio: r.body.desafio, codigo: '000000' })).status).toBe(401);
-      const ok = await t.http().post('/api/auth/totp').send({ desafio: r.body.desafio, codigo: codigoTotp(e.body.secreto) });
+      const ok = await t
+        .http()
+        .post('/api/auth/totp')
+        .send({ desafio: r.body.desafio, codigo: codigoTotp(e.body.secreto) });
       expect(ok.status).toBe(200);
       expect(ok.body).toEqual(expect.objectContaining({ rol: 'PROFESIONAL', roles: ['PROFESIONAL'] }));
       const segundo = await t.http().post('/api/auth/login').send({ email: u.email, password: CLAVE });
@@ -128,8 +131,22 @@ describe('03a alineacion con el diseño', () => {
       const p = await t.http().post('/api/auth/login').send({ email: paciente.email, password: CLAVE });
       expect(p.body.accessToken).toBeDefined();
       // Solo ADMIN reinicia el segundo factor de otro.
-      expect((await t.http().post(`/api/usuarios/${u.id}/totp/reinicio`).set(await tk(gestion))).status).toBe(403);
-      expect((await t.http().post(`/api/usuarios/${u.id}/totp/reinicio`).set(await tk(admin))).status).toBe(200);
+      expect(
+        (
+          await t
+            .http()
+            .post(`/api/usuarios/${u.id}/totp/reinicio`)
+            .set(await tk(gestion))
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await t
+            .http()
+            .post(`/api/usuarios/${u.id}/totp/reinicio`)
+            .set(await tk(admin))
+        ).status,
+      ).toBe(200);
       expect((await t.http().post('/api/auth/login').send({ email: u.email, password: CLAVE })).body.enrolamiento).toBe(true);
     });
 
@@ -181,33 +198,12 @@ describe('03a alineacion con el diseño', () => {
       // Con un rol clinico, la cuenta pide TOTP aunque entre como ADMIN.
       const comoAdmin = await t.login(directora);
       expect(comoAdmin).toEqual(expect.objectContaining({ rol: 'ADMIN', roles: ['ADMIN', 'PROFESIONAL'] }));
-      expect(
-        (
-          await t
-            .http()
-            .get('/api/usuarios')
-            .set(auth(comoAdmin.accessToken))
-        ).status,
-      ).toBe(200);
+      expect((await t.http().get('/api/usuarios').set(auth(comoAdmin.accessToken))).status).toBe(200);
       const cambio = await t.http().post('/api/auth/cambio-rol').send({ refreshToken: comoAdmin.refreshToken, rol: 'PROFESIONAL' });
       expect(cambio.status).toBe(200);
       expect(cambio.body.rol).toBe('PROFESIONAL');
-      expect(
-        (
-          await t
-            .http()
-            .get('/api/usuarios')
-            .set(auth(cambio.body.accessToken))
-        ).status,
-      ).toBe(403);
-      expect(
-        (
-          await t
-            .http()
-            .get('/api/pacientes')
-            .set(auth(cambio.body.accessToken))
-        ).body,
-      ).toEqual([]);
+      expect((await t.http().get('/api/usuarios').set(auth(cambio.body.accessToken))).status).toBe(403);
+      expect((await t.http().get('/api/pacientes').set(auth(cambio.body.accessToken))).body).toEqual([]);
       // El refresh anterior quedo revocado; un rol ajeno no se da.
       expect((await t.http().post('/api/auth/refresh').send({ refreshToken: comoAdmin.refreshToken })).status).toBe(401);
       expect((await t.http().post('/api/auth/cambio-rol').send({ refreshToken: cambio.body.refreshToken, rol: 'GESTION' })).status).toBe(401);
@@ -334,13 +330,18 @@ describe('03a alineacion con el diseño', () => {
           ).status,
         ).toBe(200);
       } finally {
-        await t.dueno.$executeRaw`UPDATE configuracion_centro SET modulos_activos = ARRAY['PAGINA_PUBLICA','FICHAS','AGENDA','EQUIPO','MATCH','COBROS']::modulo_centro[]`;
+        await t.dueno
+          .$executeRaw`UPDATE configuracion_centro SET modulos_activos = ARRAY['PAGINA_PUBLICA','FICHAS','AGENDA','EQUIPO','MATCH','COBROS']::modulo_centro[]`;
         t.app.get(ModulosGuard).olvidar();
       }
     });
 
     it('contenido publico (ADMIN), politicas versionadas, horario del centro y logo sin metadatos', async () => {
-      const contenido = { heroTitulo: 'Acompañamiento psicologico', servicios: [{ titulo: 'Terapia individual', texto: 'Sesiones de 50 minutos.' }], colorMarca: '#B5532D' };
+      const contenido = {
+        heroTitulo: 'Acompañamiento psicologico',
+        servicios: [{ titulo: 'Terapia individual', texto: 'Sesiones de 50 minutos.' }],
+        colorMarca: '#B5532D',
+      };
       expect(
         (
           await t
@@ -482,7 +483,14 @@ describe('03a alineacion con el diseño', () => {
       expect(cuestionario.body.preguntas.map((q: { clave: string }) => q.clave)).toEqual(
         expect.arrayContaining(['motivos', 'quien', 'relato', 'prevision', 'modalidad']),
       );
-      expect((await t.http().post('/api/publico/match').send({ respuestas: { motivos: ['ansiedad'] } })).status).toBe(400);
+      expect(
+        (
+          await t
+            .http()
+            .post('/api/publico/match')
+            .send({ respuestas: { motivos: ['ansiedad'] } })
+        ).status,
+      ).toBe(400);
       const respuestas = {
         motivos: ['ansiedad'],
         quien: 'adulto',
@@ -550,14 +558,28 @@ describe('03a alineacion con el diseño', () => {
       const r = await t.http().post('/api/publico/solicitudes').send(dto);
       expect(r.status).toBe(202);
       expect(correos().map((c) => c.para)).toEqual([email]);
-      expect((await t.http().post('/api/publico/solicitudes').send(solicitud(publico.id, 'otro@test.cl', { inicio: dto.inicio, fin: dto.fin }))).status).toBe(409);
+      expect(
+        (
+          await t
+            .http()
+            .post('/api/publico/solicitudes')
+            .send(solicitud(publico.id, 'otro@test.cl', { inicio: dto.inicio, fin: dto.fin }))
+        ).status,
+      ).toBe(409);
       const v = await t
         .http()
         .post('/api/publico/solicitudes/verificacion')
         .send({ token: tokenDe(ultimoA(email)) });
       expect(v.status).toBe(200);
       expect(v.body).toEqual(expect.objectContaining({ estado: 'CONFIRMADA', invitacionEnviada: true }));
-      expect((await t.http().post('/api/publico/solicitudes/verificacion').send({ token: tokenDe(ultimoA(email)) })).status).toBe(404);
+      expect(
+        (
+          await t
+            .http()
+            .post('/api/publico/solicitudes/verificacion')
+            .send({ token: tokenDe(ultimoA(email)) })
+        ).status,
+      ).toBe(404);
       const pac = await t.dueno.paciente.findFirstOrThrow({ where: { citas: { some: { id: v.body.citaId } } } });
       const resp = await t
         .http()
@@ -582,7 +604,10 @@ describe('03a alineacion con el diseño', () => {
       ).toBe(404);
       // La invitacion crea la cuenta del paciente.
       const inv = correos().find((c) => c.para === email && c.asunto.startsWith('Active'));
-      const cuenta = await t.http().post('/api/auth/activacion').send({ token: tokenDe(inv), password: 'clave-de-ema-1' });
+      const cuenta = await t
+        .http()
+        .post('/api/auth/activacion')
+        .send({ token: tokenDe(inv), password: 'clave-de-ema-1' });
       expect(cuenta.body.rol).toBe('PACIENTE');
     });
 
@@ -912,7 +937,14 @@ describe('03a alineacion con el diseño', () => {
         .set(await tk(p))
         .send({ email: nuevo });
       await new Promise((r) => setTimeout(r, 50));
-      expect((await t.http().post('/api/auth/correo/verificacion').send({ token: tokenDe(ultimoA(nuevo)) })).status).toBe(204);
+      expect(
+        (
+          await t
+            .http()
+            .post('/api/auth/correo/verificacion')
+            .send({ token: tokenDe(ultimoA(nuevo)) })
+        ).status,
+      ).toBe(204);
       const datos = await t
         .http()
         .get('/api/portal/mis-datos')
@@ -958,7 +990,9 @@ describe('03a alineacion con el diseño', () => {
 
     it('menores (D-4): el adolescente no ve montos; el adulto responsable ve citas y estado de pago de su menor, no sus mensajes', async () => {
       const teen = await t.datos.usuarioPaciente(prof.id, { fechaNacimiento: new Date(Date.now() - 15.5 * 365.25 * DIA) });
-      const adulto = await t.dueno.adultoResponsable.create({ data: { id: randomUUID(), pacienteId: teen.pacienteId, nombre: 'Paula', email: 'paula@test.cl' } });
+      const adulto = await t.dueno.adultoResponsable.create({
+        data: { id: randomUUID(), pacienteId: teen.pacienteId, nombre: 'Paula', email: 'paula@test.cl' },
+      });
       const responsable = await t.datos.usuario('RESPONSABLE');
       await t.dueno.adultoResponsable.update({ where: { id: adulto.id }, data: { usuarioId: responsable.id } });
       const cita = await t
@@ -1090,7 +1124,11 @@ describe('03a alineacion con el diseño', () => {
         .http()
         .post('/api/cobros/liquidaciones')
         .set(await tk(gestion))
-        .send({ profesionalId: otroProf.id, desde: new Date(Date.now() - 400 * DIA).toISOString().slice(0, 10), hasta: new Date(Date.now() - 390 * DIA).toISOString().slice(0, 10) });
+        .send({
+          profesionalId: otroProf.id,
+          desde: new Date(Date.now() - 400 * DIA).toISOString().slice(0, 10),
+          hasta: new Date(Date.now() - 390 * DIA).toISOString().slice(0, 10),
+        });
       expect(liq.status).toBe(201);
       const lp = await t
         .http()

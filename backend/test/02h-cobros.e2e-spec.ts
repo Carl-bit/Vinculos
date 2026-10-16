@@ -383,8 +383,10 @@ describe('02h cobros', () => {
     await pagar(a.id, 50000);
     await pagar(b.id, 20000);
     // C-11 (03a): la liquidacion cuenta citas REALIZADAS del periodo (por la fecha de la cita): se llevan al pasado (dueño).
-    await t.dueno.$executeRaw`UPDATE citas SET inicio = date_trunc('hour', now()) - interval '3 hours', fin = date_trunc('hour', now()) - interval '2 hours' WHERE id = ${a.id}::uuid`;
-    await t.dueno.$executeRaw`UPDATE citas SET inicio = date_trunc('hour', now()) - interval '8 hours', fin = date_trunc('hour', now()) - interval '7 hours' WHERE id = ${b.id}::uuid`;
+    await t.dueno
+      .$executeRaw`UPDATE citas SET inicio = date_trunc('hour', now()) - interval '3 hours', fin = date_trunc('hour', now()) - interval '2 hours' WHERE id = ${a.id}::uuid`;
+    await t.dueno
+      .$executeRaw`UPDATE citas SET inicio = date_trunc('hour', now()) - interval '8 hours', fin = date_trunc('hour', now()) - interval '7 hours' WHERE id = ${b.id}::uuid`;
 
     const arriendo = { profesionalId: p2.id, espacioId: boxId, desde: fechaChile(0), hasta: fechaChile(30), monto: 15000 };
     expect(

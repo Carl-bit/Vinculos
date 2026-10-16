@@ -32,6 +32,11 @@ import {
   BuscarPacientesDto,
   ConfirmarBorradorDto,
   ConsentimientoAtencionDto,
+  CrearIngresoDto,
+  EditarPlantillaClinicaDto,
+  ListarPlantillasDto,
+  ProponerPlantillaDto,
+  ResolverDuplicadoDto,
   InvitarPacienteDto,
   ListarBorradoresDto,
   CatalogoDto,
@@ -48,7 +53,9 @@ import {
   TipoDocumentoDto,
 } from './dto/fichas.dto';
 import { EvolucionesService } from './evoluciones.service';
+import { IngresosService } from './ingresos.service';
 import { PacientesService } from './pacientes.service';
+import { PlantillasService } from './plantillas.service';
 import { SeguimientoService } from './seguimiento.service';
 import { Modulo } from '../../core/modulos/modulos';
 
@@ -125,12 +132,15 @@ export class PacientesController {
     return this.pacientes.invitar(id, dto);
   }
 
-  /** Posible duplicado revisado (D-2: nunca se fusiona por nombre). */
+  /**
+   * Posible duplicado (D-2: nunca se fusiona por nombre): solo administracion
+   * lo resuelve (DISTINTO o MISMO_PACIENTE), atiende la alerta y queda auditado.
+   */
   @Post(':id/duplicado-revisado')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION')
-  duplicadoRevisado(@Param('id', Uuid) id: string) {
-    return this.pacientes.duplicadoRevisado(id);
+  duplicadoRevisado(@Param('id', Uuid) id: string, @Body() dto: ResolverDuplicadoDto) {
+    return this.pacientes.duplicadoRevisado(id, dto.resolucion);
   }
 
   /** Politicas y consentimientos aceptados (version, canal, otorgante). */
@@ -453,5 +463,84 @@ export class AdjuntosFichaController {
   async descargar(@Param('id', Uuid) id: string) {
     const a = await this.adjuntos.descargar(id);
     return archivo(a.contenido, a.tipoMime, a.nombreArchivo);
+  }
+}
+
+/**
+ * Plantillas clinicas por especialidad (03a-2). Leen ADMIN y el equipo
+ * clinico (borradores: ADMIN y su autor); proponen ADMIN y PROFESIONAL con la
+ * especialidad aprobada; solo ADMIN publica y desactiva.
+ */
+@ApiTags(TAGS.fichas)
+@Controller('plantillas-clinicas')
+@Modulo('FICHAS')
+export class PlantillasClinicasController {
+  constructor(private readonly plantillas: PlantillasService) {}
+
+  @Get()
+  @Roles('ADMIN', 'PROFESIONAL', 'PRACTICANTE')
+  listar(@Query() filtro: ListarPlantillasDto) {
+    return this.plantillas.listar(filtro);
+  }
+
+  @Get(':id')
+  @Roles('ADMIN', 'PROFESIONAL', 'PRACTICANTE')
+  obtener(@Param('id', Uuid) id: string) {
+    return this.plantillas.obtener(id);
+  }
+
+  @Post()
+  @Roles('ADMIN', 'PROFESIONAL')
+  proponer(@Body() dto: ProponerPlantillaDto) {
+    return this.plantillas.proponer(dto);
+  }
+
+  /** Solo un borrador (una version publicada es inmutable: 409). */
+  @Patch(':id')
+  @Roles('ADMIN', 'PROFESIONAL')
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarPlantillaClinicaDto) {
+    return this.plantillas.editar(id, dto);
+  }
+
+  /** Editar una plantilla = version nueva en borrador (copia de la indicada). */
+  @Post(':id/versiones')
+  @Roles('ADMIN', 'PROFESIONAL')
+  nuevaVersion(@Param('id', Uuid) id: string) {
+    return this.plantillas.nuevaVersion(id);
+  }
+
+  /** La version publicada anterior de la familia queda INACTIVA. */
+  @Post(':id/publicacion')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  publicar(@Param('id', Uuid) id: string) {
+    return this.plantillas.publicar(id);
+  }
+
+  @Post(':id/desactivacion')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  desactivar(@Param('id', Uuid) id: string) {
+    return this.plantillas.desactivar(id);
+  }
+}
+
+/** Ficha de ingreso / anamnesis (03a-2, append-only): solo el equipo tratante. */
+@ApiTags(TAGS.fichas)
+@Controller('fichas/:fichaId/ingresos')
+@Modulo('FICHAS')
+export class IngresosController {
+  constructor(private readonly ingresos: IngresosService) {}
+
+  @Post()
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  crear(@Param('fichaId', Uuid) fichaId: string, @Body() dto: CrearIngresoDto) {
+    return this.ingresos.crear(fichaId, dto);
+  }
+
+  @Get()
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  listar(@Param('fichaId', Uuid) fichaId: string) {
+    return this.ingresos.listar(fichaId);
   }
 }

@@ -15,6 +15,9 @@ const en = (horas: number) => {
   const inicio = new Date(Date.now() + horas * HORA);
   inicio.setUTCSeconds(0, 0);
   inicio.setUTCMinutes((minuto += 7) % 60);
+  // La disponibilidad es por dia (0-1440 hora de Chile): una cita no cruza la medianoche local.
+  const horaChile = Number(inicio.toLocaleString('en-US', { timeZone: 'America/Santiago', hour: 'numeric', hourCycle: 'h23' }));
+  if (horaChile >= 22) inicio.setTime(inicio.getTime() + 3 * HORA);
   return { inicio: inicio.toISOString(), fin: new Date(inicio.getTime() + HORA).toISOString() };
 };
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n');

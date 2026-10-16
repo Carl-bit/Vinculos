@@ -63,7 +63,12 @@ export function verificarTotp(secreto: string, codigo: string, instante = Date.n
   }
   const dado = createHash('sha256').update(codigo).digest();
   return [-1, 0, 1].some((d) =>
-    timingSafeEqual(createHash('sha256').update(codigoTotp(secreto, instante + d * PASO_SEGUNDOS * 1000)).digest(), dado),
+    timingSafeEqual(
+      createHash('sha256')
+        .update(codigoTotp(secreto, instante + d * PASO_SEGUNDOS * 1000))
+        .digest(),
+      dado,
+    ),
   );
 }
 

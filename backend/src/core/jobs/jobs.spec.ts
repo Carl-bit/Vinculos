@@ -72,8 +72,15 @@ describe('programacion de jobs (reloj simulado)', () => {
     expect(de('procesar_bajas').every((d) => d.en.getUTCMinutes() === 0)).toBe(true);
   });
 
-  it('cada minuto: enviar notificaciones', () => {
+  it('cada minuto: enviar notificaciones y reintentar correos de cuenta', () => {
     expect(de('enviar_notificaciones')).toHaveLength(24 * 60);
+    expect(de('reintentar_correos_cuenta')).toHaveLength(24 * 60);
+  });
+
+  it('una vez al dia a las 03:30 de Chile: purgar mensajes internos', () => {
+    const purga = de('purgar_mensajes_internos');
+    expect(purga).toHaveLength(1);
+    expect(purga[0].en.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour12: false })).toBe('03:30:00');
   });
 
   it('una vez al dia a las 03:00 de Chile: verificar canarios', () => {
@@ -92,6 +99,8 @@ describe('programacion de jobs (reloj simulado)', () => {
         'limpiar_solicitudes',
         'procesar_bajas',
         'enviar_notificaciones',
+        'reintentar_correos_cuenta',
+        'purgar_mensajes_internos',
         'verificar_canarios',
       ]),
     );

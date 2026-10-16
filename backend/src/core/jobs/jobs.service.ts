@@ -112,6 +112,19 @@ export class JobsService implements OnApplicationBootstrap {
     });
   }
 
+  /**
+   * 03a-2: purga mensajes internos mas antiguos que
+   * configuracion_centro.retencion_mensajes_dias (default 365) y los hilos
+   * que quedan vacios. La mensajeria no es el expediente.
+   */
+  @Cron('30 3 * * *', { name: 'purgar_mensajes_internos', timeZone: 'America/Santiago' })
+  purgarMensajesInternos(): Promise<ResultadoJob> {
+    return this.conLock('purgar_mensajes_internos', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT purgar_mensajes_internos() AS n`;
+      return n;
+    });
+  }
+
   @Cron('0 3 * * *', { name: 'verificar_canarios', timeZone: 'America/Santiago' })
   async verificarCanarios(): Promise<ResultadoJob> {
     return this.conLock('verificar_canarios', async () => ((await this.llavero.verificarYRegistrar()) ? 1 : 0));

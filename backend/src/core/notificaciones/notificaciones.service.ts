@@ -145,6 +145,34 @@ export class NotificacionesService {
     });
   }
 
+  /** 03a-2: correos de cuenta que fallaron (enlace de un solo uso); backoff en la BD, se borran al enviarse o vencer. */
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'reintentar_correos_cuenta' })
+  reintentarCorreosCuenta(): Promise<ResultadoJob> {
+    return this.jobs.conLock('reintentar_correos_cuenta', async (tx) => {
+      const pendientes = await tx.$queryRaw<{ id: string; email: Uint8Array; asunto: string; cuerpo: Uint8Array }[]>`
+        SELECT * FROM correos_cuenta_por_enviar(20)`;
+      if (pendientes.length === 0) return 0;
+      const [f] = await tx.$queryRaw<[{ c: { nombre_centro: string } }]>`SELECT contenido_publico_centro() AS c`;
+      let enviados = 0;
+      for (const c of pendientes) {
+        let ok = true;
+        try {
+          await this.correo.enviar({
+            para: this.llavero.descifrarCampo(c.email, 'correos_cuenta_pendientes', 'email', c.id)!,
+            remitente: f?.c.nombre_centro ?? 'Centro',
+            asunto: c.asunto,
+            texto: this.llavero.descifrarCampo(c.cuerpo, 'correos_cuenta_pendientes', 'cuerpo', c.id)!,
+          });
+        } catch {
+          ok = false;
+        }
+        await tx.$executeRaw`SELECT resultado_correo_cuenta(${c.id}::uuid, ${ok})`;
+        enviados += ok ? 1 : 0;
+      }
+      return enviados;
+    });
+  }
+
   private async procesar(tx: Tx, n: Pendiente): Promise<boolean> {
     const marcar = (enviada: boolean, detalle: string | null, reintentar: boolean) =>
       tx.$executeRaw`SELECT marcar_notificacion(${n.id}::uuid, ${enviada}, ${detalle}, ${reintentar})`;

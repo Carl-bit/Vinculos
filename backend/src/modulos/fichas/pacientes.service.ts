@@ -158,15 +158,16 @@ export class PacientesService {
     return vistaPaciente(paciente);
   }
 
-  /** GESTION/ADMIN concilian un posible duplicado (D-2): se revisa a mano; nunca se fusiona por nombre. */
-  async duplicadoRevisado(id: string) {
+  /** Solo administracion resuelve un posible duplicado (D-2, 03a-2): funcion de la BD, atiende la alerta y audita. */
+  async duplicadoRevisado(id: string, resolucion: 'DISTINTO' | 'MISMO_PACIENTE') {
     await this.obtener(id);
-    return vistaPaciente(await this.bd.tx().paciente.update({ where: { id }, data: { posibleDuplicado: false }, select: VISTA_PACIENTE }));
+    await this.bd.tx().$executeRaw`SELECT resolver_posible_duplicado(${id}::uuid, ${resolucion})`;
+    return this.obtener(id);
   }
 
   /**
-   * Invitacion de cuenta (ADMIN/GESTION, 03a): el paciente desde los 14
-   * años; si es menor, su adulto responsable (cuenta RESPONSABLE). Enlace de
+   * Invitacion de cuenta (ADMIN/GESTION, 03a): el paciente desde la edad
+   * minima configurada (default 14); si es menor, su adulto responsable (cuenta RESPONSABLE). Enlace de
    * un solo uso por correo, enviado despues del COMMIT.
    */
   async invitar(pacienteId: string, dto: InvitarPacienteDto) {
@@ -179,14 +180,21 @@ export class PacientesService {
     if (menor && dto.adultoResponsableId) {
       [{ email }] = await tx.$queryRaw<[{ email: string }]>`
         SELECT crear_invitacion_responsable(${dto.adultoResponsableId}::uuid, ${dto.email ?? null}, ${hash}, ${vence}) AS email`;
-    } else if (menor && !dto.adultoResponsableId && p.fechaNacimiento.getTime() > Date.now() - 14 * 365.25 * 86_400_000) {
-      throw new BadRequestException('Menor de 14: la cuenta es del adulto responsable (indicar adultoResponsableId)');
+    } else if (menor && !dto.adultoResponsableId && (await this.bajoEdadMinima(pacienteId))) {
+      throw new BadRequestException('Menor de la edad minima de cuenta: la cuenta es del adulto responsable (indicar adultoResponsableId)');
     } else {
       [{ email }] = await tx.$queryRaw<[{ email: string }]>`
         SELECT crear_invitacion_paciente(${pacienteId}::uuid, ${dto.email ?? null}, ${hash}, ${vence}) AS email`;
     }
     this.bd.alConfirmar(() => this.correos.enviar('INVITACION', email, token, vence));
     return { pacienteId, invitacionVence: vence };
+  }
+
+  /** Edad minima de la cuenta propia: configurable en configuracion_centro (D-4, 03a-2). */
+  private async bajoEdadMinima(pacienteId: string): Promise<boolean> {
+    const [{ bajo }] = await this.bd.tx().$queryRaw<[{ bajo: boolean }]>`
+      SELECT edad_paciente(${pacienteId}::uuid) < edad_minima_cuenta() AS bajo`;
+    return bajo;
   }
 
   /** Consentimiento informado de atencion registrado por ADMIN/GESTION con respaldo (D-3, canal PRESENCIAL). */

@@ -94,7 +94,13 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
     'El recordatorio debe salir antes del plazo de aviso de cancelacion: recordatorioHorasAntes mayor que plazoAvisoCancelacionHoras (o 0 para desactivarlo)',
   // 03a
   roles_adicionales_combinacion: 'Combinacion de roles invalida: solo ADMIN o GESTION suman PROFESIONAL',
-  usuarios_paciente_edad_minima: 'La cuenta de paciente es desde los 14 años y con correo (menores de 14: el adulto responsable)',
+  usuarios_paciente_edad_minima: 'La cuenta de paciente exige correo y la edad minima configurada (antes: el adulto responsable)',
+  // 03a-2: plantillas clinicas, mensajeria interna y duplicados.
+  registro_plantilla_valida: 'Use una plantilla publicada del tipo correcto (una correccion usa la version del registro que corrige)',
+  registro_plantilla_especialidad: 'La plantilla es de una especialidad que no tiene aprobada',
+  plantillas_clinicas_validas: 'Definicion de plantilla invalida (campos, tipos u opciones)',
+  hilos_internos_coherentes: 'Hilo general sin paciente y solo con integrantes vigentes del equipo; hilo de caso con paciente',
+  pacientes_duplicado_resolucion: 'Resolucion: DISTINTO o MISMO_PACIENTE',
   usuarios_responsable_de_menor: 'La cuenta de adulto responsable es para pacientes menores de 18 y requiere correo',
   tokens_correo_sin_destinatario: 'El paciente (o su adulto responsable) no tiene correo registrado',
   aceptaciones_politica_version_vigente: 'Hay una version nueva de la politica: vuelva a leerla y aceptarla',
@@ -143,6 +149,11 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/GESTION no habilitado/, 'usuarios_gestion_requiere_habilitacion'],
   [/tarifa general vigente/, 'profesionales_publicar_requiere_tarifa'],
   [/Tipo de sesion no aprobado/, 'evoluciones_tipo_sesion_aprobado'],
+  // 03a-2
+  [/especialidad que no tiene aprobada/, 'registro_plantilla_especialidad'],
+  [/Use una plantilla publicada|misma version de plantilla/, 'registro_plantilla_valida'],
+  [/Hilo general: sin paciente|Solo hilos generales/, 'hilos_internos_coherentes'],
+  [/Resolucion: DISTINTO o MISMO_PACIENTE/, 'pacientes_duplicado_resolucion'],
   [/Candidatos invalidos|Solo se proponen practicantes/, 'derivacion_candidatos_validos'],
   [/Tipo de atencion inexistente o inactivo/, 'derivaciones_tipo_atencion_activo'],
   [/no tiene supervision vigente|no es un practicante con supervision/, 'practicante_requiere_supervision'],

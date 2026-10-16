@@ -90,6 +90,14 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Resena', campo: 'feedbackPrivado', tabla: 'resenas', columna: 'feedback_privado', categoria: 'CLINICO', id: 'id' },
   { modelo: 'AltaPaciente', campo: 'motivo', tabla: 'altas_paciente', columna: 'motivo', categoria: 'CLINICO', id: 'id' },
   { modelo: 'BorradorEvolucion', campo: 'contenido', tabla: 'borradores_evolucion', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
+  // 03a-2: valores de plantillas clinicas (un JSON por registro), mensajeria interna y correos de cuenta por reintentar.
+  { modelo: 'Evolucion', campo: 'valores', tabla: 'evoluciones', columna: 'valores', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'BorradorEvolucion', campo: 'valores', tabla: 'borradores_evolucion', columna: 'valores', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'IngresoFicha', campo: 'valores', tabla: 'ingresos_ficha', columna: 'valores', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'HiloInterno', campo: 'asunto', tabla: 'hilos_internos', columna: 'asunto', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'MensajeInterno', campo: 'contenido', tabla: 'mensajes_internos', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'CorreoCuentaPendiente', campo: 'email', tabla: 'correos_cuenta_pendientes', columna: 'email', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'CorreoCuentaPendiente', campo: 'cuerpo', tabla: 'correos_cuenta_pendientes', columna: 'cuerpo', categoria: 'IDENTIFICACION', id: 'id' },
 ];
 
 /**

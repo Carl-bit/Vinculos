@@ -8,8 +8,24 @@ import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import type { AccesoTemporalDto, BorradorDto, ConfirmarBorradorDto } from './dto/fichas.dto';
 import { EvolucionesService } from './evoluciones.service';
+import { PlantillasService } from './plantillas.service';
 
-const VISTA_BORRADOR = { id: true, fichaClinicaId: true, citaId: true, contenido: true, creadoEn: true, actualizadoEn: true } as const;
+const VISTA_BORRADOR = {
+  id: true,
+  fichaClinicaId: true,
+  citaId: true,
+  contenido: true,
+  plantillaId: true,
+  valores: true,
+  creadoEn: true,
+  actualizadoEn: true,
+} as const;
+
+const vistaBorrador = <B extends { contenido: Uint8Array; valores: Uint8Array | null }>(b: B) => ({
+  ...b,
+  contenido: texto(b.contenido),
+  valores: b.valores ? (JSON.parse(texto(b.valores)) as Record<string, unknown>) : null,
+});
 
 /**
  * Seguimiento clinico (03a): borradores de evolucion (C-8), alta del
@@ -22,6 +38,7 @@ export class SeguimientoService {
     private readonly bd: ContextoBd,
     private readonly llavero: LlaveroService,
     private readonly evoluciones: EvolucionesService,
+    private readonly plantillas: PlantillasService,
   ) {}
 
   /** Borradores propios (la RLS solo muestra los del autor). */
@@ -31,23 +48,40 @@ export class SeguimientoService {
       select: VISTA_BORRADOR,
       orderBy: { actualizadoEn: 'desc' },
     });
-    return filas.map((b) => ({ ...b, contenido: texto(b.contenido) }));
+    return filas.map(vistaBorrador);
+  }
+
+  /** Valores de plantilla de un borrador: tipos y opciones validos; los obligatorios se exigen al confirmar. */
+  private async valoresBorrador(dto: BorradorDto) {
+    return dto.plantillaId ? claro(await this.plantillas.valoresValidos(dto.plantillaId, dto.valores!, false)) : null;
   }
 
   async crearBorrador(fichaId: string, dto: BorradorDto) {
     const b = await this.bd.tx().borradorEvolucion.create({
-      data: { id: randomUUID(), autorId: this.bd.usuario().id, fichaClinicaId: fichaId, citaId: dto.citaId, contenido: claro(dto.contenido) },
+      data: {
+        id: randomUUID(),
+        autorId: this.bd.usuario().id,
+        fichaClinicaId: fichaId,
+        citaId: dto.citaId,
+        contenido: claro(dto.contenido),
+        plantillaId: dto.plantillaId ?? null,
+        valores: await this.valoresBorrador(dto),
+      },
       select: VISTA_BORRADOR,
     });
-    return { ...b, contenido: texto(b.contenido) };
+    return vistaBorrador(b);
   }
 
   /** Guardado automatico. */
   async guardarBorrador(id: string, dto: BorradorDto) {
     const tx = this.bd.tx();
     encontrado(await tx.borradorEvolucion.findUnique({ where: { id }, select: { id: true } }), 'Borrador');
-    const b = await tx.borradorEvolucion.update({ where: { id }, data: { contenido: claro(dto.contenido), citaId: dto.citaId }, select: VISTA_BORRADOR });
-    return { ...b, contenido: texto(b.contenido) };
+    const b = await tx.borradorEvolucion.update({
+      where: { id },
+      data: { contenido: claro(dto.contenido), citaId: dto.citaId, plantillaId: dto.plantillaId ?? null, valores: await this.valoresBorrador(dto) },
+      select: VISTA_BORRADOR,
+    });
+    return vistaBorrador(b);
   }
 
   async descartarBorrador(id: string) {
@@ -60,7 +94,13 @@ export class SeguimientoService {
   async confirmarBorrador(id: string, dto: ConfirmarBorradorDto) {
     const tx = this.bd.tx();
     const b = encontrado(await tx.borradorEvolucion.findUnique({ where: { id }, select: VISTA_BORRADOR }), 'Borrador');
-    const resultado = await this.evoluciones.crear(b.fichaClinicaId, { ...dto, notas: texto(b.contenido), citaId: b.citaId ?? undefined });
+    const resultado = await this.evoluciones.crear(b.fichaClinicaId, {
+      ...dto,
+      notas: texto(b.contenido),
+      citaId: b.citaId ?? undefined,
+      plantillaId: b.plantillaId ?? undefined,
+      valores: b.valores ? (JSON.parse(texto(b.valores)) as Record<string, unknown>) : undefined,
+    });
     await tx.borradorEvolucion.delete({ where: { id }, select: { id: true } });
     return resultado;
   }

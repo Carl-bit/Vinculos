@@ -229,6 +229,20 @@ export class EditarConfiguracionDto {
   @Min(5)
   @Max(120)
   minutosRetencionSolicitud?: number;
+
+  /** 03a-2 (D-4): edad minima para la cuenta propia del paciente (14 a 18; antes opera el adulto responsable). */
+  @IsOptional()
+  @IsInt()
+  @Min(14)
+  @Max(18)
+  edadMinimaCuenta?: number;
+
+  /** 03a-2: dias que se conservan los mensajes internos del equipo (30 a 3650). */
+  @IsOptional()
+  @IsInt()
+  @Min(30)
+  @Max(3650)
+  retencionMensajesDias?: number;
 }
 
 export class OtorgarAccesoDto {

@@ -38,7 +38,14 @@ export class CentroService {
     const img = await procesarImagenPublica(archivo);
     const tx = this.bd.tx();
     const { id } = await tx.imagenPublica.create({
-      data: { tipo: 'LOGO', tipoMime: img.tipoMime, ancho: img.ancho, alto: img.alto, tamanoBytes: img.contenido.length, contenido: new Uint8Array(img.contenido) },
+      data: {
+        tipo: 'LOGO',
+        tipoMime: img.tipoMime,
+        ancho: img.ancho,
+        alto: img.alto,
+        tamanoBytes: img.contenido.length,
+        contenido: new Uint8Array(img.contenido),
+      },
       select: { id: true },
     });
     await tx.contenidoPublico.update({ where: { id: true }, data: { logoImagenId: id } });

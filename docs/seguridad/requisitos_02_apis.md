@@ -452,3 +452,58 @@ Decisiones: `docs/front/brechas.md` (seccion 6). Migraciones
   horario del centro o del box -> 422; hora retenida por otra solicitud -> 409.
 - **Funciones void**: se llaman con `$executeRaw` (Prisma no deserializa
   `void` en `$queryRaw` -> 500).
+
+## 15. Campos clinicos por especialidad y mensajeria interna (03a-2)
+
+Migraciones `20261019000000_03a2_enums` y `20261019000100_03a2_plantillas_mensajeria`.
+
+- **Plantillas clinicas**: una fila por version (`familia_id` = version 1).
+  Escritura solo via funciones (`proponer_plantilla`, `editar_plantilla`,
+  `nueva_version_plantilla`, `publicar_plantilla`, `desactivar_plantilla`).
+  La BD valida la forma de la definicion (CHECK
+  `definicion_plantilla_valida`) y que una version publicada no cambie
+  (trigger, incluso como dueño). Validar los **valores** contra la version es
+  de la API (`src/common/plantillas-clinicas.ts`, `erroresValores`) antes de
+  cifrar: 422 con la lista de errores (`errores`). En un borrador los
+  obligatorios se exigen recien al confirmar.
+- **Valores cifrados como un solo JSON** (`claro(JSON.stringify(valores))`,
+  AAD de la fila). Los campos estructurados que se consultan (tipo de sesion,
+  intervenciones, estado de avance, nivel de riesgo) siguen como columnas.
+- **Version de la plantilla**: cada registro guarda la version con que se
+  escribio (`plantilla_id` apunta a la fila de esa version) y se muestra con
+  ella. Una correccion usa la misma version (aunque este INACTIVA). Un
+  registro nuevo usa una version PUBLICADA y, si escribe un PROFESIONAL, de
+  una especialidad suya aprobada.
+- **Supervision**: `supervision_evoluciones` entrega plantilla y valores; la
+  API descifra y devuelve solo los campos `visible_en_supervision`, senalando
+  los de texto libre (`camposTextoLibre` + `advertenciaTextoLibre`).
+- **Mensajeria interna**: la visibilidad la decide la BD en cada consulta
+  (`hilo_visible`): GENERAL a sus participantes; CASO a quien tiene acceso
+  clinico vigente con el rol activo (`acceso_clinico_paciente`: tratante
+  PROFESIONAL, PRACTICANTE con consentimiento o acceso temporal). ADMIN,
+  GESTION y la supervision no participan en hilos de caso. La API audita en
+  `accesos_ficha` cada lectura o escritura de un hilo CASO.
+- **Nombres en hilos**: via `nombres_hilo(hilo)` (cuarta fuente autorizada de
+  nombres de otros usuarios, ademas de `directorio_interno`,
+  `mi_equipo_tratante` y `perfiles_publicos`): `directorio_interno` no sirve
+  aqui porque al PRACTICANTE solo le muestra a su supervisor y porque una
+  cuenta cerrada debe verse como "Ex integrante del equipo".
+- **Rate limit de mensajes**: 30 por usuario y minuto (429), contado en la BD
+  dentro de la transaccion: el throttler global es por IP.
+- **Retiro**: `retirar_mensaje_interno` (autor, 5 minutos; despues 409).
+- **Duplicados**: el indicador `posible_duplicado` ya no se actualiza
+  directo; solo `resolver_posible_duplicado` (ADMIN/GESTION), que atiende la
+  alerta y audita. Al marcarse, la BD crea la alerta y avisa a ADMIN y
+  GESTION (trigger).
+- **RUT antes de la primera evolucion**: para todo paciente (antes solo los
+  creados por solicitud).
+- **Edad minima de la cuenta**: `configuracion_centro.edad_minima_cuenta`
+  (14 a 18, default 14); las funciones de invitacion la leen
+  (`edad_minima_cuenta()`).
+- **Correos de cuenta con reintento**: si el envio falla, la API encola sin
+  contexto (`encolar_correo_cuenta`, destinatario y cuerpo cifrados) y el job
+  `reintentar_correos_cuenta` (cada minuto) reintenta con backoff; enviado o
+  vencido se borra.
+- **Preferencias del adulto responsable**: `GET/PUT
+  notificaciones/preferencias/pacientes/:pacienteId` (RESPONSABLE, solo
+  menores a su cargo; si no, 404).

@@ -14,11 +14,12 @@ import * as bcrypt from 'bcrypt';
 import request = require('supertest');
 
 import { AppModule } from '../src/app.module';
-import { Llavero, type FilaLlave } from '../src/common/crypto/cifrado';
+import { aad, Llavero, type FilaLlave } from '../src/common/crypto/cifrado';
 import { configurarApp } from '../src/configurar-app';
 import { codigoTotp } from '../src/core/auth/totp';
 import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
 import { NotificacionesService } from '../src/core/notificaciones/notificaciones.service';
+import { dvRut } from '../src/core/validacion/validadores';
 import { leerEntorno } from './bd/global';
 
 export const CLAVE = 'clave-de-prueba-123';
@@ -84,7 +85,9 @@ export async function crearApp(extra: Record<string, string> = {}, modulosExtra:
         }
         secretosTotp.set(u.id, e.body.secreto as string);
       }
-      r = await http().post('/api/auth/totp').send({ desafio, codigo: codigoTotp(secretosTotp.get(u.id)!) });
+      r = await http()
+        .post('/api/auth/totp')
+        .send({ desafio, codigo: codigoTotp(secretosTotp.get(u.id)!) });
     }
     if (r.status !== 200) {
       throw new Error(`login de prueba fallo (${r.status}) para ${u.rol}`);
@@ -143,7 +146,23 @@ const unico = () => `${Date.now().toString(36)}${(contador++).toString(36)}`;
 
 /** Datos de prueba como dueño (sin RLS). Cada test crea los suyos. */
 export class Fixtures {
+  private llavero?: Promise<Llavero>;
+
   constructor(private readonly dueno: PrismaClient) {}
+
+  /**
+   * RUT valido y unico, cifrado con el AAD de la fila e indice ciego: desde
+   * 03a-2 todo paciente necesita RUT antes de su primera evolucion.
+   */
+  private async rut(pacienteId: string) {
+    const llavero = await (this.llavero ??= llaveroPrueba(this.dueno));
+    const cuerpo = String(10_000_000 + Math.floor(Math.random() * 89_999_999));
+    const rut = `${cuerpo}-${dvRut(cuerpo)}`;
+    return {
+      rut: new Uint8Array(llavero.cifrar(rut, 'IDENTIFICACION', aad('pacientes', 'rut', pacienteId))),
+      rutHmac: new Uint8Array(llavero.hmacRut(rut)),
+    };
+  }
 
   async usuario(
     rol: Rol,
@@ -183,8 +202,8 @@ export class Fixtures {
     return { id };
   }
 
-  /** Paciente (con ficha) de un PROFESIONAL. */
-  async paciente(profesionalId: string, opciones: { fechaNacimiento?: Date; nombre?: string } = {}) {
+  /** Paciente (con ficha y RUT, salvo sinRut) de un PROFESIONAL. */
+  async paciente(profesionalId: string, opciones: { fechaNacimiento?: Date; nombre?: string; sinRut?: boolean } = {}) {
     const id = randomUUID();
     await this.dueno.paciente.create({
       data: {
@@ -193,6 +212,7 @@ export class Fixtures {
         apellido: unico(),
         fechaNacimiento: opciones.fechaNacimiento ?? new Date('1990-01-01'),
         profesionalId,
+        ...(opciones.sinRut ? {} : await this.rut(id)),
       },
     });
     const ficha = await this.dueno.fichaClinica.create({ data: { pacienteId: id } });
@@ -205,10 +225,18 @@ export class Fixtures {
    */
   async pacienteDePracticante(practicanteId: string, supervisorId: string, opciones: { fechaNacimiento?: Date } = {}) {
     const id = randomUUID();
+    const rut = await this.rut(id);
     let fichaId = '';
     await this.dueno.$transaction(async (tx) => {
       await tx.paciente.create({
-        data: { id, nombre: 'Paciente', apellido: unico(), fechaNacimiento: opciones.fechaNacimiento ?? new Date('1992-01-01'), profesionalId: practicanteId },
+        data: {
+          id,
+          nombre: 'Paciente',
+          apellido: unico(),
+          fechaNacimiento: opciones.fechaNacimiento ?? new Date('1992-01-01'),
+          profesionalId: practicanteId,
+          ...rut,
+        },
       });
       await tx.consentimiento.create({
         data: {

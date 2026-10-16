@@ -11,15 +11,19 @@ import {
   CatalogosClinicosController,
   DocumentosController,
   EvolucionesController,
+  IngresosController,
   PacientesController,
+  PlantillasClinicasController,
   RetencionController,
   SeguimientoController,
   TiposDocumentoController,
 } from './fichas.controller';
+import { IngresosService } from './ingresos.service';
+import { PlantillasService } from './plantillas.service';
 import { SeguimientoService } from './seguimiento.service';
 import { PacientesService } from './pacientes.service';
 
-/** Fichas y Pacientes (02c; documentos clinicos 02h; adjuntos 02i). Depende solo del Nucleo (core). */
+/** Fichas y Pacientes (02c; documentos clinicos 02h; adjuntos 02i; plantillas por especialidad e ingreso 03a-2). Depende solo del Nucleo (core). */
 @Module({
   imports: [
     // Multipart en streaming: multer corta la subida al pasar el limite (413), un archivo por request.
@@ -39,7 +43,18 @@ import { PacientesService } from './pacientes.service';
     DocumentosController,
     AdjuntosFichaController,
     SeguimientoController,
+    PlantillasClinicasController,
+    IngresosController,
   ],
-  providers: [PacientesService, EvolucionesService, CatalogosRetencionService, DocumentosService, AdjuntosService, SeguimientoService],
+  providers: [
+    PacientesService,
+    EvolucionesService,
+    CatalogosRetencionService,
+    DocumentosService,
+    AdjuntosService,
+    SeguimientoService,
+    PlantillasService,
+    IngresosService,
+  ],
 })
 export class FichasModule {}

@@ -17,6 +17,8 @@ Integraciones y mensajeria: `docs/api/integraciones.md`.
 | `20261017000000_recordatorio_antes_de_cancelacion` | 02j | `recordatorio_horas_antes` default 48 y CHECK `configuracion_centro_recordatorio_antes_de_cancelacion` (activo -> mayor que `plazo_aviso_cancelacion_horas`); silos con recordatorio <= plazo se movieron al minimo coherente |
 | `20261018000000_03a_enums` | 03a-1 | valores de enum: rol RESPONSABLE, cita SOLICITADA, medio de pago CONVENIO, avisos HORA_LIBERADA, ACCESO_CLINICO_TEMPORAL, SOLICITUD_HORA, CIERRE_REQUERIDO y alerta BAJA_CON_BORRADORES |
 | `20261018000100_03a_cuentas_portal_agenda` | 03a-1 | varios roles por cuenta, tokens por correo y TOTP, politicas y aceptaciones, menores y RESPONSABLE, citas SOLICITADA y solicitudes de hora sin cuenta, horario del centro y por box, lista de espera, perfil publico ampliado, match configurable, imagenes publicas, modulos activables, reseñas, acceso clinico temporal, borradores de evolucion, altas, liquidacion por cita realizada, reportes (ver `docs/front/brechas.md` seccion 6) |
+| `20261019000000_03a2_enums` | 03a-2 | valores de enum: alerta y aviso POSIBLE_DUPLICADO, aviso MENSAJE_INTERNO |
+| `20261019000100_03a2_plantillas_mensajeria` | 03a-2 | `especialidades`, `profesional_especialidades`, `plantillas_clinicas` (versionadas, con ejemplos), `ingresos_ficha`, plantilla y valores en `evoluciones` y `borradores_evolucion`; `hilos_internos`, `participantes_hilo`, `mensajes_internos`, `lecturas_hilo`; `correos_cuenta_pendientes`; `configuracion_centro.retencion_mensajes_dias` y `edad_minima_cuenta`; duplicados solo via funcion (alerta y aviso); RUT antes de la primera evolucion para todo paciente |
 
 Todas siguen el checklist de tabla nueva: categoria A (salvo
 `tipos_documento_clinico` y `plantillas_mensaje`, B), ENABLE + FORCE RLS, politicas por rol +
@@ -37,6 +39,7 @@ cifrado en `registro.ts`, casos en `seguridad_bd.sql` y filas en la matriz.
 | match (02g) | `publico/{profesionales, profesionales/:id/disponibilidad, match}` (anonimo, rate limit), `portal/{equipo,citas,citas/:id/datos-pago,mensajes,epicrisis}`, `mensajes`, `epicrisis` |
 | cobros (02h) | `cobros/citas` (`:id`, `:id/pagos`, `:id/resolucion`), `cobros/pagos/:id/anulacion`, `cobros/arriendos`, `cobros/liquidaciones` (`:id/emision`, `:id/pago`) |
 | 03a-1 | `auth/{cambio-rol,totp,totp/enrolamiento,activacion,recuperacion(/confirmacion),enlace-acceso(/confirmacion),correo/verificacion}`; `usuarios/:id/{roles,roles/PROFESIONAL/baja,invitacion,totp/reinicio}`; `configuracion/{horario,logo,contenido-publico}`, `modulos`, `politicas`, `reportes/dashboard`; `pacientes/:id/{invitacion,duplicado-revisado,consentimiento-atencion(/enlace),aceptaciones,alta,altas,accesos-temporales,respuestas-match}`, `accesos-temporales`, `borradores` (`fichas/:fichaId/borradores`, `:id/confirmacion`), `profesionales/:id/estado-fichas`; `espacios/:id/horario`, `citas/:id/{aprobacion,cierre-requerido,profesional}`, `lista-espera` (`:id/cierre`); `profesionales/{yo,:id}/foto`, `profesionales/yo/resenas`; `match/{preguntas,opciones,metricas}`, `resenas` (`:id/moderacion`); `portal/{pacientes,mis-datos,consentimiento-atencion,resenas}`; `publico/{centro,cuestionario,match,solicitudes(/verificacion),politicas/:tipo,imagenes/:id,profesionales/:id/resenas,resenas/:id/reporte,consentimientos/{consulta,respuesta}}`; `cobros/reporte(/pdf)`, `cobros/liquidaciones/:id/pdf`; `consentimientos/:id/enlace`, `avisos-consentimiento/:id/enlace` |
+| 03a-2 | `especialidades` (`:id`), `profesionales/yo/especialidades`, `profesionales/:id/especialidades` (`:especialidadId/revision`); `plantillas-clinicas` (`:id`, `:id/versiones`, `:id/publicacion`, `:id/desactivacion`); `fichas/:fichaId/ingresos`; `hilos` (`:id/mensajes`, `:id/participantes`, `mensajes/:mensajeId/retiro`); `notificaciones/preferencias/pacientes/:pacienteId`; `pacientes/:id/duplicado-revisado` ahora con `resolucion` |
 
 ## Tests
 
@@ -173,6 +176,32 @@ Ademas, al implementar:
 - **Centro demo**: el seed demo enrola el TOTP de las cuentas del equipo y
   deja los secretos en `infra/local/totp-demo.txt` (fuera de git).
 
+## Decisiones de 03a-2
+
+- **Plantilla por version**: `plantilla_id` apunta a la fila de la version
+  (no se guarda aparte el numero: sale de la plantilla). La plantilla de
+  ejemplo no tiene autor (`propuesta_por_id` nulo).
+- **"Un tratante nuevo de otra especialidad lee los registros anteriores con
+  su propia plantilla"** (prompt): contradice "cada registro se muestra con
+  la version con que se escribio". Se implemento lo segundo: los registros
+  anteriores se muestran con su plantilla original (de la especialidad que
+  sea; el equipo ve las plantillas publicadas e inactivas) y el tratante
+  nuevo escribe los suyos con la plantilla de su especialidad.
+- **Hilo GENERAL con participantes explicitos** (el creador elige; cualquier
+  participante agrega). Hilo CASO sin participantes guardados: son quienes
+  tienen acceso clinico vigente en cada lectura.
+- **Escribir en un hilo CASO con acceso temporal de solo lectura** se
+  permite: el mensaje no es parte de la ficha.
+- **Avisos de mensaje interno**: a lo mas uno por hilo y persona cada 15
+  minutos (evita una ráfaga de correos).
+- **Duplicado MISMO_PACIENTE**: se registra la decision; la fusion de fichas
+  no es automatica (pendiente).
+- **Rate limit de mensajes**: 30 por usuario y minuto, en la API (consulta en
+  la misma transaccion).
+- **Tests dependientes del reloj (preexistentes)**: 02i creaba citas que de
+  noche cruzaban la medianoche local (fuera de la disponibilidad por dia) y el
+  caso SQL 95 tomaba un periodo que de noche no incluia las citas: corregidos.
+
 ## Pendiente / no probado
 
 - Porcentajes de penalizacion, inasistencia y comision: quedan en 0 por
@@ -198,3 +227,6 @@ Ademas, al implementar:
   `posible_duplicado` en la BD. `seed:demo` no se corrio contra 03a.
   La coleccion Bruno se elimino (las pruebas manuales se hacen en Postman). Campos clinicos
   por especialidad y mensajeria interna: 03a-2.
+- 03a-2: tiempo real (SSE) de la mensajeria; adjuntos en mensajes; reportes
+  sobre campos de plantilla; fusion de fichas duplicadas; validacion legal de
+  D-4 (los cortes de edad ya son configurables). C-11 sigue pendiente.

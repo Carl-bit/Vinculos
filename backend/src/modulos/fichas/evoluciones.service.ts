@@ -3,15 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 
+import { ADVERTENCIA_TEXTO_LIBRE } from '../../common/plantillas-clinicas';
 import { registrarAcceso } from '../../core/bd/auditoria';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import type { CrearEvolucionDto } from './dto/fichas.dto';
+import { PlantillasService, VISTA_PLANTILLA } from './plantillas.service';
 
-/** La UI la muestra junto al formulario y en la respuesta de creacion (cifrado.md). */
-export const ADVERTENCIA_TEXTO_LIBRE =
-  'No escriba datos identificatorios (nombres, RUT, telefonos, direcciones) en el texto libre: ' +
-  'queda cifrado en reposo, pero lo lee cualquiera con acceso a esta evolucion (incluida la supervision).';
+export { ADVERTENCIA_TEXTO_LIBRE };
 
 /** Valores explicitos de la copia de autoria cuando el autor no tiene el dato. */
 const SIN_RUT = 'sin RUT registrado';
@@ -29,6 +28,8 @@ const VISTA_EVOLUCION = {
   corrigeAId: true,
   citaId: true,
   createdAt: true,
+  valores: true,
+  plantilla: { select: VISTA_PLANTILLA },
   tipoSesion: { select: { id: true, nombre: true } },
   estadoAvance: { select: { id: true, nombre: true } },
   intervenciones: { select: { intervencion: { select: { id: true, nombre: true } } } },
@@ -50,6 +51,9 @@ function vista(e: Evolucion) {
     corrigeAId: e.corrigeAId,
     citaId: e.citaId,
     createdAt: e.createdAt,
+    // 03a-2: cada registro con la version de plantilla con que se escribio.
+    plantilla: e.plantilla,
+    valores: e.valores ? (JSON.parse(texto(e.valores)) as Record<string, unknown>) : null,
   };
 }
 
@@ -60,7 +64,10 @@ function vista(e: Evolucion) {
  */
 @Injectable()
 export class EvolucionesService {
-  constructor(private readonly bd: ContextoBd) {}
+  constructor(
+    private readonly bd: ContextoBd,
+    private readonly plantillas: PlantillasService,
+  ) {}
 
   /**
    * Copia de autoria con los datos actuales del autor (nombre de usuarios,
@@ -80,6 +87,8 @@ export class EvolucionesService {
       select: { registroSuperintendencia: true },
     });
 
+    const valores = dto.plantillaId ? await this.plantillas.valoresValidos(dto.plantillaId, dto.valores!) : undefined;
+
     const id = randomUUID();
     await tx.evolucion.create({
       data: {
@@ -95,6 +104,8 @@ export class EvolucionesService {
         nivelRiesgo: dto.nivelRiesgo,
         corrigeAId: dto.corrigeAId,
         citaId: dto.citaId,
+        plantillaId: dto.plantillaId,
+        valores: claro(valores),
       },
       select: { id: true },
     });

@@ -1,7 +1,17 @@
-import { AlcanceAccesoTemporal, DecisionRetencion, EstadoTipoSesion, ModoEnvioDocumento, MotivoAccesoTemporal, NivelRiesgo } from '@prisma/client';
+import {
+  AlcanceAccesoTemporal,
+  DecisionRetencion,
+  EstadoPlantillaClinica,
+  EstadoTipoSesion,
+  ModoEnvioDocumento,
+  MotivoAccesoTemporal,
+  NivelRiesgo,
+  TipoPlantillaClinica,
+} from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsBoolean,
@@ -9,6 +19,8 @@ import {
   IsEmail,
   IsEnum,
   IsIn,
+  IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -16,6 +28,7 @@ import {
   Matches,
   MaxLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 
 import { IsRut, NormalizarRut, Recortar, TELEFONO_CL } from '../../../core/validacion/validadores';
@@ -212,6 +225,16 @@ export class CrearEvolucionDto {
   @IsOptional()
   @IsUUID()
   citaId?: string;
+
+  /** 03a-2: version de plantilla EVOLUCION (publicada; en una correccion, la de la evolucion corregida). */
+  @ValidateIf((o: CrearEvolucionDto) => o.valores !== undefined)
+  @IsUUID()
+  plantillaId?: string;
+
+  /** 03a-2: { clave: valor } segun la plantilla; se valida contra su version (422) y se cifra como un solo valor. */
+  @ValidateIf((o: CrearEvolucionDto) => o.plantillaId !== undefined)
+  @IsObject()
+  valores?: Record<string, unknown>;
 }
 
 export class ProponerTipoSesionDto {
@@ -391,6 +414,15 @@ export class BorradorDto {
   @IsOptional()
   @IsUUID()
   citaId?: string;
+
+  /** 03a-2: plantilla de evolucion y valores (pueden quedar incompletos hasta confirmar). */
+  @ValidateIf((o: BorradorDto) => o.valores !== undefined)
+  @IsUUID()
+  plantillaId?: string;
+
+  @ValidateIf((o: BorradorDto) => o.plantillaId !== undefined)
+  @IsObject()
+  valores?: Record<string, unknown>;
 }
 
 export class ListarBorradoresDto {
@@ -417,4 +449,119 @@ export class ConfirmarBorradorDto {
   @ArrayMaxSize(20)
   @IsUUID('all', { each: true })
   intervencionIds?: string[];
+}
+
+// ---------------------------------------------------------------------------
+// 03a-2: plantillas clinicas por especialidad y ficha de ingreso
+// ---------------------------------------------------------------------------
+
+const TIPOS_CAMPO = ['TEXTO', 'TEXTO_LARGO', 'NUMERO', 'FECHA', 'SELECCION_UNICA', 'SELECCION_MULTIPLE', 'SI_NO'] as const;
+
+/** Un campo de la plantilla. La BD revalida la definicion completa (CHECK -> 422). */
+export class CampoPlantillaDto {
+  @Matches(/^[a-z][a-z0-9_]{0,39}$/, { message: 'clave: minusculas, digitos y _ (hasta 40)' })
+  clave!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(1, 120)
+  etiqueta!: string;
+
+  @IsIn(TIPOS_CAMPO)
+  tipo!: (typeof TIPOS_CAMPO)[number];
+
+  @IsBoolean()
+  obligatorio!: boolean;
+
+  /** Solo (y obligatorio) en SELECCION_UNICA y SELECCION_MULTIPLE. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @Length(1, 120, { each: true })
+  opciones?: string[];
+
+  @IsInt()
+  orden!: number;
+
+  /** Lo ve la supervision seudonimizada. */
+  @IsBoolean()
+  visible_en_supervision!: boolean;
+
+  /** Texto libre: la UI advierte no escribir datos identificatorios. */
+  @IsBoolean()
+  es_texto_libre!: boolean;
+}
+
+export class ProponerPlantillaDto {
+  @IsUUID()
+  especialidadId!: string;
+
+  @IsEnum(TipoPlantillaClinica)
+  tipo!: TipoPlantillaClinica;
+
+  @Recortar()
+  @IsString()
+  @Length(2, 120)
+  nombre!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(60)
+  @ValidateNested({ each: true })
+  @Type(() => CampoPlantillaDto)
+  definicion!: CampoPlantillaDto[];
+}
+
+/** Editar un borrador (una version publicada no se edita: se crea una version nueva). */
+export class EditarPlantillaClinicaDto {
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(2, 120)
+  nombre?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(60)
+  @ValidateNested({ each: true })
+  @Type(() => CampoPlantillaDto)
+  definicion?: CampoPlantillaDto[];
+}
+
+export class ListarPlantillasDto {
+  @IsOptional()
+  @IsUUID()
+  especialidadId?: string;
+
+  @IsOptional()
+  @IsEnum(TipoPlantillaClinica)
+  tipo?: TipoPlantillaClinica;
+
+  @IsOptional()
+  @IsEnum(EstadoPlantillaClinica)
+  estado?: EstadoPlantillaClinica;
+}
+
+/** Ficha de ingreso / anamnesis con una plantilla INGRESO. */
+export class CrearIngresoDto {
+  @IsUUID()
+  plantillaId!: string;
+
+  @IsObject()
+  valores!: Record<string, unknown>;
+
+  /** Correccion: fila nueva con la misma version de plantilla. */
+  @IsOptional()
+  @IsUUID()
+  corrigeAId?: string;
+}
+
+/** Resolucion de un posible duplicado (solo administracion). */
+export class ResolverDuplicadoDto {
+  @IsIn(['DISTINTO', 'MISMO_PACIENTE'])
+  resolucion!: 'DISTINTO' | 'MISMO_PACIENTE';
 }

@@ -70,6 +70,24 @@ borrado.** No hay purga automatica:
   `recordatorios_cita` son append-only: solo avanza el envio o se registra la
   respuesta. Sin purga automatica: se define junto con la de la ficha.
 
+## Plantillas clinicas y mensajeria interna (03a-2)
+
+- `ingresos_ficha` (ficha de ingreso) y los `valores` de plantilla en
+  `evoluciones` son parte de la ficha: append-only y retencion minima de 15
+  años desde la ultima atencion (como la ficha).
+- `plantillas_clinicas`: nunca se borran (una version usada por un registro
+  debe poder mostrarse mientras dure la retencion); se desactivan.
+- `mensajes_internos`: la mensajeria no es el expediente; toda decision
+  clinica se registra en una evolucion. Se conservan
+  `configuracion_centro.retencion_mensajes_dias` (default 365, de 30 a 3650) y
+  el job `purgar_mensajes_internos` (diario, 03:30) borra los mas antiguos y
+  los hilos que quedan vacios. Un mensaje retirado conserva solo la marca
+  (sin contenido).
+- Cuenta cerrada de un participante: sus mensajes se conservan hasta la
+  purga; su nombre se muestra como "Ex integrante del equipo".
+- `correos_cuenta_pendientes`: minimizacion; se borra al enviarse, al quinto
+  intento fallido o al vencer el enlace.
+
 ## Llaves
 
 Las versiones de llaves que cifraron datos tampoco se destruyen mientras

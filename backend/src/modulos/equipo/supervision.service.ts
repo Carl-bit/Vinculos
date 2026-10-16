@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { NivelRiesgo } from '@prisma/client';
 
+import { ADVERTENCIA_TEXTO_LIBRE, type CampoPlantilla, type ValoresPlantilla, valoresSupervision } from '../../common/plantillas-clinicas';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
@@ -16,7 +17,8 @@ import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos
  *
  * Supervision seudonimizada: el supervisor ve casos por codigo y
  * evoluciones (campos estructurados + notas) via funciones que auditan; nunca
- * nombre, RUT, paciente_id ni ficha_id. Comentarios append-only; los lee el
+ * nombre, RUT, paciente_id ni ficha_id. De la plantilla clinica (03a-2), solo
+ * los campos marcados visible_en_supervision, con los de texto libre señalados. Comentarios append-only; los lee el
  * tratante actual y el supervisor mientras supervise (RLS).
  */
 @Injectable()
@@ -71,8 +73,22 @@ export class SupervisionService {
         notas: Uint8Array;
         corrige_a_id: string | null;
         creado_en: Date;
+        plantilla_id: string | null;
+        valores: Uint8Array | null;
       }[]
     >`SELECT * FROM supervision_evoluciones(${codigo})`;
+    const ids = [...new Set(filas.map((f) => f.plantilla_id).filter((id): id is string => id !== null))];
+    const plantillas = new Map(
+      (await this.bd.tx().plantillaClinica.findMany({ where: { id: { in: ids } }, select: { id: true, nombre: true, version: true, definicion: true } })).map(
+        (p) => [p.id, p],
+      ),
+    );
+    const campos = (f: (typeof filas)[number]) => {
+      const p = f.plantilla_id ? plantillas.get(f.plantilla_id) : undefined;
+      if (!p || !f.valores) return { plantilla: null, valores: null, camposTextoLibre: [] as string[] };
+      const valores = JSON.parse(this.llavero.descifrarCampo(f.valores, 'evoluciones', 'valores', f.evolucion_id)!) as ValoresPlantilla;
+      return { plantilla: { id: p.id, nombre: p.nombre, version: p.version }, ...valoresSupervision(p.definicion as unknown as CampoPlantilla[], valores) };
+    };
     return filas.map((f) => ({
       evolucionId: f.evolucion_id,
       autorId: f.autor_id,
@@ -83,6 +99,8 @@ export class SupervisionService {
       notas: this.llavero.descifrarCampo(f.notas, 'evoluciones', 'notas', f.evolucion_id),
       corrigeAId: f.corrige_a_id,
       creadoEn: f.creado_en,
+      ...campos(f),
+      advertenciaTextoLibre: ADVERTENCIA_TEXTO_LIBRE,
     }));
   }
 

@@ -339,3 +339,12 @@ Estado por fila de las secciones 1-5:
 - **Liquidacion (C-11)**: se mantiene por cita realizada; queda pendiente si
   se liquidan los cobros por cancelacion tardia e inasistencia.
 - **Bruno**: eliminado; pruebas manuales en Postman.
+
+## 8. Resolucion en 03a-2 (backend)
+
+| Brecha | Resolucion |
+|---|---|
+| Campos clinicos por especialidad | `especialidades` (catalogo de ADMIN) y `profesional_especialidades` (el profesional declara, ADMIN aprueba). `plantillas_clinicas` versionadas (INGRESO o EVOLUCION; publicada inmutable, editar = version nueva, nunca se borra); el profesional propone, solo ADMIN publica; ejemplos cargados para las 5 especialidades. Ficha de ingreso (`ingresos_ficha`, append-only) y valores en evoluciones y borradores, cifrados y validados contra su version; supervision solo con campos marcados |
+| Mensajeria interna | Hilos GENERAL (participantes del equipo, sin pacientes) y CASO (acceso clinico vigente; ADMIN/GESTION no). Sin edicion, retiro en 5 minutos, sin adjuntos, lectura por polling, registro de lectura, rate limit, auditoria de hilos de caso, aviso sin contenido, purga por `retencion_mensajes_dias` (default 365), nombre minimizado tras el cierre de la cuenta |
+| Seccion 7 | Edad minima de cuenta configurable; preferencias del adulto responsable; reintento de correos de cuenta; duplicados solo por administracion con alerta y aviso; RUT antes de la primera evolucion para todo paciente. Bruno eliminado |
+| Pendiente | C-11 (si se liquidan los cobros por cancelacion tardia e inasistencia). Validacion legal de D-4 (con los cortes de edad ya configurables). Tiempo real (SSE) para la mensajeria. Fusion de fichas duplicadas (hoy se registra MISMO_PACIENTE y se concilia a mano) |

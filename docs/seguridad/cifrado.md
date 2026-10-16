@@ -70,6 +70,9 @@ compara ese registro con las columnas bytea reales de la BD.
 | `resenas.texto`, `resenas.feedback_privado` (03a, CLINICO) | Texto libre del paciente sobre su atencion. El feedback privado solo lo lee el profesional. |
 | `altas_paciente.motivo` (03a, CLINICO) | Motivo clinico del alta. |
 | `borradores_evolucion.contenido` (03a, CLINICO) | Borrador de evolucion; solo lo lee su autor y se elimina al confirmarlo como evolucion. |
+| `evoluciones.valores`, `borradores_evolucion.valores`, `ingresos_ficha.valores` (03a-2, CLINICO) | Campos de la plantilla clinica, cifrados como un solo JSON (AAD de la fila). La API los valida contra la version de la plantilla antes de cifrar; no se consultan ni reportan en esta fase. |
+| `hilos_internos.asunto`, `mensajes_internos.contenido` (03a-2, CLINICO) | Mensajeria interna del equipo: puede nombrar casos y decisiones. Id generado por la API. |
+| `correos_cuenta_pendientes.email`, `correos_cuenta_pendientes.cuerpo` (03a-2, IDENTIFICACION) | Correo de cuenta por reintentar: destinatario y enlace de un solo uso. Se borra al enviarse o al vencer el enlace. |
 
 | No se cifra | Por que |
 |---|---|

@@ -93,6 +93,10 @@ model ConfiguracionCentro {
   diasRetencionRespuestasMatch      Int            @default(30) @map("dias_retencion_respuestas_match")
   /// 03a (C-15): minutos que se retiene el horario mientras se verifica el correo.
   minutosRetencionSolicitud         Int            @default(30) @map("minutos_retencion_solicitud")
+  /// 03a-2: dias que se conservan los mensajes internos del equipo (job de purga).
+  retencionMensajesDias             Int            @default(365) @map("retencion_mensajes_dias")
+  /// 03a-2 (D-4): edad minima para la cuenta propia del paciente (antes: el adulto responsable).
+  edadMinimaCuenta                  Int            @default(14) @map("edad_minima_cuenta")
   updatedAt                         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("configuracion_centro")
@@ -220,6 +224,15 @@ model Usuario {
   liquidaciones              Liquidacion[]                @relation("LiquidacionProfesional")
   liquidacionesCreadas       Liquidacion[]                @relation("LiquidacionCreadaPor")
   adjuntosSubidos            AdjuntoFicha[]
+  especialidades             ProfesionalEspecialidad[]    @relation("EspecialidadProfesional")
+  especialidadesRevisadas    ProfesionalEspecialidad[]    @relation("EspecialidadRevisadaPor")
+  plantillasPropuestas       PlantillaClinica[]           @relation("PlantillaPropuestaPor")
+  plantillasPublicadas       PlantillaClinica[]           @relation("PlantillaPublicadaPor")
+  ingresosFicha              IngresoFicha[]
+  hilosCreados               HiloInterno[]
+  hilosParticipa             ParticipanteHilo[]
+  mensajesInternos           MensajeInterno[]
+  lecturasHilo               LecturaHilo[]
 
   @@map("usuarios")
 }
@@ -366,6 +379,8 @@ enum TipoAlerta {
   FALLO_CANARIO
   /// 03a (C-8): baja cumplida pendiente por borradores sin confirmar.
   BAJA_CON_BORRADORES
+  /// 03a-2: paciente creado con RUT o correo de otro paciente; lo resuelve administracion.
+  POSIBLE_DUPLICADO
 
   @@map("tipo_alerta")
 }
@@ -391,6 +406,10 @@ enum TipoNotificacion {
   ACCESO_CLINICO_TEMPORAL
   SOLICITUD_HORA
   CIERRE_REQUERIDO
+  /// 03a-2: mensaje nuevo en un hilo interno (sin contenido).
+  MENSAJE_INTERNO
+  /// 03a-2: posible paciente duplicado, a ADMIN/GESTION.
+  POSIBLE_DUPLICADO
 
   @@map("tipo_notificacion")
 }
@@ -621,6 +640,7 @@ model Paciente {
   altas                AltaPaciente[]
   listaEspera          ListaEspera[]
   accesosTemporales    AccesoClinicoTemporal[]
+  hilosInternos        HiloInterno[]
 
   @@index([profesionalId])
   @@map("pacientes")
@@ -671,6 +691,7 @@ model FichaClinica {
   accesosFicha        AccesoFicha[]
   revisionesRetencion RevisionRetencion[]
   borradores          BorradorEvolucion[]
+  ingresos            IngresoFicha[]
 
   @@map("fichas_clinicas")
 }
@@ -738,6 +759,10 @@ model Evolucion {
   corrigeAId     String?     @unique @map("corrige_a_id") @db.Uuid
   /// 03a: sesion que cierra esta evolucion (opcional; "ficha cerrada" de esa cita).
   citaId         String?     @map("cita_id") @db.Uuid
+  /// 03a-2: version de plantilla clinica (EVOLUCION) con que se escribio.
+  plantillaId    String?     @map("plantilla_id") @db.Uuid
+  /// cifrado (CLINICO): valores de la plantilla como un solo JSON
+  valores        Bytes?
   /// Default de la BD (no de Prisma): la politica de evolucion_intervenciones
   /// compara created_at = now() de la transaccion; @default(now()) lo fija el
   /// motor de Prisma con la hora del cliente y no coincide. transaction_timestamp()
@@ -751,6 +776,7 @@ model Evolucion {
   estadoAvance           EstadoAvance?           @relation(fields: [estadoAvanceId], references: [id], onDelete: Restrict)
   tipoSesion             TipoSesion              @relation(fields: [tipoSesionId], references: [id], onDelete: Restrict)
   cita                   Cita?                   @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  plantilla              PlantillaClinica?       @relation(fields: [plantillaId], references: [id], onDelete: Restrict)
   comentariosSupervision SupervisionComentario[]
   intervenciones         EvolucionIntervencion[]
 
@@ -2313,13 +2339,227 @@ model BorradorEvolucion {
   citaId         String?  @map("cita_id") @db.Uuid
   /// cifrado (CLINICO)
   contenido      Bytes
+  /// 03a-2: plantilla de evolucion
+  plantillaId    String?  @map("plantilla_id") @db.Uuid
+  /// cifrado (CLINICO): valores de la plantilla
+  valores        Bytes?
   creadoEn       DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
   actualizadoEn  DateTime @default(now()) @map("actualizado_en") @db.Timestamptz(6)
 
-  autor        Usuario      @relation(fields: [autorId], references: [id], onDelete: Restrict)
-  fichaClinica FichaClinica @relation(fields: [fichaClinicaId], references: [id], onDelete: Restrict)
-  cita         Cita?        @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  autor        Usuario           @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  fichaClinica FichaClinica      @relation(fields: [fichaClinicaId], references: [id], onDelete: Restrict)
+  cita         Cita?             @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  plantilla    PlantillaClinica? @relation(fields: [plantillaId], references: [id], onDelete: Restrict)
 
   @@index([autorId])
   @@map("borradores_evolucion")
+}
+
+// ============================================================================
+// 03a-2. Campos clinicos por especialidad y mensajeria interna del equipo
+// ============================================================================
+
+enum TipoPlantillaClinica {
+  /// Ficha de ingreso / anamnesis.
+  INGRESO
+  EVOLUCION
+
+  @@map("tipo_plantilla_clinica")
+}
+
+enum EstadoPlantillaClinica {
+  BORRADOR
+  PUBLICADA
+  INACTIVA
+
+  @@map("estado_plantilla_clinica")
+}
+
+enum TipoHiloInterno {
+  /// Coordinacion sin paciente (no se nombra a pacientes).
+  GENERAL
+  /// Vinculado a un paciente: solo quien tiene acceso clinico vigente.
+  CASO
+
+  @@map("tipo_hilo_interno")
+}
+
+/// Catalogo (B): solo ADMIN escribe, sin DELETE (se desactiva).
+model Especialidad {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre    String   @unique
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profesionales ProfesionalEspecialidad[]
+  plantillas    PlantillaClinica[]
+
+  @@map("especialidades")
+}
+
+/// Especialidades del profesional (B): el profesional declara (PROPUESTO),
+/// ADMIN aprueba o rechaza, igual que profesional_tipos_atencion.
+model ProfesionalEspecialidad {
+  profesionalId  String           @map("profesional_id") @db.Uuid
+  especialidadId String           @map("especialidad_id") @db.Uuid
+  estado         EstadoTipoSesion @default(PROPUESTO)
+  revisadoPorId  String?          @map("revisado_por_id") @db.Uuid
+  revisadoEn     DateTime?        @map("revisado_en") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profesional  Usuario      @relation("EspecialidadProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  especialidad Especialidad @relation(fields: [especialidadId], references: [id], onDelete: Restrict)
+  revisadoPor  Usuario?     @relation("EspecialidadRevisadaPor", fields: [revisadoPorId], references: [id], onDelete: Restrict)
+
+  @@id([profesionalId, especialidadId])
+  @@index([especialidadId])
+  @@map("profesional_especialidades")
+}
+
+/// Plantilla clinica (B), una fila por version; familia_id = id de la
+/// version 1. Una version PUBLICADA es inmutable (solo pasa a INACTIVA);
+/// editar crea una version nueva. Nunca se borra. Escritura solo via
+/// funciones (proponer, editar borrador, nueva version, publicar, desactivar).
+model PlantillaClinica {
+  id             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  familiaId      String                 @map("familia_id") @db.Uuid
+  especialidadId String                 @map("especialidad_id") @db.Uuid
+  tipo           TipoPlantillaClinica
+  nombre         String
+  version        Int
+  estado         EstadoPlantillaClinica @default(BORRADOR)
+  /// Campos: clave, etiqueta, tipo, obligatorio, opciones, orden, visible_en_supervision, es_texto_libre.
+  definicion     Json
+  /// Nulo = ejemplo cargado por la migracion.
+  propuestaPorId String?                @map("propuesta_por_id") @db.Uuid
+  publicadaPorId String?                @map("publicada_por_id") @db.Uuid
+  publicadaEn    DateTime?              @map("publicada_en") @db.Timestamptz(6)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  especialidad Especialidad        @relation(fields: [especialidadId], references: [id], onDelete: Restrict)
+  propuestaPor Usuario?            @relation("PlantillaPropuestaPor", fields: [propuestaPorId], references: [id], onDelete: Restrict)
+  publicadaPor Usuario?            @relation("PlantillaPublicadaPor", fields: [publicadaPorId], references: [id], onDelete: Restrict)
+  evoluciones  Evolucion[]
+  borradores   BorradorEvolucion[]
+  ingresos     IngresoFicha[]
+
+  @@unique([familiaId, version])
+  @@index([especialidadId, tipo])
+  @@map("plantillas_clinicas")
+}
+
+/// Ficha de ingreso / anamnesis (A, append-only como evoluciones): valores
+/// de una version de plantilla INGRESO, cifrados como un solo JSON. Una
+/// correccion es fila nueva con corrige_a_id y la misma version.
+model IngresoFicha {
+  id             String   @id @db.Uuid
+  fichaClinicaId String   @map("ficha_clinica_id") @db.Uuid
+  autorId        String   @map("autor_id") @db.Uuid
+  plantillaId    String   @map("plantilla_id") @db.Uuid
+  /// cifrado (CLINICO)
+  valores        Bytes
+  corrigeAId     String?  @unique @map("corrige_a_id") @db.Uuid
+  createdAt      DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+
+  fichaClinica FichaClinica     @relation(fields: [fichaClinicaId], references: [id], onDelete: Restrict)
+  autor        Usuario          @relation(fields: [autorId], references: [id], onDelete: Restrict)
+  plantilla    PlantillaClinica @relation(fields: [plantillaId], references: [id], onDelete: Restrict)
+  corrigeA     IngresoFicha?    @relation("CorreccionIngreso", fields: [corrigeAId], references: [id], onDelete: Restrict)
+  corregidoPor IngresoFicha?    @relation("CorreccionIngreso")
+
+  @@index([fichaClinicaId, createdAt])
+  @@map("ingresos_ficha")
+}
+
+/// Hilo de mensajeria interna (A). La mensajeria no es el expediente: toda
+/// decision clinica se registra en una evolucion. Asunto cifrado (CLINICO).
+model HiloInterno {
+  id              String          @id @db.Uuid
+  tipo            TipoHiloInterno
+  /// cifrado (CLINICO)
+  asunto          Bytes
+  pacienteId      String?         @map("paciente_id") @db.Uuid
+  creadoPorId     String          @map("creado_por_id") @db.Uuid
+  creadoEn        DateTime        @default(now()) @map("creado_en") @db.Timestamptz(6)
+  ultimoMensajeEn DateTime        @default(now()) @map("ultimo_mensaje_en") @db.Timestamptz(6)
+
+  paciente      Paciente?          @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  creadoPor     Usuario            @relation(fields: [creadoPorId], references: [id], onDelete: Restrict)
+  participantes ParticipanteHilo[]
+  mensajes      MensajeInterno[]
+  lecturas      LecturaHilo[]
+
+  @@index([pacienteId])
+  @@index([ultimoMensajeEn])
+  @@map("hilos_internos")
+}
+
+/// Participantes de un hilo GENERAL (A). Los de un hilo CASO no se guardan:
+/// son quienes tienen acceso clinico vigente al paciente en cada lectura.
+model ParticipanteHilo {
+  hiloId     String   @map("hilo_id") @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  agregadoEn DateTime @default(now()) @map("agregado_en") @db.Timestamptz(6)
+
+  hilo    HiloInterno @relation(fields: [hiloId], references: [id], onDelete: Restrict)
+  usuario Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@id([hiloId, usuarioId])
+  @@index([usuarioId])
+  @@map("participantes_hilo")
+}
+
+/// Mensaje interno (A). Sin edicion; el autor lo retira dentro de 5 minutos
+/// (contenido nulo: "mensaje retirado"). Lo purga el job de retencion.
+model MensajeInterno {
+  id         String    @id @db.Uuid
+  hiloId     String    @map("hilo_id") @db.Uuid
+  autorId    String    @map("autor_id") @db.Uuid
+  /// Rol activo con que se envio.
+  rolAutor   Rol       @map("rol_autor")
+  /// cifrado (CLINICO); nulo si fue retirado
+  contenido  Bytes?
+  creadoEn   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  retiradoEn DateTime? @map("retirado_en") @db.Timestamptz(6)
+
+  hilo  HiloInterno @relation(fields: [hiloId], references: [id], onDelete: Restrict)
+  autor Usuario     @relation(fields: [autorId], references: [id], onDelete: Restrict)
+
+  @@index([hiloId, creadoEn])
+  @@index([creadoEn])
+  @@map("mensajes_internos")
+}
+
+/// Ultima lectura de cada participante en un hilo (A).
+model LecturaHilo {
+  hiloId    String   @map("hilo_id") @db.Uuid
+  usuarioId String   @map("usuario_id") @db.Uuid
+  leidoEn   DateTime @default(now()) @map("leido_en") @db.Timestamptz(6)
+
+  hilo    HiloInterno @relation(fields: [hiloId], references: [id], onDelete: Restrict)
+  usuario Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@id([hiloId, usuarioId])
+  @@map("lecturas_hilo")
+}
+
+/// Correo de cuenta que fallo al enviarse (A): se reintenta con backoff y se
+/// borra al enviarse o al vencer su enlace. Destinatario y cuerpo (con el
+/// enlace de un solo uso) cifrados. Solo el job lo lee.
+model CorreoCuentaPendiente {
+  id             String   @id @db.Uuid
+  /// cifrado (IDENTIFICACION)
+  email          Bytes
+  asunto         String
+  /// cifrado (IDENTIFICACION)
+  cuerpo         Bytes
+  intentos       Int      @default(1)
+  proximoIntento DateTime @map("proximo_intento") @db.Timestamptz(6)
+  venceEn        DateTime @map("vence_en") @db.Timestamptz(6)
+  creadoEn       DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  @@index([proximoIntento])
+  @@map("correos_cuenta_pendientes")
 }

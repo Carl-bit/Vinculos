@@ -116,6 +116,8 @@ INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id) V
   (test.u('0b'), 'Beto', 'Menor', '2015-01-01', test.u('b2')),
   (test.u('0c'), 'Caro', 'Practica', '1995-01-01', test.u('c1')),
   (test.u('0d'), 'Dani', 'Practica', '1995-01-01', test.u('c2'));
+-- 03a-2: todo paciente necesita RUT antes de su primera evolucion.
+UPDATE pacientes SET rut = test.cif('rut ' || id), rut_hmac = sha256(convert_to('rut ' || id, 'UTF8')) WHERE rut IS NULL AND id::text LIKE '00000000-%';
 INSERT INTO usuarios (id, email, password_hash, nombre, rol, paciente_id) VALUES
   (test.u('a2'), 't-ana@x', 'h', 'Ana (paciente)', 'PACIENTE', test.u('0a'));
 INSERT INTO fichas_clinicas (id, paciente_id) VALUES
@@ -836,6 +838,8 @@ INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id) V
   (test.u('0f'), 'Fede', 'Baja', '1985-01-01', test.u('b6')),
   (test.u('10'), 'Gabi', 'Sinsuper', '1993-01-01', test.u('c4')),
   (test.u('12'), 'Ivan', 'Adulto', '1988-01-01', test.u('b5'));
+-- 03a-2: todo paciente necesita RUT antes de su primera evolucion.
+UPDATE pacientes SET rut = test.cif('rut ' || id), rut_hmac = sha256(convert_to('rut ' || id, 'UTF8')) WHERE rut IS NULL AND id::text LIKE '00000000-%';
 INSERT INTO usuarios (id, email, password_hash, nombre, rol, paciente_id) VALUES
   (test.u('a4'), 't-eva@x', 'h', 'Eva (paciente)', 'PACIENTE', test.u('0e'));
 INSERT INTO fichas_clinicas (id, paciente_id) VALUES
@@ -1160,7 +1164,9 @@ DO $$ DECLARE v text; r record; e record; BEGIN
   ASSERT e.notas = test.cif('sesion 1 Caro') AND e.tipo_sesion = 'T Individual' AND e.nivel_riesgo = 'NINGUNO'
          AND e.intervenciones = '{}' AND e.estado_avance IS NULL, format('caso 57: evolucion estructurada %s', e);
   ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'supervision_evoluciones')
-         = '{p_codigo,evolucion_id,autor_id,tipo_sesion,intervenciones,estado_avance,nivel_riesgo,notas,corrige_a_id,creado_en}',
+         -- 03a-2: plantilla y valores (la API entrega solo los campos visibles en supervision).
+         = '{p_codigo,evolucion_id,autor_id,tipo_sesion,intervenciones,estado_avance,nivel_riesgo,notas,corrige_a_id,creado_en,'
+           'plantilla_id,valores}',
     'caso 57: columnas sin identificadores';
   v := r.codigo;
   PERFORM test.ctx('a1', 'ADMIN');
@@ -2011,6 +2017,8 @@ INSERT INTO usuarios (id, email, password_hash, nombre, rol) VALUES
 UPDATE usuarios SET activo = false WHERE email = 'admin@centro-prueba.cl';
 INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id) VALUES
   (test.u('13'), 'Olga', 'Antigua', '1950-01-01', test.u('b1'));
+-- 03a-2: todo paciente necesita RUT antes de su primera evolucion.
+UPDATE pacientes SET rut = test.cif('rut ' || id), rut_hmac = sha256(convert_to('rut ' || id, 'UTF8')) WHERE rut IS NULL AND id::text LIKE '00000000-%';
 INSERT INTO fichas_clinicas (id, paciente_id, fecha_apertura) VALUES (test.u('f3'), test.u('13'), '2008-06-01');
 INSERT INTO evoluciones (id, ficha_clinica_id, autor_id, notas, autor_nombre, autor_rut, autor_registro,
                          tipo_sesion_id, nivel_riesgo, created_at)
@@ -2698,17 +2706,18 @@ BEGIN
   UPDATE configuracion_centro SET comision_centro_porcentaje = 10;
   INSERT INTO arriendos (profesional_id, espacio_id, periodo_desde, periodo_hasta, monto) VALUES (test.u('b1'), test.u('e1'), v_hoy, v_hoy + 1, 5000);
   PERFORM test.ctx('a3', 'GESTION');
-  v_id := generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 1);
+  v_id := generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 2);
   SELECT * INTO r FROM liquidaciones WHERE id = v_id;
+  -- Periodo hasta pasado mañana: de noche las citas de 93-94 (now() + horas) caen mañana.
   -- C-11 (03a): solo pagos cobrados por el centro de citas REALIZADAS del periodo (por la fecha de la cita);
   -- las canceladas y las inasistencias (93 y 94) no se liquidan.
   ASSERT r.total_cobrado = (SELECT coalesce(sum(p.monto), 0) FROM pagos p JOIN citas c ON c.id = p.cita_id
                             WHERE c.profesional_id = test.u('b1') AND p.estado = 'REGISTRADO' AND p.cobrado_por = 'CENTRO'
-                              AND (c.inicio AT TIME ZONE 'America/Santiago')::date BETWEEN v_hoy - 1 AND v_hoy
+                              AND (c.inicio AT TIME ZONE 'America/Santiago')::date BETWEEN v_hoy - 1 AND v_hoy + 1
                               AND cita_realizada(c.id)), 'caso 95: cobrado de citas realizadas';
   ASSERT r.comision = round(r.total_cobrado * 0.10) AND r.arriendos = 5000 AND r.total = r.total_cobrado - r.comision - 5000
          AND r.estado = 'BORRADOR', 'caso 95: comision y arriendo';
-  ASSERT generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 1) = v_id, 'caso 95: un BORRADOR se recalcula';
+  ASSERT generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 2) = v_id, 'caso 95: un BORRADOR se recalcula';
   BEGIN
     PERFORM generar_liquidacion(test.u('b1'), v_hoy, v_hoy + 2);
     RAISE EXCEPTION 'caso 95: periodo solapado debio fallar';
@@ -2722,13 +2731,13 @@ BEGIN
   PERFORM test.ctx('a3', 'GESTION');
   PERFORM avanzar_liquidacion(v_id, 'EMITIDA');
   BEGIN
-    PERFORM generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 1);
+    PERFORM generar_liquidacion(test.u('b1'), v_hoy - 1, v_hoy + 2);
     RAISE EXCEPTION 'caso 95: recalcular una emitida debio fallar';
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
   BEGIN
     PERFORM anular_pago((SELECT p.id FROM pagos p JOIN citas c ON c.id = p.cita_id
                          WHERE c.profesional_id = test.u('b1') AND p.estado = 'REGISTRADO'
-                           AND (c.inicio AT TIME ZONE 'America/Santiago')::date BETWEEN v_hoy - 1 AND v_hoy
+                           AND (c.inicio AT TIME ZONE 'America/Santiago')::date BETWEEN v_hoy - 1 AND v_hoy + 1
                            AND NOT EXISTS (SELECT 1 FROM boletas b WHERE b.cita_id = c.id) LIMIT 1), 'tarde');
     RAISE EXCEPTION 'caso 95: anular un pago liquidado debio fallar';
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
@@ -2970,6 +2979,8 @@ INSERT INTO fichas_clinicas (id, paciente_id) VALUES (test.u('f4'), test.u('14')
 INSERT INTO adultos_responsables (id, paciente_id, nombre, email) VALUES (test.u('d4'), test.u('14'), 'Papa Tomas', 't-papa@x');
 INSERT INTO usuarios (id, email, password_hash, nombre, rol, paciente_id)
 VALUES (test.u('a8'), 't-tomas@x', 'h', 'Tomas', 'PACIENTE', test.u('14'));
+-- 03a-2: todo paciente necesita RUT antes de su primera evolucion.
+UPDATE pacientes SET rut = test.cif('rut ' || id), rut_hmac = sha256(convert_to('rut ' || id, 'UTF8')) WHERE rut IS NULL AND id::text LIKE '00000000-%';
 COMMIT;
 
 \connect :app_url
@@ -3684,6 +3695,343 @@ DO $$ DECLARE v_pasada uuid; v_futura uuid; v_liq uuid; BEGIN
   UPDATE configuracion_centro SET liquidar_exige_evolucion = false;
 END $$;
 
+\echo 116 Especialidades (B): el equipo lee, el paciente no; solo ADMIN escribe y revisa; el profesional declara solo las suyas (PROPUESTO)
+DO $$ DECLARE v_psi uuid; BEGIN
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  v_psi := (SELECT id FROM especialidades WHERE nombre LIKE 'Psicolog_a');
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM especialidades) = 0, 'caso 116: el paciente no lee especialidades';
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM especialidades) >= 5, 'caso 116: ejemplos cargados';
+  BEGIN
+    INSERT INTO especialidades (nombre) VALUES ('Kinesiología');
+    RAISE EXCEPTION 'caso 116: solo ADMIN crea especialidades';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO profesional_especialidades (profesional_id, especialidad_id) VALUES (test.u('b2'), v_psi);
+    RAISE EXCEPTION 'caso 116: no declara por otro';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO profesional_especialidades (profesional_id, especialidad_id, estado) VALUES (test.u('b1'), v_psi, 'APROBADO');
+    RAISE EXCEPTION 'caso 116: no se autoaprueba';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  INSERT INTO profesional_especialidades (profesional_id, especialidad_id) VALUES (test.u('b1'), v_psi);
+  BEGIN
+    PERFORM revisar_especialidad(test.u('b1'), v_psi, true);
+    RAISE EXCEPTION 'caso 116: solo ADMIN revisa';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE profesional_especialidades SET estado = 'APROBADO';
+    RAISE EXCEPTION 'caso 116: sin UPDATE directo';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  INSERT INTO profesional_especialidades (profesional_id, especialidad_id) VALUES (test.u('b2'), v_psi);
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM revisar_especialidad(test.u('b1'), v_psi, true), revisar_especialidad(test.u('b2'), v_psi, true);
+  BEGIN
+    PERFORM revisar_especialidad(test.u('b4'), v_psi, true);
+    RAISE EXCEPTION 'caso 116: no declarada';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM profesional_especialidades WHERE estado = 'APROBADO') = 2, 'caso 116: el equipo ve las aprobadas';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM profesional_especialidades) = 2, 'caso 116: GESTION ve todas';
+END $$;
+
+\echo 117 Plantillas (B): proponen ADMIN y el profesional con la especialidad; solo ADMIN publica; editar = version nueva; la anterior queda INACTIVA
+DO $$ DECLARE
+  v_psi uuid;
+  v_def jsonb := '[{"clave":"objetivo","etiqueta":"Objetivo","tipo":"TEXTO","obligatorio":true,"orden":1,"visible_en_supervision":true,"es_texto_libre":true}]';
+  v1 uuid; v2 uuid; v_evo uuid := gen_random_uuid();
+BEGIN
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  v_psi := (SELECT id FROM especialidades WHERE nombre LIKE 'Psicolog_a');
+  BEGIN
+    PERFORM proponer_plantilla(v_psi, 'EVOLUCION', 'Sin especialidad', v_def);
+    RAISE EXCEPTION 'caso 117: sin la especialidad aprobada no propone';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM proponer_plantilla(v_psi, 'EVOLUCION', 'Mala',
+      '[{"clave":"x","etiqueta":"X","tipo":"SELECCION_UNICA","obligatorio":true,"orden":1,"visible_en_supervision":true,"es_texto_libre":false}]');
+    RAISE EXCEPTION 'caso 117: seleccion sin opciones';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO plantillas_clinicas (familia_id, especialidad_id, tipo, nombre, version, definicion)
+    VALUES (gen_random_uuid(), v_psi, 'EVOLUCION', 'Directa', 1, v_def);
+    RAISE EXCEPTION 'caso 117: sin INSERT directo';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  v1 := proponer_plantilla(v_psi, 'EVOLUCION', 'Seguimiento 117', v_def);
+  PERFORM editar_plantilla(v1, 'Seguimiento 117 v1', NULL);
+  BEGIN
+    PERFORM publicar_plantilla(v1);
+    RAISE EXCEPTION 'caso 117: solo ADMIN publica';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM plantillas_clinicas WHERE id = v1) = 0, 'caso 117: el borrador ajeno no se ve';
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM publicar_plantilla(v1);
+  BEGIN
+    PERFORM publicar_plantilla(v1);
+    RAISE EXCEPTION 'caso 117: ya publicada';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM plantillas_clinicas WHERE id = v1) = 1, 'caso 117: la publicada la ve el equipo';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM editar_plantilla(v1, 'Cambio', NULL);
+    RAISE EXCEPTION 'caso 117: una publicada no se edita';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  -- Evolucion con v1 (Ana es de b2, que tiene Psicologia aprobada).
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  INSERT INTO evoluciones (id, ficha_clinica_id, autor_id, notas, autor_nombre, autor_rut, autor_registro, tipo_sesion_id,
+                           nivel_riesgo, plantilla_id, valores)
+  VALUES (v_evo, test.u('fa'), test.u('b2'), test.cif('con plantilla'), test.cif('a'), test.cif('r'), test.cif('g'), test.u('60'),
+          'NINGUNO', v1, test.cif('{"objetivo":"x"}'));
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  v2 := nueva_version_plantilla(v1);
+  BEGIN
+    PERFORM nueva_version_plantilla(v1);
+    RAISE EXCEPTION 'caso 117: un borrador por familia';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM publicar_plantilla(v2);
+  ASSERT (SELECT estado FROM plantillas_clinicas WHERE id = v1) = 'INACTIVA'
+         AND (SELECT estado = 'PUBLICADA' AND version = 2 FROM plantillas_clinicas WHERE id = v2), 'caso 117: v2 publicada, v1 inactiva';
+  BEGIN
+    UPDATE plantillas_clinicas SET nombre = 'x';
+    RAISE EXCEPTION 'caso 117: sin UPDATE directo';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  INSERT INTO test.ids VALUES ('p117v1', v1), ('p117v2', v2), ('e117', v_evo);
+END $$;
+
+\echo 118 Registros con plantilla: version publicada del tipo y la especialidad correctos; correccion con la misma version; ingreso append-only solo del equipo tratante
+DO $$ DECLARE
+  v_psi_evo uuid; v_psi_ing uuid; v_nut_evo uuid;
+  v_ing uuid := gen_random_uuid();
+BEGIN
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  v_psi_evo := (SELECT id FROM plantillas_clinicas WHERE nombre LIKE 'Sesi_n de psicoterapia');
+  v_psi_ing := (SELECT id FROM plantillas_clinicas WHERE nombre LIKE 'Anamnesis psicol_gica');
+  v_nut_evo := (SELECT id FROM plantillas_clinicas WHERE nombre = 'Control nutricional');
+  BEGIN
+    INSERT INTO evoluciones (id, ficha_clinica_id, autor_id, notas, autor_nombre, autor_rut, autor_registro, tipo_sesion_id,
+                             nivel_riesgo, plantilla_id, valores)
+    VALUES (gen_random_uuid(), test.u('fa'), test.u('b2'), test.cif('n'), test.cif('a'), test.cif('r'), test.cif('g'), test.u('60'),
+            'NINGUNO', v_nut_evo, test.cif('{}'));
+    RAISE EXCEPTION 'caso 118: especialidad no aprobada';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO evoluciones (id, ficha_clinica_id, autor_id, notas, autor_nombre, autor_rut, autor_registro, tipo_sesion_id,
+                             nivel_riesgo, plantilla_id, valores)
+    VALUES (gen_random_uuid(), test.u('fa'), test.u('b2'), test.cif('n'), test.cif('a'), test.cif('r'), test.cif('g'), test.u('60'),
+            'NINGUNO', v_psi_ing, test.cif('{}'));
+    RAISE EXCEPTION 'caso 118: plantilla INGRESO en una evolucion';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO evoluciones (id, ficha_clinica_id, autor_id, notas, autor_nombre, autor_rut, autor_registro, tipo_sesion_id,
+                             nivel_riesgo, plantilla_id, valores)
+    VALUES (gen_random_uuid(), test.u('fa'), test.u('b2'), test.cif('n'), test.cif('a'), test.cif('r'), test.cif('g'), test.u('60'),
+            'NINGUNO', v_psi_evo, '\x00');
+    RAISE EXCEPTION 'caso 118: valores sin cifrar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO evoluciones (id, ficha_clinica_id, autor_id, notas, autor_nombre, autor_rut, autor_registro, tipo_sesion_id,
+                             nivel_riesgo, plantilla_id, valores)
+    VALUES (gen_random_uuid(), test.u('fa'), test.u('b2'), test.cif('n'), test.cif('a'), test.cif('r'), test.cif('g'), test.u('60'),
+            'NINGUNO', test.id('p117v1'), test.cif('{}'));
+    RAISE EXCEPTION 'caso 118: registro nuevo con version inactiva';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO evoluciones (id, ficha_clinica_id, autor_id, notas, autor_nombre, autor_rut, autor_registro, tipo_sesion_id,
+                             nivel_riesgo, corrige_a_id, plantilla_id, valores)
+    VALUES (gen_random_uuid(), test.u('fa'), test.u('b2'), test.cif('n'), test.cif('a'), test.cif('r'), test.cif('g'), test.u('60'),
+            'NINGUNO', test.id('e117'), test.id('p117v2'), test.cif('{}'));
+    RAISE EXCEPTION 'caso 118: correccion con otra version';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO evoluciones (id, ficha_clinica_id, autor_id, notas, autor_nombre, autor_rut, autor_registro, tipo_sesion_id,
+                           nivel_riesgo, corrige_a_id, plantilla_id, valores)
+  VALUES (gen_random_uuid(), test.u('fa'), test.u('b2'), test.cif('n'), test.cif('a'), test.cif('r'), test.cif('g'), test.u('60'),
+          'NINGUNO', test.id('e117'), test.id('p117v1'), test.cif('{"objetivo":"corregido"}'));
+  -- Ficha de ingreso.
+  BEGIN
+    INSERT INTO ingresos_ficha (id, ficha_clinica_id, autor_id, plantilla_id, valores)
+    VALUES (gen_random_uuid(), test.u('fa'), test.u('b2'), v_psi_evo, test.cif('{}'));
+    RAISE EXCEPTION 'caso 118: ingreso con plantilla de evolucion';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO ingresos_ficha (id, ficha_clinica_id, autor_id, plantilla_id, valores)
+  VALUES (v_ing, test.u('fa'), test.u('b2'), v_psi_ing, test.cif('{"motivo_consulta":"m","tratamiento_previo":false}'));
+  BEGIN
+    UPDATE ingresos_ficha SET valores = test.cif('x');
+    RAISE EXCEPTION 'caso 118: ingreso sin UPDATE';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO borradores_evolucion (id, autor_id, ficha_clinica_id, contenido, plantilla_id, valores)
+    VALUES (gen_random_uuid(), test.u('b2'), test.u('fa'), test.cif('b'), v_psi_ing, test.cif('{}'));
+    RAISE EXCEPTION 'caso 118: borrador con plantilla de ingreso';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('b3', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM ingresos_ficha WHERE id = v_ing) = 1, 'caso 118: acceso temporal lee el ingreso';
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM ingresos_ficha) = 0, 'caso 118: otro profesional no';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM ingresos_ficha) = 0, 'caso 118: ADMIN no lee ingresos';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM ingresos_ficha) = 0, 'caso 118: GESTION no';
+END $$;
+
+\echo 119 Hilo CASO: solo con acceso clinico vigente (tratante o acceso temporal); ADMIN/GESTION nunca; mensajes sin edicion; retiro del autor; aviso sin contenido
+DO $$ DECLARE v_h uuid := gen_random_uuid(); v_m uuid := gen_random_uuid(); BEGIN
+  FOREACH v_m IN ARRAY ARRAY[test.u('a1'), test.u('a3'), test.u('b4')] LOOP
+    BEGIN
+      PERFORM test.ctx(right(v_m::text, 2), rol_usuario(v_m));
+      PERFORM crear_hilo_interno(gen_random_uuid(), 'CASO', test.cif('asunto'), test.u('0a'), NULL);
+      RAISE EXCEPTION 'caso 119: % crea hilo de caso sin acceso clinico', v_m;
+    EXCEPTION WHEN no_data_found THEN NULL; END;
+  END LOOP;
+  v_m := gen_random_uuid();
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO hilos_internos (id, tipo, asunto, paciente_id, creado_por_id) VALUES (gen_random_uuid(), 'CASO', test.cif('a'), test.u('0a'), test.u('b2'));
+    RAISE EXCEPTION 'caso 119: sin INSERT directo de hilos';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM crear_hilo_interno(v_h, 'CASO', test.cif('Coordinacion Ana'), test.u('0a'), NULL);
+  INSERT INTO mensajes_internos (id, hilo_id, autor_id, rol_autor, contenido) VALUES (v_m, v_h, test.u('b2'), 'PROFESIONAL', test.cif('hola'));
+  BEGIN
+    INSERT INTO mensajes_internos (id, hilo_id, autor_id, rol_autor, contenido) VALUES (gen_random_uuid(), v_h, test.u('b2'), 'ADMIN', test.cif('x'));
+    RAISE EXCEPTION 'caso 119: rol del autor = rol activo';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO mensajes_internos (id, hilo_id, autor_id, rol_autor, contenido) VALUES (gen_random_uuid(), v_h, test.u('b1'), 'PROFESIONAL', test.cif('x'));
+    RAISE EXCEPTION 'caso 119: no a nombre de otro';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE mensajes_internos SET contenido = test.cif('editado');
+    RAISE EXCEPTION 'caso 119: sin edicion';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  INSERT INTO lecturas_hilo (hilo_id, usuario_id) VALUES (v_h, test.u('b2'));
+  BEGIN
+    INSERT INTO lecturas_hilo (hilo_id, usuario_id) VALUES (v_h, test.u('b1'));
+    RAISE EXCEPTION 'caso 119: lectura ajena';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- b1 tiene acceso temporal de lectura a Ana (108): ve y escribe; avisa al tratante.
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM mensajes_internos WHERE hilo_id = v_h) = 1, 'caso 119: acceso temporal lee el hilo';
+  INSERT INTO mensajes_internos (id, hilo_id, autor_id, rol_autor, contenido) VALUES (gen_random_uuid(), v_h, test.u('b1'), 'PROFESIONAL', test.cif('ok'));
+  BEGIN
+    PERFORM retirar_mensaje_interno(v_m);
+    RAISE EXCEPTION 'caso 119: solo el autor retira';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'MENSAJE_INTERNO' AND usuario_id = test.u('b2') AND referencia_id = v_h
+                   AND canal = 'BANDEJA'), 'caso 119: aviso al tratante';
+  PERFORM retirar_mensaje_interno(v_m);
+  ASSERT (SELECT contenido IS NULL AND retirado_en IS NOT NULL FROM mensajes_internos WHERE id = v_m), 'caso 119: queda retirado';
+  BEGIN
+    PERFORM retirar_mensaje_interno(v_m);
+    RAISE EXCEPTION 'caso 119: ya retirado';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  FOREACH v_m IN ARRAY ARRAY[test.u('a1'), test.u('a3'), test.u('b4'), test.u('a2')] LOOP
+    PERFORM test.ctx(right(v_m::text, 2), rol_usuario(v_m));
+    ASSERT (SELECT count(*) FROM hilos_internos WHERE id = v_h) + (SELECT count(*) FROM mensajes_internos WHERE hilo_id = v_h)
+           + (SELECT count(*) FROM lecturas_hilo WHERE hilo_id = v_h) = 0, format('caso 119: %s no ve el hilo de caso', v_m);
+  END LOOP;
+  -- Acceso temporal de 1 segundo para b4: lo ve ahora y deja de verlo al vencer (siguiente bloque).
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  PERFORM otorgar_acceso_temporal(test.u('0a'), test.u('b4'), 'INTERCONSULTA', 'LECTURA', NULL, now() + interval '1 second');
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM hilos_internos WHERE id = v_h) = 1, 'caso 119: con acceso temporal vigente lo ve';
+  INSERT INTO test.ids VALUES ('h119', v_h);
+END $$;
+DO $$ BEGIN PERFORM pg_sleep(1.2); END $$;
+DO $$ BEGIN
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM hilos_internos WHERE id = test.id('h119')) + (SELECT count(*) FROM mensajes_internos WHERE hilo_id = test.id('h119')) = 0,
+    'caso 119: al vencer el acceso deja de ver el hilo';
+END $$;
+
+\echo 120 Hilo GENERAL: participantes del equipo (nunca pacientes); sin paciente; quien no participa no lo ve
+DO $$ DECLARE v_g uuid := gen_random_uuid(); BEGIN
+  PERFORM test.ctx('a2', 'PACIENTE');
+  BEGIN
+    PERFORM crear_hilo_interno(gen_random_uuid(), 'GENERAL', test.cif('a'), NULL, NULL);
+    RAISE EXCEPTION 'caso 120: el paciente no usa la mensajeria interna';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM crear_hilo_interno(gen_random_uuid(), 'GENERAL', test.cif('a'), NULL, ARRAY[test.u('b1'), test.u('a2')]);
+    RAISE EXCEPTION 'caso 120: un paciente no participa';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM crear_hilo_interno(gen_random_uuid(), 'GENERAL', test.cif('a'), NULL, ARRAY[test.u('c5')]);
+    RAISE EXCEPTION 'caso 120: practicante expirado no participa';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM crear_hilo_interno(gen_random_uuid(), 'GENERAL', test.cif('a'), test.u('0a'), NULL);
+    RAISE EXCEPTION 'caso 120: hilo general sin paciente';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM crear_hilo_interno(v_g, 'GENERAL', test.cif('Turnos'), NULL, ARRAY[test.u('b1')]);
+  ASSERT (SELECT count(*) FROM participantes_hilo WHERE hilo_id = v_g) = 2, 'caso 120: el creador participa';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  INSERT INTO mensajes_internos (id, hilo_id, autor_id, rol_autor, contenido) VALUES (gen_random_uuid(), v_g, test.u('b1'), 'PROFESIONAL', test.cif('cubro'));
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM hilos_internos WHERE id = v_g) = 0, 'caso 120: ADMIN que no participa no lo ve';
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM mensajes_internos WHERE hilo_id = v_g) = 0, 'caso 120: no participante';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  PERFORM agregar_participantes_hilo(v_g, ARRAY[test.u('b4')]);
+  BEGIN
+    PERFORM agregar_participantes_hilo(test.id('h119'), ARRAY[test.u('b4')]);
+    RAISE EXCEPTION 'caso 120: un hilo de caso no tiene participantes';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM mensajes_internos WHERE hilo_id = v_g) = 1, 'caso 120: agregado, ve el hilo';
+  ASSERT EXISTS (SELECT 1 FROM nombres_hilo(v_g) WHERE usuario_id = test.u('b1') AND nombre = 'Prof Uno'), 'caso 120: nombres del hilo';
+  INSERT INTO test.ids VALUES ('g120', v_g);
+END $$;
+
+\echo 121 Duplicados solo por administracion; RUT antes de la primera evolucion; edad minima de cuenta configurable; correos de cuenta solo via funciones sin contexto
+DO $$ BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    UPDATE pacientes SET posible_duplicado = true WHERE id = test.u('15');
+    RAISE EXCEPTION 'caso 121: el tratante no marca ni limpia duplicados';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id) VALUES (test.u('19'), 'Rut', 'Pendiente', '1980-01-01', test.u('b1'));
+  INSERT INTO fichas_clinicas (id, paciente_id) VALUES (test.u('f9'), test.u('19'));
+  BEGIN
+    PERFORM test.evo(test.u('f9'), test.u('b1'), 'primera sin rut');
+    RAISE EXCEPTION 'caso 121: sin RUT no hay primera evolucion';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    UPDATE pacientes SET posible_duplicado = false WHERE id = test.u('15');
+    RAISE EXCEPTION 'caso 121: solo via resolver_posible_duplicado';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM 1 FROM correos_cuenta_pendientes;
+    RAISE EXCEPTION 'caso 121: correos de cuenta sin acceso directo';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM encolar_correo_cuenta(gen_random_uuid(), test.cif('e'), 'a', test.cif('c'), now() + interval '1 hour');
+    RAISE EXCEPTION 'caso 121: encolar solo sin contexto';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    UPDATE configuracion_centro SET edad_minima_cuenta = 13;
+    RAISE EXCEPTION 'caso 121: edad minima de 14 a 18';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE configuracion_centro SET edad_minima_cuenta = 16;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM crear_invitacion_paciente(test.u('14'), 't-tomas-nuevo@x', sha256('i121'), now() + interval '1 day');
+    RAISE EXCEPTION 'caso 121: bajo la edad minima configurada';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET edad_minima_cuenta = 14;
+END $$;
+
 \connect :owner_url
 \set ON_ERROR_STOP 1
 
@@ -3704,6 +4052,86 @@ DO $$ BEGIN
     UPDATE configuracion_centro SET modulos_activos = ARRAY['MATCH']::modulo_centro[];
     RAISE EXCEPTION 'caso 115: Match requiere Equipo';
   EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+
+\echo 122 03a-2 como dueño: plantilla publicada e ingreso inmutables; mensajes sin edicion; duplicado con alerta y aviso; purga y reintento de correos (jobs)
+DO $$ DECLARE v_old uuid := gen_random_uuid(); v_hv uuid := gen_random_uuid(); v_c uuid := gen_random_uuid(); n int; BEGIN
+  BEGIN
+    UPDATE plantillas_clinicas SET nombre = 'x' WHERE id = test.id('p117v2');
+    RAISE EXCEPTION 'caso 122: publicada inmutable';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+  BEGIN
+    DELETE FROM plantillas_clinicas WHERE id = test.id('p117v1');
+    RAISE EXCEPTION 'caso 122: plantillas no se borran';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+  BEGIN
+    DELETE FROM ingresos_ficha;
+    RAISE EXCEPTION 'caso 122: ingreso append-only';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+  BEGIN
+    UPDATE mensajes_internos SET contenido = NULL, retirado_en = now();
+    RAISE EXCEPTION 'caso 122: sin edicion ni retiro fuera de la funcion';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+  BEGIN
+    DELETE FROM mensajes_internos;
+    RAISE EXCEPTION 'caso 122: mensajes solo se borran por retencion';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+
+  -- Cuenta cerrada: su nombre en el hilo se minimiza.
+  INSERT INTO participantes_hilo (hilo_id, usuario_id) VALUES (test.id('g120'), test.u('b6'));
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT EXISTS (SELECT 1 FROM nombres_hilo(test.id('g120')) WHERE usuario_id = test.u('b6') AND nombre = 'Ex integrante del equipo'),
+    'caso 122: nombre minimizado tras cerrar la cuenta';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+
+  -- Duplicado: alerta a ADMIN y aviso a ADMIN/GESTION; resuelve administracion.
+  UPDATE pacientes SET posible_duplicado = true WHERE id = test.u('15');
+  ASSERT (SELECT count(*) FROM alertas_internas WHERE tipo = 'POSIBLE_DUPLICADO' AND referencia_id = test.u('15') AND atendida_en IS NULL) = 1,
+    'caso 122: alerta de duplicado';
+  ASSERT (SELECT count(DISTINCT usuario_id) FROM notificaciones WHERE tipo = 'POSIBLE_DUPLICADO' AND referencia_id = test.u('15')
+            AND usuario_id IN (test.u('a1'), test.u('a3'))) = 2, 'caso 122: aviso a ADMIN y GESTION';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM resolver_posible_duplicado(test.u('15'), 'DISTINTO');
+    RAISE EXCEPTION 'caso 122: el tratante no resuelve';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM resolver_posible_duplicado(test.u('15'), 'FUSIONAR');
+    RAISE EXCEPTION 'caso 122: resolucion invalida';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM resolver_posible_duplicado(test.u('15'), 'DISTINTO');
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT (SELECT NOT posible_duplicado FROM pacientes WHERE id = test.u('15'))
+         AND NOT EXISTS (SELECT 1 FROM alertas_internas WHERE tipo = 'POSIBLE_DUPLICADO' AND referencia_id = test.u('15') AND atendida_en IS NULL)
+         AND EXISTS (SELECT 1 FROM accesos_ficha WHERE paciente_id = test.u('15') AND accion = 'DUPLICADO_DISTINTO'), 'caso 122: resuelto y auditado';
+
+  -- Purga por retencion: mensaje antiguo y el hilo que queda vacio; el hilo reciente se conserva.
+  INSERT INTO hilos_internos (id, tipo, asunto, creado_por_id, creado_en, ultimo_mensaje_en)
+  VALUES (v_hv, 'GENERAL', test.cif('viejo'), test.u('b1'), now() - interval '400 days', now() - interval '400 days');
+  INSERT INTO participantes_hilo (hilo_id, usuario_id) VALUES (v_hv, test.u('b1'));
+  INSERT INTO mensajes_internos (id, hilo_id, autor_id, rol_autor, contenido, creado_en)
+  VALUES (v_old, v_hv, test.u('b1'), 'PROFESIONAL', test.cif('viejo'), now() - interval '400 days');
+  UPDATE hilos_internos SET ultimo_mensaje_en = now() - interval '400 days' WHERE id = v_hv;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM purgar_mensajes_internos();
+    RAISE EXCEPTION 'caso 122: purga solo del job';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  n := purgar_mensajes_internos();
+  ASSERT n >= 1 AND NOT EXISTS (SELECT 1 FROM mensajes_internos WHERE id = v_old) AND NOT EXISTS (SELECT 1 FROM hilos_internos WHERE id = v_hv)
+         AND EXISTS (SELECT 1 FROM hilos_internos WHERE id = test.id('g120')), 'caso 122: purga por retencion';
+
+  -- Correo de cuenta: se encola, sale con backoff y se borra al enviarse.
+  PERFORM encolar_correo_cuenta(v_c, test.cif('e@x'), 'Active su cuenta', test.cif('cuerpo con enlace'), now() + interval '1 day');
+  ASSERT (SELECT count(*) FROM correos_cuenta_por_enviar(10)) = 0, 'caso 122: espera el primer reintento';
+  UPDATE correos_cuenta_pendientes SET proximo_intento = now() WHERE id = v_c;
+  ASSERT (SELECT count(*) FROM correos_cuenta_por_enviar(10)) = 1, 'caso 122: pendiente vencido sale';
+  PERFORM resultado_correo_cuenta(v_c, false);
+  ASSERT (SELECT intentos = 2 AND proximo_intento > now() FROM correos_cuenta_pendientes WHERE id = v_c), 'caso 122: backoff';
+  PERFORM resultado_correo_cuenta(v_c, true);
+  ASSERT NOT EXISTS (SELECT 1 FROM correos_cuenta_pendientes WHERE id = v_c), 'caso 122: enviado se borra';
 END $$;
 
 \echo 67 Append-only incluso como dueño: historial, comentarios, eventos de llaves, intervenciones; sin DELETE en consentimientos ni llaves

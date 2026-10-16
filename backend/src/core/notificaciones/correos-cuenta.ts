@@ -1,8 +1,11 @@
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { HORA, nuevoTokenCorreo } from '../auth/tokens-correo';
 import { ContextoBd } from '../bd/contexto-bd.service';
+import { LlaveroService } from '../crypto/llavero.service';
 import { ProveedorCorreo } from './correo';
 
 export type TipoCorreoCuenta = 'INVITACION' | 'RECUPERACION' | 'ACCESO' | 'VERIFICACION_SOLICITUD' | 'VERIFICACION_CORREO' | 'CONSENTIMIENTO';
@@ -43,8 +46,11 @@ const TEXTOS: Record<TipoCorreoCuenta, { ruta: string; asunto: string; cuerpo: s
 /**
  * Correos de cuenta con enlace de un solo uso (03a): se envian directo al
  * terminar la operacion (no pasan por la cola de notificaciones: el
- * destinatario puede no ser aun paciente ni usuario). Un fallo de envio se
- * loguea sin el destinatario ni el enlace; la persona puede pedir otro.
+ * destinatario puede no ser aun paciente ni usuario). 03a-2: si el envio
+ * falla, se encola cifrado en correos_cuenta_pendientes y el job
+ * reintentar_correos_cuenta (NotificacionesService) reintenta con backoff
+ * hasta 5 veces o hasta que vence el enlace; enviado o vencido, se borra.
+ * Nunca se loguea el destinatario ni el enlace.
  */
 @Injectable()
 export class CorreosCuenta {
@@ -54,6 +60,7 @@ export class CorreosCuenta {
     private readonly correo: ProveedorCorreo,
     private readonly config: ConfigService,
     private readonly bd: ContextoBd,
+    private readonly llavero: LlaveroService,
   ) {}
 
   enlace(tipo: TipoCorreoCuenta, token: string): string {
@@ -64,16 +71,21 @@ export class CorreosCuenta {
     const t = TEXTOS[tipo];
     const centro = await this.nombreCentro();
     const vencimiento = vence.toLocaleString('es-CL', { timeZone: 'America/Santiago', dateStyle: 'long', timeStyle: 'short' });
+    const asunto = `${t.asunto} - ${centro}`;
+    const texto = `${t.cuerpo}\n\n${this.enlace(tipo, token)}\n\nVence: ${vencimiento}. No comparta este enlace.\n\n${centro}`;
     try {
-      await this.correo.enviar({
-        para,
-        remitente: centro,
-        asunto: `${t.asunto} - ${centro}`,
-        texto: `${t.cuerpo}\n\n${this.enlace(tipo, token)}\n\nVence: ${vencimiento}. No comparta este enlace.\n\n${centro}`,
-      });
+      await this.correo.enviar({ para, remitente: centro, asunto, texto });
     } catch {
-      this.logger.warn(`No se pudo enviar el correo ${tipo}`);
+      this.logger.warn(`No se pudo enviar el correo ${tipo}: queda para reintento`);
+      await this.encolarReintento(para, asunto, texto, vence).catch(() => this.logger.error(`No se pudo encolar el reintento del correo ${tipo}`));
     }
+  }
+
+  private async encolarReintento(para: string, asunto: string, texto: string, vence: Date) {
+    const id = randomUUID();
+    const email = this.llavero.cifrarCampo(para, 'correos_cuenta_pendientes', 'email', id);
+    const cuerpo = this.llavero.cifrarCampo(texto, 'correos_cuenta_pendientes', 'cuerpo', id);
+    await this.bd.sinContexto('job').$executeRaw`SELECT encolar_correo_cuenta(${id}::uuid, ${email}, ${asunto}, ${cuerpo}, ${vence})`;
   }
 
   /**
