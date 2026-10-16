@@ -1,4 +1,5 @@
-import { Rol, ModeloCobro, TipoPolitica } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { ModeloCobro, ModuloCentro, Rol, TipoPolitica } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -381,4 +382,65 @@ export class FiltroDirectorioDto {
   @IsString()
   @Length(1, 120)
   nombre?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Respuestas (documentan el contrato para el cliente generado del front)
+// ---------------------------------------------------------------------------
+
+/** Modulos contratados por el centro (el front oculta los inactivos). */
+export class ModulosActivos {
+  @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
+  activos!: ModuloCentro[];
+}
+
+export class RolAdicionalVista {
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  activo!: boolean;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  fechaBaja!: Date | null;
+}
+
+/** Cuenta propia (GET/PATCH usuarios/yo). */
+export class MiCuenta {
+  id!: string;
+  @ApiProperty({ type: String, nullable: true })
+  email!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  nombre!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  telefono!: string | null;
+  /** Rol principal de la cuenta (el activo de la sesion va en el token). */
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  activo!: boolean;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  fechaExpiracionAcceso!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  desactivadoEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  cerradaEn!: Date | null;
+  totpActivo!: boolean;
+  createdAt!: Date;
+  @ApiProperty({ type: [RolAdicionalVista] })
+  rolesAdicionales!: RolAdicionalVista[];
+}
+
+/** Fila de directorio_interno() (contacto solo para ADMIN/GESTION; la funcion lo filtra). */
+export class MiembroDirectorio {
+  id!: string;
+  @ApiProperty({ type: String, nullable: true })
+  nombre!: string | null;
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  @ApiProperty({ enum: Rol, enumName: 'Rol', isArray: true })
+  roles!: Rol[];
+  tiposAtencion!: string[];
+  @ApiProperty({ type: String, nullable: true })
+  email!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  telefono!: string | null;
 }

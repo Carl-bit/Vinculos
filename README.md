@@ -53,8 +53,27 @@ sh prisma/tests/correr_tests_bd.sh
 cd ../frontend
 cp .env.example .env.local
 npm install
-npm run dev                # http://localhost:3000
+npm run dev                # http://localhost:3000 (/api/* va a la API por rewrite)
 ```
+
+### Todo junto: Mailpit + API + front
+
+Postgres sigue en Docker (`docker compose ... up -d db`, o `reset_dev.sh`).
+Si el Postgres de Windows está corriendo, hay que detenerlo para liberar el 5432.
+
+```powershell
+# Una vez: Mailpit (SMTP falso con bandeja web). Versión fija y SHA-256
+# verificado; queda en tools\mailpit\ (ignorado por git).
+powershell -ExecutionPolicy Bypass -File infra\scripts\dev\instalar_mailpit.ps1
+npm install                # raíz: solo concurrently
+
+npm run dev                # mailpit + api + front en paralelo
+```
+
+- Correos: `SMTP_URL="smtp://localhost:1025"` en `backend/.env`; bandeja en http://localhost:8025.
+- VS Code: tarea "Vinculos: dev" (`.vscode/tasks.json`), equivalente a `npm run dev`.
+- E2E del front, con la API arriba y el seed demo cargado (`npm run seed:demo` en `backend`):
+  `cd frontend && npx playwright install chromium && npm run test:e2e`.
 
 ## Desplegar un silo
 

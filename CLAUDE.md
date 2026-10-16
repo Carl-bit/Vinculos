@@ -105,6 +105,20 @@ animaciones con easing de rebote por defecto.
 - `app/(publico)/` y `app/(admin)/` solo componen paginas con piezas de
   `<modulo>/` y `shared/`; no definen estilos sueltos propios ahi.
 
+## Front (03b)
+- Diseño = fuente visual; comportamiento = API y matriz. Si una pantalla muestra algo que la API no entrega, se reporta; no se inventa.
+- Jerarquia de `components/` de arriba; las paginas de `app/(publico|portal|admin)` solo componen desde `shared/` y `<modulo>/`.
+- Cliente de API generado (`npm run api:tipos` desde `docs/api/openapi.json`); nunca tipos de respuesta a mano: si falta el schema, se documenta en el backend.
+- Sesion: access token en memoria; refresh en cookie httpOnly via `app/sesion/[accion]` (fuera de `/api`); renovacion automatica. Rol activo siempre visible; cambiar de rol emite token nuevo y vacia la cache.
+- Errores con texto claro (`lib/api/errores.ts`): 409 con alternativas, 422 con el mensaje de la regla, 403, 404, 413.
+- Toda vista tiene estados de carga, vacio, error y sin permiso (`shared/EstadoVista`).
+- Fechas en America/Santiago, montos en CLP, RUT con DV (`lib/formato.ts`).
+- Nada clinico en localStorage, sessionStorage ni logs; sin analitica de terceros en vistas con datos de pacientes.
+- Animaciones sutiles con `prefers-reduced-motion`; accesible por teclado; contraste AA (gana sobre el diseño: ver `docs/front/inventario_ui.md`).
+- El menu oculta modulos inactivos y opciones que el rol activo no tiene (`lib/navegacion.ts`).
+- Tests: Testing Library (Vitest) para componentes; Playwright (`frontend/e2e`) contra la API local y el seed demo.
+- Huecos y estilo en `design-system/vinculos/MASTER.md` (ui-ux-pro-max en `.claude/skills/`: consultar con `search.py`, nunca `--persist`; su paleta y fuentes no aplican, manda Organic). `npx impeccable detect` antes de cerrar cada vista.
+
 ## Pruebas
 Un modulo con estado compartido critico (Agenda y Espacios) no se
 considera terminado solo por pasar tests unitarios. Correr

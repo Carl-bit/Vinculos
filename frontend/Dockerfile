@@ -6,10 +6,11 @@ RUN npm ci
 
 FROM node:22-alpine AS build
 WORKDIR /app
-ARG NEXT_PUBLIC_API_URL
+# API_URL: backend visto desde el contenedor (rewrites de /api y rutas /sesion).
+ARG API_URL
 ARG NEXT_PUBLIC_CENTRO_NOMBRE
 ARG NEXT_PUBLIC_SITE_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+ENV API_URL=$API_URL \
     NEXT_PUBLIC_CENTRO_NOMBRE=$NEXT_PUBLIC_CENTRO_NOMBRE \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 COPY --from=deps /app/node_modules ./node_modules

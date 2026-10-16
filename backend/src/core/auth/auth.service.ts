@@ -10,27 +10,9 @@ import { ContextoBd } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
 import { esSqlstate } from '../errores/sqlstate';
 import { CorreosCuenta } from '../notificaciones/correos-cuenta';
+import type { DesafioTotp, Tokens } from './auth.dto';
 import { HORA, hashToken, nuevoTokenCorreo } from './tokens-correo';
 import { nuevoSecretoTotp, uriTotp, verificarTotp } from './totp';
-
-export interface Tokens {
-  accessToken: string;
-  refreshToken: string;
-  /** Segundos de vida del access token. */
-  expiraEn: number;
-  /** Rol activo de la sesion. */
-  rol: Rol;
-  /** Roles con los que la cuenta puede trabajar (cambio con /auth/cambio-rol). */
-  roles: Rol[];
-}
-
-/** Segundo paso del login: TOTP (o su enrolamiento si es obligatorio y no esta activo). */
-export interface DesafioTotp {
-  requiereTotp: true;
-  enrolamiento: boolean;
-  /** JWT corto (5 min) que identifica el login a medio camino. */
-  desafio: string;
-}
 
 interface Credenciales {
   id: string;

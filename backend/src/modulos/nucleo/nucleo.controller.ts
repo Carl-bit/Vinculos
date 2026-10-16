@@ -33,6 +33,9 @@ import {
   EditarMiCuentaDto,
   EditarUsuarioDto,
   IniciarBajaDto,
+  MiCuenta,
+  MiembroDirectorio,
+  ModulosActivos,
   OtorgarAccesoDto,
   RevocarAccesoDto,
 } from './dto/nucleo.dto';
@@ -63,13 +66,13 @@ export class UsuariosController {
 
   @Get('yo')
   @Roles(...TODOS)
-  yo() {
+  yo(): Promise<MiCuenta> {
     return this.usuarios.miCuenta();
   }
 
   @Patch('yo')
   @Roles(...TODOS)
-  editarYo(@Body() dto: EditarMiCuentaDto) {
+  editarYo(@Body() dto: EditarMiCuentaDto): Promise<MiCuenta> {
     return this.usuarios.editarMiCuenta(dto);
   }
 
@@ -148,7 +151,7 @@ export class CentroController {
   /** Modulos contratados: el front oculta los inactivos; la API responde 403 en sus rutas. */
   @Get('modulos')
   @Roles(...TODOS)
-  modulos() {
+  modulos(): Promise<ModulosActivos> {
     return this.centro.modulos();
   }
 
@@ -293,7 +296,7 @@ export class DirectorioController {
   /** Contacto solo ADMIN/GESTION; PRACTICANTE solo ve a su supervisor (la funcion lo filtra). */
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  equipoInterno(@Query() filtro: FiltroDirectorioDto) {
+  equipoInterno(@Query() filtro: FiltroDirectorioDto): Promise<MiembroDirectorio[]> {
     return this.equipo.directorio(filtro);
   }
 

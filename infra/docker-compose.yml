@@ -112,10 +112,13 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://${DOMINIO}/api
+        API_URL: http://backend:3001
         NEXT_PUBLIC_CENTRO_NOMBRE: ${CENTRO_NOMBRE}
         NEXT_PUBLIC_SITE_URL: https://${DOMINIO}
     restart: unless-stopped
+    environment:
+      # /sesion/* (refresh en cookie httpOnly) llama al backend por la red interna.
+      API_URL: http://backend:3001
     depends_on:
       - backend
     networks:

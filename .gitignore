@@ -36,13 +36,21 @@ kek.*
 *.sql.zst
 *.tar.gz
 
+# Binarios de herramientas de desarrollo (infra/scripts/dev/instalar_mailpit.ps1)
+tools/
+
+# Resultados de Playwright
+test-results/
+playwright-report/
+
 # Logs
 *.log
 npm-debug.log*
 
 # Configuracion personal de herramientas y editores
 .claude/settings.local.json
-.vscode/
+.vscode/*
+!.vscode/tasks.json
 .idea/
 
 # Sistema operativo

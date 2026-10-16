@@ -9,6 +9,15 @@ import { applyDecorators, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiProperty, ApiPropertyOptional, ApiResponse, DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 
+/** Horario libre cercano que acompaña un 409 de agenda (citas.service). */
+export class AlternativaHorario {
+  @ApiProperty({ format: 'date-time' })
+  inicio!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  fin!: string;
+}
+
 /** Cuerpo de error del filtro global (core/errores/filtro-errores.ts). */
 export class ErrorRespuesta {
   @ApiProperty({ example: 409 })
@@ -28,6 +37,9 @@ export class ErrorRespuesta {
 
   @ApiPropertyOptional()
   requestId?: string;
+
+  @ApiPropertyOptional({ type: [AlternativaHorario], description: 'Solo en 409 de agenda: horarios libres mas cercanos' })
+  alternativas?: AlternativaHorario[];
 }
 
 const error = (status: number, description: string) => ApiResponse({ status, description, type: ErrorRespuesta });

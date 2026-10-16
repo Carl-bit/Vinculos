@@ -3,7 +3,7 @@
 Direccion de los imports, en un solo sentido:
 
 ```
-ui/  ->  shared/  ->  <modulo>/  ->  app/(publico) | app/(admin)
+ui/  ->  shared/  ->  <modulo>/  ->  app/(publico) | app/(portal) | app/(admin)
 ```
 
 | Carpeta                 | Que va aca                                                                      | Que NO va                                  |

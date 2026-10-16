@@ -1,10 +1,25 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiExtraModels, ApiOkResponse, ApiTags, getSchemaPath } from '@nestjs/swagger';
 
 import { TAGS } from '../docs/openapi';
-import { CambioRolDto, CorreoDto, DesafioDto, LoginDto, RefreshDto, TokenDto, TokenPasswordDto, TotpDto } from './auth.dto';
-import { AuthService, type DesafioTotp, type Tokens } from './auth.service';
+import {
+  CambioRolDto,
+  CorreoDto,
+  DesafioDto,
+  DesafioTotp,
+  EnrolamientoTotp,
+  LoginDto,
+  RefreshDto,
+  TokenDto,
+  TokenPasswordDto,
+  Tokens,
+  TotpDto,
+} from './auth.dto';
+import { AuthService } from './auth.service';
+
+/** Login en uno o dos pasos: tokens, o desafio TOTP si la cuenta lo exige. */
+const TokensODesafio = () => ApiOkResponse({ schema: { oneOf: [{ $ref: getSchemaPath(Tokens) }, { $ref: getSchemaPath(DesafioTotp) }] } });
 import { Publico } from './decoradores';
 
 /**
@@ -17,11 +32,13 @@ import { Publico } from './decoradores';
 @Publico()
 @UseGuards(ThrottlerGuard)
 @SkipThrottle({ publico: true })
+@ApiExtraModels(Tokens, DesafioTotp)
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   /** Correo (o RUT del paciente) y contraseña. Con TOTP (obligatorio en roles clinicos) responde un desafio. */
   @Post('login')
+  @TokensODesafio()
   @HttpCode(200)
   login(@Body() dto: LoginDto): Promise<Tokens | DesafioTotp> {
     return this.auth.login({ email: dto.email, rut: dto.rut }, dto.password, dto.rol);
@@ -37,7 +54,7 @@ export class AuthController {
   /** Enrolamiento TOTP: secreto y URI otpauth para el codigo QR. */
   @Post('totp/enrolamiento')
   @HttpCode(200)
-  enrolar(@Body() dto: DesafioDto) {
+  enrolar(@Body() dto: DesafioDto): Promise<EnrolamientoTotp> {
     return this.auth.enrolarTotp(dto.desafio);
   }
 
@@ -81,6 +98,7 @@ export class AuthController {
   }
 
   @Post('enlace-acceso/confirmacion')
+  @TokensODesafio()
   @HttpCode(200)
   usarEnlaceAcceso(@Body() dto: TokenDto): Promise<Tokens | DesafioTotp> {
     return this.auth.usarEnlaceAcceso(dto.token);
@@ -88,6 +106,7 @@ export class AuthController {
 
   /** Invitacion (equipo, paciente o adulto responsable): fija la contraseña y entra. */
   @Post('activacion')
+  @TokensODesafio()
   @HttpCode(200)
   activar(@Body() dto: TokenPasswordDto): Promise<Tokens | DesafioTotp> {
     return this.auth.activarInvitacion(dto.token, dto.password);

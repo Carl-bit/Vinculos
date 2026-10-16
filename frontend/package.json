@@ -8,23 +8,37 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "api:tipos": "openapi-typescript ../docs/api/openapi.json -o src/lib/api/esquema.d.ts",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
     "impeccable": "impeccable detect"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
     "next": "^15.1.0",
+    "openapi-fetch": "^0.13.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.0.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.0",
     "impeccable": "latest",
+    "jsdom": "^25.0.1",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.7"
   }
 }

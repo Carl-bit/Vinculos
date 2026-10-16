@@ -96,6 +96,7 @@ cambia). Dominio `@centro-prueba.cl`.
 | `paciente3` | PACIENTE | Diego Demo Derivacion (RUT 33.333.333-3) |
 | `inactivo` | PROFESIONAL desactivado | login rechazado |
 | `practicante.expirado` | PRACTICANTE con acceso vencido | login rechazado |
+| `directora` | ADMIN + PROFESIONAL (dos roles, TOTP) | cambio de rol activo (`auth/cambio-rol`, selector del front) |
 
 `profesional3` existe para que la derivacion en curso tenga dos candidatos
 ademas del origen (con solo dos profesionales no se puede).

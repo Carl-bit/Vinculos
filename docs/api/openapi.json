@@ -21,7 +21,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Tokens"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DesafioTotp"
+                    }
+                  ]
                 }
               }
             }
@@ -73,7 +80,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Tokens"
                 }
               }
             }
@@ -121,7 +128,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrolamientoTotp"
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -170,7 +184,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Tokens"
                 }
               }
             }
@@ -221,7 +235,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Tokens"
                 }
               }
             }
@@ -451,7 +465,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Tokens"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DesafioTotp"
+                    }
+                  ]
                 }
               }
             }
@@ -502,7 +523,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Tokens"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DesafioTotp"
+                    }
+                  ]
                 }
               }
             }
@@ -1588,7 +1616,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MiCuenta"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -1677,7 +1712,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MiCuenta"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -2601,7 +2643,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModulosActivos"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -4227,7 +4276,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MiembroDirectorio"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -23337,6 +23396,23 @@
       }
     },
     "schemas": {
+      "AlternativaHorario": {
+        "type": "object",
+        "properties": {
+          "inicio": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fin": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "inicio",
+          "fin"
+        ]
+      },
       "ErrorRespuesta": {
         "type": "object",
         "properties": {
@@ -23364,12 +23440,91 @@
           },
           "requestId": {
             "type": "string"
+          },
+          "alternativas": {
+            "description": "Solo en 409 de agenda: horarios libres mas cercanos",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlternativaHorario"
+            }
           }
         },
         "required": [
           "statusCode",
           "error",
           "mensaje"
+        ]
+      },
+      "Rol": {
+        "type": "string",
+        "enum": [
+          "ADMIN",
+          "GESTION",
+          "PROFESIONAL",
+          "PRACTICANTE",
+          "PACIENTE",
+          "RESPONSABLE"
+        ],
+        "description": "Rol activo de la sesion."
+      },
+      "Tokens": {
+        "type": "object",
+        "properties": {
+          "rol": {
+            "description": "Rol activo de la sesion.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "description": "Roles con los que la cuenta puede trabajar (cambio con /auth/cambio-rol).",
+            "items": {
+              "$ref": "#/components/schemas/Rol"
+            }
+          },
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "expiraEn": {
+            "type": "number",
+            "description": "Segundos de vida del access token."
+          }
+        },
+        "required": [
+          "rol",
+          "roles",
+          "accessToken",
+          "refreshToken",
+          "expiraEn"
+        ]
+      },
+      "DesafioTotp": {
+        "type": "object",
+        "properties": {
+          "requiereTotp": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "enrolamiento": {
+            "type": "boolean"
+          },
+          "desafio": {
+            "type": "string",
+            "description": "JWT corto (5 min) que identifica el login a medio camino."
+          }
+        },
+        "required": [
+          "requiereTotp",
+          "enrolamiento",
+          "desafio"
         ]
       },
       "LoginDto": {
@@ -23434,6 +23589,21 @@
         },
         "required": [
           "desafio"
+        ]
+      },
+      "EnrolamientoTotp": {
+        "type": "object",
+        "properties": {
+          "secreto": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secreto",
+          "uri"
         ]
       },
       "RefreshDto": {
@@ -23609,6 +23779,109 @@
           "email",
           "nombre",
           "rol"
+        ]
+      },
+      "RolAdicionalVista": {
+        "type": "object",
+        "properties": {
+          "rol": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "fechaBaja": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rol",
+          "fechaBaja",
+          "activo"
+        ]
+      },
+      "MiCuenta": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "rol": {
+            "description": "Rol principal de la cuenta (el activo de la sesion va en el token).",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "fechaExpiracionAcceso": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "pacienteId": {
+            "type": "string",
+            "nullable": true
+          },
+          "desactivadoEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "cerradaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "rolesAdicionales": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RolAdicionalVista"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "totpActivo": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "nombre",
+          "telefono",
+          "rol",
+          "fechaExpiracionAcceso",
+          "pacienteId",
+          "desactivadoEn",
+          "cerradaEn",
+          "rolesAdicionales",
+          "id",
+          "activo",
+          "totpActivo",
+          "createdAt"
         ]
       },
       "EditarMiCuentaDto": {
@@ -23803,6 +24076,31 @@
             "maximum": 3650
           }
         }
+      },
+      "ModuloCentro": {
+        "type": "string",
+        "enum": [
+          "PAGINA_PUBLICA",
+          "FICHAS",
+          "AGENDA",
+          "EQUIPO",
+          "MATCH",
+          "COBROS"
+        ]
+      },
+      "ModulosActivos": {
+        "type": "object",
+        "properties": {
+          "activos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuloCentro"
+            }
+          }
+        },
+        "required": [
+          "activos"
+        ]
       },
       "ServicioPublicoDto": {
         "type": "object",
@@ -24025,6 +24323,54 @@
         "required": [
           "usuarioId",
           "fechaEfectiva"
+        ]
+      },
+      "MiembroDirectorio": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "rol": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Rol"
+            }
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "tiposAtencion": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "nombre",
+          "rol",
+          "roles",
+          "email",
+          "telefono",
+          "id",
+          "tiposAtencion"
         ]
       },
       "CrearPacienteDto": {

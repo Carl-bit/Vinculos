@@ -1,0 +1,14 @@
+{
+  "name": "vinculos",
+  "private": true,
+  "description": "Desarrollo local: Mailpit + API + front en paralelo (Postgres en Docker aparte).",
+  "scripts": {
+    "dev": "concurrently -k -n mailpit,api,front -c yellow,cyan,magenta npm:dev:mailpit npm:dev:api npm:dev:front",
+    "dev:mailpit": "node infra/scripts/dev/mailpit.mjs",
+    "dev:api": "npm --prefix backend run start:dev",
+    "dev:front": "npm --prefix frontend run dev"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.1"
+  }
+}

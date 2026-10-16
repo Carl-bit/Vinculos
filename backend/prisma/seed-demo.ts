@@ -127,6 +127,10 @@ async function main(): Promise<void> {
     const yo = async (token: string) => (await llamar(token, 'GET', '/usuarios/yo')).id;
 
     await crearUsuario({ email: MARCA, nombre: 'Gestion Demo', rol: 'GESTION' });
+    // C-1: cuenta con dos roles (ADMIN + PROFESIONAL) para el selector de rol activo del front.
+    const directoraId = (await crearUsuario({ email: `directora@${DOMINIO}`, nombre: 'Directora Demo', rol: 'ADMIN' })).id;
+    await llamar(admin, 'POST', `/usuarios/${directoraId}/roles`, { rol: 'PROFESIONAL' });
+    await login(`directora@${DOMINIO}`); // rol clinico: TOTP obligatorio, se enrola aca.
     const prof3Id = (await crearUsuario({ email: `profesional3@${DOMINIO}`, nombre: 'Profesional Tres (Demo)', rol: 'PROFESIONAL' })).id;
     const inactivo = await crearUsuario({ email: `inactivo@${DOMINIO}`, nombre: 'Profesional Inactivo (Demo)', rol: 'PROFESIONAL' });
     await llamar(admin, 'PATCH', `/usuarios/${inactivo.id}`, { activo: false });

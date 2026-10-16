@@ -1,0 +1,39 @@
+{
+  // Equivalente a `npm run dev` en la raiz: Mailpit + API + front.
+  // Postgres va aparte (docker compose ... up -d db). Ejecutar "Vinculos: dev".
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Vinculos: mailpit",
+      "type": "shell",
+      "command": "node infra/scripts/dev/mailpit.mjs",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "group": "dev", "panel": "dedicated" }
+    },
+    {
+      "label": "Vinculos: api",
+      "type": "shell",
+      "command": "npm run start:dev",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "group": "dev", "panel": "dedicated" }
+    },
+    {
+      "label": "Vinculos: front",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "group": "dev", "panel": "dedicated" }
+    },
+    {
+      "label": "Vinculos: dev",
+      "dependsOn": ["Vinculos: mailpit", "Vinculos: api", "Vinculos: front"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}
