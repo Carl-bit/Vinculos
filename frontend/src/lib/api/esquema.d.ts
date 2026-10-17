@@ -1627,13 +1627,74 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Ocupacion de boxes (citas confirmadas + soft-locks), sin pacientes.
+         * Ocupacion de boxes (bloques apartados + soft-locks), sin pacientes ni profesionales.
          * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
          */
         get: operations["EspaciosController_ocupacion"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/espacios/disponibilidad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 03b: horas libres de cada box para apartar (horario vigente del box menos bloques). Max. 62 dias.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        get: operations["EspaciosController_disponibilidad"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/profesionales/{profesionalId}/bloques": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE */
+        get: operations["AgendaProfesionalController_bloques"];
+        put?: never;
+        /**
+         * Aparta horas de box (todas o ninguna): fuera del horario del box 422, ya apartadas 409.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        post: operations["AgendaProfesionalController_apartarBloques"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/profesionales/{profesionalId}/bloques/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Libera un bloque sin citas ni retenciones dentro (si las tiene, 409).
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        delete: operations["AgendaProfesionalController_liberarBloque"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1646,7 +1707,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE */
+        /**
+         * Horario habitual semanal (referencia para apartar bloques; ya no decide la agenda).
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
         get: operations["AgendaProfesionalController_disponibilidad"];
         put?: never;
         /** @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE */
@@ -2098,6 +2162,56 @@ export interface paths {
         put?: never;
         /** @description Roles: ADMIN, GESTION, PROFESIONAL, PACIENTE, RESPONSABLE */
         post: operations["ListaEsperaController_cerrar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publico/lista-espera": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ListaEsperaPublicaController_inscribir"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publico/lista-espera/verificacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** El enlace del correo activa la inscripcion (un solo uso). */
+        post: operations["ListaEsperaPublicaController_verificar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publico/lista-espera/baja": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** El enlace de baja borra la inscripcion. */
+        post: operations["ListaEsperaPublicaController_baja"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3909,6 +4023,8 @@ export interface components {
             refreshToken: string;
             /** @description Segundos de vida del access token. */
             expiraEn: number;
+            /** @description Minutos sin actividad tras los que se cierra la sesion (el front la cierra antes de renovar). */
+            inactividadMinutos: number;
         };
         DesafioTotp: {
             /** @enum {boolean} */
@@ -4121,11 +4237,6 @@ export interface components {
             profesionalId: string;
             /** @enum {string} */
             modalidad: "PRESENCIAL" | "ONLINE";
-            /**
-             * Format: uuid
-             * @description Solo PRESENCIAL (la BD lo exige).
-             */
-            espacioId?: string;
             /** Format: date-time */
             inicio: string;
             /** Format: date-time */
@@ -4387,9 +4498,48 @@ export interface components {
             diaSemana: number;
             inicioMin: number;
             finMin: number;
+            /**
+             * Format: date-time
+             * @description 03b: periodo en que rige (semana, mes, trimestre). Sin fechas = siempre.
+             */
+            vigenteDesde?: string;
+            /** Format: date-time */
+            vigenteHasta?: string;
         };
         HorarioEspacioDto: {
             bloques: components["schemas"]["BloqueEspacioDto"][];
+        };
+        HoraLibreBox: {
+            espacioId: string;
+            /** Format: date-time */
+            inicio: string;
+            /** Format: date-time */
+            fin: string;
+        };
+        BloqueAtencionVista: {
+            id: string;
+            profesionalId: string;
+            espacioId: string;
+            /** Format: date-time */
+            inicio: string;
+            /** Format: date-time */
+            fin: string;
+            /** Format: date-time */
+            creadoEn: string;
+        };
+        BloqueAtencionDto: {
+            /** Format: uuid */
+            espacioId: string;
+            /** Format: date-time */
+            inicio: string;
+            /** Format: date-time */
+            fin: string;
+        };
+        ApartarBloquesDto: {
+            bloques: components["schemas"]["BloqueAtencionDto"][];
+        };
+        BloquesLiberados: {
+            eliminados: number;
         };
         CrearDisponibilidadDto: {
             diaSemana: number;
@@ -4417,11 +4567,6 @@ export interface components {
             profesionalId: string;
             /** @enum {string} */
             modalidad: "PRESENCIAL" | "ONLINE";
-            /**
-             * Format: uuid
-             * @description Solo PRESENCIAL (la BD lo exige).
-             */
-            espacioId?: string;
             /** Format: date-time */
             inicio: string;
             /** Format: date-time */
@@ -4436,8 +4581,6 @@ export interface components {
             fin: string;
             /** @enum {string} */
             modalidad?: "PRESENCIAL" | "ONLINE";
-            /** Format: uuid */
-            espacioId?: string;
         };
         CubrirCitaDto: {
             /** Format: uuid */
@@ -4461,6 +4604,35 @@ export interface components {
         CerrarListaEsperaDto: {
             /** @enum {string} */
             estado: "ASIGNADA" | "CANCELADA";
+        };
+        InscribirListaEsperaDto: {
+            /** Format: uuid */
+            profesionalId: string;
+            nombre: string;
+            /** Format: email */
+            email: string;
+            telefono?: string;
+            /** Format: uuid */
+            politicaId: string;
+            /** @description Trampa para bots: un humano lo deja vacio. */
+            sitioWeb?: string;
+        };
+        InscripcionListaEspera: {
+            verificacionEnviada: boolean;
+            /**
+             * Format: date-time
+             * @description Vencimiento del enlace de verificacion (24 horas).
+             */
+            expiraEn: string;
+        };
+        TokenListaEsperaDto: {
+            token: string;
+        };
+        InscripcionVerificada: {
+            /** Format: uuid */
+            profesionalId: string;
+            /** Format: date-time */
+            expiraEn: string;
         };
         PerfilDto: {
             especialidad: string;
@@ -4659,13 +4831,150 @@ export interface components {
             /** @description Documento firmado escaneado (obligatorio para ADMIN/GESTION: lo exige la BD). */
             respaldoDocumentoRef?: string;
         };
+        /** @enum {string} */
+        ModeloCobro: "CENTRO" | "DIRECTO" | "MIXTO";
+        ServicioPublico: {
+            /** @description Nombre de un icono Material Symbols */
+            icono?: string;
+            titulo: string;
+            texto: string;
+        };
+        CentroPublico: {
+            hero_titulo: string | null;
+            hero_texto: string | null;
+            contacto_correo: string | null;
+            contacto_telefono: string | null;
+            direccion: string | null;
+            whatsapp: string | null;
+            instagram: string | null;
+            mision: string | null;
+            vision: string | null;
+            color_marca: string | null;
+            /** @description GET publico/imagenes/{id} */
+            logo_imagen_id: string | null;
+            modulos: components["schemas"]["ModuloCentro"][];
+            modelo_cobro: components["schemas"]["ModeloCobro"];
+            nombre_centro: string;
+            servicios: components["schemas"]["ServicioPublico"][];
+            match_filtro_directo: boolean;
+            plazo_aviso_cancelacion_horas: number;
+            penalizacion_cancelacion_porcentaje: number;
+            cobro_inasistencia_porcentaje: number;
+        };
+        PoliticaPublica: {
+            id: string;
+            version: number;
+            texto: string;
+            /** Format: date-time */
+            vigente_desde: string;
+        };
+        /** @enum {string} */
+        Modalidad: "PRESENCIAL" | "ONLINE" | "MIXTA";
+        /** @enum {string} */
+        ModalidadAtencion: "PRESENCIAL" | "ONLINE";
+        TarifaPublica: {
+            tipo_atencion: string | null;
+            modalidad: components["schemas"]["ModalidadAtencion"] | null;
+            monto: number;
+        };
+        TrayectoriaPublica: {
+            tipo: string;
+            titulo: string;
+            institucion: string;
+            anio: number;
+        };
+        PerfilPublico: {
+            nombre_publico: string | null;
+            bio: string | null;
+            foto_url: string | null;
+            modalidad: components["schemas"]["Modalidad"];
+            anios_experiencia: number | null;
+            cita_destacada: string | null;
+            /** @description Promedio de reseñas publicadas (decimal como texto) */
+            calificacion: string | null;
+            id: string;
+            especialidad: string;
+            enfoques: string[];
+            tipos_atencion: string[];
+            verificado: boolean;
+            titulos_verificados: string[];
+            tarifas: components["schemas"]["TarifaPublica"][];
+            /** @description Solo la trayectoria verificada por ADMIN. */
+            trayectoria: components["schemas"]["TrayectoriaPublica"][];
+            boleta_reembolsable: boolean;
+            convenios: string[];
+            idiomas: string[];
+            resenas: number;
+        };
+        Hueco: {
+            modalidad: components["schemas"]["ModalidadAtencion"];
+            /** Format: date-time */
+            inicio: string;
+            /** Format: date-time */
+            fin: string;
+        };
+        ResenaPublica: {
+            texto: string | null;
+            id: string;
+            calificacion: number;
+            autor: string;
+            /** Format: date-time */
+            fecha: string;
+        };
         ReporteResenaDto: {
             motivo: string;
+        };
+        /** @enum {string} */
+        TipoPreguntaMatch: "UNICA" | "MULTIPLE" | "ESCALA" | "TEXTO" | "DIAS" | "FRANJAS";
+        /** @enum {string} */
+        CriterioMatch: "TIPO_ATENCION" | "ENFOQUE" | "ESPECIALIDAD" | "MODALIDAD" | "PREVISION";
+        OpcionPublica: {
+            nota: string | null;
+            criterio: components["schemas"]["CriterioMatch"] | null;
+            objetivo: string | null;
+            /** @description Aviso al elegir la opcion (p. ej. Salud Responde en intensidad alta). */
+            mensaje: string | null;
+            valor: string;
+            etiqueta: string;
+            peso: number;
+            estricto: boolean;
+        };
+        PreguntaPublica: {
+            ayuda: string | null;
+            tipo: components["schemas"]["TipoPreguntaMatch"];
+            max_selecciones: number | null;
+            id: string;
+            clave: string;
+            texto: string;
+            obligatoria: boolean;
+            opciones: components["schemas"]["OpcionPublica"][];
+        };
+        CuestionarioPublico: {
+            preguntas: components["schemas"]["PreguntaPublica"][];
+            /** @description "Prefiero filtrar yo mismo" habilitado por ADMIN. */
+            filtroDirecto: boolean;
         };
         CalcularMatchDto: {
             respuestas: {
                 [key: string]: unknown;
             };
+        };
+        OpcionResultadoMatch: {
+            /** @description Criterios estrictos que no cumple */
+            advertencia: string | null;
+            /** Format: date-time */
+            primerHueco: string | null;
+            perfil: components["schemas"]["PerfilPublico"];
+            puntaje: number;
+            /** @description Explicacion en lenguaje claro (por que se recomienda). */
+            razones: string[];
+        };
+        ResultadoMatch: {
+            recomendado: components["schemas"]["OpcionResultadoMatch"] | null;
+            otros: components["schemas"]["OpcionResultadoMatch"][];
+            avisos: string[];
+            /** @description Etiquetas de las opciones elegidas. */
+            resumen: string[];
         };
         SolicitudHoraDto: {
             /** Format: uuid */
@@ -4715,8 +5024,34 @@ export interface components {
             /** @description Trampa para bots: debe venir vacio (campo oculto del formulario). */
             sitioWeb?: string;
         };
+        SolicitudCreada: {
+            /**
+             * Format: date-time
+             * @description Fin de la retencion de la hora (bloqueo temporal).
+             */
+            expiraEn: string;
+            verificacionEnviada: boolean;
+        };
         TokenPublicoDto: {
             token: string;
+        };
+        /**
+         * @description CONFIRMADA, o SOLICITADA si el profesional aprueba a los pacientes nuevos.
+         * @enum {string}
+         */
+        EstadoCita: "CONFIRMADA" | "CANCELADA" | "POR_REPROGRAMAR" | "SOLICITADA";
+        SolicitudVerificada: {
+            /** @description CONFIRMADA, o SOLICITADA si el profesional aprueba a los pacientes nuevos. */
+            estado: components["schemas"]["EstadoCita"];
+            modalidad: components["schemas"]["ModalidadAtencion"];
+            citaId: string;
+            profesionalId: string;
+            /** Format: date-time */
+            inicio: string;
+            /** Format: date-time */
+            fin: string;
+            invitacionEnviada: boolean;
+            adultoResponsable: boolean;
         };
         ResponderConsentimientoTokenDto: {
             token: string;
@@ -13314,6 +13649,315 @@ export interface operations {
             };
         };
     };
+    EspaciosController_disponibilidad: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HoraLibreBox"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    AgendaProfesionalController_bloques: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+            };
+            header?: never;
+            path: {
+                profesionalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BloqueAtencionVista"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    AgendaProfesionalController_apartarBloques: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profesionalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApartarBloquesDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BloqueAtencionVista"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    AgendaProfesionalController_liberarBloque: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profesionalId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BloquesLiberados"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
     AgendaProfesionalController_disponibilidad: {
         parameters: {
             query?: never;
@@ -15541,6 +16185,127 @@ export interface operations {
             };
             /** @description Regla de negocio de la BD (23514, 23503) */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    ListaEsperaPublicaController_inscribir: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InscribirListaEsperaDto"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InscripcionListaEspera"];
+                };
+            };
+            /** @description Parametros invalidos */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Limite de consultas por minuto e IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    ListaEsperaPublicaController_verificar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenListaEsperaDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InscripcionVerificada"];
+                };
+            };
+            /** @description Parametros invalidos */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Limite de consultas por minuto e IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    ListaEsperaPublicaController_baja: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenListaEsperaDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Parametros invalidos */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Limite de consultas por minuto e IP */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -20071,7 +20836,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["CentroPublico"];
                 };
             };
             /** @description Parametros invalidos */
@@ -20109,7 +20874,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PoliticaPublica"];
+                };
             };
             /** @description Parametros invalidos */
             400: {
@@ -20185,7 +20952,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": components["schemas"]["PerfilPublico"][];
                 };
             };
             /** @description Parametros invalidos */
@@ -20227,7 +20994,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": components["schemas"]["Hueco"][];
                 };
             };
             /** @description Parametros invalidos */
@@ -20265,7 +21032,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ResenaPublica"][];
+                };
             };
             /** @description Parametros invalidos */
             400: {
@@ -20341,7 +21110,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CuestionarioPublico"];
+                };
             };
             /** @description Parametros invalidos */
             400: {
@@ -20422,7 +21193,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ResultadoMatch"];
+                };
             };
             /** @description Parametros invalidos */
             400: {
@@ -20461,7 +21234,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SolicitudCreada"];
+                };
             };
             /** @description Parametros invalidos */
             400: {
@@ -20500,7 +21275,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SolicitudVerificada"];
+                };
             };
             /** @description Parametros invalidos */
             400: {

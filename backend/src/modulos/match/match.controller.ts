@@ -47,6 +47,17 @@ import {
   SolicitudHoraDto,
   TokenPublicoDto,
 } from './dto/match.dto';
+import {
+  CentroPublico,
+  CuestionarioPublico,
+  Hueco,
+  PerfilPublico,
+  PoliticaPublica,
+  ResenaPublica,
+  ResultadoMatch,
+  SolicitudCreada,
+  SolicitudVerificada,
+} from './dto/publico-respuestas.dto';
 import { MatchConfigService } from './match-config.service';
 import { MatchService } from './match.service';
 import { PortalService } from './portal.service';
@@ -74,12 +85,12 @@ export class PublicoController {
 
   /** Contenido de la pagina publica, modulos activos y politica de cancelacion vigente (terminos). */
   @Get('centro')
-  centro() {
+  centro(): Promise<CentroPublico> {
     return this.match.centro();
   }
 
   @Get('politicas/:tipo')
-  politica(@Param('tipo', new ParseEnumPipe(TipoPolitica)) tipo: TipoPolitica) {
+  politica(@Param('tipo', new ParseEnumPipe(TipoPolitica)) tipo: TipoPolitica): Promise<PoliticaPublica> {
     return this.match.politica(tipo);
   }
 
@@ -94,20 +105,20 @@ export class PublicoController {
   /** Equipo publico: solo PROFESIONAL con perfil publicado (nunca practicantes). */
   @Get('profesionales')
   @Modulo('PAGINA_PUBLICA')
-  perfiles(@Query() filtro: FiltroPerfilesDto) {
+  perfiles(@Query() filtro: FiltroPerfilesDto): Promise<PerfilPublico[]> {
     return this.match.perfiles(filtro);
   }
 
   @Get('profesionales/:id/disponibilidad')
   @Modulo('PAGINA_PUBLICA')
-  disponibilidad(@Param('id', Uuid) id: string, @Query() rango: RangoPublicoDto) {
+  disponibilidad(@Param('id', Uuid) id: string, @Query() rango: RangoPublicoDto): Promise<Hueco[]> {
     return this.match.disponibilidad(id, rango.desde, rango.hasta);
   }
 
   /** Reseñas publicadas del profesional (D-1). */
   @Get('profesionales/:id/resenas')
   @Modulo('PAGINA_PUBLICA')
-  resenas(@Param('id', Uuid) id: string) {
+  resenas(@Param('id', Uuid) id: string): Promise<ResenaPublica[]> {
     return this.match.resenas(id);
   }
 
@@ -120,7 +131,7 @@ export class PublicoController {
   /** Cuestionario activo del match (configurable por ADMIN). */
   @Get('cuestionario')
   @Modulo('MATCH')
-  cuestionario() {
+  cuestionario(): Promise<CuestionarioPublico> {
     return this.match.cuestionario();
   }
 
@@ -128,7 +139,7 @@ export class PublicoController {
   @Post('match')
   @HttpCode(200)
   @Modulo('MATCH')
-  calcular(@Body() dto: CalcularMatchDto) {
+  calcular(@Body() dto: CalcularMatchDto): Promise<ResultadoMatch> {
     return this.match.calcular(dto.respuestas);
   }
 
@@ -143,7 +154,7 @@ export class PublicoController {
   @Post('solicitudes')
   @HttpCode(202)
   @Modulo('AGENDA')
-  solicitar(@Body() dto: SolicitudHoraDto) {
+  solicitar(@Body() dto: SolicitudHoraDto): Promise<SolicitudCreada> {
     return this.solicitudes.crear(dto);
   }
 
@@ -151,7 +162,7 @@ export class PublicoController {
   @Post('solicitudes/verificacion')
   @HttpCode(200)
   @Modulo('AGENDA')
-  verificar(@Body() dto: TokenPublicoDto) {
+  verificar(@Body() dto: TokenPublicoDto): Promise<SolicitudVerificada> {
     return this.solicitudes.verificar(dto.token);
   }
 

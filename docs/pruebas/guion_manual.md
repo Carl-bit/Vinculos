@@ -44,6 +44,13 @@ En `backend/.env`:
 
 ### 0.3 BD local y datos demo
 
+> 03b: con la BD arriba (Postgres en Docker del entorno de desarrollo o el
+> cluster de `bd:local`), `npm run dev` **en la raiz** levanta Mailpit, la API
+> y el front juntos. La agenda sale de las horas de box apartadas: el seed
+> demo deja a cada profesional con bloques de una semana atras a seis
+> adelante (Box 1 y 2) y un Box 3 con horario por periodo sin apartar. La
+> sesion se cierra tras 30 minutos sin actividad (`SESION_INACTIVIDAD_MINUTOS`).
+
 Desde `backend/`:
 
 ```sh
@@ -87,9 +94,9 @@ cambia). Dominio `@centro-prueba.cl`.
 |---|---|---|
 | `admin` | ADMIN | configuracion, usuarios, aprobaciones, auditoria |
 | `gestion` | GESTION (habilitado) | agenda, pagos, consentimientos con respaldo |
-| `profesional1` | PROFESIONAL | tratante de Paciente Prueba y Diego; origen de derivaciones |
+| `profesional1` | PROFESIONAL | tratante de Paciente Prueba y Diego; origen de derivaciones; perfil publico completo (FONASA, idiomas, cita destacada, formacion verificada, reseña publicada) |
 | `profesional2` | PROFESIONAL | supervisor del practicante; tratante de Sofia; candidato 1 |
-| `profesional3` | PROFESIONAL | candidato 2 de la derivacion en curso |
+| `profesional3` | PROFESIONAL | candidato 2 de la derivacion en curso; exige aprobacion de pacientes nuevos (Pedir hora termina en "solicitud enviada") |
 | `practicante` | PRACTICANTE | tratante de Camila (consentimiento vigente), acceso por 90 dias |
 | `paciente` | PACIENTE | Paciente Prueba (RUT 11.111.111-1) |
 | `paciente2` | PACIENTE | Camila Demo Practicante (RUT 22.222.222-2) |
@@ -97,6 +104,10 @@ cambia). Dominio `@centro-prueba.cl`.
 | `inactivo` | PROFESIONAL desactivado | login rechazado |
 | `practicante.expirado` | PRACTICANTE con acceso vencido | login rechazado |
 | `directora` | ADMIN + PROFESIONAL (dos roles, TOTP) | cambio de rol activo (`auth/cambio-rol`, selector del front) |
+
+Sitio publico (03b-2): el seed publica el contenido del landing, la politica de
+datos y los terminos de agendamiento (sin politica de datos no se puede pedir
+hora). Los correos de verificacion llegan a Mailpit (http://127.0.0.1:8025).
 
 `profesional3` existe para que la derivacion en curso tenga dos candidatos
 ademas del origen (con solo dos profesionales no se puede).

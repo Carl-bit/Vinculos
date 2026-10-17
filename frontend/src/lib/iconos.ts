@@ -1,6 +1,7 @@
 /**
  * Iconos de Material Symbols Rounded que usa el front: los de las vistas del
- * diseño (design-system/vinculos/Tenant) mas los de estados. Google sirve solo
+ * diseño (design-system/vinculos/Tenant), los de estados y los de las pantallas
+ * nuevas (MASTER.md). Google sirve solo
  * estos glifos (parametro icon_names, orden alfabetico): un icono fuera de la
  * lista no compila (tipo Icono) en vez de mostrarse como texto.
  */
@@ -77,11 +78,14 @@ export const ICONOS = [
   'language',
   'light_mode',
   'link',
+  'link_off',
   'location_on',
   'lock',
   'lock_clock',
+  'login',
   'logout',
   'mail',
+  'mark_email_read',
   'medication',
   'meeting_room',
   'menu_book',
@@ -112,6 +116,7 @@ export const ICONOS = [
   'record_voice_over',
   'refresh',
   'restart_alt',
+  'reviews',
   'save',
   'schedule',
   'school',
@@ -130,6 +135,7 @@ export const ICONOS = [
   'supervisor_account',
   'swap_horiz',
   'task_alt',
+  'timer',
   'translate',
   'tune',
   'verified',
@@ -150,3 +156,7 @@ export type Icono = (typeof ICONOS)[number];
 
 export const URL_ICONOS =
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block&icon_names=' + ICONOS.join(',');
+
+/** Para iconos que vienen de la API (servicios del landing): fuera de la lista, el respaldo. */
+export const iconoO = (nombre: string | undefined, respaldo: Icono): Icono =>
+  (ICONOS as readonly string[]).includes(nombre ?? '') ? (nombre as Icono) : respaldo;

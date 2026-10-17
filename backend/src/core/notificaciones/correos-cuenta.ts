@@ -8,7 +8,16 @@ import { ContextoBd } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
 import { ProveedorCorreo } from './correo';
 
-export type TipoCorreoCuenta = 'INVITACION' | 'RECUPERACION' | 'ACCESO' | 'VERIFICACION_SOLICITUD' | 'VERIFICACION_CORREO' | 'CONSENTIMIENTO';
+export type TipoCorreoCuenta =
+  | 'INVITACION'
+  | 'RECUPERACION'
+  | 'ACCESO'
+  | 'VERIFICACION_SOLICITUD'
+  | 'VERIFICACION_CORREO'
+  | 'CONSENTIMIENTO'
+  | 'VERIFICACION_LISTA_ESPERA'
+  | 'ALTA_LISTA_ESPERA'
+  | 'AVISO_LISTA_ESPERA';
 
 const TEXTOS: Record<TipoCorreoCuenta, { ruta: string; asunto: string; cuerpo: string }> = {
   INVITACION: {
@@ -41,6 +50,22 @@ const TEXTOS: Record<TipoCorreoCuenta, { ruta: string; asunto: string; cuerpo: s
     asunto: 'Solicitud de consentimiento',
     cuerpo: 'El centro le solicita revisar y responder un consentimiento. Enlace de un solo uso:',
   },
+  // 03b: lista de espera publica (sin cuenta). El alta y cada aviso llevan el enlace de baja.
+  VERIFICACION_LISTA_ESPERA: {
+    ruta: '/lista-espera/verificar',
+    asunto: 'Confirme su inscripción en la lista de espera',
+    cuerpo: 'Para recibir avisos cuando haya horas disponibles, confirme su correo con este enlace de un solo uso:',
+  },
+  ALTA_LISTA_ESPERA: {
+    ruta: '/lista-espera/baja',
+    asunto: 'Quedó inscrito en la lista de espera',
+    cuerpo: 'Le avisaremos por correo cuando haya horas disponibles. Si ya no quiere avisos, salga de la lista con este enlace:',
+  },
+  AVISO_LISTA_ESPERA: {
+    ruta: '/lista-espera/baja',
+    asunto: 'Hay horas disponibles',
+    cuerpo: 'Si ya no quiere recibir estos avisos, salga de la lista con este enlace:',
+  },
 };
 
 /**
@@ -67,12 +92,13 @@ export class CorreosCuenta {
     return `${this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/+$/, '')}${TEXTOS[tipo].ruta}?token=${token}`;
   }
 
-  async enviar(tipo: TipoCorreoCuenta, para: string, token: string, vence: Date): Promise<void> {
+  /** `previo`: parrafo propio antes del enlace (p. ej. el aviso de horas disponibles). */
+  async enviar(tipo: TipoCorreoCuenta, para: string, token: string, vence: Date, previo?: string): Promise<void> {
     const t = TEXTOS[tipo];
     const centro = await this.nombreCentro();
     const vencimiento = vence.toLocaleString('es-CL', { timeZone: 'America/Santiago', dateStyle: 'long', timeStyle: 'short' });
     const asunto = `${t.asunto} - ${centro}`;
-    const texto = `${t.cuerpo}\n\n${this.enlace(tipo, token)}\n\nVence: ${vencimiento}. No comparta este enlace.\n\n${centro}`;
+    const texto = `${previo ? `${previo}\n\n` : ''}${t.cuerpo}\n\n${this.enlace(tipo, token)}\n\nVence: ${vencimiento}. No comparta este enlace.\n\n${centro}`;
     try {
       await this.correo.enviar({ para, remitente: centro, asunto, texto });
     } catch {

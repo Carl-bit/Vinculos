@@ -113,3 +113,28 @@ test('errores: RUT con DV invalido y credenciales incorrectas con texto claro', 
   await page.getByRole('button', { name: 'Entrar a mi cuenta' }).click();
   await expect(page.locator('form').getByRole('alert')).toHaveText(/no coinciden con una cuenta con acceso/);
 });
+
+test('ruta del panel sin pagina (03b): el 404 se ve dentro del panel, con el menu y el rol activo', async ({ page }) => {
+  await ingresar(page, 'admin');
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Fichas y Pacientes' }).click();
+  await expect(page.getByText('Esta sección no existe o todavía no está disponible')).toBeVisible();
+  await expect(page.getByText('Rol activo: Cuenta madre')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Esta sección no existe o todavía no está disponible')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Menú principal' })).toBeVisible();
+});
+
+test('inactividad (03b): 30 minutos sin actividad cierran la sesion y el login lo explica', async ({ page }) => {
+  await page.clock.install();
+  await ingresar(page, 'admin');
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.clock.fastForward('20:00');
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.clock.fastForward('11:00');
+  await expect(page).toHaveURL(/\/ingreso\?volver=%2Fadmin&motivo=inactividad$/);
+  await expect(page.getByText('Cerramos tu sesión porque estuvo 30 minutos sin actividad.', { exact: false })).toBeVisible();
+  // La sesion quedo cerrada tambien en el servidor: volver al panel pide ingresar.
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/\/ingreso\?volver=%2Fadmin$/);
+});

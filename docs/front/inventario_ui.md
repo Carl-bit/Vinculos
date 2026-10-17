@@ -60,6 +60,18 @@ El punto de la marca y los bordes siguen con `-600` (son decorativos, no son tex
 | Sidebar del backoffice (grupos, módulos, usuario) | 9 vistas Admin | `LayoutAdmin` | `shared/` |
 | Login con fondo difuso y selector paciente/equipo | Inicio de Sesión | `FormularioIngreso` | `shared/` |
 | Saludo con fecha | Dashboard, Mi Cuenta | `Bienvenida` | `shared/` |
+| Enlace con forma de boton | Landing, Equipo, Match | `ButtonLink` (mismas variantes que `Button` + `outlinePatient`) | `ui/` |
+| "← Volver" | Pedir Hora | `EnlaceVolver` | `ui/` |
+| Foto o iniciales del profesional | Landing, Equipo, Match, Pedir Hora | `AvatarProfesional` | `shared/` |
+| Bloque verde de llamado a la accion | Landing, Equipo | `LlamadoAccion` | `shared/` |
+| Texto de politica versionada | (nuevo) | `DocumentoPolitica` | `shared/` |
+| Portada, servicios, mision/vision, equipo destacado, contacto | Landing | `Landing.tsx` | `nucleo/` |
+| Tarjeta de profesional, perfil completo, reseñas | Equipo Publico | `TarjetaPerfil`, `PerfilCompleto`, `EquipoPublico` | `equipo/` |
+| Cuestionario paso a paso y resultado | Match Publico | `AsistenteMatch`, `PreguntaMatch` | `match/` |
+| Bifurcacion, horario, datos, retencion, verificacion | Paciente - Pedir Hora | `InicioPedirHora`, `SelectorHorario`, `SolicitudHora`, `CuentaRegresiva`, `VerificarSolicitud`, `ResultadoEnlace` | `agenda/` |
+| Lista de espera sin cuenta (inscripcion, confirmar, salir) | (nuevo, 03b) | `InscripcionListaEspera`, `EnlaceListaEspera` | `agenda/` |
+| Casilla obligatoria con forma de tarjeta (aceptar politicas) | Pedir Hora | `Casilla` | `ui/` |
+| Ruta del panel o del portal sin pagina (404 dentro del layout) | (nuevo, 03b) | `not-found` de `/admin` y `/portal` con `EstadoVista` | `app/` |
 | Modal (overlay fijo) | 7 (9) | pendiente: entra con la primera vista que lo use | `ui/` |
 | Tabla | 2 | pendiente | `ui/` |
 | Pestañas | 3 | pendiente | `ui/` |
@@ -82,7 +94,5 @@ El punto de la marca y los bordes siguen con `-600` (son decorativos, no son tex
   código de invitación" y "Pide tu primera hora" quedan para la fase del
   portal. La API ya los soporta (`recuperacion`, `enlace-acceso`,
   `activacion`, `publico/solicitudes`).
-- Navegación pública (Equipo, Servicios, Match, Contacto) y landing: fase del
-  portal público.
 - Dashboard (estadísticas, módulos, sesiones de hoy, pendientes): fase del
   dashboard.

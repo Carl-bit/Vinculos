@@ -98,6 +98,8 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'MensajeInterno', campo: 'contenido', tabla: 'mensajes_internos', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
   { modelo: 'CorreoCuentaPendiente', campo: 'email', tabla: 'correos_cuenta_pendientes', columna: 'email', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'CorreoCuentaPendiente', campo: 'cuerpo', tabla: 'correos_cuenta_pendientes', columna: 'cuerpo', categoria: 'IDENTIFICACION', id: 'id' },
+  // 03b: lista de espera publica (sin cuenta).
+  { modelo: 'ListaEsperaPublica', campo: 'telefono', tabla: 'lista_espera_publica', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
 ];
 
 /**

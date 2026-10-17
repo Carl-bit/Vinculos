@@ -2,6 +2,7 @@ import { EstadoCita, EstadoListaEspera, ModalidadAtencion, ModoVideollamada, Mot
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsDate,
@@ -124,10 +125,8 @@ export class HorarioDto {
   @IsEnum(ModalidadAtencion)
   modalidad!: ModalidadAtencion;
 
-  /** Solo PRESENCIAL (la BD lo exige). */
-  @ValidateIf((o: HorarioDto) => o.modalidad === 'PRESENCIAL')
-  @IsUUID()
-  espacioId?: string;
+  // 03b: sin espacioId. La hora cae dentro de un bloque del profesional y la
+  // BD le asigna el box de ese bloque si es presencial.
 
   @Type(() => Date)
   @IsDate()
@@ -155,10 +154,6 @@ export class ReprogramarCitaDto {
   @IsOptional()
   @IsEnum(ModalidadAtencion)
   modalidad?: ModalidadAtencion;
-
-  @IsOptional()
-  @IsUUID()
-  espacioId?: string;
 }
 
 export class FiltroCitasDto {
@@ -212,12 +207,23 @@ export class BloqueEspacioDto {
   @Min(1)
   @Max(1440)
   finMin!: number;
+
+  /** 03b: periodo en que rige (semana, mes, trimestre). Sin fechas = siempre. */
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  vigenteDesde?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  vigenteHasta?: Date;
 }
 
 /** Horario de funcionamiento del box (reemplazo completo; vacio = el del centro). */
 export class HorarioEspacioDto {
   @IsArray()
-  @ArrayMaxSize(28)
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => BloqueEspacioDto)
   bloques!: BloqueEspacioDto[];
@@ -262,4 +268,28 @@ export class FiltroListaEsperaDto {
 export class CerrarListaEsperaDto {
   @IsIn([EstadoListaEspera.ASIGNADA, EstadoListaEspera.CANCELADA])
   estado!: 'ASIGNADA' | 'CANCELADA';
+}
+
+/** 03b: horas de un box que el profesional aparta (dentro del horario del box). */
+export class BloqueAtencionDto {
+  @IsUUID()
+  espacioId!: string;
+
+  @Type(() => Date)
+  @IsDate()
+  inicio!: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  fin!: Date;
+}
+
+/** Apartar varias horas de una vez (p. ej. el mismo bloque varias semanas): todas o ninguna. */
+export class ApartarBloquesDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(120)
+  @ValidateNested({ each: true })
+  @Type(() => BloqueAtencionDto)
+  bloques!: BloqueAtencionDto[];
 }

@@ -539,14 +539,13 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
   describe('A6 integraciones', () => {
     it('feed iCal: exige token valido, sin nombres ni motivos, incluye por reprogramar; regenerar invalida el anterior', async () => {
       const p = await t.datos.usuario('PROFESIONAL');
-      await t.datos.disponibleSiempre(p.id);
+      const box = await t.datos.disponibleSiempre(p.id);
       const pac = await t.datos.paciente(p.id, { nombre: 'Zacarias' });
-      const box = await t.datos.espacio();
       const presencial = await t
         .http()
         .post('/api/citas')
         .set(await tk(gestion))
-        .send({ pacienteId: pac.id, profesionalId: p.id, modalidad: 'PRESENCIAL', espacioId: box.id, ...horario(3) });
+        .send({ pacienteId: pac.id, profesionalId: p.id, modalidad: 'PRESENCIAL', ...horario(3) });
       const online = await t
         .http()
         .post('/api/citas')
@@ -599,14 +598,13 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
         .set(await tk(admin))
         .send({ nombreCentro: 'Centro Prueba 02h' });
       const p = await t.datos.usuario('PROFESIONAL');
-      await t.datos.disponibleSiempre(p.id);
+      const box = await t.datos.disponibleSiempre(p.id);
       const pac = await t.datos.usuarioPaciente(p.id);
-      const box = await t.datos.espacio();
       const cita = await t
         .http()
         .post('/api/citas')
         .set(await tk(gestion))
-        .send({ pacienteId: pac.pacienteId, profesionalId: p.id, modalidad: 'PRESENCIAL', espacioId: box.id, ...horario(5) });
+        .send({ pacienteId: pac.pacienteId, profesionalId: p.id, modalidad: 'PRESENCIAL', ...horario(5) });
       await t
         .http()
         .patch(`/api/citas/${cita.body.id}/reprogramacion`)

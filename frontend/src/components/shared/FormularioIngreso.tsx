@@ -41,12 +41,13 @@ const TEXTOS = {
  */
 export function FormularioIngreso() {
   const router = useRouter();
-  const volver = useSearchParams().get('volver');
+  const parametros = useSearchParams();
+  const volver = parametros.get('volver');
+  const porInactividad = parametros.get('motivo') === 'inactividad';
   const [perfil, setPerfil] = useState<Perfil>('paciente');
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [verPassword, setVerPassword] = useState(false);
-  const [recordar, setRecordar] = useState(true);
   const [desafio, setDesafio] = useState<DesafioTotp | null>(null);
   const [codigo, setCodigo] = useState('');
   const [secreto, setSecreto] = useState<string>();
@@ -76,8 +77,8 @@ export function FormularioIngreso() {
     setEnviando(true);
     try {
       const r = desafio
-        ? await verificarTotp(desafio.desafio, codigo.trim(), recordar)
-        : await iniciarSesion({ ...(esRut ? { rut: usuario.trim() } : { email: usuario.trim() }), password, recordar });
+        ? await verificarTotp(desafio.desafio, codigo.trim())
+        : await iniciarSesion({ ...(esRut ? { rut: usuario.trim() } : { email: usuario.trim() }), password });
       if ('accessToken' in r) entrar(r);
       else {
         setDesafio(r);
@@ -130,6 +131,16 @@ export function FormularioIngreso() {
             : t.bajada}
         </p>
 
+        {porInactividad && !desafio && (
+          <p
+            role="status"
+            className="m-0 mb-5 flex gap-2.5 rounded-lg border border-accent-500 bg-accent-200 px-4 py-3 text-[13.5px] font-bold text-accent-900"
+          >
+            <Icon name="timer" size={19} />
+            Cerramos tu sesión porque estuvo 30 minutos sin actividad. Vuelve a ingresar para seguir donde estabas.
+          </p>
+        )}
+
         {secreto && (
           <p className="m-0 mb-5 rounded-lg border border-divider bg-bg px-4 py-3 font-mono text-sm font-bold tracking-wider break-all select-all">{secreto}</p>
         )}
@@ -179,15 +190,10 @@ export function FormularioIngreso() {
                   </span>
                 )}
               </Field>
-              <label className="flex cursor-pointer items-center gap-[9px] text-[13.5px] font-semibold text-neutral-700">
-                <input
-                  type="checkbox"
-                  checked={recordar}
-                  onChange={(e) => setRecordar(e.target.checked)}
-                  className="size-[17px] cursor-pointer accent-accent-2-600"
-                />
-                Mantener sesión iniciada
-              </label>
+              <p className="m-0 flex items-center gap-2 text-[12.5px] font-semibold text-neutral-700">
+                <Icon name="timer" size={16} />
+                Por seguridad, la sesión se cierra tras 30 minutos sin actividad.
+              </p>
             </>
           )}
 

@@ -84,10 +84,19 @@ CREATE FUNCTION test.consentir(paciente uuid, practicante uuid, supervisor uuid)
   VALUES (paciente, 'ATENCION_CON_PRACTICANTE_SUPERVISADO', practicante, supervisor, 'ACEPTADO', supervisor,
           now() + interval '1 day', 'v1', 'PACIENTE', supervisor, now())
 $$;
+CREATE FUNCTION test.box_de(u uuid) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
+  SELECT md5('box ' || u)::uuid
+$$;
+-- 03b: la agenda sale de los bloques de box. Cada uno recibe un box propio
+-- ("T Box agenda <id>") apartado de 2024 a +3 años: sus citas presenciales
+-- usan ese box (lo fija la BD), no el espacio_id que pase el INSERT.
 CREATE FUNCTION test.disponible_siempre(usuarios uuid[]) RETURNS void LANGUAGE sql AS $$
   INSERT INTO disponibilidad_profesional (profesional_id, dia_semana, inicio_min, fin_min, modalidad)
   SELECT u, d, 0, 1440, m::modalidad_atencion
-  FROM unnest(usuarios) u, generate_series(1, 7) d, unnest(ARRAY['PRESENCIAL', 'ONLINE']) m
+  FROM unnest(usuarios) u, generate_series(1, 7) d, unnest(ARRAY['PRESENCIAL', 'ONLINE']) m;
+  INSERT INTO espacios (id, nombre) SELECT test.box_de(u), 'T Box agenda ' || u FROM unnest(usuarios) u;
+  INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin)
+  SELECT u, test.box_de(u), '2024-01-01 00:00-03', now() + interval '3 years' FROM unnest(usuarios) u;
 $$;
 -- Inicio de una cita relativa a now() que no cruza la medianoche de Chile en
 -- su primera hora (la disponibilidad no cruza de dia): si cae despues de las
@@ -147,13 +156,15 @@ UPDATE supervisiones SET hasta = now() WHERE practicante_id = test.u('c2');
 -- -----------------------------------------------------------------------------
 -- Casos 1-9 y 17: como dueño (reglas que aplican incluso sin RLS).
 -- -----------------------------------------------------------------------------
-\echo 1  EXCLUDE espacio: solapada en el mismo box -> 23P01
+\echo 1  EXCLUDE box (03b): la cita presencial usa el box del bloque; otro profesional no aparta ese box a la misma hora -> 23P01
 DO $$ BEGIN
   INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin) VALUES
     (test.u('e1'), test.u('b1'), test.u('0a'), '2025-11-02 10:00-03', '2025-11-02 11:00-03');
+  ASSERT (SELECT espacio_id FROM citas WHERE profesional_id = test.u('b1') AND inicio = '2025-11-02 10:00-03')
+         = test.box_de(test.u('b1')), 'caso 1: box del bloque';
   BEGIN
-    INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin) VALUES
-      (test.u('e1'), test.u('b2'), test.u('0a'), '2025-11-02 10:30-03', '2025-11-02 11:30-03');
+    INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin) VALUES
+      (test.u('b5'), test.box_de(test.u('b1')), '2027-01-04 10:30-03', '2027-01-04 11:30-03');
     RAISE EXCEPTION 'caso 1: debio fallar';
   EXCEPTION WHEN exclusion_violation THEN NULL; END;
 END $$;
@@ -564,18 +575,19 @@ END $$;
 DO $$ BEGIN
   PERFORM test.ctx('b2', 'PROFESIONAL');
   ASSERT (SELECT count(*) FROM citas WHERE inicio < '2025-11-03 00:00-03') = 1, 'caso 34: p2 ve 1 cita ese dia';
-  ASSERT (SELECT count(*) FROM ocupacion_espacios('2025-11-02 00:00-03', '2025-11-03 00:00-03')) = 3, 'caso 34: ocupacion';
+  -- 03b: la ocupacion son los bloques apartados (6 de disponible_siempre); las citas caen dentro.
+  ASSERT (SELECT count(*) FROM ocupacion_espacios('2025-11-02 00:00-03', '2025-11-03 00:00-03')) = 6, 'caso 34: ocupacion';
   ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'ocupacion_espacios') = '{desde,hasta,espacio_id,inicio,fin}',
     'caso 34: columnas expuestas';
 END $$;
 
-\echo 35 EXCLUDE detecta choque con una cita que el contexto no ve -> 23P01
+\echo 35 EXCLUDE detecta choque con un bloque que el contexto no ve -> 23P01
 DO $$ BEGIN
-  PERFORM test.ctx('b2', 'PROFESIONAL');
-  -- p2 esta libre 11:15-11:45; el box e1 lo ocupa una cita de p1 (11-12) que p2 no ve.
-  ASSERT NOT EXISTS (SELECT 1 FROM citas WHERE espacio_id = test.u('e1') AND inicio = '2025-11-02 11:00-03'), 'caso 35: la ve';
-  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin) VALUES
-    (test.u('e1'), test.u('b2'), test.u('0b'), '2025-11-02 11:15-03', '2025-11-02 11:45-03');
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  -- 03b: el box de p1 esta apartado por p1 (bloque que p5 no ve).
+  ASSERT NOT EXISTS (SELECT 1 FROM bloques_atencion WHERE espacio_id = test.box_de(test.u('b1'))), 'caso 35: lo ve';
+  INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+    (test.u('b5'), test.box_de(test.u('b1')), '2027-01-04 11:15-03', '2027-01-04 11:45-03', test.u('b5'));
   RAISE EXCEPTION 'caso 35: debio fallar';
 EXCEPTION WHEN exclusion_violation THEN NULL; END $$;
 
@@ -897,7 +909,8 @@ DO $$ BEGIN
   ASSERT (SELECT string_agg(c.relname, ',' ORDER BY c.relname) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE n.nspname = 'public' AND c.relkind = 'r' AND has_table_privilege('app_user', c.oid, 'DELETE'))
          -- 03a: borradores de evolucion (no son ficha: se descartan) y horarios del centro y de los boxes (B).
-         = 'bloqueos_agenda,bloqueos_temporales,borradores_evolucion,disponibilidad_profesional,horario_centro,horarios_espacio,'
+         -- 03b: bloques de box (liberar; el trigger impide si tienen citas o retenciones).
+         = 'bloqueos_agenda,bloqueos_temporales,bloques_atencion,borradores_evolucion,disponibilidad_profesional,horario_centro,horarios_espacio,'
            || 'profesional_tipos_atencion,profesional_trayectoria',
     'caso 46: DELETE';
   ASSERT NOT has_table_privilege('app_user', '_prisma_migrations', 'SELECT'), 'caso 46: _prisma_migrations';
@@ -1090,7 +1103,7 @@ EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 \echo 54 espacios (B): autenticados leen; ADMIN/GESTION escriben; DELETE nunca
 DO $$ BEGIN
   PERFORM test.ctx('a2', 'PACIENTE');
-  ASSERT (SELECT count(*) FROM espacios) = 2, 'caso 54: PACIENTE lee';
+  ASSERT (SELECT count(*) FROM espacios WHERE nombre NOT LIKE 'T Box agenda %') = 2, 'caso 54: PACIENTE lee';
 END $$;
 DO $$ BEGIN
   PERFORM test.ctx('b1', 'PROFESIONAL');
@@ -1119,8 +1132,10 @@ END $$;
 DO $$ DECLARE n int; BEGIN
   PERFORM test.ctx('b2', 'PROFESIONAL');
   ASSERT (SELECT count(*) FROM bloqueos_temporales) = 0, 'caso 55: no ve bloqueo ajeno';
-  ASSERT (SELECT array_agg(espacio_id::text || '@' || inicio::text) FROM ocupacion_espacios(test.dia(2, 0), test.dia(3, 0)))
-         = ARRAY[test.u('e2')::text || '@' || test.dia(2, 10)::text], 'caso 55: ocupacion incluye el bloqueo';
+  -- 03b: el soft-lock presencial usa el box del bloque de p1, que ya figura ocupado (sin profesional).
+  ASSERT EXISTS (SELECT 1 FROM ocupacion_espacios(test.dia(2, 0), test.dia(3, 0))
+                 WHERE espacio_id = test.box_de(test.u('b1')) AND inicio <= test.dia(2, 10) AND fin >= test.dia(2, 11)),
+    'caso 55: ocupacion incluye el box del bloqueo';
   DELETE FROM bloqueos_temporales;
   GET DIAGNOSTICS n = ROW_COUNT;
   ASSERT n = 0, 'caso 55: no suelta bloqueo ajeno';
@@ -1672,16 +1687,21 @@ EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 \echo 72 Agenda por modalidad: box solo presencial; online choca por profesional y no por box; disponibilidad y bloqueos; huecos publicos sin motivos
 DO $$ BEGIN
   PERFORM test.ctx('a3', 'GESTION');
+  -- 03b: el box lo fija la BD (el del bloque si es presencial, ninguno si es online).
   BEGIN
     INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
       (test.u('e1'), 'ONLINE', test.u('b1'), test.u('0a'), test.dia(10, 10), test.dia(10, 11));
-    RAISE EXCEPTION 'caso 72: online con box debio fallar';
-  EXCEPTION WHEN check_violation THEN NULL; END;
+    ASSERT (SELECT espacio_id FROM citas WHERE profesional_id = test.u('b1') AND inicio = test.dia(10, 10)) IS NULL,
+      'caso 72: online sin box';
+    RAISE EXCEPTION USING ERRCODE = 'T0001';
+  EXCEPTION WHEN SQLSTATE 'T0001' THEN NULL; END;
   BEGIN
     INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
       (NULL, 'PRESENCIAL', test.u('b1'), test.u('0a'), test.dia(10, 10), test.dia(10, 11));
-    RAISE EXCEPTION 'caso 72: presencial sin box debio fallar';
-  EXCEPTION WHEN check_violation THEN NULL; END;
+    ASSERT (SELECT espacio_id FROM citas WHERE profesional_id = test.u('b1') AND inicio = test.dia(10, 10))
+           = test.box_de(test.u('b1')), 'caso 72: presencial con el box del bloque';
+    RAISE EXCEPTION USING ERRCODE = 'T0001';
+  EXCEPTION WHEN SQLSTATE 'T0001' THEN NULL; END;
   INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
     (NULL, 'ONLINE', test.u('b1'), test.u('0a'), test.dia(10, 10), test.dia(10, 11)),
     (test.u('e1'), 'PRESENCIAL', test.u('b2'), test.u('0b'), test.dia(10, 10), test.dia(10, 11)),
@@ -1691,7 +1711,10 @@ DO $$ BEGIN
       (test.u('e2'), 'PRESENCIAL', test.u('b1'), test.u('0a'), test.dia(10, 10), test.dia(10, 11));
     RAISE EXCEPTION 'caso 72: presencial que choca con la online del mismo profesional debio fallar';
   EXCEPTION WHEN exclusion_violation THEN NULL; END;
-  -- b5: lunes a viernes 09-13 presencial.
+  -- b5 (03b): GESTION le aparta un box de lunes a viernes 09-13 (ambas modalidades).
+  INSERT INTO espacios (id, nombre) VALUES (test.box_de(test.u('b5')), 'T Box agenda b5');
+  INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id)
+  SELECT test.u('b5'), test.box_de(test.u('b5')), test.lunes(d, 9), test.lunes(d, 13), test.u('a3') FROM generate_series(0, 4) d;
   INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin) VALUES
     (test.u('e1'), test.u('b5'), test.u('12'), test.lunes(0, 10), test.lunes(0, 11));
   BEGIN
@@ -1706,12 +1729,12 @@ DO $$ BEGIN
   EXCEPTION WHEN check_violation THEN NULL; END;
   BEGIN
     INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
-      (NULL, 'ONLINE', test.u('b5'), test.u('12'), test.lunes(0, 11), test.lunes(0, 12));
-    RAISE EXCEPTION 'caso 72: online sin disponibilidad online debio fallar';
+      (NULL, 'ONLINE', test.u('b5'), test.u('12'), test.lunes(0, 14), test.lunes(0, 15));
+    RAISE EXCEPTION 'caso 72: online fuera de los bloques debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
-  -- GESTION edita la disponibilidad de otro: sabado online 10-12.
-  INSERT INTO disponibilidad_profesional (profesional_id, dia_semana, inicio_min, fin_min, modalidad)
-  VALUES (test.u('b5'), 6, 600, 720, 'ONLINE');
+  -- GESTION aparta por otro: sabado 10-12.
+  INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id)
+  VALUES (test.u('b5'), test.box_de(test.u('b5')), test.lunes(5, 10), test.lunes(5, 12), test.u('a3'));
 END $$;
 DO $$ BEGIN
   PERFORM test.ctx('b5', 'PROFESIONAL');
@@ -1727,7 +1750,7 @@ DO $$ BEGIN
     (test.u('e1'), test.u('b5'), test.u('12'), test.lunes(1, 10), test.lunes(1, 11));
   RAISE EXCEPTION 'caso 72: cita en vacaciones debio fallar';
 EXCEPTION WHEN check_violation THEN NULL; END $$;
-DO $$ DECLARE n int; BEGIN
+DO $$ DECLARE n int; huecos text[]; BEGIN
   PERFORM test.ctx('b1', 'PROFESIONAL');
   ASSERT (SELECT count(*) FROM bloqueos_agenda) = 0 AND (SELECT count(*) FROM disponibilidad_profesional WHERE profesional_id = test.u('b5')) = 0,
     'caso 72: agenda ajena no visible';
@@ -1736,20 +1759,26 @@ DO $$ DECLARE n int; BEGIN
     VALUES (test.u('b5'), 7, 600, 720, 'ONLINE');
     RAISE EXCEPTION 'caso 72: editar disponibilidad ajena debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  ASSERT (SELECT array_agg(modalidad::text || ' ' || to_char(inicio AT TIME ZONE 'America/Santiago', 'ID HH24:MI') || '-'
-                           || to_char(fin AT TIME ZONE 'America/Santiago', 'HH24:MI') ORDER BY inicio)
-          FROM disponibilidad_publica(test.u('b5'), test.lunes(0, 0), test.lunes(7, 0)))
-         = ARRAY['PRESENCIAL 1 09:00-10:00', 'PRESENCIAL 1 11:00-13:00', 'PRESENCIAL 3 09:00-13:00', 'PRESENCIAL 4 09:00-13:00',
-                 'PRESENCIAL 5 09:00-13:00', 'ONLINE 6 10:00-12:00'], 'caso 72: huecos (sin la cita del lunes ni las vacaciones del martes)';
+  ASSERT (SELECT count(*) FROM bloques_atencion WHERE profesional_id = test.u('b5')) = 0, 'caso 72: bloques ajenos no visibles';
+  -- 03b: cada bloque ofrece ambas modalidades; la online respeta el margen de traslado con la presencial del lunes.
+  SELECT array_agg(modalidad::text || ' ' || to_char(inicio AT TIME ZONE 'America/Santiago', 'ID HH24:MI') || '-'
+                   || to_char(fin AT TIME ZONE 'America/Santiago', 'HH24:MI') ORDER BY inicio, modalidad::text) INTO huecos
+  FROM disponibilidad_publica(test.u('b5'), test.lunes(0, 0), test.lunes(7, 0));
+  ASSERT huecos
+         = ARRAY['ONLINE 1 09:00-09:30', 'PRESENCIAL 1 09:00-10:00', 'PRESENCIAL 1 11:00-13:00', 'ONLINE 1 11:30-13:00',
+                 'ONLINE 3 09:00-13:00', 'PRESENCIAL 3 09:00-13:00', 'ONLINE 4 09:00-13:00', 'PRESENCIAL 4 09:00-13:00',
+                 'ONLINE 5 09:00-13:00', 'PRESENCIAL 5 09:00-13:00', 'ONLINE 6 10:00-12:00', 'PRESENCIAL 6 10:00-12:00'],
+    format('caso 72: huecos (sin la cita del lunes ni las vacaciones del martes) %s', huecos);
   ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'disponibilidad_publica')
          = '{p_profesional_id,desde,hasta,modalidad,inicio,fin}', 'caso 72: sin motivos';
   BEGIN
     PERFORM disponibilidad_publica(test.u('b5'), now(), now() + interval '90 days');
     RAISE EXCEPTION 'caso 72: rango largo debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
+  n := (SELECT count(*) FROM ocupacion_espacios(test.dia(11, 0), test.dia(12, 0)));
   INSERT INTO bloqueos_temporales (modalidad, usuario_id, profesional_id, inicio, fin, expira_en) VALUES
     ('ONLINE', test.u('b1'), test.u('b1'), test.dia(11, 10), test.dia(11, 11), now() + interval '5 minutes');
-  ASSERT NOT EXISTS (SELECT 1 FROM ocupacion_espacios(test.dia(11, 0), test.dia(12, 0))), 'caso 72: soft-lock online no ocupa box';
+  ASSERT (SELECT count(*) FROM ocupacion_espacios(test.dia(11, 0), test.dia(12, 0))) = n, 'caso 72: soft-lock online no ocupa box';
   ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b1'), test.dia(11, 10), test.dia(11, 11))),
     'caso 72: soft-lock retiene al profesional';
 END $$;
@@ -3272,14 +3301,16 @@ DO $$ DECLARE v uuid; BEGIN
   ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b1'), test.lunes(28, 0), test.lunes(29, 0)) d
                      WHERE d.fin > test.lunes(28, 18)), 'caso 105: la disponibilidad publica respeta el horario del centro';
   PERFORM test.ctx('a3', 'GESTION');
-  INSERT INTO horarios_espacio (espacio_id, dia_semana, inicio_min, fin_min) SELECT test.u('e2'), d, 540, 720 FROM generate_series(1, 7) d;
+  -- 03b: la cita presencial de p1 usa el box de su bloque; ese box pasa a abrir 09-12.
+  INSERT INTO horarios_espacio (espacio_id, dia_semana, inicio_min, fin_min)
+  SELECT test.box_de(test.u('b1')), d, 540, 720 FROM generate_series(1, 7) d;
   BEGIN
     INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
     VALUES (test.u('e2'), test.u('b1'), test.u('15'), test.lunes(29, 14), test.lunes(29, 15));
     RAISE EXCEPTION 'caso 105: fuera del horario del box';
   EXCEPTION WHEN check_violation THEN NULL; END;
-  ASSERT espacio_libre(test.lunes(29, 14), test.lunes(29, 15)) IS DISTINCT FROM test.u('e2'), 'caso 105: box libre segun su horario';
-  DELETE FROM horarios_espacio WHERE espacio_id = test.u('e2');
+  ASSERT bloques_fuera_de_horario(test.box_de(test.u('b1'))) = 1, 'caso 105: el bloque de p1 quedo fuera del horario nuevo';
+  DELETE FROM horarios_espacio WHERE espacio_id = test.box_de(test.u('b1'));
   PERFORM test.ctx('a1', 'ADMIN');
   DELETE FROM horario_centro;
 END $$;
@@ -3579,6 +3610,8 @@ DO $$ DECLARE j jsonb; BEGIN
   PERFORM test.ctx('a3', 'GESTION');
   j := reporte_dashboard();
   ASSERT j ? 'pacientes_activos' AND j ? 'pendientes' AND (j->'pendientes'->>'resenas_por_moderar') IS NULL, 'caso 112: GESTION agregados';
+  -- 03b: uso de box = horas apartadas sobre horario de boxes (muestra), acotado a 0-100.
+  ASSERT (j->>'ocupacion_boxes_hoy')::numeric BETWEEN 0 AND 100, 'caso 112: uso de box apartado';
   PERFORM test.ctx('a1', 'ADMIN');
   ASSERT (reporte_dashboard()->'pendientes') ? 'resenas_por_moderar', 'caso 112: ADMIN con moderacion';
   PERFORM test.ctx('b9', 'PROFESIONAL');
@@ -4030,6 +4063,154 @@ DO $$ BEGIN
   EXCEPTION WHEN check_violation THEN NULL; END;
   PERFORM test.ctx('a1', 'ADMIN');
   UPDATE configuracion_centro SET edad_minima_cuenta = 14;
+END $$;
+
+\echo 123 Bloques de box (03b, A+C): el profesional aparta los suyos dentro del horario del box (por periodo); ADMIN/GESTION por otros; nadie mas; sin choques; no se liberan con citas
+DO $$ BEGIN
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+    (test.u('b5'), test.u('e1'), test.lunes(14, 9), test.lunes(14, 11), test.u('b5'));
+  BEGIN
+    INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+      (test.u('b1'), test.u('e1'), test.lunes(15, 9), test.lunes(15, 10), test.u('b5'));
+    RAISE EXCEPTION 'caso 123: apartar a nombre de otro';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+      (test.u('b5'), test.u('e1'), test.lunes(15, 9), test.lunes(15, 10), test.u('a1'));
+    RAISE EXCEPTION 'caso 123: autor ajeno';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+      (test.u('b4'), test.u('e1'), test.lunes(14, 10), test.lunes(14, 12), test.u('b4'));
+    RAISE EXCEPTION 'caso 123: box ya apartado';
+  EXCEPTION WHEN exclusion_violation THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM bloques_atencion WHERE profesional_id = test.u('b5')) = 0, 'caso 123: no ve bloques ajenos';
+  ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_espacios(test.lunes(14, 0), test.lunes(15, 0)) d
+                     WHERE d.espacio_id = test.u('e1') AND d.inicio < test.lunes(14, 11) AND d.fin > test.lunes(14, 9)),
+    'caso 123: el box apartado no aparece libre';
+  ASSERT EXISTS (SELECT 1 FROM disponibilidad_espacios(test.lunes(14, 0), test.lunes(15, 0)) d
+                 WHERE d.espacio_id = test.u('e1') AND d.inicio <= test.lunes(14, 11) AND d.fin >= test.lunes(14, 12)),
+    'caso 123: el resto del dia sigue libre';
+  ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'disponibilidad_espacios') = '{desde,hasta,espacio_id,inicio,fin}',
+    'caso 123: sin profesionales';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM bloques_atencion) = 0, 'caso 123: PACIENTE no ve bloques';
+  BEGIN
+    PERFORM disponibilidad_espacios(test.lunes(14, 0), test.lunes(15, 0));
+    RAISE EXCEPTION 'caso 123: PACIENTE no consulta boxes';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- Horario del box por periodo: e1 abre los lunes 09-13 solo en las semanas 14 a 20.
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO horarios_espacio (espacio_id, dia_semana, inicio_min, fin_min, vigente_desde, vigente_hasta)
+  VALUES (test.u('e1'), 1, 540, 780, (test.lunes(14, 0) AT TIME ZONE 'America/Santiago')::date,
+          (test.lunes(20, 0) AT TIME ZONE 'America/Santiago')::date);
+  BEGIN
+    INSERT INTO horarios_espacio (espacio_id, dia_semana, inicio_min, fin_min, vigente_desde, vigente_hasta)
+    VALUES (test.u('e1'), 2, 540, 780, '2027-02-01', '2027-01-01');
+    RAISE EXCEPTION 'caso 123: periodo invertido';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+    (test.u('b5'), test.u('e1'), test.lunes(14, 11), test.lunes(14, 13), test.u('a3'));
+  BEGIN
+    INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+      (test.u('b5'), test.u('e1'), test.lunes(14, 13), test.lunes(14, 14), test.u('a3'));
+    RAISE EXCEPTION 'caso 123: fuera del horario del box';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+      (test.u('b5'), test.u('e1'), test.lunes(28, 9), test.lunes(28, 10), test.u('a3'));
+    RAISE EXCEPTION 'caso 123: fuera del periodo vigente';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id) VALUES
+      (test.u('a3'), test.u('e2'), test.lunes(14, 9), test.lunes(14, 10), test.u('a3'));
+    RAISE EXCEPTION 'caso 123: solo profesionales o practicantes';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- Una cita presencial usa el box del bloque; con ella dentro el bloque no se libera.
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin) VALUES
+    (test.u('e2'), test.u('b5'), test.u('12'), test.lunes(14, 9), test.lunes(14, 10));
+  ASSERT (SELECT espacio_id FROM citas WHERE profesional_id = test.u('b5') AND inicio = test.lunes(14, 9)) = test.u('e1'),
+    'caso 123: box del bloque';
+  BEGIN
+    DELETE FROM bloques_atencion WHERE profesional_id = test.u('b5') AND inicio = test.lunes(14, 9);
+    RAISE EXCEPTION 'caso 123: liberar con cita dentro';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  UPDATE citas SET estado = 'CANCELADA' WHERE profesional_id = test.u('b5') AND inicio = test.lunes(14, 9);
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  DELETE FROM bloques_atencion WHERE profesional_id = test.u('b5') AND espacio_id = test.u('e1');
+  ASSERT NOT EXISTS (SELECT 1 FROM bloques_atencion WHERE espacio_id = test.u('e1')), 'caso 123: liberados';
+  PERFORM test.ctx('a3', 'GESTION');
+  DELETE FROM horarios_espacio WHERE espacio_id = test.u('e1');
+END $$;
+
+\echo 124 Lista de espera publica (03b, A): sin cuenta, verificada por correo; misma respuesta si ya esta inscrito; el equipo solo lee; aviso por job y baja con enlace
+DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS')); r record; BEGIN
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  BEGIN
+    PERFORM inscribir_lista_espera_publica(test.u('4a'), test.u('b9'), 'Lia', 'lia@x', NULL, gen_random_uuid(), sha256('l124x'));
+    RAISE EXCEPTION 'caso 124: version vieja de la politica';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM inscribir_lista_espera_publica(test.u('4a'), test.u('b5'), 'Lia', 'lia@x', NULL, v_pol, sha256('l124x'));
+    RAISE EXCEPTION 'caso 124: profesional sin perfil publico';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM inscribir_lista_espera_publica(test.u('4a'), NULL, 'Lia', 'lia@x', NULL, v_pol, sha256('l124x'));
+    RAISE EXCEPTION 'caso 124: sin profesional';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  SELECT * INTO r FROM inscribir_lista_espera_publica(test.u('4a'), test.u('b9'), 'Lia', 'Lia@X', test.cif('+56900000002'),
+                                                      v_pol, sha256('l124a'));
+  ASSERT r.emitido AND r.expira > now() + interval '23 hours', 'caso 124: inscrita, enlace por 24 horas';
+  -- Mismo correo y destino: igual respuesta, no se crea otra ni se tocan los datos (el enlace nuevo anula el anterior
+  -- desde el segundo siguiente: emitir_token, como los demas enlaces).
+  SELECT * INTO r FROM inscribir_lista_espera_publica(test.u('4b'), test.u('b9'), 'Otro', 'lia@x', NULL, v_pol, sha256('l124b'));
+  ASSERT r.emitido, 'caso 124: misma respuesta';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM lista_espera_publica WHERE lower(email) = 'lia@x') = 1, 'caso 124: una por destino';
+  ASSERT (SELECT nombre FROM lista_espera_publica WHERE id = test.u('4a')) = 'Lia', 'caso 124: datos intactos';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT * INTO r FROM verificar_lista_espera_publica(sha256('l124b'), sha256('l124c'));
+  ASSERT r.id = test.u('4a') AND r.expira_en > now() + interval '59 days', 'caso 124: verificada por 60 dias';
+  BEGIN
+    PERFORM verificar_lista_espera_publica(sha256('l124b'), sha256('l124d'));
+    RAISE EXCEPTION 'caso 124: un solo uso';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM avisos_lista_espera_publica(10);
+    RAISE EXCEPTION 'caso 124: avisos solo el job';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- El equipo lee (el profesional las suyas), nadie escribe directo.
+  PERFORM test.ctx('b9', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM lista_espera_publica) = 1, 'caso 124: el profesional ve la suya';
+  BEGIN
+    INSERT INTO lista_espera_publica (id, profesional_id, nombre, email, politica_id, expira_en)
+    VALUES (gen_random_uuid(), test.u('b9'), 'X', 'x@x', v_pol, now() + interval '1 day');
+    RAISE EXCEPTION 'caso 124: sin escritura directa';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM lista_espera_publica) = 0, 'caso 124: otro profesional no';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM lista_espera_publica) = 0, 'caso 124: PACIENTE no';
+  -- Hora liberada de b9: queda el aviso pendiente; el job lo toma una vez.
+  PERFORM test.ctx('a1', 'ADMIN');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
+    ('ONLINE', test.u('b9'), test.u('16'), test.dia(33, 10), test.dia(33, 11));
+  UPDATE citas SET estado = 'CANCELADA' WHERE profesional_id = test.u('b9') AND inicio = test.dia(33, 10);
+  ASSERT (SELECT aviso_pendiente_en IS NOT NULL FROM lista_espera_publica WHERE id = test.u('4a')), 'caso 124: aviso pendiente';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT * INTO r FROM avisos_lista_espera_publica(10);
+  ASSERT r.id = test.u('4a') AND r.email = 'lia@x' AND r.profesional_nombre = 'Prof 9',
+    format('caso 124: aviso %s', r);
+  ASSERT NOT EXISTS (SELECT 1 FROM avisos_lista_espera_publica(10)), 'caso 124: un aviso por vez';
+  PERFORM token_baja_lista_espera(test.u('4a'), sha256('l124e'));
+  PERFORM baja_lista_espera_publica(sha256('l124e'));
+  ASSERT limpiar_lista_espera_publica() = 0, 'caso 124: limpieza idempotente';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT NOT EXISTS (SELECT 1 FROM lista_espera_publica WHERE id = test.u('4a')), 'caso 124: la baja la borra';
 END $$;
 
 \connect :owner_url

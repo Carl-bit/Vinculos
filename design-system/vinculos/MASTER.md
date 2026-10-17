@@ -63,3 +63,51 @@ oliva, crema: calza con Organic), con el checklist de "Accessible & Ethical".
 - Campo numérico de 6 dígitos (`one-time-code`). En el enrolamiento, la
   clave va en un bloque monoespaciado, seleccionable, antes del campo.
 - Botón "Verificar" y "Volver" (ghost).
+
+## Sitio publico (03b-2)
+
+Criterio de ui-ux-pro-max (patron "Trust & Authority" + guias de formularios
+y progreso): confianza con datos verificables, precio transparente y formulario
+de baja friccion.
+
+- Revelado al hacer scroll: `.revelar` (scroll-driven animations de CSS, sin
+  JS; sin soporte o con movimiento reducido, el contenido se ve tal cual).
+- Prueba de confianza con datos reales: formacion "verificada por el centro"
+  (icono `verified`), valoraciones solo de pacientes atendidos, tarifas
+  visibles. El chip del landing muestra profesionales y tarifa desde (la API
+  no tiene "proxima disponibilidad").
+- Perfil completo (no diseñado): columna de contenido con las secciones del
+  detalle de "Match Publico" (solo las que tienen datos) y columna fija con
+  "Agenda con X" y valoraciones. Cita destacada en bloque terracota con
+  `format_quote`.
+- Opciones de cuestionario: inputs reales (radio/casilla) `sr-only` dentro de
+  pastillas o tarjetas; foco visible con `has-[:focus-visible]`. La escala es
+  una fila de tarjetas con el numero grande (en vez del slider del diseño:
+  las opciones las configura ADMIN).
+- Avisos de riesgo de una opcion (`mensaje`): bloque terracota con `call` y
+  `role="alert"`.
+- Pasos: barra de 5 px por paso (Pedir hora) o barra con % y lista lateral
+  (Match). El foco va al h1 de cada paso nuevo.
+- Grilla de horas: carril de dias con scroll-snap (solo dias con horas),
+  modalidad como pastillas, horas agrupadas en Mañana/Tarde.
+- Retencion: anillo SVG que se vacia (verde; terracota en los ultimos 5 min) y
+  mm:ss tabular. El lector de pantalla solo escucha el aviso cada minuto.
+- Enlaces con token (verificar): accion explicita "Confirmar mi hora" (un
+  escaner de correo no consume el enlace); `referrer: no-referrer`, noindex.
+
+## Correcciones 03b (lista de espera, 404 en el panel, inactividad)
+
+- Lista de espera sin cuenta: vive dentro de Pedir hora, nunca como pantalla
+  aparte. Sin horas, es la accion principal (tarjeta accent-2 bajo el
+  mensaje); con horas, va en un `<details>` despues de "Continuar" para no
+  competir con la accion primaria. Mismo patron de formulario que Pedir hora
+  (Field, `Casilla` de politica, trampa para bots) y la misma respuesta
+  siempre.
+- Enlaces del correo (confirmar inscripcion, salir): pagina sobria con un solo
+  boton explicito (un escaner de correo no consume el token) y resultado con
+  `ResultadoEnlace`; sin sobretitulo sobre el h1 (impeccable:
+  kicker-above-heading).
+- Ruta del panel o del portal sin pagina: `EstadoVista` vacio dentro del
+  layout, con el menu y el rol a la vista y un boton secundario al inicio.
+- Cierre por inactividad: aviso en el login con borde accent (no error rojo):
+  explica el motivo y que basta con volver a ingresar.

@@ -80,6 +80,8 @@ export class Tokens {
   refreshToken!: string;
   /** Segundos de vida del access token. */
   expiraEn!: number;
+  /** Minutos sin actividad tras los que se cierra la sesion (el front la cierra antes de renovar). */
+  inactividadMinutos!: number;
   /** Rol activo de la sesion. */
   @ApiProperty({ enum: Rol, enumName: 'Rol' })
   rol!: Rol;

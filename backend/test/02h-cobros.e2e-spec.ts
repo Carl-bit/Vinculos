@@ -35,7 +35,6 @@ describe('02h cobros', () => {
         pacienteId,
         profesionalId: u.id,
         modalidad,
-        espacioId: modalidad === 'PRESENCIAL' ? boxId : undefined,
         ...horario(horas),
       });
     expect(r.status).toBe(201);

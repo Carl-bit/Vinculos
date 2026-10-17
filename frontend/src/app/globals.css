@@ -159,3 +159,15 @@
     transform: translate3d(3%, -4%, 0) scale(1.06);
   }
 }
+
+/* Revelado al hacer scroll (scroll-driven animations, sin JS). Donde no hay
+   soporte o con prefers-reduced-motion, el contenido se ve tal cual. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .revelar {
+      animation: entrada linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 40%;
+    }
+  }
+}

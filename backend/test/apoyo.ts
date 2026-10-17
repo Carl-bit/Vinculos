@@ -265,13 +265,22 @@ export class Fixtures {
     return { ...u, pacienteId: p.id, fichaId: p.fichaId };
   }
 
-  /** Disponibilidad 24x7 en ambas modalidades (como en seguridad_bd.sql). */
+  /**
+   * Agenda abierta 24x7 en ambas modalidades (como en seguridad_bd.sql). 03b:
+   * la agenda sale de los bloques de box, asi que el profesional recibe un box
+   * propio apartado de 2024 a +3 años; sus citas presenciales usan ese box.
+   */
   async disponibleSiempre(profesionalId: string) {
     await this.dueno.disponibilidadProfesional.createMany({
       data: [1, 2, 3, 4, 5, 6, 7].flatMap((dia) =>
         (['PRESENCIAL', 'ONLINE'] as const).map((modalidad) => ({ profesionalId, diaSemana: dia, inicioMin: 0, finMin: 1440, modalidad })),
       ),
     });
+    const box = await this.espacio();
+    await this.dueno.bloqueAtencion.create({
+      data: { profesionalId, espacioId: box.id, inicio: new Date('2024-01-01T03:00:00Z'), fin: new Date(Date.now() + 3 * 365 * 86_400_000) },
+    });
+    return box;
   }
 
   async espacio() {

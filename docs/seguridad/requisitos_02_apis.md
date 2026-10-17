@@ -284,6 +284,7 @@ DTOs (`class-validator`), antes de cifrar:
 | `notificaciones_por_enviar` + `guardar_contenido_notificacion` + `marcar_notificacion` (02i) | cada minuto | mensajes armados y cerrados; correo con backoff 1, 2, 4, 8 min, FALLIDO al quinto intento |
 | `avisar_consentimientos_por_vencer()` (02i) | cada 10 min | avisos legales (una vez por solicitud) |
 | `citas_por_recordar` + `registrar_recordatorio` (02i, Agenda) | cada 10 min | recordatorios registrados (uno por cita y horario) |
+| `avisos_lista_espera_publica` + `token_baja_lista_espera` + `limpiar_lista_espera_publica` (03b, Agenda) | cada 10 min | avisos de horas disponibles a la lista de espera publica (correo despues del COMMIT) e inscripciones vencidas borradas |
 
 Idempotentes y con `SKIP LOCKED`: correr dos instancias a la vez no duplica
 efectos. Loguear el numero devuelto con el logger de Nest. Ademas el envio de

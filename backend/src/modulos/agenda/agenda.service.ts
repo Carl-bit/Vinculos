@@ -1,9 +1,20 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { DisponibilidadProfesional, ModalidadAtencion } from '@prisma/client';
 
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
-import type { BloqueEspacioDto, CrearBloqueoAgendaDto, CrearDisponibilidadDto, CrearEspacioDto, EditarEspacioDto, HorarioDto } from './dto/agenda.dto';
+import type { BloqueAtencionVista, BloquesLiberados, HoraLibreBox } from './dto/agenda-respuestas.dto';
+import type {
+  BloqueAtencionDto,
+  BloqueEspacioDto,
+  CrearBloqueoAgendaDto,
+  CrearDisponibilidadDto,
+  CrearEspacioDto,
+  EditarEspacioDto,
+  HorarioDto,
+} from './dto/agenda.dto';
+
+const VISTA_BLOQUE = { id: true, profesionalId: true, espacioId: true, inicio: true, fin: true, creadoEn: true } as const;
 
 /** Minutos desde la medianoche -> "HH:MM" (solo presentacion; 1440 = "24:00", fin del dia). */
 export function hora(minutos: number): string {
@@ -19,8 +30,10 @@ export interface Hueco {
 }
 
 /**
- * Espacios, disponibilidad semanal, bloqueos de agenda, soft-locks y
- * consultas de ocupacion. La conversion de minutos locales a instantes la
+ * Espacios (con su horario por periodo), bloques de box apartados por cada
+ * profesional (03b: su agenda), disponibilidad semanal (horario habitual,
+ * referencia para apartar), bloqueos de agenda, soft-locks y consultas de
+ * ocupacion. La conversion de minutos locales a instantes la
  * hace solo la BD (minuto_local, America/Santiago): aqui no se calcula.
  */
 @Injectable()
@@ -47,16 +60,70 @@ export class AgendaService {
     return this.bd.tx().horarioEspacio.findMany({ where: { espacioId }, orderBy: [{ diaSemana: 'asc' }, { inicioMin: 'asc' }] });
   }
 
-  /** Reemplaza el horario del box (03a). Las citas presenciales nuevas en el box deben caer dentro (trigger). */
+  /**
+   * Reemplaza el horario del box (03a; 03b: filas por periodo). Si deja
+   * bloques ya apartados fuera del horario nuevo, 409 y no cambia nada (la
+   * transaccion se revierte): primero se liberan o mueven esos bloques.
+   */
   async reemplazarHorarioEspacio(espacioId: string, bloques: BloqueEspacioDto[]) {
     const tx = this.bd.tx();
+    for (const b of bloques) {
+      if (b.inicioMin >= b.finMin || (b.vigenteDesde && b.vigenteHasta && b.vigenteHasta < b.vigenteDesde)) {
+        throw new BadRequestException('Cada fila: inicio antes del fin y periodo con desde antes de hasta');
+      }
+    }
     await tx.espacio.findUniqueOrThrow({ where: { id: espacioId }, select: { id: true } });
     await tx.horarioEspacio.deleteMany({ where: { espacioId } });
     await tx.horarioEspacio.createMany({ data: bloques.map((b) => ({ ...b, espacioId })) });
+    const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT bloques_fuera_de_horario(${espacioId}::uuid) AS n`;
+    if (n > 0) {
+      throw new ConflictException({
+        message: `El horario nuevo deja ${n} bloque(s) apartado(s) fuera: liberelos o muevalos primero`,
+        restriccion: 'horarios_espacio_bloques_fuera',
+      });
+    }
     return this.horarioEspacio(espacioId);
   }
 
-  /** Espacio, inicio y fin de citas confirmadas y soft-locks activos (sin pacientes). */
+  /** Horas libres de cada box para apartar (horario vigente del box o del centro, menos bloques). Max. 62 dias. */
+  disponibilidadEspacios(desde: Date, hasta: Date): Promise<HoraLibreBox[]> {
+    return this.bd.tx().$queryRaw<HoraLibreBox[]>`
+      SELECT espacio_id AS "espacioId", inicio, fin FROM disponibilidad_espacios(${desde}, ${hasta})`;
+  }
+
+  /** Bloques de box del profesional (el propio o ADMIN/GESTION: RLS) que tocan el rango. */
+  bloques(profesionalId: string, desde: Date, hasta: Date): Promise<BloqueAtencionVista[]> {
+    return this.bd.tx().bloqueAtencion.findMany({
+      where: { profesionalId, inicio: { lt: hasta }, fin: { gt: desde } },
+      select: VISTA_BLOQUE,
+      orderBy: { inicio: 'asc' },
+    });
+  }
+
+  /**
+   * Aparta horas de box (todas o ninguna). El trigger valida rol, box activo
+   * y horario del box/centro (422); el EXCLUDE, que el box o el profesional
+   * no esten ya apartados a esa hora (409).
+   */
+  async apartarBloques(profesionalId: string, bloques: BloqueAtencionDto[]): Promise<BloqueAtencionVista[]> {
+    if (bloques.some((b) => b.fin <= b.inicio)) {
+      throw new BadRequestException('fin debe ser posterior a inicio');
+    }
+    const creadoPorId = this.bd.usuario().id;
+    // createMany: una sola sentencia (el aviso a la lista de espera sale una vez).
+    await this.bd.tx().bloqueAtencion.createMany({ data: bloques.map((b) => ({ ...b, profesionalId, creadoPorId })) });
+    const desde = new Date(Math.min(...bloques.map((b) => b.inicio.getTime())));
+    const hasta = new Date(Math.max(...bloques.map((b) => b.fin.getTime())));
+    return this.bloques(profesionalId, desde, hasta);
+  }
+
+  /** Libera un bloque sin citas ni retenciones dentro (si las tiene, la BD responde 409). */
+  async liberarBloque(profesionalId: string, id: string): Promise<BloquesLiberados> {
+    const { count } = await this.bd.tx().bloqueAtencion.deleteMany({ where: { id, profesionalId } });
+    return { eliminados: count };
+  }
+
+  /** Espacio, inicio y fin de bloques apartados y soft-locks activos (sin pacientes ni profesionales). */
   ocupacion(desde: Date, hasta: Date) {
     return this.bd.tx().$queryRaw<{ espacio_id: string; inicio: Date; fin: Date }[]>`
       SELECT espacio_id, inicio, fin FROM ocupacion_espacios(${desde}, ${hasta})`;
@@ -116,7 +183,8 @@ export class AgendaService {
         usuarioId: this.bd.usuario().id,
         profesionalId: dto.profesionalId,
         modalidad: dto.modalidad,
-        espacioId: dto.modalidad === 'PRESENCIAL' ? dto.espacioId : null,
+        // Presencial: la BD le pone el box del bloque del profesional.
+        espacioId: null,
         inicio: dto.inicio,
         fin: dto.fin,
         expiraEn: new Date(Date.now() + ttl * 1000),

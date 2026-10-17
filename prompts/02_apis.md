@@ -243,3 +243,195 @@ Leer CLAUDE.md, requisitos_02_apis.md y matriz. Construir sobre 02g.
 - Tests por rol y por modelo de cobro.
 
 ----------------------------------------------------------------
+
+# 02h - Ajustes a 02b-02g y módulo de Cobros
+
+## Contexto
+02a-02g implementados y con commit. Leer CLAUDE.md, requisitos_02_apis.md, matriz y docs/api/propuesta_02h_cobros.md. Docker no disponible.
+Confirmado: alta de usuarios (solo ADMIN; GESTION si está habilitado), match (la necesidad filtra; tiempos y precio ordenan) y "24:00" como presentación del minuto 1440.
+
+## Parte A - Ajustes
+
+### A1. Tipos de atención por profesional
+- Mismo patrón que tipos_sesion: el profesional declara (PROPUESTO), ADMIN aprueba o rechaza.
+- Solo los APROBADOS cuentan en el match, en perfiles_publicos y en el filtro de candidatos de derivación.
+- Migración si hace falta; actualizar la matriz.
+
+### A2. Documentos clínicos por correo
+- Catálogo `tipos_documento_clinico` (B), por centro: nombre (epicrisis, receta, justificativo, etc.), activo. Solo ADMIN.
+- Envío por defecto: correo con enlace que expira y exige iniciar sesión; registra cada descarga.
+- Adjunto: solo si el paciente lo pidió explícitamente (registrar la solicitud).
+- Auditar cada envío y descarga.
+- Mensajes del paciente: sin cambios (el correo solo avisa y remite al portal). Documentar la regla: el único contenido clínico que sale por correo son documentos emitidos.
+
+### A3. Notificaciones de derivación
+- Notificar al candidato cuando recibe una oferta, también cuando un job o un rechazo pasa la oferta al siguiente. El aviso solo dice que tiene una oferta.
+- El candidato nunca ve la lista, el orden ni quién rechazó.
+- El profesional que deriva recibe aviso de cada cambio de estado y ve el detalle completo.
+
+### A4. Recálculo de rut_hmac
+- Se mantiene como comando de mantención (dueño + llaves), nunca en el contenedor de la API.
+- Completar el runbook: ventana de mantención (API detenida o en solo lectura), contenedor puntual tipo migrate, registro en eventos_llaves, verificación de búsqueda y duplicados.
+- Simulacro de punta a punta en desarrollo: generar HMAC nueva, recalcular, activar, verificar, retirar la anterior. Reportar el resultado.
+
+### A5. Jobs programados
+- Test con tiempo simulado que verifique que cada job se dispara según su programación.
+
+### A6. Integraciones sin configuración (Google pospuesto)
+- Interfaces genéricas: ProveedorCorreo, ProveedorVideollamada y ProveedorCalendario. Los módulos solo dependen de la interfaz; las implementaciones se eligen por configuración. Las simuladas siguen siendo el default en tests.
+- Correo: implementación SMTP genérica (sirve con SES u otro servicio), configurada por env a nivel de plataforma. Remitente por defecto de la plataforma con el nombre del centro.
+- Feed iCal privado por profesional: endpoint con token en la URL (guardado como hash), regenerable por el propio profesional. Eventos solo con "Sesión", modalidad, horario y enlace o box; nunca nombre del paciente ni motivo. Incluye citas confirmadas y por reprogramar marcadas como tales.
+- Adjunto .ics en los correos de confirmación y reprogramación de citas, con la misma regla de contenido.
+- Videollamada, modo configurable por profesional:
+  - ENLACE_PROPIO (default): enlace fijo de su sala, guardado cifrado en su perfil.
+  - JITSI: enlace único por cita con nombre de sala no adivinable; URL base configurable; desactivado por defecto.
+- Documentar en docs/api/integraciones.md: modos disponibles, por qué Google queda pospuesto (gestión de Workspace, OAuth por profesional, verificación de Google, datos de salud en terceros) y cómo se agregaría como adaptador opcional.
+- Tests: el feed exige token válido y no contiene nombres ni motivos; regenerar el token invalida el anterior; el .ics cumple la misma regla; cada modo de videollamada genera el enlace esperado; ningún módulo importa una implementación concreta.
+
+## Parte B - Cobros
+
+### B1. Montos
+- citas.monto se fija al confirmar con la tarifa más específica vigente. Inmutable: no hay ajustes. Un cambio de tarifa solo afecta citas confirmadas después.
+
+### B2. Pagos
+- registrar_pago(cita_id, monto, ...): rechaza montos mayores al saldo (sobrepago = error).
+- Anulación en vez de borrado, con motivo.
+- Saldo = monto - pagos no anulados. Estados: PENDIENTE | PARCIAL | PAGADO.
+- Redefinir datos_pago_profesional con el saldo.
+- Boleta: una sola, emitida al quedar PAGADO, con los datos del emisor (copia).
+
+### B3. Política de cancelación
+- configuracion_centro: plazo_aviso_cancelacion_horas (default 24), penalizacion_cancelacion_porcentaje (default 0) y cobro_inasistencia_porcentaje (default 0). Los dos porcentajes quedan pendientes de definir con el caso de estudio.
+- Cancelación con aviso dentro del plazo: sin cobro; los pagos hechos quedan como crédito o devolución.
+- Cancelación tardía: el paciente elige reprogramar (el pago se traslada a la nueva cita) o devolución menos la penalización.
+- Inasistencia sin aviso: cobro según el porcentaje configurado.
+- Toda decisión queda registrada y auditada.
+
+### B4. Liquidación y arriendos
+- configuracion_centro.comision_centro_porcentaje (default 0, pendiente del caso de estudio).
+- Arriendos: cobro de box al profesional por período.
+- Liquidación por profesional y período: pagos cobrados por el centro (modelo CENTRO o MIXTO) - comisión - arriendos. Estados: BORRADOR | EMITIDA | PAGADA. Solo ADMIN/GESTION la emiten; el profesional ve las suyas.
+
+### B5. Fuera de alcance
+- Pasarela de pago real, medios de pago, integración con el SII y propuestas financieras: quedan para el final. Mantener las interfaces simuladas.
+
+## Tests
+- A1-A5 por rol, incluido que el candidato nunca recibe información de la lista.
+- B: monto fijo tras cambio de tarifa; sobrepago rechazado; pago parcial; anulación; boleta solo al completar; cancelación a tiempo, tardía (reprogramar y devolución) e inasistencia con porcentajes configurados; liquidación con comisión y arriendo; acceso por rol.
+- npm run test:e2e, npx jest y correr_tests_bd.sh deben pasar.
+
+## Entrega
+Formato de CLAUDE.md. Actualizar estado_fase_api.md y requisitos. Commits propuestos en español; no ejecutarlos hasta mi confirmación.
+
+----------------------------------------------------------------------------------
+
+# 02i - Mensajería, recordatorios y documentos
+
+## Contexto
+02a-02h con commit. Leer CLAUDE.md, requisitos_02_apis.md, integraciones.md y matriz. Docker no disponible.
+Confirmado: canales bandeja en portal + correo; WhatsApp a futuro; videollamada solo nivel 1 (enlace propio). Jitsi queda implementado pero desactivado.
+
+## 1. Mensajería en tres capas
+Evolucionar notificaciones existentes; no duplicar tablas.
+- Eventos: catálogo fijo en código (cita confirmada, reprogramada, cancelada, recordatorio, oferta de derivación, cambio de estado de derivación, consentimiento solicitado o por vencer, aviso de cambio de supervisor, documento emitido, pago registrado, boleta emitida). Documentar destinatarios por evento.
+- Plantillas (`plantillas_mensaje`, B): evento, destinatario (rol), canal, asunto, cuerpo, activa. La migración carga plantillas de ejemplo en español; ADMIN las personaliza.
+  - Variables solo de una lista permitida (nombre del paciente, nombre del profesional, fecha, hora, modalidad, enlace, nombre del centro). Nunca motivo, diagnóstico, notas ni contenido clínico. Validar al guardar: variable no permitida = 422.
+  - Restaurar a la plantilla de ejemplo.
+- Canales:
+  - BANDEJA: siempre; es el registro oficial.
+  - CORREO: copia o aviso.
+  - WHATSAPP: valor reservado en el enum, sin implementación.
+- Preferencias del paciente (`preferencias_notificacion`, A): puede desactivar recordatorios y avisos operativos; nunca los avisos legales (consentimientos, cambio de supervisor, documentos emitidos).
+- Cola de salida: estado (PENDIENTE | ENVIADO | FALLIDO), intentos y próximo intento con backoff; job idempotente con lock. Un fallo de correo nunca bloquea la operación que lo originó; el mensaje queda en la bandeja.
+- Remitente: dominio de la plataforma con el nombre del centro. Dominio propio por centro: documentado como opción futura (SPF/DKIM).
+
+## 2. Recordatorios de citas
+- configuracion_centro.recordatorio_horas_antes (default 24; 0 = desactivado).
+- Job que envía el recordatorio una sola vez por cita.
+- Enlaces "confirmo asistencia" y "cancelar", con token de un solo uso y expiración. La cancelación aplica la política de cancelación vigente (a tiempo o tardía) e informa al paciente cuál aplicó antes de confirmar.
+- Respeta las preferencias del paciente.
+
+## 3. Calendario
+- .ics con UID fijo por cita y SEQUENCE incremental: una reprogramación actualiza el evento existente; una cancelación envía METHOD:CANCEL.
+- Mismo criterio en el feed iCal del profesional.
+
+## 4. Documentos
+- Emitidos: plantillas por tipo_documento_clinico; el profesional redacta en la app (contenido cifrado) y el servidor genera el PDF con el formato del centro al entregarlo (librería Node). Sin subida de archivos.
+- Adjuntos externos: subida multipart en streaming; límite configurable (default 10 MB); tipos permitidos PDF e imágenes, validados por contenido (magic bytes); cifrado con DEK CLINICO y AAD; guardado como bytea con la misma RLS y auditoría de la ficha.
+- Volver el límite del body JSON a un valor pequeño (1 MB) y quitar el envío en base64.
+- Documentar la ruta futura a almacenamiento de objetos y que la firma electrónica queda pendiente.
+
+## 5. Cobros
+- Cancelación a tiempo, con pagos hechos y sin reagendar: devolución completa sin penalización (además del traslado a una cita nueva que ya existe).
+
+## 6. Videollamada
+- Solo nivel 1 (ENLACE_PROPIO) habilitado. Jitsi desactivado por configuración. Documentar los niveles 2 y 3 como futuros en integraciones.md.
+
+## 7. Tests
+- Plantillas: ejemplo cargado; personalizar; variable no permitida rechazada; restaurar.
+- Preferencias: recordatorio desactivable; aviso legal no desactivable.
+- Cola: fallo de correo reintenta con backoff y la bandeja tiene el mensaje; job sin duplicados.
+- Recordatorio: se envía una vez; token de un solo uso; cancelación a tiempo vs tardía según política.
+- .ics: misma UID al reprogramar; CANCEL al cancelar.
+- Documentos: PDF emitido sin datos fuera de la plantilla; subida que excede el límite o con tipo falso rechazada; adjunto cifrado y auditado; JSON grande rechazado.
+- Devolución sin penalización.
+- Las tres suites deben pasar.
+
+## Entrega
+Formato de CLAUDE.md. Actualizar estado_fase_api.md, requisitos, integraciones.md y matriz. Commits propuestos en español; no ejecutarlos hasta mi confirmación.
+
+-----------------------------------------------------
+
+# 02j - Preparación para pruebas manuales
+
+## Contexto
+02a-02i con commit. Leer CLAUDE.md, requisitos_02_apis.md y matriz. Docker no disponible: todo debe funcionar con el Postgres 18 local.
+Objetivo: poder probar la API a mano, por rol y por flujo, de forma repetible. Sin funcionalidades nuevas de negocio.
+
+## 1. Recordatorio vs. política de cancelación
+- recordatorio_horas_antes default 48.
+- Validación en configuracion_centro: si el recordatorio está activo, debe ser mayor que plazo_aviso_cancelacion_horas (23514 -> 422 con mensaje claro).
+- Ajustar tests y documentación.
+
+## 2. Documentación OpenAPI
+- @nestjs/swagger en /docs, solo si NODE_ENV != production (o protegido por configuración).
+- Todos los controllers con tags por módulo, DTOs documentados, respuestas y errores principales (401, 403, 404, 409, 413, 422).
+- Botón de autorización con JWT.
+- Exportar openapi.json a docs/api/ con un script npm.
+
+## 3. Centro de demostración
+- Script `npm run seed:demo` (separado del seed de tests), idempotente, que crea en la BD local:
+  - Un usuario por rol (ADMIN, PROFESIONAL x2, PRACTICANTE, PACIENTE x3) con contraseñas de desarrollo documentadas. GESTION habilitado y con un usuario, para probar ese flujo.
+  - Practicante con supervisor y consentimiento vigente de un paciente.
+  - Paciente menor con adulto responsable.
+  - Disponibilidad, espacios, tarifas aprobadas, tipos de atención y de sesión aprobados.
+  - Citas pasadas y futuras, presenciales y online, una con pago parcial.
+  - Una derivación en curso con dos candidatos.
+- Datos ficticios evidentes (nombres de prueba, RUT válidos de prueba).
+- `npm run demo:reset`: vacía y vuelve a cargar solo los datos demo. Nunca debe correr si NODE_ENV=production.
+
+## 4. Correo local
+- Documentar Mailpit para Windows (binario, sin Docker) y las variables SMTP en .env.example.
+- Verificar que los correos de confirmación, reprogramación, cancelación y recordatorio llegan a Mailpit con su .ics.
+
+## 5. Colección de peticiones
+- Colección Bruno en `backend/pruebas/bruno/`, versionada.
+- Entorno local con variables (URL base y tokens por rol); login por rol que guarda el token.
+- Carpetas por flujo: autenticación, agenda, fichas, derivaciones, consentimientos, cobros, mensajería, portal del paciente.
+
+## 6. Guion de pruebas manuales
+`docs/pruebas/guion_manual.md`, por flujo: pasos, rol que ejecuta, resultado esperado y casilla de resultado. Mínimo:
+1. Login de cada rol, usuario inactivo y practicante expirado.
+2. Agenda: crear cita, choque de box (409), margen de traslado (409 con alternativas), reprogramar y cancelar (revisar .ics en Mailpit e importarlo en un calendario real).
+3. Fichas: evolución con copia de autoría; ADMIN no la lee; búsqueda por RUT; adjunto y PDF emitido.
+4. Derivación completa: oferta, rechazo, paso al siguiente, aceptación; el candidato no ve la lista.
+5. Practicante: consentimiento solicitado, aceptado y rechazado; supervisor ve casos seudonimizados.
+6. Cobros: monto fijo, pago parcial, sobrepago rechazado, boleta al completar, cancelación a tiempo y tardía.
+7. Mensajería: bandeja, preferencias, recordatorio con token de un solo uso.
+8. Portal del paciente y match público anónimo.
+
+## 7. ESLint
+- Configuración ESLint + Prettier acorde a NestJS. Corregir lo que salga sin cambiar comportamiento; reportar lo que requiera decisión.
+
+## Entrega
+Formato de CLAUDE.md. Las tres suites deben pasar. Commits propuestos en español; no ejecutarlos hasta mi confirmación.

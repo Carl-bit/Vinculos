@@ -10487,7 +10487,448 @@
             "jwt": []
           }
         ],
-        "summary": "Ocupacion de boxes (citas confirmadas + soft-locks), sin pacientes.",
+        "summary": "Ocupacion de boxes (bloques apartados + soft-locks), sin pacientes ni profesionales.",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
+    "/api/espacios/disponibilidad": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "EspaciosController_disponibilidad",
+        "parameters": [
+          {
+            "name": "desde",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasta",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HoraLibreBox"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b: horas libres de cada box para apartar (horario vigente del box menos bloques). Max. 62 dias.",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
+    "/api/profesionales/{profesionalId}/bloques": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "AgendaProfesionalController_bloques",
+        "parameters": [
+          {
+            "name": "profesionalId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "desde",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasta",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BloqueAtencionVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      },
+      "post": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "AgendaProfesionalController_apartarBloques",
+        "parameters": [
+          {
+            "name": "profesionalId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApartarBloquesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BloqueAtencionVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Aparta horas de box (todas o ninguna): fuera del horario del box 422, ya apartadas 409.",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
+    "/api/profesionales/{profesionalId}/bloques/{id}": {
+      "delete": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "AgendaProfesionalController_liberarBloque",
+        "parameters": [
+          {
+            "name": "profesionalId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BloquesLiberados"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Libera un bloque sin citas ni retenciones dentro (si las tiene, 409).",
         "tags": [
           "Agenda y espacios"
         ]
@@ -10577,7 +11018,7 @@
             "jwt": []
           }
         ],
-        "summary": "",
+        "summary": "Horario habitual semanal (referencia para apartar bloques; ya no decide la agenda).",
         "tags": [
           "Agenda y espacios"
         ]
@@ -13324,6 +13765,154 @@
         "summary": "",
         "tags": [
           "Agenda y espacios"
+        ]
+      }
+    },
+    "/api/publico/lista-espera": {
+      "post": {
+        "operationId": "ListaEsperaPublicaController_inscribir",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InscribirListaEsperaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InscripcionListaEspera"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/lista-espera/verificacion": {
+      "post": {
+        "operationId": "ListaEsperaPublicaController_verificar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenListaEsperaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InscripcionVerificada"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "El enlace del correo activa la inscripcion (un solo uso).",
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/lista-espera/baja": {
+      "post": {
+        "operationId": "ListaEsperaPublicaController_baja",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenListaEsperaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "El enlace de baja borra la inscripcion.",
+        "tags": [
+          "Match publico"
         ]
       }
     },
@@ -19009,7 +19598,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/CentroPublico"
                 }
               }
             }
@@ -19061,7 +19650,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliticaPublica"
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -19168,7 +19764,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/PerfilPublico"
                   }
                 }
               }
@@ -19240,7 +19836,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/Hueco"
                   }
                 }
               }
@@ -19287,7 +19883,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResenaPublica"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -19375,7 +19981,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuestionarioPublico"
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -19420,7 +20033,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoMatch"
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -19549,7 +20169,14 @@
         },
         "responses": {
           "202": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudCreada"
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -19594,7 +20221,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudVerificada"
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -23494,6 +24128,10 @@
           "expiraEn": {
             "type": "number",
             "description": "Segundos de vida del access token."
+          },
+          "inactividadMinutos": {
+            "type": "number",
+            "description": "Minutos sin actividad tras los que se cierra la sesion (el front la cierra antes de renovar)."
           }
         },
         "required": [
@@ -23501,7 +24139,8 @@
           "roles",
           "accessToken",
           "refreshToken",
-          "expiraEn"
+          "expiraEn",
+          "inactividadMinutos"
         ]
       },
       "DesafioTotp": {
@@ -24256,11 +24895,6 @@
               "ONLINE"
             ],
             "type": "string"
-          },
-          "espacioId": {
-            "type": "string",
-            "description": "Solo PRESENCIAL (la BD lo exige).",
-            "format": "uuid"
           },
           "inicio": {
             "format": "date-time",
@@ -25067,6 +25701,15 @@
             "type": "number",
             "minimum": 1,
             "maximum": 1440
+          },
+          "vigenteDesde": {
+            "format": "date-time",
+            "type": "string",
+            "description": "03b: periodo en que rige (semana, mes, trimestre). Sin fechas = siempre."
+          },
+          "vigenteHasta": {
+            "format": "date-time",
+            "type": "string"
           }
         },
         "required": [
@@ -25079,7 +25722,7 @@
         "type": "object",
         "properties": {
           "bloques": {
-            "maxItems": 28,
+            "maxItems": 200,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BloqueEspacioDto"
@@ -25088,6 +25731,110 @@
         },
         "required": [
           "bloques"
+        ]
+      },
+      "HoraLibreBox": {
+        "type": "object",
+        "properties": {
+          "espacioId": {
+            "type": "string"
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "espacioId",
+          "inicio",
+          "fin"
+        ]
+      },
+      "BloqueAtencionVista": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "profesionalId": {
+            "type": "string"
+          },
+          "espacioId": {
+            "type": "string"
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "creadoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "profesionalId",
+          "espacioId",
+          "inicio",
+          "fin",
+          "creadoEn"
+        ]
+      },
+      "BloqueAtencionDto": {
+        "type": "object",
+        "properties": {
+          "espacioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "espacioId",
+          "inicio",
+          "fin"
+        ]
+      },
+      "ApartarBloquesDto": {
+        "type": "object",
+        "properties": {
+          "bloques": {
+            "minItems": 1,
+            "maxItems": 120,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BloqueAtencionDto"
+            }
+          }
+        },
+        "required": [
+          "bloques"
+        ]
+      },
+      "BloquesLiberados": {
+        "type": "object",
+        "properties": {
+          "eliminados": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "eliminados"
         ]
       },
       "CrearDisponibilidadDto": {
@@ -25164,11 +25911,6 @@
             ],
             "type": "string"
           },
-          "espacioId": {
-            "type": "string",
-            "description": "Solo PRESENCIAL (la BD lo exige).",
-            "format": "uuid"
-          },
           "inicio": {
             "format": "date-time",
             "type": "string"
@@ -25207,10 +25949,6 @@
               "PRESENCIAL",
               "ONLINE"
             ]
-          },
-          "espacioId": {
-            "type": "string",
-            "format": "uuid"
           }
         },
         "required": [
@@ -25288,6 +26026,90 @@
         },
         "required": [
           "estado"
+        ]
+      },
+      "InscribirListaEsperaDto": {
+        "type": "object",
+        "properties": {
+          "profesionalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "telefono": {
+            "type": "string"
+          },
+          "politicaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sitioWeb": {
+            "type": "string",
+            "description": "Trampa para bots: un humano lo deja vacio.",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "profesionalId",
+          "nombre",
+          "email",
+          "politicaId"
+        ]
+      },
+      "InscripcionListaEspera": {
+        "type": "object",
+        "properties": {
+          "verificacionEnviada": {
+            "type": "boolean"
+          },
+          "expiraEn": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Vencimiento del enlace de verificacion (24 horas)."
+          }
+        },
+        "required": [
+          "verificacionEnviada",
+          "expiraEn"
+        ]
+      },
+      "TokenListaEsperaDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "InscripcionVerificada": {
+        "type": "object",
+        "properties": {
+          "profesionalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expiraEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profesionalId",
+          "expiraEn"
         ]
       },
       "PerfilDto": {
@@ -26005,6 +26827,395 @@
           "otorgadoPorTipo"
         ]
       },
+      "ModeloCobro": {
+        "type": "string",
+        "enum": [
+          "CENTRO",
+          "DIRECTO",
+          "MIXTO"
+        ]
+      },
+      "ServicioPublico": {
+        "type": "object",
+        "properties": {
+          "icono": {
+            "type": "string",
+            "description": "Nombre de un icono Material Symbols"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "texto": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "titulo",
+          "texto"
+        ]
+      },
+      "CentroPublico": {
+        "type": "object",
+        "properties": {
+          "hero_titulo": {
+            "type": "string",
+            "nullable": true
+          },
+          "hero_texto": {
+            "type": "string",
+            "nullable": true
+          },
+          "contacto_correo": {
+            "type": "string",
+            "nullable": true
+          },
+          "contacto_telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "direccion": {
+            "type": "string",
+            "nullable": true
+          },
+          "whatsapp": {
+            "type": "string",
+            "nullable": true
+          },
+          "instagram": {
+            "type": "string",
+            "nullable": true
+          },
+          "mision": {
+            "type": "string",
+            "nullable": true
+          },
+          "vision": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_marca": {
+            "type": "string",
+            "nullable": true
+          },
+          "logo_imagen_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "GET publico/imagenes/{id}"
+          },
+          "modulos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuloCentro"
+            }
+          },
+          "modelo_cobro": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModeloCobro"
+              }
+            ]
+          },
+          "nombre_centro": {
+            "type": "string"
+          },
+          "servicios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServicioPublico"
+            }
+          },
+          "match_filtro_directo": {
+            "type": "boolean"
+          },
+          "plazo_aviso_cancelacion_horas": {
+            "type": "number"
+          },
+          "penalizacion_cancelacion_porcentaje": {
+            "type": "number"
+          },
+          "cobro_inasistencia_porcentaje": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "hero_titulo",
+          "hero_texto",
+          "contacto_correo",
+          "contacto_telefono",
+          "direccion",
+          "whatsapp",
+          "instagram",
+          "mision",
+          "vision",
+          "color_marca",
+          "logo_imagen_id",
+          "modulos",
+          "modelo_cobro",
+          "nombre_centro",
+          "servicios",
+          "match_filtro_directo",
+          "plazo_aviso_cancelacion_horas",
+          "penalizacion_cancelacion_porcentaje",
+          "cobro_inasistencia_porcentaje"
+        ]
+      },
+      "PoliticaPublica": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "vigente_desde": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "texto",
+          "vigente_desde"
+        ]
+      },
+      "Modalidad": {
+        "type": "string",
+        "enum": [
+          "PRESENCIAL",
+          "ONLINE",
+          "MIXTA"
+        ]
+      },
+      "ModalidadAtencion": {
+        "type": "string",
+        "enum": [
+          "PRESENCIAL",
+          "ONLINE"
+        ]
+      },
+      "TarifaPublica": {
+        "type": "object",
+        "properties": {
+          "tipo_atencion": {
+            "type": "string",
+            "nullable": true
+          },
+          "modalidad": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModalidadAtencion"
+              }
+            ]
+          },
+          "monto": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "tipo_atencion",
+          "modalidad",
+          "monto"
+        ]
+      },
+      "TrayectoriaPublica": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string"
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "institucion": {
+            "type": "string"
+          },
+          "anio": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "tipo",
+          "titulo",
+          "institucion",
+          "anio"
+        ]
+      },
+      "PerfilPublico": {
+        "type": "object",
+        "properties": {
+          "nombre_publico": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "foto_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "modalidad": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Modalidad"
+              }
+            ]
+          },
+          "anios_experiencia": {
+            "type": "number",
+            "nullable": true
+          },
+          "cita_destacada": {
+            "type": "string",
+            "nullable": true
+          },
+          "calificacion": {
+            "type": "string",
+            "nullable": true,
+            "description": "Promedio de reseñas publicadas (decimal como texto)"
+          },
+          "id": {
+            "type": "string"
+          },
+          "especialidad": {
+            "type": "string"
+          },
+          "enfoques": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tipos_atencion": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "verificado": {
+            "type": "boolean"
+          },
+          "titulos_verificados": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tarifas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TarifaPublica"
+            }
+          },
+          "trayectoria": {
+            "description": "Solo la trayectoria verificada por ADMIN.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrayectoriaPublica"
+            }
+          },
+          "boleta_reembolsable": {
+            "type": "boolean"
+          },
+          "convenios": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "idiomas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resenas": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "nombre_publico",
+          "bio",
+          "foto_url",
+          "modalidad",
+          "anios_experiencia",
+          "cita_destacada",
+          "calificacion",
+          "id",
+          "especialidad",
+          "enfoques",
+          "tipos_atencion",
+          "verificado",
+          "titulos_verificados",
+          "tarifas",
+          "trayectoria",
+          "boleta_reembolsable",
+          "convenios",
+          "idiomas",
+          "resenas"
+        ]
+      },
+      "Hueco": {
+        "type": "object",
+        "properties": {
+          "modalidad": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModalidadAtencion"
+              }
+            ]
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "modalidad",
+          "inicio",
+          "fin"
+        ]
+      },
+      "ResenaPublica": {
+        "type": "object",
+        "properties": {
+          "texto": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "calificacion": {
+            "type": "number"
+          },
+          "autor": {
+            "type": "string"
+          },
+          "fecha": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "texto",
+          "id",
+          "calificacion",
+          "autor",
+          "fecha"
+        ]
+      },
       "ReporteResenaDto": {
         "type": "object",
         "properties": {
@@ -26018,6 +27229,142 @@
           "motivo"
         ]
       },
+      "TipoPreguntaMatch": {
+        "type": "string",
+        "enum": [
+          "UNICA",
+          "MULTIPLE",
+          "ESCALA",
+          "TEXTO",
+          "DIAS",
+          "FRANJAS"
+        ]
+      },
+      "CriterioMatch": {
+        "type": "string",
+        "enum": [
+          "TIPO_ATENCION",
+          "ENFOQUE",
+          "ESPECIALIDAD",
+          "MODALIDAD",
+          "PREVISION"
+        ]
+      },
+      "OpcionPublica": {
+        "type": "object",
+        "properties": {
+          "nota": {
+            "type": "string",
+            "nullable": true
+          },
+          "criterio": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CriterioMatch"
+              }
+            ]
+          },
+          "objetivo": {
+            "type": "string",
+            "nullable": true
+          },
+          "mensaje": {
+            "type": "string",
+            "nullable": true,
+            "description": "Aviso al elegir la opcion (p. ej. Salud Responde en intensidad alta)."
+          },
+          "valor": {
+            "type": "string"
+          },
+          "etiqueta": {
+            "type": "string"
+          },
+          "peso": {
+            "type": "number"
+          },
+          "estricto": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "nota",
+          "criterio",
+          "objetivo",
+          "mensaje",
+          "valor",
+          "etiqueta",
+          "peso",
+          "estricto"
+        ]
+      },
+      "PreguntaPublica": {
+        "type": "object",
+        "properties": {
+          "ayuda": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoPreguntaMatch"
+              }
+            ]
+          },
+          "max_selecciones": {
+            "type": "number",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "clave": {
+            "type": "string"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "obligatoria": {
+            "type": "boolean"
+          },
+          "opciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpcionPublica"
+            }
+          }
+        },
+        "required": [
+          "ayuda",
+          "tipo",
+          "max_selecciones",
+          "id",
+          "clave",
+          "texto",
+          "obligatoria",
+          "opciones"
+        ]
+      },
+      "CuestionarioPublico": {
+        "type": "object",
+        "properties": {
+          "preguntas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreguntaPublica"
+            }
+          },
+          "filtroDirecto": {
+            "type": "boolean",
+            "description": "\"Prefiero filtrar yo mismo\" habilitado por ADMIN."
+          }
+        },
+        "required": [
+          "preguntas",
+          "filtroDirecto"
+        ]
+      },
       "CalcularMatchDto": {
         "type": "object",
         "properties": {
@@ -26028,6 +27375,80 @@
         },
         "required": [
           "respuestas"
+        ]
+      },
+      "OpcionResultadoMatch": {
+        "type": "object",
+        "properties": {
+          "advertencia": {
+            "type": "string",
+            "nullable": true,
+            "description": "Criterios estrictos que no cumple"
+          },
+          "primerHueco": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "perfil": {
+            "$ref": "#/components/schemas/PerfilPublico"
+          },
+          "puntaje": {
+            "type": "number"
+          },
+          "razones": {
+            "description": "Explicacion en lenguaje claro (por que se recomienda).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "advertencia",
+          "primerHueco",
+          "perfil",
+          "puntaje",
+          "razones"
+        ]
+      },
+      "ResultadoMatch": {
+        "type": "object",
+        "properties": {
+          "recomendado": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpcionResultadoMatch"
+              }
+            ]
+          },
+          "otros": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpcionResultadoMatch"
+            }
+          },
+          "avisos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resumen": {
+            "description": "Etiquetas de las opciones elegidas.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "recomendado",
+          "otros",
+          "avisos",
+          "resumen"
         ]
       },
       "SolicitudHoraDto": {
@@ -26134,6 +27555,23 @@
           "politicaId"
         ]
       },
+      "SolicitudCreada": {
+        "type": "object",
+        "properties": {
+          "expiraEn": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Fin de la retencion de la hora (bloqueo temporal)."
+          },
+          "verificacionEnviada": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expiraEn",
+          "verificacionEnviada"
+        ]
+      },
       "TokenPublicoDto": {
         "type": "object",
         "properties": {
@@ -26145,6 +27583,66 @@
         },
         "required": [
           "token"
+        ]
+      },
+      "EstadoCita": {
+        "type": "string",
+        "enum": [
+          "CONFIRMADA",
+          "CANCELADA",
+          "POR_REPROGRAMAR",
+          "SOLICITADA"
+        ],
+        "description": "CONFIRMADA, o SOLICITADA si el profesional aprueba a los pacientes nuevos."
+      },
+      "SolicitudVerificada": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "description": "CONFIRMADA, o SOLICITADA si el profesional aprueba a los pacientes nuevos.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoCita"
+              }
+            ]
+          },
+          "modalidad": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModalidadAtencion"
+              }
+            ]
+          },
+          "citaId": {
+            "type": "string"
+          },
+          "profesionalId": {
+            "type": "string"
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invitacionEnviada": {
+            "type": "boolean"
+          },
+          "adultoResponsable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "estado",
+          "modalidad",
+          "citaId",
+          "profesionalId",
+          "inicio",
+          "fin",
+          "invitacionEnviada",
+          "adultoResponsable"
         ]
       },
       "ResponderConsentimientoTokenDto": {

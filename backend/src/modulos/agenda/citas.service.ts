@@ -32,7 +32,7 @@ const VISTA = {
 
 export interface Verificacion {
   disponible: boolean;
-  /** PROFESIONAL_NO_DISPONIBLE (disponibilidad, bloqueos, otra cita, margen) | BOX_OCUPADO. */
+  /** PROFESIONAL_NO_DISPONIBLE (fuera de sus bloques de box, bloqueos, otra cita, margen). */
   motivos: string[];
   /** Huecos mas cercanos de la misma modalidad y duracion. */
   alternativas: { inicio: Date; fin: Date }[];
@@ -46,10 +46,11 @@ const MAX_ALTERNATIVAS = 3;
  * DELETE). Fuente de verdad anti-choque = EXCLUDE de la BD (23P01 -> 409).
  *
  * Opcion C (requisitos_02_apis.md 7): antes de confirmar se verifica con
- * disponibilidad_publica() (ya descuenta margen de traslado, bloqueos y
- * soft-locks) y ocupacion_espacios(); si la hora no esta libre se responde
- * 409 con alternativas sin intentar el INSERT. Si dos confirmaciones pasan la
- * verificacion a la vez, la BD rechaza la segunda (409).
+ * disponibilidad_publica() (bloques de box del profesional menos citas,
+ * bloqueos, soft-locks y margen de traslado); si la hora no esta libre se
+ * responde 409 con alternativas sin intentar el INSERT. El box presencial lo
+ * fija la BD (el del bloque, 03b): ya no se verifica aparte. Si dos
+ * confirmaciones pasan la verificacion a la vez, la BD rechaza la segunda (409).
  */
 @Injectable()
 export class CitasService {
@@ -97,7 +98,8 @@ export class CitasService {
         pacienteId: dto.pacienteId,
         profesionalId: dto.profesionalId,
         modalidad: dto.modalidad,
-        espacioId: dto.modalidad === 'PRESENCIAL' ? dto.espacioId : null,
+        // Presencial: la BD le pone el box del bloque del profesional.
+        espacioId: null,
         inicio: dto.inicio,
         fin: dto.fin,
         estado: 'CONFIRMADA',
@@ -139,14 +141,13 @@ export class CitasService {
       throw new ConflictException('La cita esta por aprobar: apruebela o cancelela antes de moverla');
     }
     const modalidad = dto.modalidad ?? actual.modalidad;
-    const espacioId = modalidad === 'PRESENCIAL' ? (dto.espacioId ?? actual.espacioId ?? undefined) : undefined;
-    const horario: HorarioDto = { profesionalId: actual.profesionalId, modalidad, espacioId, inicio: dto.inicio, fin: dto.fin };
+    const horario: HorarioDto = { profesionalId: actual.profesionalId, modalidad, inicio: dto.inicio, fin: dto.fin };
     await tx.cita.update({ where: { id }, data: { estado: 'POR_REPROGRAMAR' }, select: { id: true } });
     await this.soltarHorariosPropios(horario);
     await this.exigirDisponible(horario);
     const cita = await tx.cita.update({
       where: { id },
-      data: { estado: 'CONFIRMADA', modalidad, espacioId: espacioId ?? null, inicio: dto.inicio, fin: dto.fin, enlaceOnline: null },
+      data: { estado: 'CONFIRMADA', modalidad, espacioId: null, inicio: dto.inicio, fin: dto.fin, enlaceOnline: null },
       select: VISTA,
     });
     const conEnlace = await this.generarEnlace(cita);
@@ -264,7 +265,7 @@ export class CitasService {
     if (!v.disponible) {
       throw new ConflictException({
         message: 'El horario no esta disponible',
-        restriccion: v.motivos[0] === 'BOX_OCUPADO' ? 'citas_no_solapamiento_espacio' : 'agenda_no_disponible',
+        restriccion: 'agenda_no_disponible',
         motivos: v.motivos,
         alternativas: v.alternativas,
       });
@@ -277,20 +278,10 @@ export class CitasService {
     const desde = new Date(Math.max(ahora, h.inicio.getTime() - 7 * DIA));
     const hasta = new Date(Math.max(desde.getTime() + DIA, h.fin.getTime() + 7 * DIA));
     const huecos = (await this.agenda.huecos(h.profesionalId, desde, hasta)).filter((x) => x.modalidad === h.modalidad);
-    const ocupacion =
-      h.modalidad === 'PRESENCIAL' && h.espacioId ? (await this.agenda.ocupacion(desde, hasta)).filter((o) => o.espacio_id === h.espacioId) : [];
-    const boxLibre = (inicio: number, fin: number) => !ocupacion.some((o) => o.inicio.getTime() < fin && o.fin.getTime() > inicio);
-
-    const motivos: string[] = [];
-    if (!huecos.some((x) => x.inicio <= h.inicio && x.fin >= h.fin)) {
-      motivos.push('PROFESIONAL_NO_DISPONIBLE');
+    if (huecos.some((x) => x.inicio <= h.inicio && x.fin >= h.fin)) {
+      return { disponible: true, motivos: [], alternativas: [] };
     }
-    if (!boxLibre(h.inicio.getTime(), h.fin.getTime())) {
-      motivos.push('BOX_OCUPADO');
-    }
-    if (motivos.length === 0) {
-      return { disponible: true, motivos, alternativas: [] };
-    }
+    const motivos = ['PROFESIONAL_NO_DISPONIBLE'];
 
     const candidatas: { inicio: number; fin: number }[] = [];
     for (const x of huecos) {
@@ -299,9 +290,7 @@ export class CitasService {
       // El inicio mas cercano al pedido dentro del hueco, en pasos de 15 minutos.
       const paso = 15 * 60_000;
       for (let t = primero; t <= ultimo && candidatas.length < 200; t += paso) {
-        if (boxLibre(t, t + duracion)) {
-          candidatas.push({ inicio: t, fin: t + duracion });
-        }
+        candidatas.push({ inicio: t, fin: t + duracion });
       }
     }
     const pedido = h.inicio.getTime();

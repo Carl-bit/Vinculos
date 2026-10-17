@@ -46,7 +46,7 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   citas_no_solapamiento_espacio: 'El box ya esta ocupado en ese horario',
   citas_no_solapamiento_profesional: 'El profesional ya tiene una cita en ese horario',
   citas_margen_traslado: 'No se respeta el margen de traslado entre citas de distinta modalidad',
-  citas_dentro_de_disponibilidad: 'La cita cae fuera de la disponibilidad del profesional para esa modalidad',
+  citas_dentro_de_disponibilidad: 'La cita cae fuera de las horas de box que el profesional tiene apartadas',
   citas_fuera_de_bloqueos: 'El profesional tiene la agenda bloqueada en ese horario',
   citas_menor_requiere_adulto_responsable: 'Paciente menor de edad: registrar un adulto responsable antes de agendar',
   citas_espacio_segun_modalidad: 'Una cita presencial requiere box; una online no lleva box',
@@ -110,7 +110,6 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   citas_profesional_con_acceso: 'El profesional no es el tratante ni tiene acceso clinico temporal en ese horario: usar derivacion o acceso temporal',
   solicitudes_hora_limite: 'Ya hay solicitudes pendientes de verificar para este correo: revise su bandeja de entrada',
   solicitudes_hora_disponible: 'La hora ya no esta disponible: elija otra',
-  solicitudes_hora_sin_box: 'No hay box disponible en ese horario: elija otra hora',
   solicitudes_hora_coherente: 'Solicitud invalida (hora pasada o datos incompletos)',
   videollamada_sin_sala: 'El profesional no tiene sala de videollamada configurada para atender online',
   resenas_requiere_sesion: 'Solo se puede reseñar a un profesional con al menos una sesion realizada',
@@ -129,6 +128,20 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   lista_espera_coherente: 'Lista de espera: indicar profesional o tipo de atencion',
   horario_centro_valido: 'Horario invalido (dia 1-7 y minutos 0-1440, inicio antes del fin)',
   horarios_espacio_valido: 'Horario invalido (dia 1-7 y minutos 0-1440, inicio antes del fin)',
+  // 03b
+  horarios_espacio_periodo: 'Periodo invalido: la fecha de inicio va antes de la de termino',
+  bloques_atencion_sin_choque_box: 'Ese box ya esta apartado por otro profesional en ese horario',
+  bloques_atencion_sin_choque_profesional: 'El profesional ya tiene horas de box apartadas en ese horario',
+  bloques_atencion_rango: 'El bloque debe terminar despues de empezar',
+  bloques_atencion_profesional: 'Solo un profesional o practicante vigente aparta horas de box',
+  bloques_atencion_box_activo: 'El box no existe o esta inactivo',
+  bloques_atencion_dentro_de_horario_espacio: 'El bloque cae fuera del horario disponible del box',
+  bloques_atencion_dentro_de_horario_centro: 'El bloque cae fuera del horario de atencion del centro',
+  bloques_atencion_con_citas: 'El bloque tiene citas o reservas en curso: reprograme o cancele antes de liberarlo',
+  horarios_espacio_bloques_fuera: 'El horario nuevo deja bloques apartados fuera: liberelos o muevalos primero',
+  lista_espera_publica_destino: 'Ese profesional o tipo de atencion no recibe inscripciones en la lista de espera',
+  lista_espera_publica_coherente: 'Lista de espera: indicar un profesional o un tipo de atencion, con nombre y correo',
+  configuracion_centro_lista_espera_publica: 'La lista de espera publica dura entre 7 y 365 dias',
 };
 
 /**
@@ -138,6 +151,14 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
  */
 const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/fuera de la disponibilidad/, 'citas_dentro_de_disponibilidad'],
+  // 03b
+  [/Solo un profesional o practicante vigente aparta/, 'bloques_atencion_profesional'],
+  [/El box no existe o esta inactivo/, 'bloques_atencion_box_activo'],
+  [/fuera del horario disponible del box/, 'bloques_atencion_dentro_de_horario_espacio'],
+  [/El bloque cae fuera del horario de atencion del centro/, 'bloques_atencion_dentro_de_horario_centro'],
+  [/El bloque tiene citas o reservas en curso/, 'bloques_atencion_con_citas'],
+  [/no disponible para la lista de espera/, 'lista_espera_publica_destino'],
+  [/Lista de espera: un profesional o un tipo de atencion/, 'lista_espera_publica_coherente'],
   [/agenda bloqueada/, 'citas_fuera_de_bloqueos'],
   [/menor de 18 sin adulto responsable/, 'citas_menor_requiere_adulto_responsable'],
   [/menor de 18: (responde|el consentimiento lo otorga) un adulto/, 'consentimientos_menor_requiere_adulto_responsable'],
@@ -179,7 +200,6 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/no es el tratante ni tiene acceso clinico temporal/, 'citas_profesional_con_acceso'],
   [/solicitudes pendientes de verificar/, 'solicitudes_hora_limite'],
   [/La hora ya no esta disponible/, 'solicitudes_hora_disponible'],
-  [/No hay box disponible/, 'solicitudes_hora_sin_box'],
   [/La hora ya paso/, 'solicitudes_hora_coherente'],
   [/no atiende online por el portal/, 'videollamada_sin_sala'],
   [/al menos una sesion realizada/, 'resenas_requiere_sesion'],

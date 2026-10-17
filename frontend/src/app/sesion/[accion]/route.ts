@@ -11,7 +11,6 @@ import { NextResponse, type NextRequest } from 'next/server';
 const API = process.env.API_URL ?? 'http://localhost:3001';
 const COOKIE = 'vinculos_refresh';
 const RUTA_COOKIE = '/sesion';
-const DIAS_REFRESH = Number(process.env.REFRESH_DIAS ?? 7);
 
 interface Accion {
   ruta: string;
@@ -55,25 +54,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (nombre === 'logout' || (accion.conCookie && respuesta.status === 401)) {
     almacen.delete({ name: COOKIE, path: RUTA_COOKIE });
-    almacen.delete({ name: `${COOKIE}_recordar`, path: RUTA_COOKIE });
   }
   if (!respuesta.ok || !datos)
     return new NextResponse(datos ? JSON.stringify(datos) : null, { status: respuesta.status, headers: { 'Content-Type': 'application/json' } });
 
   const { refreshToken, ...resto } = datos;
   if (typeof refreshToken === 'string') {
-    // "Mantener sesion iniciada": cookie persistente; si no, muere al cerrar el navegador.
-    // En refresh y cambio de rol se conserva la eleccion original (marca en la cookie).
-    const recordar = accion.conCookie ? almacen.get(`${COOKIE}_recordar`)?.value === '1' : entrada.recordar === true;
-    const opciones = {
+    // 03b: la cookie dura lo mismo que el refresh en la API (minutos sin actividad) y se renueva con cada rotacion.
+    const minutos = typeof datos.inactividadMinutos === 'number' ? datos.inactividadMinutos : 30;
+    almacen.set(COOKIE, refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
+      sameSite: 'strict',
       path: RUTA_COOKIE,
-      ...(recordar ? { maxAge: DIAS_REFRESH * 86_400 } : {}),
-    };
-    almacen.set(COOKIE, refreshToken, opciones);
-    almacen.set(`${COOKIE}_recordar`, recordar ? '1' : '0', opciones);
+      maxAge: minutos * 60,
+    });
   }
   return NextResponse.json(resto, { status: respuesta.status });
 }

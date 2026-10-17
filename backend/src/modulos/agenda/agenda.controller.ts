@@ -10,7 +10,11 @@ import { ListaEsperaService } from './lista-espera.service';
 import { CitasService } from './citas.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
 import { RecordatoriosService } from './recordatorios.service';
+import { BloqueAtencionVista, BloquesLiberados, HoraLibreBox } from './dto/agenda-respuestas.dto';
+import { InscribirListaEsperaDto, InscripcionListaEspera, InscripcionVerificada, TokenListaEsperaDto } from './dto/lista-espera-publica.dto';
+import { ListaEsperaPublicaService } from './lista-espera-publica.service';
 import {
+  ApartarBloquesDto,
   CerrarListaEsperaDto,
   CrearBloqueoAgendaDto,
   CrearListaEsperaDto,
@@ -69,21 +73,52 @@ export class EspaciosController {
     return this.agenda.reemplazarHorarioEspacio(id, dto.bloques);
   }
 
-  /** Ocupacion de boxes (citas confirmadas + soft-locks), sin pacientes. */
+  /** Ocupacion de boxes (bloques apartados + soft-locks), sin pacientes ni profesionales. */
   @Get('ocupacion')
   @Roles(...EQUIPO_AGENDA)
   ocupacion(@Query() rango: RangoDto) {
     return this.agenda.ocupacion(rango.desde, rango.hasta);
   }
+
+  /** 03b: horas libres de cada box para apartar (horario vigente del box menos bloques). Max. 62 dias. */
+  @Get('disponibilidad')
+  @Roles(...EQUIPO_AGENDA)
+  disponibilidad(@Query() rango: RangoDto): Promise<HoraLibreBox[]> {
+    return this.agenda.disponibilidadEspacios(rango.desde, rango.hasta);
+  }
 }
 
-/** Disponibilidad semanal y bloqueos: el propio y ADMIN/GESTION (RLS). */
+/**
+ * Bloques de box (03b: la agenda del profesional), horario habitual semanal
+ * y bloqueos: el propio y ADMIN/GESTION (RLS).
+ */
 @ApiTags(TAGS.agenda)
 @Controller('profesionales/:profesionalId')
 @Modulo('AGENDA')
 export class AgendaProfesionalController {
   constructor(private readonly agenda: AgendaService) {}
 
+  @Get('bloques')
+  @Roles(...EQUIPO_AGENDA)
+  bloques(@Param('profesionalId', Uuid) id: string, @Query() rango: RangoDto): Promise<BloqueAtencionVista[]> {
+    return this.agenda.bloques(id, rango.desde, rango.hasta);
+  }
+
+  /** Aparta horas de box (todas o ninguna): fuera del horario del box 422, ya apartadas 409. */
+  @Post('bloques')
+  @Roles(...EQUIPO_AGENDA)
+  apartarBloques(@Param('profesionalId', Uuid) id: string, @Body() dto: ApartarBloquesDto): Promise<BloqueAtencionVista[]> {
+    return this.agenda.apartarBloques(id, dto.bloques);
+  }
+
+  /** Libera un bloque sin citas ni retenciones dentro (si las tiene, 409). */
+  @Delete('bloques/:id')
+  @Roles(...EQUIPO_AGENDA)
+  liberarBloque(@Param('profesionalId', Uuid) profesionalId: string, @Param('id', Uuid) id: string): Promise<BloquesLiberados> {
+    return this.agenda.liberarBloque(profesionalId, id);
+  }
+
+  /** Horario habitual semanal (referencia para apartar bloques; ya no decide la agenda). */
   @Get('disponibilidad')
   @Roles(...EQUIPO_AGENDA)
   disponibilidad(@Param('profesionalId', Uuid) id: string) {
@@ -343,5 +378,39 @@ export class RecordatoriosPublicoController {
   @HttpCode(200)
   cancelar(@Param('token') token: string) {
     return this.recordatorios.responder(token, 'CANCELADA');
+  }
+}
+
+/**
+ * Lista de espera publica (03b): sin cuenta ni sesion; verificada por correo.
+ * Rate limit publico por IP. No revela si un correo ya estaba inscrito.
+ */
+@ApiTags(TAGS.publico)
+@Controller('publico/lista-espera')
+@Modulo('AGENDA')
+@Publico()
+@UseGuards(ThrottlerGuard)
+@SkipThrottle({ login: true })
+export class ListaEsperaPublicaController {
+  constructor(private readonly lista: ListaEsperaPublicaService) {}
+
+  @Post()
+  @HttpCode(202)
+  inscribir(@Body() dto: InscribirListaEsperaDto): Promise<InscripcionListaEspera> {
+    return this.lista.inscribir(dto);
+  }
+
+  /** El enlace del correo activa la inscripcion (un solo uso). */
+  @Post('verificacion')
+  @HttpCode(200)
+  verificar(@Body() dto: TokenListaEsperaDto): Promise<InscripcionVerificada> {
+    return this.lista.verificar(dto.token);
+  }
+
+  /** El enlace de baja borra la inscripcion. */
+  @Post('baja')
+  @HttpCode(204)
+  async baja(@Body() dto: TokenListaEsperaDto): Promise<void> {
+    await this.lista.baja(dto.token);
   }
 }

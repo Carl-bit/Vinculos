@@ -298,8 +298,7 @@ describe('02i mensajeria, recordatorios y documentos', () => {
   it('.ics: misma UID y SEQUENCE creciente al reprogramar; METHOD:CANCEL al cancelar; el feed refleja lo mismo', async () => {
     const p = await profesional();
     const pac = await t.datos.usuarioPaciente(p.id);
-    const box = await t.datos.espacio();
-    const cita = await nuevaCita(p.id, pac.pacienteId, 80, { modalidad: 'PRESENCIAL', espacioId: box.id });
+    const cita = await nuevaCita(p.id, pac.pacienteId, 80, { modalidad: 'PRESENCIAL' });
     const ics = async (asunto: string) => {
       const [m] = (await procesarMensajes(t)).filter((x) => x.para === pac.email && x.asunto === asunto);
       return m.adjuntos![0].contenido.toString('utf8');

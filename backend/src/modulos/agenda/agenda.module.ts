@@ -8,8 +8,10 @@ import {
   HorariosTomadosController,
   IntegracionesAgendaController,
   ListaEsperaController,
+  ListaEsperaPublicaController,
   RecordatoriosPublicoController,
 } from './agenda.controller';
+import { ListaEsperaPublicaService } from './lista-espera-publica.service';
 import { ListaEsperaService } from './lista-espera.service';
 import { AgendaService } from './agenda.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
@@ -31,7 +33,8 @@ import { RecordatoriosService } from './recordatorios.service';
     CalendarioPublicoController,
     RecordatoriosPublicoController,
     ListaEsperaController,
+    ListaEsperaPublicaController,
   ],
-  providers: [AgendaService, CitasService, IntegracionesAgendaService, RecordatoriosService, ListaEsperaService],
+  providers: [AgendaService, CitasService, IntegracionesAgendaService, RecordatoriosService, ListaEsperaService, ListaEsperaPublicaService],
 })
 export class AgendaModule {}

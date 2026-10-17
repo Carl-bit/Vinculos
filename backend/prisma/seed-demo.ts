@@ -181,13 +181,51 @@ async function main(): Promise<void> {
       }
     }
 
-    // Perfil, tarifas, sala de videollamada, disponibilidad (lunes a viernes 09:00-19:00, ambas modalidades).
+    // Perfil, tarifas, sala de videollamada y horario habitual (lunes a viernes 09:00-19:00, referencia para apartar box).
+    // Perfiles publicos variados (03b-2): secciones condicionales del perfil, filtros y match.
+    // Profesional Tres exige aprobacion de pacientes nuevos ("solicitud enviada" en Pedir hora).
     const perfiles = [
-      [prof1, prof1Id, 'Ps. Profesional Uno (Demo)', 'Psicologia clinica adultos', 35000, 30000],
-      [prof2, prof2Id, 'Ps. Profesional Dos (Demo)', 'Psicologia infanto-juvenil', 40000, 35000],
-      [prof3, prof3Id, 'Ps. Profesional Tres (Demo)', 'Psicologia clinica adultos', 38000, null],
+      [
+        prof1,
+        prof1Id,
+        'Ps. Profesional Uno (Demo)',
+        'Psicologia clinica adultos',
+        35000,
+        30000,
+        {
+          enfoques: ['Cognitivo-conductual', 'Ansiedad', 'Estrés', 'Duelo'],
+          convenios: ['FONASA'],
+          boletaReembolsable: true,
+          idiomas: ['Español', 'Inglés'],
+          citaDestacada: 'Cada proceso parte por entender qué te trae y qué te gustaría que cambiara.',
+        },
+      ],
+      [
+        prof2,
+        prof2Id,
+        'Ps. Profesional Dos (Demo)',
+        'Psicologia infanto-juvenil',
+        40000,
+        35000,
+        {
+          enfoques: ['Sistémico', 'Familia', 'Conducta'],
+          idiomas: ['Español'],
+        },
+      ],
+      [
+        prof3,
+        prof3Id,
+        'Ps. Profesional Tres (Demo)',
+        'Psicologia clinica adultos',
+        38000,
+        null,
+        {
+          enfoques: ['Cognitivo-conductual', 'Trabajo', 'Ánimo'],
+          requiereAprobacionNuevos: true,
+        },
+      ],
     ] as const;
-    for (const [token, id, nombrePublico, especialidad, general, online] of perfiles) {
+    for (const [token, id, nombrePublico, especialidad, general, online, extra] of perfiles) {
       await llamar(token, 'POST', '/profesionales/yo/tarifas', { monto: general });
       if (online) {
         await llamar(token, 'POST', '/profesionales/yo/tarifas', { monto: online, modalidad: 'ONLINE' });
@@ -196,9 +234,9 @@ async function main(): Promise<void> {
         especialidad,
         modalidad: 'MIXTA',
         nombrePublico,
-        enfoques: ['Cognitivo-conductual'],
         bio: 'Perfil ficticio del centro de demostracion.',
         perfilPublico: true,
+        ...extra,
       });
       await llamar(token, 'PUT', '/profesionales/yo/videollamada', { modo: 'ENLACE_PROPIO', enlace: `https://meet.jit.si/vinculos-demo-${id.slice(0, 8)}` });
     }
@@ -213,6 +251,31 @@ async function main(): Promise<void> {
         }
       }
     }
+    // 03b: la agenda sale del box. ADMIN define cuando se usa cada box; cada profesional aparta sus horas
+    // (de una semana atras a seis adelante, para las citas pasadas y futuras del demo). Box 3 abre solo este
+    // trimestre (horario por periodo) y queda sin apartar para probarlo desde el backoffice.
+    const box1 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 1 (Demo)' })).id;
+    const box2 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 2 (Demo)' })).id;
+    const box3 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 3 Sala grupal (Demo)', nota: 'Solo este trimestre' })).id;
+    const habiles = [1, 2, 3, 4, 5].map((diaSemana) => ({ diaSemana, inicioMin: 9 * 60, finMin: 19 * 60 }));
+    await llamar(admin, 'PUT', `/espacios/${box1}/horario`, { bloques: habiles });
+    await llamar(admin, 'PUT', `/espacios/${box2}/horario`, { bloques: habiles });
+    await llamar(admin, 'PUT', `/espacios/${box3}/horario`, {
+      bloques: habiles.map((h) => ({ ...h, finMin: 13 * 60, vigenteDesde: diaHabil(0), vigenteHasta: diaHabil(63) })),
+    });
+    const fechas = [...new Set(Array.from({ length: 37 }, (_v, i) => diaHabil(i - 6)))];
+    const diaSemana = (fecha: string) => new Date(`${fecha}T12:00:00Z`).getUTCDay();
+    const apartar = (token: string, id: string, espacioId: string, desde: string, hasta: string, dias = [1, 2, 3, 4, 5]) =>
+      llamar(token, 'POST', `/profesionales/${id}/bloques`, {
+        bloques: fechas
+          .filter((f) => dias.includes(diaSemana(f)))
+          .map((f) => ({ espacioId, inicio: enChile(f, desde).toISOString(), fin: enChile(f, hasta).toISOString() })),
+      });
+    await apartar(prof1, prof1Id, box1, '09:00', '14:00');
+    await apartar(prof2, prof2Id, box1, '14:00', '19:00');
+    await apartar(prof3, prof3Id, box2, '09:00', '13:00', [1, 3, 5]);
+    await apartar(practicante, practicanteId, box2, '15:00', '19:00');
+
     // Datos para la copia de autoria de las evoluciones y para las liquidaciones (cifrados).
     await llamar(prof1, 'PUT', '/profesionales/yo/datos-privados', {
       rut: rut('12345678'),
@@ -221,16 +284,38 @@ async function main(): Promise<void> {
       numeroCuenta: '12345678',
       titular: 'Profesional Uno (Demo)',
     });
-    await llamar(prof1, 'POST', '/trayectoria', {
-      tipo: 'TITULO',
-      titulo: 'Psicologo (Demo)',
-      institucion: 'Universidad Ficticia',
-      anio: 2015,
-      registroSuperintendencia: '000000',
+    // Trayectoria verificada por ADMIN: es la que muestra el perfil publico (titulos y años de experiencia).
+    for (const [token, cuerpo] of [
+      [prof1, { tipo: 'TITULO', titulo: 'Psicologo (Demo)', institucion: 'Universidad Ficticia', anio: 2015, registroSuperintendencia: '000000' }],
+      [prof1, { tipo: 'MAGISTER', titulo: 'Magister en Psicologia Clinica (Demo)', institucion: 'Universidad Ficticia', anio: 2019 }],
+      [prof2, { tipo: 'TITULO', titulo: 'Psicologa (Demo)', institucion: 'Universidad Ficticia', anio: 2012 }],
+    ] as const) {
+      const { id } = await llamar(token, 'POST', '/trayectoria', cuerpo);
+      await llamar(admin, 'POST', `/trayectoria/${id}/verificacion`, { verificado: true });
+    }
+
+    // Sitio publico (03b-2): contenido editable por ADMIN y politicas que se aceptan al pedir hora.
+    await llamar(admin, 'PATCH', '/configuracion/contenido-publico', {
+      heroTitulo: 'Acompañamiento psicológico, con orden detrás.',
+      heroTexto: 'Atendemos consultas individuales, de pareja y familiares. Reserva en línea y un equipo que se coordina en la misma plataforma.',
+      servicios: [
+        { icono: 'person', titulo: 'Terapia individual', texto: 'Sesiones presenciales o por videollamada, con seguimiento entre sesiones.' },
+        { icono: 'favorite', titulo: 'Terapia de pareja', texto: 'Acompañamiento para conflictos de convivencia, comunicación y proyectos en común.' },
+        { icono: 'escalator_warning', titulo: 'Niños y adolescentes', texto: 'Evaluación y terapia con participación de la familia.' },
+      ],
+      contactoCorreo: `contacto@${DOMINIO}`,
+      contactoTelefono: '+56222222222',
+      direccion: 'Dirección ficticia 123, Santiago',
+    });
+    await llamar(admin, 'POST', '/politicas', {
+      tipo: 'POLITICA_DATOS',
+      texto: 'Politica de datos ficticia del centro de demostracion. Tus datos se usan solo para tu atencion y se guardan cifrados.',
+    });
+    await llamar(admin, 'POST', '/politicas', {
+      tipo: 'TERMINOS_AGENDAMIENTO',
+      texto: 'Terminos de agendamiento ficticios del centro de demostracion. Puedes cancelar sin costo con 24 horas de aviso.',
     });
     await llamar(admin, 'POST', '/tipos-documento-clinico', { nombre: 'Certificado de atencion (Demo)' });
-    const box1 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 1 (Demo)' })).id;
-    await llamar(admin, 'POST', '/espacios', { nombre: 'Box 2 (Demo)' });
 
     // --- Pacientes ---------------------------------------------------------------
     // Paciente Prueba (seed base, de Profesional Uno): se le agrega RUT para la busqueda.
@@ -312,18 +397,28 @@ async function main(): Promise<void> {
     // --- Citas -------------------------------------------------------------------
     const gestion = await login(MARCA);
     const cita = (cuerpo: Cuerpo) => llamar(gestion, 'POST', '/citas', cuerpo);
-    // Pasadas: la API solo agenda en huecos futuros; como dueño, con las mismas reglas de la BD (disponibilidad, EXCLUDE, monto).
+    // Pasadas: la API solo agenda en huecos futuros; como dueño, con las mismas reglas de la BD (bloques de box, EXCLUDE,
+    // monto). El box presencial lo pone la BD (el del bloque del profesional).
     const pasada = await dueno.cita.create({
-      data: { pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'PRESENCIAL', espacioId: box1, ...horario(-5, '10:00') },
+      data: { pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(-5, '10:00') },
     });
     await llamar(gestion, 'POST', `/cobros/citas/${pasada.id}/pagos`, { monto: 35000, medioPago: 'TRANSFERENCIA' });
+    // Reseña publicada (perfil publico): el paciente con una sesion realizada la escribe y ADMIN la modera.
+    const paciente = await login(`paciente@${DOMINIO}`);
+    const resena = await llamar(paciente, 'POST', '/portal/resenas', {
+      profesionalId: prof1Id,
+      calificacion: 5,
+      texto: 'Reseña ficticia de demostracion: explica con claridad y escucha sin apuro.',
+      mostrarComo: 'NOMBRE_INICIAL',
+    });
+    await llamar(admin, 'POST', `/resenas/${resena.id}/moderacion`, { publicar: true });
     await dueno.cita.create({ data: { pacienteId: camila.id, profesionalId: practicanteId, modalidad: 'ONLINE', ...horario(-3, '16:00') } });
-    const parcial = await cita({ pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'PRESENCIAL', espacioId: box1, ...horario(4, '10:00') });
+    const parcial = await cita({ pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(4, '10:00') });
     await llamar(gestion, 'POST', `/cobros/citas/${parcial.id}/pagos`, { monto: 15000, medioPago: 'EFECTIVO' });
     await cita({ pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'ONLINE', ...horario(6, '12:00') });
-    await cita({ pacienteId: sofia.id, profesionalId: prof2Id, modalidad: 'PRESENCIAL', espacioId: box1, ...horario(4, '15:00') });
+    await cita({ pacienteId: sofia.id, profesionalId: prof2Id, modalidad: 'PRESENCIAL', ...horario(4, '15:00') });
     await cita({ pacienteId: camila.id, profesionalId: practicanteId, modalidad: 'ONLINE', ...horario(5, '17:00') });
-    await cita({ pacienteId: diego.id, profesionalId: prof1Id, modalidad: 'PRESENCIAL', espacioId: box1, ...horario(7, '11:00') });
+    await cita({ pacienteId: diego.id, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(7, '11:00') });
   } finally {
     await app.close();
     await dueno.$disconnect();
@@ -333,7 +428,8 @@ async function main(): Promise<void> {
     }
   }
   // El logger de la app (pino, nivel warn) ya no esta: aviso final directo.
-  process.stdout.write(`Centro demo cargado. Usuarios @${DOMINIO}, contraseña "${PASSWORD}"; secretos TOTP en infra/local/totp-demo.txt (ver docs/pruebas/guion_manual.md)
+  process.stdout
+    .write(`Centro demo cargado. Usuarios @${DOMINIO}, contraseña "${PASSWORD}"; secretos TOTP en infra/local/totp-demo.txt (ver docs/pruebas/guion_manual.md)
 `);
 }
 

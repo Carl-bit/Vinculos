@@ -41,3 +41,9 @@ export function formatoRut(rut: string): string {
 
 /** Un identificador de login con forma de RUT (sin @). */
 export const pareceRut = (texto: string) => !texto.includes('@') && /^[\d.\s-]+[\dkK]$/.test(texto.trim());
+
+/** +56222222222 -> +56 2 2222 2222; +56912345678 -> +56 9 1234 5678. */
+export function formatoTelefono(telefono: string): string {
+  const m = /^\+56(\d)(\d{4})(\d{4})$/.exec(telefono.replace(/\s/g, ''));
+  return m ? `+56 ${m[1]} ${m[2]} ${m[3]}` : telefono;
+}

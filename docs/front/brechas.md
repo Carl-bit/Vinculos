@@ -113,7 +113,7 @@ Los datos de ejemplo del diseño (nombres, montos, cargos como "Psiquiatra" o
 |---|---|---|
 | Pacientes activos (+ del mes) | FALTA (03a) | funcion de reporte por rol |
 | Sesiones hoy / por confirmar | FALTA (03a) | idem (hoy se puede armar con `GET citas`, pero no por rol en una llamada) |
-| Ocupacion de boxes % | FALTA (03a) | reporte sobre `ocupacion_espacios` |
+| Ocupacion de boxes % | OK (03b) | `reporte_dashboard().ocupacion_boxes_hoy`: horas apartadas / horario de boxes (muestra; cada centro define la suya) |
 | Fichas por cerrar | FALTA (03a) | requiere saber que cita tiene evolucion: hoy `evoluciones` no se vincula a `citas` (ver 2.4) |
 | Modulos del centro (activo / no contratado) | FALTA (03a) | modulos activos por centro |
 | Tus sesiones de hoy | OK | `GET citas` |
@@ -348,3 +348,68 @@ Estado por fila de las secciones 1-5:
 | Mensajeria interna | Hilos GENERAL (participantes del equipo, sin pacientes) y CASO (acceso clinico vigente; ADMIN/GESTION no). Sin edicion, retiro en 5 minutos, sin adjuntos, lectura por polling, registro de lectura, rate limit, auditoria de hilos de caso, aviso sin contenido, purga por `retencion_mensajes_dias` (default 365), nombre minimizado tras el cierre de la cuenta |
 | Seccion 7 | Edad minima de cuenta configurable; preferencias del adulto responsable; reintento de correos de cuenta; duplicados solo por administracion con alerta y aviso; RUT antes de la primera evolucion para todo paciente. Bruno eliminado |
 | Pendiente | C-11 (si se liquidan los cobros por cancelacion tardia e inasistencia). Validacion legal de D-4 (con los cortes de edad ya configurables). Tiempo real (SSE) para la mensajeria. Fusion de fichas duplicadas (hoy se registra MISMO_PACIENTE y se concilia a mano) |
+
+## 9. Resolucion en 03b-2 (front publico)
+
+- Landing, Equipo, perfil completo, Match y Pedir hora conectados a `publico/*`
+  (SSR para SEO; Match y Pedir hora con formularios en el cliente).
+- "Proxima disponibilidad" del centro (1.1): sigue sin agregado en la API. El
+  landing muestra en su lugar un dato real: cantidad de profesionales y tarifa
+  mas baja. No se piden N disponibilidades desde el front.
+- Duracion de sesion (1.5): la API entrega rangos libres; el front ofrece
+  bloques de 50 min a hora en punto (`lib/horarios.ts`). Pendiente que la API
+  publique la duracion del profesional o del box.
+- Horario del box: `disponibilidad_publica()` no lo considera; un presencial
+  sin box libre se rechaza al enviar (409 `solicitudes_hora_sin_box`) y el
+  front vuelve a la grilla con el mensaje.
+- Retencion de 30 min: empieza al enviar la solicitud (la crea
+  `crear_solicitud_hora`), no al tocar la hora. La cuenta regresiva se muestra
+  en "Revisa tu correo".
+- Lista de espera sin horas (1.5): `POST lista-espera` exige cuenta de
+  paciente. Sin cuenta solo existe "avisarme si se libera una hora antes"
+  junto a una hora reservada (`listaEspera` de la solicitud); sin horas, el
+  front ofrece entrar a la cuenta o ver otros profesionales.
+- Ya soy paciente (C-6): solo `auth/enlace-acceso`, respuesta identica exista
+  o no la cuenta.
+- Genero del profesional: 03a no lo implemento; no se muestra.
+- Respuestas del match: solo en memoria de la pestaña (`lib/match-memoria.ts`),
+  viajan cifradas con la solicitud; nunca en storage ni en la URL.
+
+## 10. Correcciones antes de 03b-3 (decisiones del usuario)
+
+- **La agenda sale del box.** ADMIN define cuando se usa cada box
+  (`horarios_espacio`, ahora por periodo: semana, mes o trimestre); el
+  profesional (o ADMIN/GESTION por el) aparta bloques dentro de ese horario
+  (`bloques_atencion`, EXCLUDE por box y por profesional). Solo lo apartado
+  se ofrece: disponibilidad publica, match, huecos del backoffice y validacion
+  de citas (presencial u online). La cita presencial usa el box del bloque
+  (lo fija la BD; la API ya no recibe `espacioId`). Resuelve el pendiente
+  "horario del box" de la seccion 9: `solicitudes_hora_sin_box` ya no existe.
+  `disponibilidad_profesional` queda como horario habitual (referencia para
+  apartar). Endpoints: `GET /espacios/disponibilidad`,
+  `GET|POST /profesionales/:id/bloques`, `DELETE /profesionales/:id/bloques/:id`.
+  La pantalla para apartar y el horario del box por periodo son de 03b-4
+  (Agenda y Espacios).
+- **Lista de espera sin cuenta.** `lista_espera_publica`: nombre, correo,
+  telefono cifrado, solo por profesional; verificada por correo (24 h),
+  vigente `dias_lista_espera_publica` (60), sin paciente ni ficha.
+  Aviso por correo (job cada 10 min) cuando se libera una hora o el
+  profesional aparta un bloque nuevo, con enlace de baja (borra la
+  inscripcion). En el front: desde Pedir hora, sin horas o "ninguna hora me
+  acomoda"; paginas `/lista-espera/verificar` y `/lista-espera/baja`. Por tipo
+  de atencion: quitado de la BD y la API (pendiente, implementacion futura;
+  necesita un listado publico de tipos con id). La lista con cuenta (03a)
+  conserva su CHECK `lista_espera_coherente` sin cambios.
+- **Sesion de 30 minutos sin actividad.** `SESION_INACTIVIDAD_MINUTOS`
+  (reemplaza `REFRESH_DIAS`): el refresh vence a esos minutos y se renueva al
+  rotar; la cookie dura lo mismo. El front cierra la sesion tras 30 min sin
+  actividad (marca compartida entre pestañas en localStorage, no clinica) y el
+  login lo explica. Se quito "Mantener sesion iniciada" (seccion 1): no tiene
+  sentido con cierre por inactividad.
+- **"Se pierde el rol al recargar".** Revisado: la sesion y el rol activo se
+  recuperan al recargar (los guarda el servidor, no el navegador). Lo que se
+  veia era el 404 de Next sin el layout en rutas del menu que aun no existen
+  (03b-3/03b-4). Ahora `/admin/*` y `/portal/*` sin pagina muestran el aviso
+  dentro del panel, con menu y rol.
+- Duracion de la sesion clinica: sigue en bloques de 50 min a hora en punto
+  (los 30 minutos pedidos eran de la sesion de login).

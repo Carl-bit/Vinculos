@@ -1,44 +1,21 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Modalidad, ModalidadAtencion, TipoPolitica } from '@prisma/client';
+import type { ModalidadAtencion, TipoPolitica } from '@prisma/client';
 
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import type { FiltroPerfilesDto, MatchDto } from './dto/match.dto';
+import type {
+  CentroPublico,
+  CuestionarioPublico,
+  Hueco,
+  PerfilPublico,
+  PoliticaPublica,
+  PreguntaPublica,
+  ResenaPublica,
+  ResultadoMatch,
+  TarifaPublica,
+} from './dto/publico-respuestas.dto';
 import { evaluar, opcionesElegidas, ordenar, type PreguntaMatch, type Respuestas, validarRespuestas } from './reglas-match';
-
-export interface TarifaPublica {
-  tipo_atencion: string | null;
-  modalidad: ModalidadAtencion | null;
-  monto: number;
-}
-
-export interface PerfilPublico {
-  id: string;
-  nombre_publico: string | null;
-  bio: string | null;
-  foto_url: string | null;
-  especialidad: string;
-  enfoques: string[];
-  modalidad: Modalidad;
-  tipos_atencion: string[];
-  verificado: boolean;
-  titulos_verificados: string[];
-  tarifas: TarifaPublica[];
-  trayectoria: { tipo: string; titulo: string; institucion: string; anio: number }[];
-  anios_experiencia: number | null;
-  boleta_reembolsable: boolean;
-  convenios: string[];
-  idiomas: string[];
-  cita_destacada: string | null;
-  calificacion: string | null;
-  resenas: number;
-}
-
-export interface Hueco {
-  modalidad: ModalidadAtencion;
-  inicio: Date;
-  fin: Date;
-}
 
 const DIA = 86_400_000;
 const ZONA = 'America/Santiago';
@@ -83,13 +60,13 @@ export class MatchService {
   }
 
   /** Contenido de la pagina publica, nombre del centro, modulos y politica de cancelacion (para los terminos). */
-  async centro() {
-    const [{ c }] = await this.db.$queryRaw<[{ c: Record<string, unknown> }]>`SELECT contenido_publico_centro() AS c`;
+  async centro(): Promise<CentroPublico> {
+    const [{ c }] = await this.db.$queryRaw<[{ c: CentroPublico }]>`SELECT contenido_publico_centro() AS c`;
     return c;
   }
 
-  async politica(tipo: TipoPolitica) {
-    const [p] = await this.db.$queryRaw<{ id: string; version: number; texto: string; vigente_desde: Date }[]>`
+  async politica(tipo: TipoPolitica): Promise<PoliticaPublica> {
+    const [p] = await this.db.$queryRaw<PoliticaPublica[]>`
       SELECT * FROM politica_vigente(${tipo}::tipo_politica)`;
     if (!p) {
       throw new NotFoundException('Sin politica publicada');
@@ -106,7 +83,7 @@ export class MatchService {
   }
 
   /** Reseñas publicadas (D-1): "Nombre + inicial" o "Usuario anonimo". */
-  async resenas(profesionalId: string) {
+  async resenas(profesionalId: string): Promise<ResenaPublica[]> {
     const filas = await this.db.$queryRaw<{ id: string; calificacion: number; texto: Uint8Array | null; autor: string; creada_en: Date }[]>`
       SELECT * FROM resenas_publicas(${profesionalId}::uuid)`;
     return filas.map((r) => ({
@@ -122,8 +99,8 @@ export class MatchService {
     await this.db.$executeRaw`SELECT reportar_resena(${id}::uuid, ${motivo})`;
   }
 
-  async cuestionario(): Promise<{ preguntas: PreguntaMatch[]; filtroDirecto: boolean }> {
-    const [{ q }] = await this.db.$queryRaw<[{ q: PreguntaMatch[] }]>`SELECT cuestionario_match() AS q`;
+  async cuestionario(): Promise<CuestionarioPublico> {
+    const [{ q }] = await this.db.$queryRaw<[{ q: PreguntaPublica[] }]>`SELECT cuestionario_match() AS q`;
     const centro = await this.centro();
     return { preguntas: q, filtroDirecto: centro.match_filtro_directo === true };
   }
@@ -134,8 +111,8 @@ export class MatchService {
    * Disponibilidad real: con Agenda activa, huecos de los proximos 14 dias en
    * los dias y franjas elegidos.
    */
-  async calcular(respuestas: Respuestas) {
-    const { preguntas } = await this.cuestionario();
+  async calcular(respuestas: Respuestas): Promise<ResultadoMatch> {
+    const preguntas: PreguntaMatch[] = (await this.cuestionario()).preguntas;
     const errores = validarRespuestas(preguntas, respuestas);
     if (errores.length) {
       throw new BadRequestException({ message: errores, restriccion: 'match_respuestas_invalidas' });
@@ -150,7 +127,7 @@ export class MatchService {
     const franjas = valoresDe('FRANJAS').map((f) => f.split('-').map(Number) as [number, number]);
     const modalidad = elegidas.find((o) => o.criterio === 'MODALIDAD')?.objetivo as ModalidadAtencion | undefined;
     const perfiles = await this.perfiles();
-    const agenda = ((await this.centro()).modulos as string[]).includes('AGENDA');
+    const agenda = (await this.centro()).modulos.includes('AGENDA');
     const desde = new Date();
     const evaluados = await Promise.all(
       evaluar(perfiles, elegidas).map(async (e) => {

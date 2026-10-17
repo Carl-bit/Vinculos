@@ -48,12 +48,16 @@ export class Entorno {
   @Max(60)
   JWT_ACCESO_MINUTOS: number = 15;
 
-  /** Vida de cada refresh token (se renueva al rotar). */
+  /**
+   * 03b: minutos sin actividad que dura la sesion. Cada refresh token vence a
+   * esos minutos y se renueva al rotar; el front cierra la sesion si el
+   * usuario no interactua en ese plazo.
+   */
   @IsOptional()
   @IsInt()
-  @Min(1)
-  @Max(30)
-  REFRESH_DIAS: number = 7;
+  @Min(5)
+  @Max(720)
+  SESION_INACTIVIDAD_MINUTOS: number = 30;
 
   /** Intentos de login por minuto e IP. */
   @IsOptional()

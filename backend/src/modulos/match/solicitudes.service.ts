@@ -10,6 +10,7 @@ import { LlaveroService } from '../../core/crypto/llavero.service';
 import { ProveedorVideollamada } from '../../core/integraciones/videollamada';
 import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
 import type { SolicitudHoraDto } from './dto/match.dto';
+import type { SolicitudCreada, SolicitudVerificada } from './dto/publico-respuestas.dto';
 
 interface FilaSolicitud {
   id: string;
@@ -58,7 +59,7 @@ export class SolicitudesService {
     private readonly config: ConfigService,
   ) {}
 
-  async crear(dto: SolicitudHoraDto) {
+  async crear(dto: SolicitudHoraDto): Promise<SolicitudCreada> {
     if (dto.sitioWeb) {
       // Bot: misma respuesta, sin efectos.
       this.logger.warn('Solicitud descartada por la trampa para bots');
@@ -82,7 +83,7 @@ export class SolicitudesService {
     return { expiraEn: expira, verificacionEnviada: true };
   }
 
-  async verificar(token: string) {
+  async verificar(token: string): Promise<SolicitudVerificada> {
     const hash = hashToken(token);
     const db = this.bd.sinContexto('publico');
     const [s] = await db.$queryRaw<FilaSolicitud[]>`SELECT id, telefono, rut, adulto_telefono, adulto_nombre FROM datos_solicitud_hora(${hash})`;

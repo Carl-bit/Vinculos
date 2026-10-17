@@ -238,7 +238,7 @@ export class AuthService {
   private async tokens(id: string, rol: Rol, refreshToken: string, roles: Rol[]): Promise<Tokens> {
     const minutos = this.config.getOrThrow<number>('JWT_ACCESO_MINUTOS');
     const accessToken = await this.jwt.signAsync({ sub: id, rol, tipo: 'acceso' }, { expiresIn: minutos * 60, algorithm: 'HS256' });
-    return { accessToken, refreshToken, expiraEn: minutos * 60, rol, roles };
+    return { accessToken, refreshToken, expiraEn: minutos * 60, inactividadMinutos: this.inactividad(), rol, roles };
   }
 
   private nuevoRefresh(): string {
@@ -249,7 +249,12 @@ export class AuthService {
     return createHash('sha256').update(token, 'utf8').digest();
   }
 
+  private inactividad(): number {
+    return this.config.getOrThrow<number>('SESION_INACTIVIDAD_MINUTOS');
+  }
+
+  /** Vencimiento deslizante: la sesion muere tras SESION_INACTIVIDAD_MINUTOS sin renovar. */
   private vencimientoRefresh(): Date {
-    return new Date(Date.now() + this.config.getOrThrow<number>('REFRESH_DIAS') * 86_400_000);
+    return new Date(Date.now() + this.inactividad() * 60_000);
   }
 }

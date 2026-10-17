@@ -25,6 +25,7 @@ describe('02d agenda y espacios', () => {
   let usuarioPaciente: UsuarioPrueba & { pacienteId: string };
   let pacienteOtro: { id: string };
   let box: { id: string };
+  let boxProfesional: { id: string };
   const tk = (u: UsuarioPrueba) => t.token(u).then(auth);
 
   beforeAll(async () => {
@@ -34,7 +35,7 @@ describe('02d agenda y espacios', () => {
     gestion = await t.datos.usuario('GESTION');
     profesional = await t.datos.usuario('PROFESIONAL');
     otroProfesional = await t.datos.usuario('PROFESIONAL');
-    await t.datos.disponibleSiempre(profesional.id);
+    boxProfesional = await t.datos.disponibleSiempre(profesional.id);
     await t.datos.disponibleSiempre(otroProfesional.id);
     usuarioPaciente = await t.datos.usuarioPaciente(profesional.id);
     pacienteOtro = await t.datos.paciente(otroProfesional.id);
@@ -47,7 +48,6 @@ describe('02d agenda y espacios', () => {
     pacienteId: usuarioPaciente.pacienteId,
     profesionalId: profesional.id,
     modalidad: 'PRESENCIAL',
-    espacioId: box.id,
     ...extra,
   });
 
@@ -201,6 +201,175 @@ describe('02d agenda y espacios', () => {
     });
   });
 
+  describe('bloques de box (03b)', () => {
+    /** Fecha (YYYY-MM-DD, hora de Chile) del lunes que viene mas `semanas`. */
+    const fechaLunes = (semanas: number) => {
+      const hoy = new Date(`${new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' })}T00:00:00Z`);
+      hoy.setUTCDate(hoy.getUTCDate() + ((8 - hoy.getUTCDay()) % 7 || 7) + 7 * semanas);
+      return hoy.toISOString().slice(0, 10);
+    };
+    /** Instante de ese lunes a las `horas` de Chile (respeta el cambio de horario). */
+    const lunes = (semanas: number, horas: number) => {
+      const pared = Date.parse(`${fechaLunes(semanas)}T00:00:00Z`) + horas * HORA;
+      const offset = (ms: number) => {
+        const n = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Santiago', timeZoneName: 'longOffset' })
+          .formatToParts(ms)
+          .find((x) => x.type === 'timeZoneName')!.value;
+        const m = /GMT([+-])(\d\d):(\d\d)/.exec(n);
+        return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) * 60_000 : 0;
+      };
+      return pared - offset(pared - offset(pared));
+    };
+
+    it('el propio aparta; ADMIN/GESTION por otro; otro profesional y PACIENTE no; sin choques de box (409)', async () => {
+      const a = await t.datos.usuario('PROFESIONAL');
+      const b = await t.datos.usuario('PROFESIONAL');
+      const comun = await t.datos.espacio();
+      const bloque = (dias: number, h: number, horas = 2) => ({
+        espacioId: comun.id,
+        inicio: iso(lunes(30, 24 * dias + h)),
+        fin: iso(lunes(30, 24 * dias + h + horas)),
+      });
+      const propio = await t
+        .http()
+        .post(`/api/profesionales/${a.id}/bloques`)
+        .set(await tk(a))
+        .send({ bloques: [bloque(0, 9), bloque(7, 9)] });
+      expect(propio.status).toBe(201);
+      expect(propio.body).toHaveLength(2);
+      expect(propio.body[0]).toEqual(expect.objectContaining({ profesionalId: a.id, espacioId: comun.id }));
+      expect(
+        (
+          await t
+            .http()
+            .post(`/api/profesionales/${a.id}/bloques`)
+            .set(await tk(b))
+            .send({ bloques: [bloque(1, 9)] })
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await t
+            .http()
+            .post(`/api/profesionales/${a.id}/bloques`)
+            .set(await tk(usuarioPaciente))
+            .send({ bloques: [bloque(1, 9)] })
+        ).status,
+      ).toBe(403);
+      const choque = await t
+        .http()
+        .post(`/api/profesionales/${b.id}/bloques`)
+        .set(await tk(gestion))
+        .send({ bloques: [bloque(0, 10)] });
+      expect(choque.status).toBe(409);
+      expect(choque.body.restriccion).toBe('bloques_atencion_sin_choque_box');
+      // Todas o ninguna: el segundo bloque choca y el primero tampoco queda.
+      expect(
+        (
+          await t
+            .http()
+            .post(`/api/profesionales/${b.id}/bloques`)
+            .set(await tk(admin))
+            .send({ bloques: [bloque(2, 9), bloque(7, 10)] })
+        ).status,
+      ).toBe(409);
+      expect(
+        (
+          await t
+            .http()
+            .get(`/api/profesionales/${b.id}/bloques`)
+            .query({ desde: iso(lunes(30, 0)), hasta: iso(lunes(32, 0)) })
+            .set(await tk(gestion))
+        ).body,
+      ).toEqual([]);
+      // Otro profesional no ve los bloques ajenos; ve el box ocupado en las horas libres.
+      expect(
+        (
+          await t
+            .http()
+            .get(`/api/profesionales/${a.id}/bloques`)
+            .query({ desde: iso(lunes(30, 0)), hasta: iso(lunes(32, 0)) })
+            .set(await tk(b))
+        ).body,
+      ).toEqual([]);
+      const libres = await t
+        .http()
+        .get('/api/espacios/disponibilidad')
+        .query({ desde: iso(lunes(30, 0)), hasta: iso(lunes(30, 24)) })
+        .set(await tk(b));
+      expect(libres.status).toBe(200);
+      const delComun = libres.body.filter((l: { espacioId: string }) => l.espacioId === comun.id);
+      expect(delComun.some((l: { inicio: string; fin: string }) => l.inicio < iso(lunes(30, 11)) && l.fin > iso(lunes(30, 9)))).toBe(false);
+      expect(Object.keys(delComun[0]).sort()).toEqual(['espacioId', 'fin', 'inicio']);
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/espacios/disponibilidad')
+            .query({ desde: iso(lunes(30, 0)), hasta: iso(lunes(30, 24)) })
+            .set(await tk(usuarioPaciente))
+        ).status,
+      ).toBe(403);
+    });
+
+    it('horario del box por periodo: fuera 422; cambiarlo dejando bloques fuera 409; liberar con cita dentro 409', async () => {
+      const p = await t.datos.usuario('PROFESIONAL');
+      const pac = await t.datos.paciente(p.id);
+      const sala = await t.datos.espacio();
+      // Lunes 09-13, solo durante las semanas 40 a 41.
+      const horario = await t
+        .http()
+        .put(`/api/espacios/${sala.id}/horario`)
+        .set(await tk(gestion))
+        .send({ bloques: [{ diaSemana: 1, inicioMin: 540, finMin: 780, vigenteDesde: fechaLunes(40), vigenteHasta: fechaLunes(41) }] });
+      expect(horario.status).toBe(200);
+      expect(horario.body[0]).toEqual(expect.objectContaining({ diaSemana: 1, inicioMin: 540, finMin: 780 }));
+      const apartarComo = async (semana: number, desde: number, hasta: number) =>
+        t
+          .http()
+          .post(`/api/profesionales/${p.id}/bloques`)
+          .set(await tk(p))
+          .send({ bloques: [{ espacioId: sala.id, inicio: iso(lunes(semana, desde)), fin: iso(lunes(semana, hasta)) }] });
+      const fuera = await apartarComo(40, 12, 14);
+      expect(fuera.status).toBe(422);
+      expect(fuera.body.restriccion).toBe('bloques_atencion_dentro_de_horario_espacio');
+      expect((await apartarComo(42, 9, 10)).status).toBe(422);
+      const ok = await apartarComo(40, 9, 12);
+      expect(ok.status).toBe(201);
+      const cambio = await t
+        .http()
+        .put(`/api/espacios/${sala.id}/horario`)
+        .set(await tk(gestion))
+        .send({ bloques: [{ diaSemana: 1, inicioMin: 600, finMin: 780 }] });
+      expect(cambio.status).toBe(409);
+      expect(cambio.body.restriccion).toBe('horarios_espacio_bloques_fuera');
+      expect(
+        (
+          await t
+            .http()
+            .get(`/api/espacios/${sala.id}/horario`)
+            .set(await tk(gestion))
+        ).body,
+      ).toHaveLength(1);
+      // Una cita dentro del bloque impide liberarlo; cancelada, se libera.
+      const c = await t
+        .http()
+        .post('/api/citas')
+        .set(await tk(p))
+        .send({ pacienteId: pac.id, profesionalId: p.id, modalidad: 'PRESENCIAL', inicio: iso(lunes(40, 9)), fin: iso(lunes(40, 10)) });
+      expect(c.status).toBe(201);
+      expect(c.body.espacioId).toBe(sala.id);
+      const liberar = () => tk(p).then((h) => t.http().delete(`/api/profesionales/${p.id}/bloques/${ok.body[0].id}`).set(h));
+      const conCita = await liberar();
+      expect(conCita.status).toBe(409);
+      expect(conCita.body.restriccion).toBe('bloques_atencion_con_citas');
+      expect((await tk(p).then((h) => t.http().patch(`/api/citas/${c.body.id}/cancelacion`).set(h))).status).toBe(200);
+      const libre = await liberar();
+      expect(libre.status).toBe(200);
+      expect(libre.body).toEqual({ eliminados: 1 });
+    });
+  });
+
   describe('citas', () => {
     it('GESTION confirma; PACIENTE no crea; profesional no agenda pacientes ajenos (404)', async () => {
       const inicio = nuevoDia();
@@ -248,27 +417,33 @@ describe('02d agenda y espacios', () => {
       ).toBe(404);
     });
 
-    it('box ocupado: verificacion previa con alternativas, sin INSERT; ningun evento', async () => {
+    it('03b: la presencial usa el box del bloque; horario ocupado: verificacion con alternativas, sin INSERT ni evento', async () => {
       const inicio = nuevoDia();
-      await t
+      const primera = await t
         .http()
         .post('/api/citas')
         .set(await tk(gestion))
         .send(cita({ inicio: iso(inicio), fin: iso(inicio + HORA) }));
+      expect(primera.status).toBe(201);
+      expect(primera.body.espacioId).toBe(boxProfesional.id);
+      // Mandar el box ya no es parte del contrato: lo fija la BD.
+      expect(
+        (
+          await t
+            .http()
+            .post('/api/citas/verificacion')
+            .set(await tk(gestion))
+            .send({ profesionalId: profesional.id, modalidad: 'PRESENCIAL', espacioId: box.id, inicio: iso(inicio), fin: iso(inicio + HORA) })
+        ).status,
+      ).toBe(400);
       const v = await t
         .http()
         .post('/api/citas/verificacion')
         .set(await tk(gestion))
-        .send({
-          profesionalId: otroProfesional.id,
-          modalidad: 'PRESENCIAL',
-          espacioId: box.id,
-          inicio: iso(inicio + 30 * 60_000),
-          fin: iso(inicio + 90 * 60_000),
-        });
+        .send({ profesionalId: profesional.id, modalidad: 'PRESENCIAL', inicio: iso(inicio + 30 * 60_000), fin: iso(inicio + 90 * 60_000) });
       expect(v.status).toBe(200);
       expect(v.body.disponible).toBe(false);
-      expect(v.body.motivos).toEqual(['BOX_OCUPADO']);
+      expect(v.body.motivos).toEqual(['PROFESIONAL_NO_DISPONIBLE']);
       expect(v.body.alternativas.length).toBe(3);
       const eventos: unknown[] = [];
       t.app.get(EventEmitter2).once(EVENTOS.CITA_CONFIRMADA, (e) => eventos.push(e));
@@ -276,9 +451,9 @@ describe('02d agenda y espacios', () => {
         .http()
         .post('/api/citas')
         .set(await tk(gestion))
-        .send(cita({ pacienteId: pacienteOtro.id, profesionalId: otroProfesional.id, inicio: iso(inicio + 30 * 60_000), fin: iso(inicio + 90 * 60_000) }));
+        .send(cita({ inicio: iso(inicio + 30 * 60_000), fin: iso(inicio + 90 * 60_000) }));
       expect(r.status).toBe(409);
-      expect(r.body.restriccion).toBe('citas_no_solapamiento_espacio');
+      expect(r.body.restriccion).toBe('agenda_no_disponible');
       expect(eventos).toEqual([]);
     });
 
@@ -297,7 +472,7 @@ describe('02d agenda y espacios', () => {
         .http()
         .post('/api/citas')
         .set(await tk(gestion))
-        .send(cita({ modalidad: 'ONLINE', espacioId: undefined, inicio: iso(inicio + HORA), fin: iso(inicio + 2 * HORA) }));
+        .send(cita({ modalidad: 'ONLINE', inicio: iso(inicio + HORA), fin: iso(inicio + 2 * HORA) }));
       expect(online.status).toBe(409);
       expect(online.body.alternativas[0].inicio >= iso(inicio + HORA + 30 * 60_000) || online.body.alternativas[0].fin <= iso(inicio - 30 * 60_000)).toBe(true);
       expect(
@@ -352,7 +527,7 @@ describe('02d agenda y espacios', () => {
         .http()
         .post('/api/citas')
         .set(await tk(profesional))
-        .send(cita({ modalidad: 'ONLINE', espacioId: undefined, inicio: iso(inicio), fin: iso(inicio + HORA) }));
+        .send(cita({ modalidad: 'ONLINE', inicio: iso(inicio), fin: iso(inicio + HORA) }));
       expect(r.status).toBe(201);
       expect(eventos[0].conEnlace).toBe(true);
       const e = await t
@@ -491,13 +666,14 @@ describe('02d agenda y espacios', () => {
         .http()
         .post('/api/agenda/horarios-tomados')
         .set(await tk(gestion))
-        .send({ profesionalId: profesional.id, modalidad: 'PRESENCIAL', espacioId: box.id, inicio: iso(inicio), fin: iso(inicio + HORA) });
+        .send({ profesionalId: profesional.id, modalidad: 'PRESENCIAL', inicio: iso(inicio), fin: iso(inicio + HORA) });
+      expect(hold.body.espacioId).toBe(boxProfesional.id);
       expect(hold.status).toBe(201);
       const v = await t
         .http()
         .post('/api/citas/verificacion')
         .set(await tk(admin))
-        .send({ profesionalId: profesional.id, modalidad: 'PRESENCIAL', espacioId: box.id, inicio: iso(inicio), fin: iso(inicio + HORA) });
+        .send({ profesionalId: profesional.id, modalidad: 'PRESENCIAL', inicio: iso(inicio), fin: iso(inicio + HORA) });
       expect(v.body.disponible).toBe(false);
       expect(
         (
@@ -521,20 +697,17 @@ describe('02d agenda y espacios', () => {
   });
 
   describe('concurrencia (EXCLUDE)', () => {
-    it('reservas simultaneas al mismo box y horario: exactamente una 201, el resto 409; sin duplicados', async () => {
-      const profesionales = [profesional, otroProfesional];
+    it('citas simultaneas al mismo profesional y horario: exactamente una 201, el resto 409; sin duplicados', async () => {
       for (let ronda = 0; ronda < 5; ronda++) {
         const inicio = nuevoDia();
         const pedidos = await Promise.all(
-          Array.from({ length: 8 }, async (_v, i) => {
-            const p = profesionales[i % 2];
-            const pacienteId = p === profesional ? usuarioPaciente.pacienteId : pacienteOtro.id;
-            return t
+          Array.from({ length: 8 }, async () =>
+            t
               .http()
               .post('/api/citas')
               .set(await tk(gestion))
-              .send(cita({ pacienteId, profesionalId: p.id, inicio: iso(inicio), fin: iso(inicio + HORA) }));
-          }),
+              .send(cita({ inicio: iso(inicio), fin: iso(inicio + HORA) })),
+          ),
         );
         const estados = pedidos.map((r) => r.status).sort();
         expect(estados.filter((s) => s === 201)).toHaveLength(1);
@@ -545,6 +718,31 @@ describe('02d agenda y espacios', () => {
           AND tstzrange(a.inicio, a.fin, '[)') && tstzrange(b.inicio, b.fin, '[)')
         WHERE a.estado = 'CONFIRMADA' AND b.estado = 'CONFIRMADA'`;
       expect(duplicados).toEqual([]);
+    });
+
+    it('03b: dos profesionales apartan el mismo box y horario a la vez: exactamente uno queda; sin bloques solapados', async () => {
+      const comun = await t.datos.espacio();
+      const equipo = await Promise.all(Array.from({ length: 4 }, () => t.datos.usuario('PROFESIONAL')));
+      for (let ronda = 0; ronda < 5; ronda++) {
+        const inicio = nuevoDia();
+        const pedidos = await Promise.all(
+          Array.from({ length: 8 }, async (_v, i) => {
+            const p = equipo[i % equipo.length];
+            return t
+              .http()
+              .post(`/api/profesionales/${p.id}/bloques`)
+              .set(await tk(gestion))
+              .send({ bloques: [{ espacioId: comun.id, inicio: iso(inicio), fin: iso(inicio + HORA) }] });
+          }),
+        );
+        const estados = pedidos.map((r) => r.status).sort();
+        expect(estados.filter((s) => s === 201)).toHaveLength(1);
+        expect(estados.filter((s) => s !== 201).every((s) => s === 409)).toBe(true);
+      }
+      const solapados = await t.dueno.$queryRaw<unknown[]>`
+        SELECT a.id FROM bloques_atencion a JOIN bloques_atencion b ON a.id < b.id AND a.espacio_id = b.espacio_id
+          AND tstzrange(a.inicio, a.fin, '[)') && tstzrange(b.inicio, b.fin, '[)')`;
+      expect(solapados).toEqual([]);
     });
   });
 });

@@ -18,12 +18,13 @@ export function GuardaZona({ zona, children }: { zona: Zona; children: (sesion: 
   const router = useRouter();
   const ruta = usePathname();
   const rol = sesion.tipo === 'activa' ? sesion.sesion.rol : null;
+  const motivo = sesion.tipo === 'anonima' ? sesion.motivo : undefined;
 
   useEffect(() => {
     if (sesion.tipo === 'desconocida') void renovarSesion();
-    else if (sesion.tipo === 'anonima') router.replace(`/ingreso?volver=${encodeURIComponent(ruta)}`);
+    else if (sesion.tipo === 'anonima') router.replace(`/ingreso?volver=${encodeURIComponent(ruta)}${motivo === 'inactividad' ? '&motivo=inactividad' : ''}`);
     else if (rol && zonaDeRol(rol) !== zona) router.replace(inicioDeRol(rol));
-  }, [sesion.tipo, rol, zona, ruta, router]);
+  }, [sesion.tipo, rol, motivo, zona, ruta, router]);
 
   if (sesion.tipo !== 'activa' || zonaDeRol(sesion.sesion.rol) !== zona) return <EstadoVista estado="carga" titulo="Verificando tu sesión…" />;
   return <>{children(sesion.sesion)}</>;
