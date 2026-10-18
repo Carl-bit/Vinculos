@@ -16,6 +16,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
     "test:e2e": "jest --config test/jest-e2e.json --runInBand",
+    "test:bd": "sh prisma/tests/correr_tests_bd.sh",
     "openapi:exportar": "nest build && node dist/core/docs/exportar-openapi.js",
     "seed:demo": "node --env-file=.env -r ts-node/register/transpile-only prisma/seed-demo.ts",
     "demo:reset": "sh ../infra/scripts/bd_local.sh recrear --si && npm run seed:demo",

@@ -1,4 +1,12 @@
-import { BadRequestException, ConflictException, GoneException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  GoneException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Cita, ModalidadAtencion, Prisma } from '@prisma/client';
@@ -10,7 +18,7 @@ import { EVENTOS, type CitaCancelada, type CitaConfirmada, type NotificacionSoli
 import { HORA, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
 import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
 import { AgendaService } from './agenda.service';
-import type { CrearCitaDto, FiltroCitasDto, HorarioDto, ReprogramarCitaDto } from './dto/agenda.dto';
+import type { CrearCitaDto, CubrirCitaDto, FiltroCitasDto, HorarioDto, ReprogramarCitaDto } from './dto/agenda.dto';
 import { ProveedorVideollamada } from '../../core/integraciones/videollamada';
 
 /** Sin enlace (cifrado) en las listas: se pide aparte en /citas/:id/enlace. */
@@ -180,10 +188,19 @@ export class CitasService {
    * acceso clinico temporal vigente en ese horario (si no, 422 de la BD:
    * citas_profesional_con_acceso). Para cambiar de tratante: derivacion.
    */
-  async cubrir(id: string, profesionalId: string) {
+  async cubrir(id: string, { profesionalId, otorgarAccesoHasta }: CubrirCitaDto) {
+    if (otorgarAccesoHasta && this.bd.usuario().rol !== 'ADMIN') {
+      throw new ForbiddenException('Solo administracion otorga accesos clinicos temporales');
+    }
     const actual = await this.obtener(id);
     if (actual.estado !== 'CONFIRMADA') {
       throw new ConflictException('Solo se cubre una cita confirmada');
+    }
+    // Misma transaccion del RlsInterceptor: si mover la cita falla, el acceso no queda otorgado.
+    if (otorgarAccesoHasta) {
+      await this.bd.tx().$queryRaw`
+        SELECT otorgar_acceso_temporal(${actual.pacienteId}::uuid, ${profesionalId}::uuid, 'REEMPLAZO'::motivo_acceso_temporal,
+                                       'LECTURA_ESCRITURA'::alcance_acceso_temporal, NULL, ${otorgarAccesoHasta})`;
     }
     const cita = await this.bd.tx().cita.update({ where: { id }, data: { profesionalId, enlaceOnline: null }, select: VISTA });
     const conEnlace = await this.generarEnlace(cita);

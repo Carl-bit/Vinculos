@@ -203,12 +203,12 @@ Avance de 03b-4 (2026-10-18):
 - Tests: unitarios 39, integracion 163, BD todos OK, Vitest 21, Playwright
   29 (8 del backoffice en `e2e/panel.spec.ts`). impeccable: solo `side-tab`
   en el calendario (borde de 4 px del diseño, aceptado).
-- Capturas de 03b-4 en el scratchpad de la sesion (no en el repo hasta
-  decidir que hacer con las de 03b-3).
-- Entorno: en Windows, el `next dev` deja de hidratar despues de algunas
-  recompilaciones (chunk 404, aviso de cache de webpack). Si el login no
-  responde: detener `npm run dev`, borrar `frontend/.next` y levantar de
-  nuevo.
+- Capturas de 03b-4 fuera del repo (decidido: no se versionan).
+- Entorno: en Windows, el `next dev` con webpack dejaba de hidratar despues
+  de algunas recompilaciones (chunk 404, aviso de cache de webpack). El
+  script `dev` del front usa ahora `next dev --turbopack` (solo desarrollo;
+  `next build` no cambia). Si vuelve a pasar: detener `npm run dev`, borrar
+  `frontend/.next` y levantar de nuevo.
 
 **03b-4 cerrado (2026-10-18).**
 

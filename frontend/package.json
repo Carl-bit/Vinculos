@@ -4,7 +4,7 @@
   "private": true,
   "description": "Vinculos ERP - frontend de UN silo (portal publico + backoffice)",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src e2e --max-warnings=0",

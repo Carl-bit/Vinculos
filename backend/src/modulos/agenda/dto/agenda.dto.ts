@@ -233,6 +233,16 @@ export class HorarioEspacioDto {
 export class CubrirCitaDto {
   @IsUUID()
   profesionalId!: string;
+
+  /**
+   * Solo ADMIN: otorga en la misma transaccion el acceso clinico temporal de
+   * reemplazo (lectura y escritura) hasta esta fecha. Si cubrir falla, el
+   * acceso no queda otorgado.
+   */
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  otorgarAccesoHasta?: Date;
 }
 
 /** Lista de espera por profesional o tipo de atencion (al menos uno). */

@@ -704,6 +704,61 @@ describe('03a alineacion con el diseño', () => {
       ).toContain(acceso.body.id);
     });
 
+    it('"cubrir sesion" otorgando el acceso en el mismo paso: atomico, solo ADMIN', async () => {
+      const reemplazo = await t.datos.usuario('PROFESIONAL');
+      await t.datos.disponibleSiempre(reemplazo.id);
+      const otroPaciente = await t.datos.usuarioPaciente(prof.id);
+      const pacienteDelReemplazo = await t.datos.usuarioPaciente(reemplazo.id);
+      const accesosDe = () => t.dueno.accesoClinicoTemporal.count({ where: { pacienteId: otroPaciente.pacienteId, profesionalId: reemplazo.id } });
+      const hasta = new Date(Date.now() + 10 * DIA);
+      const enHorario = async (pacienteId: string, profesionalId: string, h: { inicio: string; fin: string }) => {
+        const r = await t
+          .http()
+          .post('/api/citas')
+          .set(await tk(gestion))
+          .send({ pacienteId, profesionalId, modalidad: 'ONLINE', ...h });
+        expect(r.status).toBe(201);
+        return r.body.id as string;
+      };
+
+      // El reemplazo ya tiene otra cita a esa hora: mover la cita choca (409) y el acceso no queda otorgado.
+      const h = horario(6);
+      const chocada = await enHorario(otroPaciente.pacienteId, prof.id, h);
+      await enHorario(pacienteDelReemplazo.pacienteId, reemplazo.id, h);
+      expect(
+        (
+          await t
+            .http()
+            .patch(`/api/citas/${chocada}/profesional`)
+            .set(await tk(admin))
+            .send({ profesionalId: reemplazo.id, otorgarAccesoHasta: hasta })
+        ).status,
+      ).toBe(409);
+      expect(await accesosDe()).toBe(0);
+
+      // GESTION no otorga accesos clinicos.
+      const libre = await enHorario(otroPaciente.pacienteId, prof.id, horario(6));
+      expect(
+        (
+          await t
+            .http()
+            .patch(`/api/citas/${libre}/profesional`)
+            .set(await tk(gestion))
+            .send({ profesionalId: reemplazo.id, otorgarAccesoHasta: hasta })
+        ).status,
+      ).toBe(403);
+      expect(await accesosDe()).toBe(0);
+
+      const cubierta = await t
+        .http()
+        .patch(`/api/citas/${libre}/profesional`)
+        .set(await tk(admin))
+        .send({ profesionalId: reemplazo.id, otorgarAccesoHasta: hasta });
+      expect(cubierta.status).toBe(200);
+      expect(cubierta.body.profesionalId).toBe(reemplazo.id);
+      expect(await accesosDe()).toBe(1);
+    });
+
     it('borradores (C-8): autoguardado, solo el autor, confirmar crea la evolucion (con la sesion) y elimina el borrador', async () => {
       const tipoSesion = await t.datos.tipoSesionAprobado();
       const cita = await citaPasada(paciente.pacienteId, prof.id);

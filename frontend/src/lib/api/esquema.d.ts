@@ -2026,6 +2026,7 @@ export interface paths {
         head?: never;
         /**
          * "Cubrir sesion": otro profesional con acceso clinico temporal vigente (si no, 422). Cambiar de tratante = derivacion.
+         *     ADMIN puede otorgar el acceso en el mismo paso (`otorgarAccesoHasta`, atomico); GESTION no otorga accesos (403).
          * @description Roles: ADMIN, GESTION
          */
         patch: operations["CitasController_cubrir"];
@@ -5272,6 +5273,13 @@ export interface components {
         CubrirCitaDto: {
             /** Format: uuid */
             profesionalId: string;
+            /**
+             * Format: date-time
+             * @description Solo ADMIN: otorga en la misma transaccion el acceso clinico temporal de
+             *     reemplazo (lectura y escritura) hasta esta fecha. Si cubrir falla, el
+             *     acceso no queda otorgado.
+             */
+            otorgarAccesoHasta?: string;
         };
         /** @enum {string} */
         ModoVideollamada: "ENLACE_PROPIO" | "JITSI";

@@ -9,7 +9,8 @@
 set -e
 
 SALIDA=${1:?archivo de salida}
-PUERTO=${PUERTO_TEST:-54331}
+# Bajo 49152: Windows reserva rangos dinamicos (Hyper-V/WSL con Docker) y el bind falla.
+PUERTO=${PUERTO_TEST:-15433}
 DIR=$(mktemp -d)
 export PGHOST=localhost PGPORT=$PUERTO PGPASSWORD=super-test
 export POSTGRES_USER=postgres POSTGRES_DB=app OWNER_DB_PASSWORD=owner-test APP_DB_PASSWORD=api-test

@@ -11,7 +11,8 @@
 #   sh prisma/tests/correr_tests_bd.sh
 set -e
 
-PUERTO=${PUERTO:-54329}
+# Bajo 49152: Windows reserva rangos dinamicos (Hyper-V/WSL con Docker) y el bind falla.
+PUERTO=${PUERTO:-15434}
 DIR=$(mktemp -d)
 export PGHOST=localhost PGPORT=$PUERTO PGPASSWORD=super-test
 export POSTGRES_USER=postgres POSTGRES_DB=app OWNER_DB_PASSWORD=owner-test APP_DB_PASSWORD=api-test

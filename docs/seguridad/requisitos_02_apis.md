@@ -566,8 +566,9 @@ existente. Cambios del contrato (OpenAPI):
 - `HorarioDto` del nucleo renombrado a `HorarioCentroDto`: el OpenAPI
   documentaba `PUT configuracion/horario` con el cuerpo de la agenda
   (mismo nombre de clase). El cuerpo real no cambia.
-- "Cubrir sesion": `POST pacientes/:id/accesos-temporales` (ADMIN, motivo
-  REEMPLAZO, LECTURA_ESCRITURA) y luego `PATCH citas/:id/profesional`. Son dos
-  transacciones: si la segunda falla, el acceso queda otorgado (append-only,
-  vence solo). GESTION no otorga accesos: si falta, la BD responde 422
+- "Cubrir sesion": `PATCH citas/:id/profesional` con `otorgarAccesoHasta`
+  opcional (solo ADMIN; GESTION recibe 403). Con ese campo, la API llama a
+  `otorgar_acceso_temporal` (REEMPLAZO, LECTURA_ESCRITURA) y mueve la cita en
+  la misma transaccion del interceptor: si mover la cita falla (409, 422), el
+  acceso no queda otorgado. Sin acceso vigente, la BD responde 422
   `citas_profesional_con_acceso` y el front lo explica.

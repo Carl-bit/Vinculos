@@ -283,11 +283,14 @@ export class CitasController {
     return this.citas.aprobar(id);
   }
 
-  /** "Cubrir sesion": otro profesional con acceso clinico temporal vigente (si no, 422). Cambiar de tratante = derivacion. */
+  /**
+   * "Cubrir sesion": otro profesional con acceso clinico temporal vigente (si no, 422). Cambiar de tratante = derivacion.
+   * ADMIN puede otorgar el acceso en el mismo paso (`otorgarAccesoHasta`, atomico); GESTION no otorga accesos (403).
+   */
   @Patch(':id/profesional')
   @Roles('ADMIN', 'GESTION')
   cubrir(@Param('id', Uuid) id: string, @Body() dto: CubrirCitaDto): Promise<CitaVista> {
-    return this.citas.cubrir(id, dto.profesionalId);
+    return this.citas.cubrir(id, dto);
   }
 
   /** "Requerir cierre": aviso al profesional (sesion sin evolucion registrada). */

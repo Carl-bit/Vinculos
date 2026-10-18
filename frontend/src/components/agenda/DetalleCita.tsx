@@ -199,17 +199,14 @@ function CubrirSesion({ cita, rol, abierto, onAbrir, onListo }: { cita: CitaVist
   const otorgar = otorga && !!profesionalId && accesos.isSuccess && !vigente;
 
   const cubrir = useMutation({
-    mutationFn: async () => {
-      if (otorgar) {
-        await datos(
-          api.POST('/api/pacientes/{id}/accesos-temporales', {
-            params: { path: { id: cita.pacienteId } },
-            body: { profesionalId, motivo: 'REEMPLAZO', alcance: 'LECTURA_ESCRITURA', hasta: inicioDiaChile(sumarDias(hasta, 1)).toISOString() },
-          }),
-        );
-      }
-      return datos(api.PATCH('/api/citas/{id}/profesional', { params: { path: { id: cita.id } }, body: { profesionalId } }));
-    },
+    // Una sola llamada: si otorga, la API otorga el acceso y mueve la cita en la misma transaccion.
+    mutationFn: () =>
+      datos(
+        api.PATCH('/api/citas/{id}/profesional', {
+          params: { path: { id: cita.id } },
+          body: { profesionalId, ...(otorgar && { otorgarAccesoHasta: inicioDiaChile(sumarDias(hasta, 1)).toISOString() }) },
+        }),
+      ),
     onSuccess: onListo,
     onError: (e) =>
       setError(

@@ -13619,7 +13619,7 @@
             "jwt": []
           }
         ],
-        "summary": "\"Cubrir sesion\": otro profesional con acceso clinico temporal vigente (si no, 422). Cambiar de tratante = derivacion.",
+        "summary": "\"Cubrir sesion\": otro profesional con acceso clinico temporal vigente (si no, 422). Cambiar de tratante = derivacion.\nADMIN puede otorgar el acceso en el mismo paso (`otorgarAccesoHasta`, atomico); GESTION no otorga accesos (403).",
         "tags": [
           "Agenda y espacios"
         ]
@@ -29873,6 +29873,11 @@
           "profesionalId": {
             "type": "string",
             "format": "uuid"
+          },
+          "otorgarAccesoHasta": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Solo ADMIN: otorga en la misma transaccion el acceso clinico temporal de\nreemplazo (lectura y escritura) hasta esta fecha. Si cubrir falla, el\nacceso no queda otorgado."
           }
         },
         "required": [

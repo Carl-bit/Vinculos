@@ -474,9 +474,6 @@ OpenAPI documentaba el `PUT configuracion/horario` con el cuerpo equivocado.
 
 Pendiente o fuera de la API:
 
-- "Cubrir sesion" con acceso nuevo son dos llamadas (otorgar acceso y mover
-  la cita): si la segunda falla, el acceso queda otorgado (append-only, vence
-  solo). Una funcion SECURITY DEFINER que haga ambas cosas lo evitaria.
 - Retenciones ajenas en el calendario ("Reservando...").
 - Calendario sin polling (estandar: sin polling fuera de la reserva): se
   recarga al volver a la pestaña o tras una accion propia.

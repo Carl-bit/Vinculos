@@ -13,6 +13,14 @@ necesitan Mailpit o un calendario real.
 - Node 22, Git Bash (los scripts son `sh`) y PostgreSQL 18 instalado
   (`initdb`, `pg_ctl` y `psql` en el PATH; en Windows:
   `C:\Program Files\PostgreSQL\18\bin`).
+- Windows con PowerShell: que npm corra sus scripts con Git Bash (una vez):
+  `npm config set script-shell "C:\Program Files\Git\bin\bash.exe"`. Asi
+  `npm run demo:reset`, `npm run test:e2e` y `npm run test:bd` (backend)
+  funcionan desde PowerShell. `npx jest` directo sigue necesitando Git Bash.
+- Las BD efimeras de test usan los puertos 15433 (`test:e2e`) y 15434
+  (`test:bd`), bajo 49152: con Docker, Windows reserva rangos dinamicos de
+  puertos (ver `netsh interface ipv4 show excludedportrange protocol=tcp`).
+  Se cambian con `PUERTO_TEST` y `PUERTO`.
 - Mailpit para Windows (binario, sin Docker): descargar
   `mailpit-windows-amd64.zip` de https://github.com/axllent/mailpit/releases,
   descomprimir `mailpit.exe` en una carpeta fuera del repo y ejecutarlo:
