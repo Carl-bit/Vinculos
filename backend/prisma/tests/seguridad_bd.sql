@@ -4213,6 +4213,55 @@ DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
   ASSERT NOT EXISTS (SELECT 1 FROM lista_espera_publica WHERE id = test.u('4a')), 'caso 124: la baja la borra';
 END $$;
 
+\echo 125 Portal (03b-3): supervisores_portal solo para PACIENTE/RESPONSABLE, solo id y nombre de quien supervisa sus consentimientos
+DO $$ BEGIN
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT NOT EXISTS (SELECT 1 FROM supervisores_portal() s
+                     WHERE s.id NOT IN (SELECT supervisor_id FROM consentimientos
+                                        UNION SELECT supervisor_anterior_id FROM avisos_consentimiento
+                                        UNION SELECT supervisor_nuevo_id FROM avisos_consentimiento)),
+    'caso 125: solo supervisores de sus consentimientos (RLS del paciente)';
+  ASSERT (SELECT pg_get_function_result('supervisores_portal()'::regprocedure)) = 'TABLE(id uuid, nombre text)', 'caso 125: solo id y nombre';
+END $$;
+DO $$ DECLARE v_ctx text[]; BEGIN
+  FOREACH v_ctx SLICE 1 IN ARRAY ARRAY[['a1', 'ADMIN'], ['a3', 'GESTION'], ['b1', 'PROFESIONAL'], ['c1', 'PRACTICANTE']] LOOP
+    PERFORM test.ctx(v_ctx[1], v_ctx[2]);
+    BEGIN
+      PERFORM supervisores_portal();
+      RAISE EXCEPTION 'caso 125: % no', v_ctx[2];
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+END $$;
+
+\echo 126 Antes de 03b-4: reserva desde el portal y descarga con sesion solo para PACIENTE/RESPONSABLE; el adolescente no reserva
+DO $$ DECLARE v_ctx text[]; BEGIN
+  FOREACH v_ctx SLICE 1 IN ARRAY ARRAY[['a1', 'ADMIN'], ['a3', 'GESTION'], ['b1', 'PROFESIONAL'], ['c1', 'PRACTICANTE']] LOOP
+    PERFORM test.ctx(v_ctx[1], v_ctx[2]);
+    BEGIN
+      PERFORM reservar_cita_portal(test.u('0a'), 'ONLINE', now() + interval '3 days', now() + interval '3 days 50 minutes', NULL, NULL);
+      RAISE EXCEPTION 'caso 126: % no reserva', v_ctx[2];
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    BEGIN
+      PERFORM registrar_descarga_portal(gen_random_uuid());
+      RAISE EXCEPTION 'caso 126: % no descarga', v_ctx[2];
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+  -- Paciente: solo por si mismo (otro paciente: no existe para el).
+  PERFORM test.ctx('a2', 'PACIENTE');
+  BEGIN
+    PERFORM reservar_cita_portal(test.u('0b'), 'ONLINE', now() + interval '3 days', now() + interval '3 days 50 minutes', NULL, NULL);
+    RAISE EXCEPTION 'caso 126: reserva por otro paciente';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  BEGIN
+    PERFORM registrar_descarga_portal(gen_random_uuid());
+    RAISE EXCEPTION 'caso 126: documento ajeno o inexistente';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  BEGIN
+    PERFORM guardar_enlace_portal(gen_random_uuid(), '\x00'::bytea);
+    RAISE EXCEPTION 'caso 126: enlace de una cita que no reservo';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+
 \connect :owner_url
 \set ON_ERROR_STOP 1
 

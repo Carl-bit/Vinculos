@@ -1,4 +1,13 @@
-import { OtorganteConsentimiento } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  EstadoCandidato,
+  EstadoConsentimiento,
+  EstadoDerivacion,
+  OtorganteConsentimiento,
+  RespuestaAviso,
+  TipoAvisoConsentimiento,
+  TipoConsentimiento,
+} from '@prisma/client';
 import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsEnum, IsIn, IsOptional, IsString, IsUUID, Length, ValidateIf } from 'class-validator';
 
 import { Recortar } from '../../../core/validacion/validadores';
@@ -93,4 +102,78 @@ export class ResponderAvisoDto extends OtorganteDto {
 export class SolicitarConsentimientoDto {
   @IsUUID()
   pacienteId!: string;
+}
+
+/** Consentimiento de atencion con practicante supervisado (02f): estado y quien respondio. */
+export class ConsentimientoVista {
+  id!: string;
+  pacienteId!: string;
+  @ApiProperty({ enum: TipoConsentimiento, enumName: 'TipoConsentimiento' })
+  tipo!: TipoConsentimiento;
+  practicanteId!: string;
+  supervisorId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  derivacionId!: string | null;
+  @ApiProperty({ enum: EstadoConsentimiento, enumName: 'EstadoConsentimiento' })
+  estado!: EstadoConsentimiento;
+  solicitadoEn!: Date;
+  venceEn!: Date;
+  @ApiProperty({ type: String, nullable: true })
+  versionDocumento!: string | null;
+  @ApiProperty({ enum: OtorganteConsentimiento, enumName: 'OtorganteConsentimiento', nullable: true })
+  otorgadoPorTipo!: OtorganteConsentimiento | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  respondidoEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  revocadoEn!: Date | null;
+}
+
+/** Aviso de cambio de supervisor: el paciente queda conforme o se opone (= revocacion). */
+export class AvisoConsentimientoVista {
+  id!: string;
+  consentimientoId!: string;
+  @ApiProperty({ enum: TipoAvisoConsentimiento, enumName: 'TipoAvisoConsentimiento' })
+  tipo!: TipoAvisoConsentimiento;
+  supervisorAnteriorId!: string;
+  supervisorNuevoId!: string;
+  notificadoEn!: Date;
+  venceEn!: Date;
+  @ApiProperty({ enum: RespuestaAviso, enumName: 'RespuestaAviso' })
+  respuesta!: RespuestaAviso;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  respondidoEn!: Date | null;
+}
+
+class CandidatoDerivacion {
+  profesionalId!: string;
+  orden!: number;
+  @ApiProperty({ enum: EstadoCandidato, enumName: 'EstadoCandidato' })
+  estado!: EstadoCandidato;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  venceEn!: Date | null;
+}
+
+/** Derivacion (ADMIN o profesionales involucrados, por RLS). Motivo y detalle son texto clinico descifrado. */
+export class DerivacionVista {
+  id!: string;
+  fichaClinicaId!: string;
+  profesionalOrigenId!: string;
+  @ApiProperty({ type: String, description: 'Texto clinico' })
+  motivo!: string;
+  tipoAtencionId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  detalle!: string | null;
+  creadaPorId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  motivoCierre!: string | null;
+  @ApiProperty({ enum: EstadoDerivacion, enumName: 'EstadoDerivacion' })
+  estado!: EstadoDerivacion;
+  fecha!: Date;
+  updatedAt!: Date;
+  candidatos!: CandidatoDerivacion[];
+}
+
+/** Derivacion creada: solo el id (de oficio, el supervisor no ve la derivacion). */
+export class DerivacionCreada {
+  id!: string;
 }

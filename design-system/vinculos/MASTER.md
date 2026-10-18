@@ -111,3 +111,62 @@ de baja friccion.
   layout, con el menu y el rol a la vista y un boton secundario al inicio.
 - Cierre por inactividad: aviso en el login con borde accent (no error rojo):
   explica el motivo y que basta con volver a ingresar.
+
+## Portal del paciente y paginas por enlace (03b-3)
+
+- "Mi cuenta" sigue el diseño (dos columnas que bajan a una: profesional,
+  horas, mensajes | datos, nota de ficha). Las secciones que el diseño no
+  tiene (pagos, documentos, consentimientos, avisos, lista de espera,
+  reseñas, seguridad) van en una fila de pildoras bajo el header, con la
+  activa en accent-2-700; en movil la fila hace scroll horizontal.
+- Solo el inicio del portal lleva sobretitulo ("Mi cuenta", como el diseño);
+  las secciones nuevas y las paginas por enlace no (impeccable:
+  kicker-above-heading). Excepcion: el paso TOTP, definido arriba.
+- Adulto responsable: selector "Estás viendo la cuenta de" en un bloque
+  accent-2-100 sobre las secciones; el menor elegido vive solo en memoria.
+  Los textos cambian a tercera persona ("Su profesional", "Datos de Sofia").
+- Cuenta restringida (14-17): las secciones que no le corresponden no
+  aparecen en el menu; si entra por URL, `EstadoVista` sin permiso con la
+  explicacion (no un 403 seco).
+- Toda accion con consecuencias (aceptar o rechazar un consentimiento,
+  oponerse, retirar, cancelar una hora, mostrar el nombre en una reseña)
+  abre `Modal` con lo que pasa antes de confirmar. La pagina del enlace de
+  consentimiento muestra lado a lado "Si aceptas" (exito) y "Si no aceptas"
+  (advertencia).
+- Paginas por enlace de cuenta (recuperar, acceso, activar, correo): misma
+  tarjeta de vidrio del login (`TarjetaIngreso`), sin sobretitulo; el token
+  se usa recien al presionar el boton y el resultado se muestra en la misma
+  tarjeta (`ResultadoCuenta`). Enlace vencido: icono link_off y como pedir
+  uno nuevo.
+- TOTP: el enrolamiento muestra el codigo QR (generado en el navegador, sin
+  red) y la clave monoespaciada debajo.
+- Datos de transferencia del profesional: solo al pedirlos ("Ver datos para
+  transferir"), en un bloque accent-2-100 con los valores seleccionables; no
+  quedan en cache (gcTime 0).
+
+## Backoffice (03b-4)
+
+- Encabezado de cada módulo con sobretítulo cuando el diseño lo tiene
+  (Agenda y Espacios, Cobros, Configuración, Match Terapéutico); Equipo y
+  Mi perfil no lo tienen en el diseño y tampoco lo llevan acá.
+- Secciones de un módulo: `Pestanas` en tono equipo (accent-700) bajo el
+  encabezado, con la vista en la URL (`?vista=`), para que un pendiente del
+  dashboard abra la pestaña que lo resuelve.
+- Selector de periodo (semana / mes, por profesional / por box): pildora
+  con borde y la opción activa en accent-700, flechas a los lados y el
+  nombre del periodo en 13.5 px 800.
+- Calendario: grilla como el diseño (columna de horas en neutral-100, celdas
+  libres en neutral-100 con "Libre"); cada sesión con borde izquierdo de 4 px
+  del color del profesional o del box (del diseño; impeccable lo marca como
+  side-tab y se acepta) y el estado en mayúsculas. En móvil la grilla hace
+  scroll horizontal dentro de su sección, nunca la página.
+- Acciones con consecuencias (cancelar una cita, cubrir con acceso
+  temporal, dar de baja, revocar, ocultar una reseña): bloque accent-100 con
+  borde accent-500 que explica qué pasa y pide confirmar en el mismo lugar.
+- Formularios largos (Configuración > Datos, Reglas y plazos): barra de
+  guardado fija abajo (pildora bg con borde y sombra) con el mensaje de
+  resultado a la izquierda.
+- Datos sensibles (datos para pagos, RUT de otro): ocultos hasta "Ver datos";
+  se piden a la API solo al abrirlos y no quedan en caché (gcTime 0).
+- Listas de catálogo y de declaraciones: chips con borde (aprobado en
+  accent-2, propuesto con badge "Por revisar", inactivo en neutral).

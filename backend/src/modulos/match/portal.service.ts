@@ -1,15 +1,19 @@
 import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import type { EstadoCita, ModoVideollamada } from '@prisma/client';
 
 import { HORA, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
+import { ProveedorVideollamada } from '../../core/integraciones/videollamada';
 import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
-import type { MisDatosDto } from './dto/match.dto';
+import type { MisDatosDto, ReservaPortalDto } from './dto/match.dto';
+import type { ReservaPortal } from './dto/portal-respuestas.dto';
 
 /**
  * Portal del paciente: su equipo tratante, sus citas, datos de pago (cobro
@@ -29,10 +33,17 @@ export class PortalService {
     private readonly llavero: LlaveroService,
     private readonly eventos: EventEmitter2,
     private readonly correos: CorreosCuenta,
+    private readonly video: ProveedorVideollamada,
+    private readonly config: ConfigService,
   ) {}
 
   equipo() {
     return this.bd.tx().$queryRaw<{ id: string; nombre: string | null }[]>`SELECT id, nombre FROM mi_equipo_tratante()`;
+  }
+
+  /** 03b-3: quien supervisa a los practicantes de sus consentimientos y avisos (solo nombres). */
+  supervisores() {
+    return this.bd.tx().$queryRaw<{ id: string; nombre: string | null }[]>`SELECT id, nombre FROM supervisores_portal()`;
   }
 
   /** Futuras por defecto; con todas, tambien el historial (solo datos administrativos). */
@@ -42,11 +53,22 @@ export class PortalService {
         pacienteId,
         ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'SOLICITADA'] }, fin: { gt: new Date() } }),
       },
-      select: { id: true, pacienteId: true, profesionalId: true, modalidad: true, espacioId: true, inicio: true, fin: true, estado: true },
+      select: {
+        id: true,
+        pacienteId: true,
+        profesionalId: true,
+        modalidad: true,
+        espacioId: true,
+        espacio: { select: { nombre: true } },
+        inicio: true,
+        fin: true,
+        estado: true,
+      },
       orderBy: { inicio: todas ? 'desc' : 'asc' },
     });
     const ahora = new Date();
-    return filas.map((c) => ({ ...c, realizada: c.estado === 'CONFIRMADA' && c.fin <= ahora }));
+    // 03b-3: el nombre del box (catalogo, no un dato de otro usuario) para "Presencial, Box 2".
+    return filas.map(({ espacio, ...c }) => ({ ...c, espacioNombre: espacio?.nombre ?? null, realizada: c.estado === 'CONFIRMADA' && c.fin <= ahora }));
   }
 
   /**
@@ -79,6 +101,46 @@ export class PortalService {
       numeroCuenta: d('numero_cuenta'),
       titular: d('titular'),
     };
+  }
+
+  /** Horas libres del tratante (disponibilidad_publica con el contexto del paciente: sirve aunque no tenga perfil publico). */
+  async disponibilidad(pacienteDelPortal: string | undefined, desde: Date, hasta: Date) {
+    const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
+    const tx = this.bd.tx();
+    const p = await tx.paciente.findUniqueOrThrow({ where: { id: pacienteId }, select: { profesionalId: true } });
+    if (!p.profesionalId) {
+      return [];
+    }
+    return tx.$queryRaw<{ modalidad: 'PRESENCIAL' | 'ONLINE'; inicio: Date; fin: Date }[]>`
+      SELECT modalidad, inicio, fin FROM disponibilidad_publica(${p.profesionalId}::uuid, ${desde}, ${hasta})`;
+  }
+
+  /**
+   * Antes de 03b-4: hora con su tratante desde la cuenta (reservar_cita_portal
+   * valida todo: tratante actual, disponibilidad de los bloques, politica
+   * vigente, menor y cuenta restringida; el EXCLUDE manda). Online: enlace de
+   * videollamada en la misma transaccion, como una cita agendada por el equipo.
+   */
+  async reservar(dto: ReservaPortalDto): Promise<ReservaPortal> {
+    const pacienteId = await this.pacienteDelPortal(dto.pacienteId);
+    const tx = this.bd.tx();
+    const [r] = await tx.$queryRaw<
+      { cita_id: string; estado: EstadoCita; profesional_id: string; sala_modo: ModoVideollamada | null; sala_enlace: Uint8Array | null }[]
+    >`SELECT * FROM reservar_cita_portal(${pacienteId}::uuid, ${dto.modalidad}::modalidad_atencion, ${dto.inicio}::timestamptz,
+                                          ${dto.fin}::timestamptz, ${dto.politicaId}::uuid, ${dto.terminosId}::uuid)`;
+    if (dto.modalidad === 'ONLINE') {
+      const sala = await this.video.crearSala({
+        citaId: r.cita_id,
+        inicio: dto.inicio,
+        fin: dto.fin,
+        expiraEn: new Date(dto.fin.getTime() + this.config.getOrThrow<number>('ENLACE_ONLINE_HORAS_TRAS_FIN') * HORA),
+        modo: r.sala_modo ?? 'ENLACE_PROPIO',
+        enlacePropio: this.llavero.descifrarCampo(r.sala_enlace, 'salas_videollamada', 'enlace', r.profesional_id),
+      });
+      const enlace = JSON.stringify({ url: sala.url, expiraEn: sala.expiraEn.toISOString() });
+      await tx.$executeRaw`SELECT guardar_enlace_portal(${r.cita_id}::uuid, ${this.llavero.cifrarCampo(enlace, 'citas', 'enlace_online', r.cita_id)})`;
+    }
+    return { citaId: r.cita_id, estado: r.estado, profesionalId: r.profesional_id };
   }
 
   /** Solo a su equipo tratante (RLS). Se avisa al profesional por correo, sin el contenido. */
@@ -137,14 +199,22 @@ export class PortalService {
     const tx = this.bd.tx();
     const p = await tx.paciente.findUniqueOrThrow({
       where: { id: pacienteId },
-      select: { id: true, nombre: true, apellido: true, fechaNacimiento: true, email: true, telefono: true },
+      select: { id: true, nombre: true, apellido: true, fechaNacimiento: true, email: true, telefono: true, contactoEmergencia: true },
     });
     const adultos = await tx.adultoResponsable.findMany({
       where: { pacienteId },
-      select: { id: true, nombre: true, parentesco: true, telefono: true, email: true },
+      select: { id: true, nombre: true, parentesco: true, telefono: true, email: true, usuarioId: true },
       orderBy: { createdAt: 'asc' },
     });
-    return { ...p, telefono: texto(p.telefono), adultosResponsables: adultos.map((a) => ({ ...a, telefono: texto(a.telefono) })) };
+    const yo = this.bd.usuario().id;
+    return {
+      ...p,
+      telefono: texto(p.telefono),
+      // 03b-3: lo registra el centro; el portal solo lo muestra (C-9).
+      contactoEmergencia: texto(p.contactoEmergencia),
+      // esMiCuenta: el adulto responsable responde consentimientos con su propio registro (validar_otorgante).
+      adultosResponsables: adultos.map(({ usuarioId, ...a }) => ({ ...a, telefono: texto(a.telefono), esMiCuenta: usuarioId === yo })),
+    };
   }
 
   /**
@@ -171,6 +241,28 @@ export class PortalService {
       this.bd.alConfirmar(() => this.correos.enviar('VERIFICACION_CORREO', email, token, vence));
     }
     return { telefonoActualizado: dto.telefono !== undefined, correoPendienteHasta: verificacion };
+  }
+
+  /**
+   * 03b-3: version vigente del consentimiento informado de atencion y la
+   * ultima que acepto el paciente (RLS: adulto o adulto responsable; el
+   * adolescente no ve aceptaciones y recibe aceptada = null).
+   */
+  async estadoConsentimientoAtencion(pacienteDelPortal?: string) {
+    const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
+    const tx = this.bd.tx();
+    const [vigente] = await tx.$queryRaw<{ id: string; version: number; texto: string; vigente_desde: Date }[]>`
+      SELECT * FROM politica_vigente('CONSENTIMIENTO_ATENCION'::tipo_politica)`;
+    const ultima = await tx.aceptacionPolitica.findFirst({
+      where: { pacienteId, politica: { tipo: 'CONSENTIMIENTO_ATENCION' } },
+      orderBy: { aceptadaEn: 'desc' },
+      select: { aceptadaEn: true, canal: true, politica: { select: { version: true } } },
+    });
+    return {
+      pacienteId,
+      vigente: vigente ? { id: vigente.id, version: vigente.version, texto: vigente.texto, vigenteDesde: vigente.vigente_desde } : null,
+      aceptada: ultima ? { version: ultima.politica.version, aceptadaEn: ultima.aceptadaEn, canal: ultima.canal } : null,
+    };
   }
 
   /** Consentimiento informado de atencion aceptado en el portal (D-3): el paciente adulto o el adulto responsable. */

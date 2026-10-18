@@ -5,6 +5,7 @@ import { TAGS } from '../../core/docs/openapi';
 import { Modulo } from '../../core/modulos/modulos';
 import { Roles } from '../../core/auth/decoradores';
 import { CobrosService } from './cobros.service';
+import { ArriendoVista, DetalleCobroCita, EstadoPagoCitaVista, LiquidacionVista, PagoVista, ReporteCobros } from './dto/cobros-respuestas.dto';
 import { AnularPagoDto, ArriendoDto, FiltroCobrosDto, LiquidacionDto, PeriodoDto, RegistrarPagoDto, ResolverCitaDto } from './dto/cobros.dto';
 
 const pdf = (contenido: Buffer, nombre: string) => new StreamableFile(contenido, { type: 'application/pdf', disposition: `attachment; filename="${nombre}"` });
@@ -25,26 +26,26 @@ export class CobrosController {
   /** Estado de pago por cita (monto, exigible, pagado, saldo, estado). */
   @Get('citas')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
-  estados(@Query() filtro: FiltroCobrosDto) {
+  estados(@Query() filtro: FiltroCobrosDto): Promise<EstadoPagoCitaVista[]> {
     return this.cobros.estados(filtro);
   }
 
   @Get('citas/:id')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
-  detalle(@Param('id', Uuid) id: string) {
+  detalle(@Param('id', Uuid) id: string): Promise<DetalleCobroCita> {
     return this.cobros.detalle(id);
   }
 
   @Post('citas/:id/pagos')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  registrarPago(@Param('id', Uuid) id: string, @Body() dto: RegistrarPagoDto) {
+  registrarPago(@Param('id', Uuid) id: string, @Body() dto: RegistrarPagoDto): Promise<DetalleCobroCita> {
     return this.cobros.registrarPago(id, dto);
   }
 
   @Post('pagos/:id/anulacion')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION')
-  anular(@Param('id', Uuid) id: string, @Body() dto: AnularPagoDto) {
+  anular(@Param('id', Uuid) id: string, @Body() dto: AnularPagoDto): Promise<PagoVista> {
     return this.cobros.anularPago(id, dto.motivo);
   }
 
@@ -52,26 +53,26 @@ export class CobrosController {
   @Post('citas/:id/resolucion')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION')
-  resolver(@Param('id', Uuid) id: string, @Body() dto: ResolverCitaDto) {
+  resolver(@Param('id', Uuid) id: string, @Body() dto: ResolverCitaDto): Promise<DetalleCobroCita> {
     return this.cobros.resolver(id, dto);
   }
 
   @Get('arriendos')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  arriendos(@Query('profesionalId', new ParseUUIDPipe({ optional: true })) profesionalId?: string) {
+  arriendos(@Query('profesionalId', new ParseUUIDPipe({ optional: true })) profesionalId?: string): Promise<ArriendoVista[]> {
     return this.cobros.arriendos(profesionalId);
   }
 
   @Post('arriendos')
   @Roles('ADMIN', 'GESTION')
-  crearArriendo(@Body() dto: ArriendoDto) {
+  crearArriendo(@Body() dto: ArriendoDto): Promise<ArriendoVista> {
     return this.cobros.crearArriendo(dto);
   }
 
   /** Cobros por profesional del periodo (sin datos clinicos). PROFESIONAL: solo los suyos. */
   @Get('reporte')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  reporte(@Query() periodo: PeriodoDto) {
+  reporte(@Query() periodo: PeriodoDto): Promise<ReporteCobros> {
     return this.cobros.reporte(periodo.desde, periodo.hasta);
   }
 
@@ -90,27 +91,27 @@ export class CobrosController {
   /** ADMIN/GESTION todas; el profesional las suyas ya emitidas (RLS). */
   @Get('liquidaciones')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  liquidaciones(@Query('profesionalId', new ParseUUIDPipe({ optional: true })) profesionalId?: string) {
+  liquidaciones(@Query('profesionalId', new ParseUUIDPipe({ optional: true })) profesionalId?: string): Promise<LiquidacionVista[]> {
     return this.cobros.liquidaciones(profesionalId);
   }
 
   @Post('liquidaciones')
   @Roles('ADMIN', 'GESTION')
-  generar(@Body() dto: LiquidacionDto) {
+  generar(@Body() dto: LiquidacionDto): Promise<LiquidacionVista> {
     return this.cobros.generarLiquidacion(dto);
   }
 
   @Post('liquidaciones/:id/emision')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION')
-  emitir(@Param('id', Uuid) id: string) {
+  emitir(@Param('id', Uuid) id: string): Promise<LiquidacionVista> {
     return this.cobros.avanzarLiquidacion(id, 'EMITIDA');
   }
 
   @Post('liquidaciones/:id/pago')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION')
-  pagar(@Param('id', Uuid) id: string) {
+  pagar(@Param('id', Uuid) id: string): Promise<LiquidacionVista> {
     return this.cobros.avanzarLiquidacion(id, 'PAGADA');
   }
 }

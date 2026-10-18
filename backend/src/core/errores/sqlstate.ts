@@ -142,6 +142,9 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   lista_espera_publica_destino: 'Ese profesional o tipo de atencion no recibe inscripciones en la lista de espera',
   lista_espera_publica_coherente: 'Lista de espera: indicar un profesional o un tipo de atencion, con nombre y correo',
   configuracion_centro_lista_espera_publica: 'La lista de espera publica dura entre 7 y 365 dias',
+  // Antes de 03b-4: reserva desde la cuenta del paciente.
+  citas_portal_cuenta_restringida: 'Las horas de un menor las pide su adulto responsable desde su cuenta',
+  citas_portal_tratante: 'No tienes un profesional tratante que agende por el portal: escribe al centro',
 };
 
 /**
@@ -158,6 +161,8 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/El bloque cae fuera del horario de atencion del centro/, 'bloques_atencion_dentro_de_horario_centro'],
   [/El bloque tiene citas o reservas en curso/, 'bloques_atencion_con_citas'],
   [/no disponible para la lista de espera/, 'lista_espera_publica_destino'],
+  [/Las horas de un menor las pide su adulto responsable/, 'citas_portal_cuenta_restringida'],
+  [/No tienes un profesional tratante que agende/, 'citas_portal_tratante'],
   [/Lista de espera: un profesional o un tipo de atencion/, 'lista_espera_publica_coherente'],
   [/agenda bloqueada/, 'citas_fuera_de_bloqueos'],
   [/menor de 18 sin adulto responsable/, 'citas_menor_requiere_adulto_responsable'],

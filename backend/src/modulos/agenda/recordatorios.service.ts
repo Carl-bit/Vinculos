@@ -41,7 +41,7 @@ export class RecordatoriosService {
       for (const c of citas) {
         const id = randomUUID();
         const token = randomBytes(32).toString('base64url');
-        const enlace = this.llavero.cifrarCampo(`${base}/portal/citas/recordatorio?token=${token}`, 'recordatorios_cita', 'enlace', id);
+        const enlace = this.llavero.cifrarCampo(`${base}/recordatorio?token=${token}`, 'recordatorios_cita', 'enlace', id);
         const [{ ok }] = await tx.$queryRaw<[{ ok: boolean }]>`
           SELECT registrar_recordatorio(${id}::uuid, ${c.cita_id}::uuid, ${c.inicio}::timestamptz, ${sha256(token)}, ${enlace}) AS ok`;
         registrados += ok ? 1 : 0;

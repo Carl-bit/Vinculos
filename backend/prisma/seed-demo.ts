@@ -419,6 +419,51 @@ async function main(): Promise<void> {
     await cita({ pacienteId: sofia.id, profesionalId: prof2Id, modalidad: 'PRESENCIAL', ...horario(4, '15:00') });
     await cita({ pacienteId: camila.id, profesionalId: practicanteId, modalidad: 'ONLINE', ...horario(5, '17:00') });
     await cita({ pacienteId: diego.id, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(7, '11:00') });
+
+    // --- Portal del paciente (03b-3) -------------------------------------------
+    // Adulto responsable con cuenta: en produccion la vincula la invitacion por correo (enlace de un solo uso);
+    // aca la cuenta se crea por la API y el vinculo con el adulto lo pone el dueño (la API no lo expone).
+    const madre = await crearUsuario({ email: `madre.demo@${DOMINIO}`, nombre: 'Madre Demo Responsable', rol: 'RESPONSABLE' });
+    await dueno.adultoResponsable.updateMany({ where: { pacienteId: sofia.id }, data: { usuarioId: madre.id } });
+    // Adolescente de 16 con cuenta restringida (D-4): sus citas, recordatorios y mensajes; su adulto responsable, el resto.
+    const tomas = await llamar(prof2, 'POST', '/pacientes', {
+      nombre: 'Tomas',
+      apellido: 'Demo Adolescente',
+      rut: rut('25555555'),
+      fechaNacimiento: `${new Date().getFullYear() - 16}-04-10`,
+      email: `adolescente@${DOMINIO}`,
+      tipoAtencionId: infanto,
+    });
+    await llamar(prof2, 'POST', `/pacientes/${tomas.id}/adultos-responsables`, {
+      nombre: 'Padre Demo Responsable',
+      parentesco: 'Padre',
+      rut: rut('16666666'),
+      telefono: '+56966666666',
+      email: `padre.demo@${DOMINIO}`,
+    });
+    await crearUsuario({ email: `adolescente@${DOMINIO}`, nombre: 'Tomas Demo Adolescente', rol: 'PACIENTE', pacienteId: tomas.id });
+    await cita({ pacienteId: tomas.id, profesionalId: prof2Id, modalidad: 'ONLINE', ...horario(5, '16:00') });
+    await llamar(prof1, 'PATCH', `/pacientes/${pacientePrueba}`, { contactoEmergencia: 'Contacto Demo (hermana) +56922222222' });
+
+    // Paciente Prueba: mensajes a su profesional, documento emitido, copia de ficha pedida y lista de espera con cuenta.
+    await llamar(paciente, 'POST', '/portal/mensajes', {
+      profesionalId: prof1Id,
+      contenido: 'Mensaje demo: ¿la sesión del jueves es presencial u online? Gracias.',
+    });
+    const tiposDoc = (await llamar(prof1, 'GET', '/tipos-documento-clinico')) as unknown as { id: string; nombre: string }[];
+    await llamar(prof1, 'POST', '/documentos-clinicos', {
+      pacienteId: pacientePrueba,
+      tipoDocumentoId: tiposDoc.find((d) => d.nombre.includes('Demo'))!.id,
+      contenido: 'Certificado ficticio de atencion del centro de demostracion.',
+    });
+    await llamar(paciente, 'POST', '/portal/epicrisis', { motivo: 'Copia demo para un control con otro especialista.' });
+    await llamar(paciente, 'POST', '/lista-espera', { pacienteId: pacientePrueba, profesionalId: prof2Id, preferencias: 'Tardes después de las 18:00' });
+    const madreToken = await login(`madre.demo@${DOMINIO}`);
+    await llamar(madreToken, 'POST', '/portal/mensajes', {
+      profesionalId: prof2Id,
+      pacienteId: sofia.id,
+      contenido: 'Mensaje demo de la madre: Sofía llegará 10 minutos tarde el martes.',
+    });
   } finally {
     await app.close();
     await dueno.$disconnect();

@@ -26,3 +26,7 @@ export const inicioDeRol = (rol: Rol): string => `/${ZONA[rol]}`;
 
 /** Roles que operan como administracion del centro (selector de equipo). */
 export const esAdministracion = (rol: Rol): boolean => rol === 'ADMIN' || rol === 'GESTION';
+
+/** Destino tras entrar: la ruta pedida si es de la zona del rol (nunca una URL externa en ?volver), si no el inicio del rol. */
+export const destinoTrasIngreso = (rol: Rol, volver: string | null | undefined): string =>
+  volver && (volver === `/${ZONA[rol]}` || volver.startsWith(`/${ZONA[rol]}/`)) ? volver : inicioDeRol(rol);

@@ -101,6 +101,8 @@ cambia). Dominio `@centro-prueba.cl`.
 | `paciente` | PACIENTE | Paciente Prueba (RUT 11.111.111-1) |
 | `paciente2` | PACIENTE | Camila Demo Practicante (RUT 22.222.222-2) |
 | `paciente3` | PACIENTE | Diego Demo Derivacion (RUT 33.333.333-3) |
+| `madre.demo` | RESPONSABLE (03b-3) | adulto responsable de Sofia (12): ve sus horas, pagos y documentos; escribe por ella |
+| `adolescente` | PACIENTE 16 años (03b-3) | Tomas Demo Adolescente, de Profesional Dos: cuenta restringida (horas, recordatorios y mensajes) |
 | `inactivo` | PROFESIONAL desactivado | login rechazado |
 | `practicante.expirado` | PRACTICANTE con acceso vencido | login rechazado |
 | `directora` | ADMIN + PROFESIONAL (dos roles, TOTP) | cambio de rol activo (`auth/cambio-rol`, selector del front) |
@@ -228,7 +230,7 @@ Marcar la casilla con OK o con lo observado.
 | 7.1 | PACIENTE | Bandeja | Mensajes armados por el job (hasta un minuto de demora) | [ ] |
 | 7.2 | PACIENTE | Preferencias: desactivar recordatorios; intentar `avisosLegales` | 200 / 400 | [ ] |
 | 7.3 | ADMIN | Preferencias / plantillas | 403 / 200; PROFESIONAL en plantillas 403 | [ ] |
-| 7.4 | (manual) | Crear una cita para manana con `paciente` (o esperar la de +4 dias cuando entre en 48 h). El job de recordatorios corre cada 10 minutos | Correo "Recordatorio de su cita" con enlace `.../portal/citas/recordatorio?token=...` (sin `.ics`: el `.ics` va en la confirmacion) | [ ] |
+| 7.4 | (manual) | Crear una cita para manana con `paciente` (o esperar la de +4 dias cuando entre en 48 h). El job de recordatorios corre cada 10 minutos | Correo "Recordatorio de su cita" con enlace `.../recordatorio?token=...` (sin `.ics`: el `.ics` va en la confirmacion) | [ ] |
 | 7.5 | (sin sesion) | Copiar el token en la variable `tokenRecordatorio` del entorno y correr 07/09-11 (o `GET /api/recordatorios/<token>`, luego `POST .../confirmacion` y otra vez `.../cancelacion`) | 200 con la politica (a tiempo o tardia); 200 CONFIRMADA; 409 (un solo uso) | [ ] |
 
 ### 8. Portal del paciente y match publico
@@ -241,6 +243,53 @@ Marcar la casilla con OK o con lo observado.
 | 8.4 | PACIENTE | Solicitar epicrisis | 201 | [ ] |
 | 8.5 | PACIENTE | Su registro / el de otro paciente | 200 / 404 | [ ] |
 | 8.6 | ADMIN | Portal | 403 | [ ] |
+
+### 9. Portal del paciente y paginas por enlace (03b-3, front en http://localhost:3000)
+
+| # | Rol | Paso | Esperado | Resultado |
+|---|---|---|---|---|
+| 9.1 | `paciente` | Entrar como paciente | "Mi cuenta": su profesional, 2 horas proximas (una online con "Entrar a la videollamada"), mensaje enviado, datos con contacto de emergencia | [ ] |
+| 9.2 | `paciente` | Mis datos > Editar: telefono `123` | Error de formato; nombre, nacimiento y contacto de emergencia no se editan | [ ] |
+| 9.3 | `paciente` | Mis datos > correo nuevo | Aviso "te enviamos un enlace"; en Mailpit, `/cuenta/correo?token=` confirma | [ ] |
+| 9.4 | `paciente` | Pagos | Saldo por pagar, sesion con pago parcial; detalle con pagos y boleta | [ ] |
+| 9.5 | `paciente` | Documentos | Certificado demo; "Prefiero recibirlo adjunto" queda marcado; copia de ficha pedida | [ ] |
+| 9.6 | `paciente` | Consentimientos | Consentimiento de atencion: leer y aceptar (modal con el texto y la consecuencia) | [ ] |
+| 9.7 | `paciente2` | Consentimientos | Consentimiento de practicante aceptado con practicante y supervisor; "Retirar" explica que pasa antes | [ ] |
+| 9.8 | `paciente` | Lista de espera | Inscripcion con Profesional Dos; salir; volver a anotarse | [ ] |
+| 9.9 | `paciente` | Reseñas | Ya calificó a Profesional Uno (publicada); editar la deja "En revision"; elegir "con mi nombre" pide confirmacion | [ ] |
+| 9.10 | `paciente` | Seguridad: contraseña actual incorrecta / correcta | Error en el campo / "Listo" | [ ] |
+| 9.11 | `adolescente` | Entrar | Aviso de cuenta de adolescente; sin Pagos, Documentos, Consentimientos ni Reseñas; `/portal/pagos` explica que lo ve el adulto responsable | [ ] |
+| 9.12 | `madre.demo` | Entrar | "Estás viendo la cuenta de Sofia"; "Su profesional"; "Datos de Sofia" sin editar; solo sus propios mensajes | [ ] |
+| 9.13 | anonimo | Login > "¿La olvidaste?" con un correo cualquiera | "Revisa tu correo" (igual exista o no); con uno real, Mailpit trae `/cuenta/recuperar?token=` y la contraseña cambia | [ ] |
+| 9.14 | anonimo | Login > "Recibir un enlace de acceso" con `paciente@...` | Mailpit trae `/cuenta/acceso?token=`; "Entrar a mi cuenta" abre el portal; segunda vez: "ya no sirve" | [ ] |
+| 9.15 | ADMIN | Invitar a un paciente (`POST pacientes/:id/invitacion`) | Mailpit trae `/cuenta/activar?token=`; elegir contraseña entra al portal vinculado a su registro | [ ] |
+| 9.16 | GESTION | Enviar enlace de consentimiento a `paciente` (`POST pacientes/:id/consentimiento-atencion/enlace`) | `/consentimiento?token=`: texto, "Si aceptas / Si no aceptas", confirmacion; segunda vez: "ya no sirve" | [ ] |
+| 9.17 | (job) | Cita confirmada dentro de 48 h | Correo con `/recordatorio?token=`: muestra la politica que aplica ahora; confirmar o cancelar (modal con el cargo) | [ ] |
+
+### 10. Backoffice (03b-4, front en http://localhost:3000)
+
+| # | Rol | Paso | Esperado | Resultado |
+|---|---|---|---|---|
+| 10.1 | `admin` | Inicio | Indicadores del centro sin datos clínicos; pendientes llevan a la pestaña que los resuelve | [ ] |
+| 10.2 | `admin` | Agenda > Agendar sesión > paciente > una hora | "En proceso de reserva" con cuenta regresiva; "Confirmar cita" crea la cita; "Elegir otra hora" la suelta | [ ] |
+| 10.3 | `admin` (dos pestañas) | Elegir la misma hora en ambas y confirmar en las dos | La segunda ve "Alguien confirmó esa hora antes" con alternativas; nunca dos citas en el mismo horario | [ ] |
+| 10.4 | `admin` | Agenda > sesión futura confirmada > Cubrir sesión > otro profesional | Pide la fecha del acceso de reemplazo; "Otorgar acceso y cubrir" cambia el profesional de esa sesión (el tratante no cambia) | [ ] |
+| 10.5 | `gestion` | Lo mismo con un profesional sin acceso temporal | Error claro: el acceso lo otorga administración o el tratante | [ ] |
+| 10.6 | `profesional1` | Agenda > sesión propia > Derivar paciente | Abre la ficha con la derivación lista para completar | [ ] |
+| 10.7 | `admin` | Agenda > Espacios > Editar box: cerrar el día en que hay horas apartadas | 409 claro: el horario deja fuera horas ya apartadas | [ ] |
+| 10.8 | `admin` | Agenda > Horarios del equipo > Apartar horas > Sugerir según horario habitual > Apartar | Horas apartadas aparecen en la tarjeta; liberar una con citas da 409 claro | [ ] |
+| 10.9 | `admin` | Cobros > Asistencia y pago > sesión pendiente > Asistió > Pago total | Saldo $0, estado Pagada y boleta simulada | [ ] |
+| 10.10 | `admin` | Otra sesión > No asistió | Aplica el % de inasistencia de la configuración; la decisión no se deshace | [ ] |
+| 10.11 | `admin` | Cobros > Liquidar un profesional > Emitir > Marcar pagada > PDF | Borrador, emitida y pagada; el PDF descarga | [ ] |
+| 10.12 | `admin` | Configuración > Consentimiento y políticas > Nueva versión | Versión siguiente; la anterior queda guardada | [ ] |
+| 10.13 | `admin` | Configuración > Notificaciones > editar una plantilla y restaurar | Guarda el texto; "Restaurar ejemplo" vuelve al original | [ ] |
+| 10.14 | `profesional1` | `/admin/configuracion` por URL | "No tienes acceso a esta sección" (el menú no la muestra) | [ ] |
+| 10.15 | `admin` | Equipo > Profesional Uno | Perfil editable (sin publicar), tipos y especialidades, trayectoria, tarifas, datos para pagos solo con "Ver datos", cuenta | [ ] |
+| 10.16 | `admin` | Equipo > Nueva cuenta (practicante) | Pide supervisor, fechas de práctica y fin del acceso; llega la invitación a Mailpit | [ ] |
+| 10.17 | `admin` | Equipo > Practicantes > Revocar | Pide motivo; queda "Sin acceso" y el historial lo registra | [ ] |
+| 10.18 | `admin` | Equipo > Reseñas > Ocultar | Pide motivo; Publicar la deja visible en el perfil público | [ ] |
+| 10.19 | `profesional1` | Mi perfil > tarifa nueva > publicar perfil | La tarifa encabeza el historial; el perfil queda publicado | [ ] |
+| 10.20 | `admin` | Match > apagar una pregunta | No aparece en `/match`; las métricas muestran los últimos 30 días | [ ] |
 
 ## Revisar la BD
 

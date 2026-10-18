@@ -117,7 +117,8 @@ test('errores: RUT con DV invalido y credenciales incorrectas con texto claro', 
 test('ruta del panel sin pagina (03b): el 404 se ve dentro del panel, con el menu y el rol activo', async ({ page }) => {
   await ingresar(page, 'admin');
   await expect(page).toHaveURL(/\/admin$/);
-  await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Fichas y Pacientes' }).click();
+  await page.waitForLoadState('networkidle');
+  await page.goto('/admin/seccion-inexistente');
   await expect(page.getByText('Esta sección no existe o todavía no está disponible')).toBeVisible();
   await expect(page.getByText('Rol activo: Cuenta madre')).toBeVisible();
   await page.reload();

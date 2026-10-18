@@ -162,10 +162,24 @@ export class DocumentosService {
     if (r.vencido) {
       throw new GoneException('El enlace del documento vencio: pida uno nuevo al centro');
     }
+    return this.pdf(r.documento_id);
+  }
+
+  /**
+   * Antes de 03b-4: descarga desde el portal con sesion (sin el enlace del
+   * correo). registrar_descarga_portal valida que sea suyo o de un menor a
+   * cargo (el adolescente no) y registra la descarga igual que el enlace.
+   */
+  async descargarPortal(id: string): Promise<{ nombreArchivo: string; pdf: Buffer }> {
+    await this.bd.tx().$queryRaw`SELECT registrar_descarga_portal(${id}::uuid)`;
+    return this.pdf(id);
+  }
+
+  private async pdf(documentoId: string): Promise<{ nombreArchivo: string; pdf: Buffer }> {
     const tx = this.bd.tx();
     const doc = encontrado(
       await tx.documentoClinico.findUnique({
-        where: { id: r.documento_id },
+        where: { id: documentoId },
         select: { nombreArchivo: true, contenido: true, emitidoEn: true, tipoDocumento: { select: { nombre: true } } },
       }),
       'Documento',

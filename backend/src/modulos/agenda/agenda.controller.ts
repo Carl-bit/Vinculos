@@ -10,7 +10,29 @@ import { ListaEsperaService } from './lista-espera.service';
 import { CitasService } from './citas.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
 import { RecordatoriosService } from './recordatorios.service';
-import { BloqueAtencionVista, BloquesLiberados, HoraLibreBox } from './dto/agenda-respuestas.dto';
+import {
+  BloqueAtencionVista,
+  BloqueoAgendaVista,
+  BloquesLiberados,
+  CitaAprobada,
+  CitaVista,
+  ConflictoMargen,
+  DisponibilidadHabitual,
+  Eliminados,
+  EnlaceCita,
+  EspacioVista,
+  HorarioEspacioVista,
+  HoraLibreBox,
+  HorarioTomado,
+  HuecoAgenda,
+  ListaEsperaVista,
+  OcupacionBox,
+  RecordatorioConsulta,
+  RecordatorioRespuesta,
+  VerificacionHorario,
+  FeedCalendario,
+  SalaVideollamadaVista,
+} from './dto/agenda-respuestas.dto';
 import { InscribirListaEsperaDto, InscripcionListaEspera, InscripcionVerificada, TokenListaEsperaDto } from './dto/lista-espera-publica.dto';
 import { ListaEsperaPublicaService } from './lista-espera-publica.service';
 import {
@@ -44,39 +66,39 @@ export class EspaciosController {
 
   @Get()
   @Roles(...TODOS)
-  listar() {
+  listar(): Promise<EspacioVista[]> {
     return this.agenda.espacios();
   }
 
   @Post()
   @Roles('ADMIN', 'GESTION')
-  crear(@Body() dto: CrearEspacioDto) {
+  crear(@Body() dto: CrearEspacioDto): Promise<EspacioVista> {
     return this.agenda.crearEspacio(dto);
   }
 
   @Patch(':id')
   @Roles('ADMIN', 'GESTION')
-  editar(@Param('id', Uuid) id: string, @Body() dto: EditarEspacioDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarEspacioDto): Promise<EspacioVista> {
     return this.agenda.editarEspacio(id, dto);
   }
 
   /** Horario de funcionamiento del box (vacio = el del centro). */
   @Get(':id/horario')
   @Roles(...EQUIPO_AGENDA)
-  horario(@Param('id', Uuid) id: string) {
+  horario(@Param('id', Uuid) id: string): Promise<HorarioEspacioVista[]> {
     return this.agenda.horarioEspacio(id);
   }
 
   @Put(':id/horario')
   @Roles('ADMIN', 'GESTION')
-  reemplazarHorario(@Param('id', Uuid) id: string, @Body() dto: HorarioEspacioDto) {
+  reemplazarHorario(@Param('id', Uuid) id: string, @Body() dto: HorarioEspacioDto): Promise<HorarioEspacioVista[]> {
     return this.agenda.reemplazarHorarioEspacio(id, dto.bloques);
   }
 
   /** Ocupacion de boxes (bloques apartados + soft-locks), sin pacientes ni profesionales. */
   @Get('ocupacion')
   @Roles(...EQUIPO_AGENDA)
-  ocupacion(@Query() rango: RangoDto) {
+  ocupacion(@Query() rango: RangoDto): Promise<OcupacionBox[]> {
     return this.agenda.ocupacion(rango.desde, rango.hasta);
   }
 
@@ -121,51 +143,51 @@ export class AgendaProfesionalController {
   /** Horario habitual semanal (referencia para apartar bloques; ya no decide la agenda). */
   @Get('disponibilidad')
   @Roles(...EQUIPO_AGENDA)
-  disponibilidad(@Param('profesionalId', Uuid) id: string) {
+  disponibilidad(@Param('profesionalId', Uuid) id: string): Promise<DisponibilidadHabitual[]> {
     return this.agenda.disponibilidad(id);
   }
 
   @Post('disponibilidad')
   @Roles(...EQUIPO_AGENDA)
-  crearDisponibilidad(@Param('profesionalId', Uuid) id: string, @Body() dto: CrearDisponibilidadDto) {
+  crearDisponibilidad(@Param('profesionalId', Uuid) id: string, @Body() dto: CrearDisponibilidadDto): Promise<DisponibilidadHabitual> {
     return this.agenda.crearDisponibilidad(id, dto);
   }
 
   @Delete('disponibilidad/:id')
   @Roles(...EQUIPO_AGENDA)
-  eliminarDisponibilidad(@Param('profesionalId', Uuid) profesionalId: string, @Param('id', Uuid) id: string) {
+  eliminarDisponibilidad(@Param('profesionalId', Uuid) profesionalId: string, @Param('id', Uuid) id: string): Promise<Eliminados> {
     return this.agenda.eliminarDisponibilidad(profesionalId, id);
   }
 
   @Get('bloqueos')
   @Roles(...EQUIPO_AGENDA)
-  bloqueos(@Param('profesionalId', Uuid) id: string) {
+  bloqueos(@Param('profesionalId', Uuid) id: string): Promise<BloqueoAgendaVista[]> {
     return this.agenda.bloqueos(id);
   }
 
   @Post('bloqueos')
   @Roles(...EQUIPO_AGENDA)
-  crearBloqueo(@Param('profesionalId', Uuid) id: string, @Body() dto: CrearBloqueoAgendaDto) {
+  crearBloqueo(@Param('profesionalId', Uuid) id: string, @Body() dto: CrearBloqueoAgendaDto): Promise<BloqueoAgendaVista> {
     return this.agenda.crearBloqueo(id, dto);
   }
 
   @Delete('bloqueos/:id')
   @Roles(...EQUIPO_AGENDA)
-  eliminarBloqueo(@Param('profesionalId', Uuid) profesionalId: string, @Param('id', Uuid) id: string) {
+  eliminarBloqueo(@Param('profesionalId', Uuid) profesionalId: string, @Param('id', Uuid) id: string): Promise<Eliminados> {
     return this.agenda.eliminarBloqueo(profesionalId, id);
   }
 
   /** Huecos libres por modalidad (max. 62 dias), sin motivos. */
   @Get('huecos')
   @Roles(...TODOS)
-  huecos(@Param('profesionalId', Uuid) id: string, @Query() rango: RangoDto) {
+  huecos(@Param('profesionalId', Uuid) id: string, @Query() rango: RangoDto): Promise<HuecoAgenda[]> {
     return this.agenda.huecos(id, rango.desde, rango.hasta);
   }
 
   /** Citas futuras que no cumplen el margen vigente (no se mueven solas). */
   @Get('conflictos-margen')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  conflictosMargen(@Param('profesionalId', Uuid) id: string) {
+  conflictosMargen(@Param('profesionalId', Uuid) id: string): Promise<ConflictoMargen[]> {
     return this.agenda.citasEnConflictoMargen(id);
   }
 }
@@ -179,19 +201,19 @@ export class HorariosTomadosController {
 
   @Post()
   @Roles(...EQUIPO_AGENDA)
-  tomar(@Body() dto: HorarioDto) {
+  tomar(@Body() dto: HorarioDto): Promise<HorarioTomado> {
     return this.agenda.tomarHorario(dto);
   }
 
   @Get()
   @Roles(...EQUIPO_AGENDA)
-  mios() {
+  mios(): Promise<HorarioTomado[]> {
     return this.agenda.misHorariosTomados();
   }
 
   @Delete(':id')
   @Roles(...EQUIPO_AGENDA)
-  soltar(@Param('id', Uuid) id: string) {
+  soltar(@Param('id', Uuid) id: string): Promise<Eliminados> {
     return this.agenda.soltarHorario(id);
   }
 }
@@ -205,13 +227,13 @@ export class CitasController {
 
   @Get()
   @Roles(...TODOS)
-  listar(@Query() filtro: FiltroCitasDto) {
+  listar(@Query() filtro: FiltroCitasDto): Promise<CitaVista[]> {
     return this.citas.listar(filtro);
   }
 
   @Get('por-reprogramar')
   @Roles(...EQUIPO_AGENDA)
-  porReprogramar() {
+  porReprogramar(): Promise<CitaVista[]> {
     return this.citas.porReprogramar();
   }
 
@@ -219,37 +241,37 @@ export class CitasController {
   @Post('verificacion')
   @HttpCode(200)
   @Roles(...EQUIPO_AGENDA)
-  verificar(@Body() dto: HorarioDto) {
+  verificar(@Body() dto: HorarioDto): Promise<VerificacionHorario> {
     return this.citas.verificar(dto);
   }
 
   @Post()
   @Roles(...EQUIPO_AGENDA)
-  crear(@Body() dto: CrearCitaDto) {
+  crear(@Body() dto: CrearCitaDto): Promise<CitaVista> {
     return this.citas.crear(dto);
   }
 
   @Get(':id')
   @Roles(...TODOS)
-  obtener(@Param('id', Uuid) id: string) {
+  obtener(@Param('id', Uuid) id: string): Promise<CitaVista> {
     return this.citas.obtener(id);
   }
 
   @Patch(':id/cancelacion')
   @Roles(...EQUIPO_AGENDA)
-  cancelar(@Param('id', Uuid) id: string) {
+  cancelar(@Param('id', Uuid) id: string): Promise<CitaVista> {
     return this.citas.cancelar(id);
   }
 
   @Patch(':id/reprogramacion')
   @Roles(...EQUIPO_AGENDA)
-  reprogramar(@Param('id', Uuid) id: string, @Body() dto: ReprogramarCitaDto) {
+  reprogramar(@Param('id', Uuid) id: string, @Body() dto: ReprogramarCitaDto): Promise<CitaVista> {
     return this.citas.reprogramar(id, dto);
   }
 
   @Get(':id/enlace')
   @Roles(...TODOS)
-  enlace(@Param('id', Uuid) id: string) {
+  enlace(@Param('id', Uuid) id: string): Promise<EnlaceCita> {
     return this.citas.enlace(id);
   }
 
@@ -257,14 +279,14 @@ export class CitasController {
   @Post(':id/aprobacion')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  aprobar(@Param('id', Uuid) id: string) {
+  aprobar(@Param('id', Uuid) id: string): Promise<CitaAprobada> {
     return this.citas.aprobar(id);
   }
 
   /** "Cubrir sesion": otro profesional con acceso clinico temporal vigente (si no, 422). Cambiar de tratante = derivacion. */
   @Patch(':id/profesional')
   @Roles('ADMIN', 'GESTION')
-  cubrir(@Param('id', Uuid) id: string, @Body() dto: CubrirCitaDto) {
+  cubrir(@Param('id', Uuid) id: string, @Body() dto: CubrirCitaDto): Promise<CitaVista> {
     return this.citas.cubrir(id, dto.profesionalId);
   }
 
@@ -286,20 +308,20 @@ export class ListaEsperaController {
 
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
-  listar(@Query() filtro: FiltroListaEsperaDto) {
+  listar(@Query() filtro: FiltroListaEsperaDto): Promise<ListaEsperaVista[]> {
     return this.lista.listar(filtro);
   }
 
   @Post()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
-  crear(@Body() dto: CrearListaEsperaDto) {
+  crear(@Body() dto: CrearListaEsperaDto): Promise<ListaEsperaVista> {
     return this.lista.crear(dto);
   }
 
   @Post(':id/cierre')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
-  cerrar(@Param('id', Uuid) id: string, @Body() dto: CerrarListaEsperaDto) {
+  cerrar(@Param('id', Uuid) id: string, @Body() dto: CerrarListaEsperaDto): Promise<ListaEsperaVista> {
     return this.lista.cerrar(id, dto.estado);
   }
 }
@@ -313,20 +335,20 @@ export class IntegracionesAgendaController {
 
   @Get('videollamada')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  sala() {
+  sala(): Promise<SalaVideollamadaVista> {
     return this.integraciones.miSala();
   }
 
   @Put('videollamada')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  guardarSala(@Body() dto: SalaDto) {
+  guardarSala(@Body() dto: SalaDto): Promise<SalaVideollamadaVista> {
     return this.integraciones.guardarMiSala(dto);
   }
 
   /** Genera (o regenera) el token del feed: la URL se muestra una sola vez. */
   @Post('calendario')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  regenerarFeed() {
+  regenerarFeed(): Promise<FeedCalendario> {
     return this.integraciones.regenerarFeed();
   }
 }
@@ -364,19 +386,19 @@ export class RecordatoriosPublicoController {
 
   @Get(':token')
   @Header('Cache-Control', 'private, no-store')
-  consultar(@Param('token') token: string) {
+  consultar(@Param('token') token: string): Promise<RecordatorioConsulta> {
     return this.recordatorios.consultar(token);
   }
 
   @Post(':token/confirmacion')
   @HttpCode(200)
-  confirmar(@Param('token') token: string) {
+  confirmar(@Param('token') token: string): Promise<RecordatorioRespuesta> {
     return this.recordatorios.responder(token, 'CONFIRMADA');
   }
 
   @Post(':token/cancelacion')
   @HttpCode(200)
-  cancelar(@Param('token') token: string) {
+  cancelar(@Param('token') token: string): Promise<RecordatorioRespuesta> {
     return this.recordatorios.responder(token, 'CANCELADA');
   }
 }

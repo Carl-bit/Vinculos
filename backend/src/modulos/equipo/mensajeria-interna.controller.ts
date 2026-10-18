@@ -15,6 +15,7 @@ import {
   RevisarEspecialidadDto,
 } from './dto/mensajeria-interna.dto';
 import { EspecialidadesService } from './especialidades.service';
+import { EspecialidadDeclaradaVista, EspecialidadVista } from './dto/equipo-respuestas.dto';
 import { MensajeriaInternaService } from './mensajeria-interna.service';
 
 const Uuid = new ParseUUIDPipe();
@@ -81,38 +82,42 @@ export class EspecialidadesController {
 
   @Get('especialidades')
   @Roles(...EQUIPO)
-  listar() {
+  listar(): Promise<EspecialidadVista[]> {
     return this.especialidades.listar();
   }
 
   @Post('especialidades')
   @Roles('ADMIN')
-  crear(@Body() dto: EspecialidadDto) {
+  crear(@Body() dto: EspecialidadDto): Promise<EspecialidadVista> {
     return this.especialidades.crear(dto);
   }
 
   @Patch('especialidades/:id')
   @Roles('ADMIN')
-  editar(@Param('id', Uuid) id: string, @Body() dto: EditarEspecialidadDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarEspecialidadDto): Promise<EspecialidadVista> {
     return this.especialidades.editar(id, dto);
   }
 
   @Post('profesionales/yo/especialidades')
   @Roles('PROFESIONAL')
-  declarar(@Body() dto: DeclararEspecialidadDto) {
+  declarar(@Body() dto: DeclararEspecialidadDto): Promise<EspecialidadDeclaradaVista> {
     return this.especialidades.declarar(dto.especialidadId);
   }
 
   @Get('profesionales/:id/especialidades')
   @Roles(...EQUIPO)
-  declaradas(@Param('id', Uuid) id: string) {
+  declaradas(@Param('id', Uuid) id: string): Promise<EspecialidadDeclaradaVista[]> {
     return this.especialidades.declaradas(id);
   }
 
   @Post('profesionales/:id/especialidades/:especialidadId/revision')
   @HttpCode(200)
   @Roles('ADMIN')
-  revisar(@Param('id', Uuid) id: string, @Param('especialidadId', Uuid) especialidadId: string, @Body() dto: RevisarEspecialidadDto) {
+  revisar(
+    @Param('id', Uuid) id: string,
+    @Param('especialidadId', Uuid) especialidadId: string,
+    @Body() dto: RevisarEspecialidadDto,
+  ): Promise<EspecialidadDeclaradaVista> {
     return this.especialidades.revisar(id, especialidadId, dto.aprobar);
   }
 }

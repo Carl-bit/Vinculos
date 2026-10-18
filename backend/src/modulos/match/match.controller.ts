@@ -27,6 +27,7 @@ import {
   CalcularMatchDto,
   CitasPortalDto,
   CrearResenaDto,
+  DisponibilidadPortalDto,
   EditarOpcionMatchDto,
   EditarPreguntaMatchDto,
   FiltroPerfilesDto,
@@ -41,6 +42,7 @@ import {
   RangoPublicoDto,
   ReporteResenaDto,
   ResenaDto,
+  ReservaPortalDto,
   ResolverEpicrisisDto,
   ResponderConsentimientoTokenDto,
   SolicitarEpicrisisDto,
@@ -57,7 +59,28 @@ import {
   ResultadoMatch,
   SolicitudCreada,
   SolicitudVerificada,
+  MatchOpcionVista,
+  MatchPreguntaVista,
+  MetricasMatch,
+  ResenaModerada,
+  ResenaParaModerar,
 } from './dto/publico-respuestas.dto';
+import {
+  AceptacionPortal,
+  CitaPortal,
+  ConsultaConsentimiento,
+  DatosPagoPortal,
+  EstadoConsentimientoAtencion,
+  MensajePortal,
+  MisDatosActualizados,
+  MisDatosPortal,
+  PacientePortal,
+  PersonaPortal,
+  ResenaPortal,
+  ReservaPortal,
+  RespuestaConsentimientoToken,
+  SolicitudEpicrisisPortal,
+} from './dto/portal-respuestas.dto';
 import { MatchConfigService } from './match-config.service';
 import { MatchService } from './match.service';
 import { PortalService } from './portal.service';
@@ -169,17 +192,16 @@ export class PublicoController {
   /** Pagina del enlace de consentimiento (no lo consume). */
   @Post('consentimientos/consulta')
   @HttpCode(200)
-  async consultarConsentimiento(@Body() dto: TokenPublicoDto) {
-    const [r] = await this.bd.sinContexto('publico').$queryRaw<
-      { tipo: string; politica_version: number; politica_texto: string; vence_en: Date; menor: boolean }[]
-    >`SELECT * FROM consultar_token_consentimiento(${hashToken(dto.token)})`;
+  async consultarConsentimiento(@Body() dto: TokenPublicoDto): Promise<ConsultaConsentimiento> {
+    const [r] = await this.bd.sinContexto('publico').$queryRaw<ConsultaConsentimiento[]>`
+      SELECT * FROM consultar_token_consentimiento(${hashToken(dto.token)})`;
     return r;
   }
 
   /** Respuesta por enlace de un solo uso (D-3): consentimiento de atencion, de practicante u oposicion a un aviso. */
   @Post('consentimientos/respuesta')
   @HttpCode(200)
-  async responderConsentimiento(@Body() dto: ResponderConsentimientoTokenDto) {
+  async responderConsentimiento(@Body() dto: ResponderConsentimientoTokenDto): Promise<RespuestaConsentimientoToken> {
     const [{ tipo }] = await this.bd.sinContexto('publico').$queryRaw<[{ tipo: string }]>`
       SELECT responder_token_consentimiento(${hashToken(dto.token)}, ${dto.acepta}, ${dto.version ?? null}) AS tipo`;
     return { tipo, acepta: dto.acepta };
@@ -196,85 +218,113 @@ export class PortalController {
 
   @Get('equipo')
   @Roles(...PORTAL)
-  equipo() {
+  equipo(): Promise<PersonaPortal[]> {
     return this.portal.equipo();
+  }
+
+  /** 03b-3: quien supervisa a los practicantes de sus consentimientos y avisos (solo nombres). */
+  @Get('supervisores')
+  @Roles(...PORTAL)
+  supervisores(): Promise<PersonaPortal[]> {
+    return this.portal.supervisores();
   }
 
   /** Pacientes del portal: el propio o los menores a cargo del adulto responsable. */
   @Get('pacientes')
   @Roles(...PORTAL)
-  pacientes() {
+  pacientes(): Promise<PacientePortal[]> {
     return this.portal.misPacientes();
   }
 
   @Get('citas')
   @Roles(...PORTAL)
-  citas(@Query() filtro: CitasPortalDto) {
+  citas(@Query() filtro: CitasPortalDto): Promise<CitaPortal[]> {
     return this.portal.citas(filtro.pacienteId, filtro.todas);
+  }
+
+  /** Horas libres de su tratante (aunque no tenga perfil publico). */
+  @Get('disponibilidad')
+  @Roles(...PORTAL)
+  disponibilidad(@Query() q: DisponibilidadPortalDto): Promise<Hueco[]> {
+    return this.portal.disponibilidad(q.pacienteId, q.desde, q.hasta);
+  }
+
+  /** Antes de 03b-4: hora con su tratante (el adolescente no reserva: lo hace su adulto responsable). */
+  @Post('citas')
+  @Roles(...PORTAL)
+  reservar(@Body() dto: ReservaPortalDto): Promise<ReservaPortal> {
+    return this.portal.reservar(dto);
   }
 
   @Get('citas/:id/datos-pago')
   @Roles(...PORTAL)
-  datosPago(@Param('id', Uuid) id: string) {
+  datosPago(@Param('id', Uuid) id: string): Promise<DatosPagoPortal> {
     return this.portal.datosPago(id);
   }
 
   @Post('mensajes')
   @Roles(...PORTAL)
-  enviarMensaje(@Body() dto: MensajeDto) {
+  enviarMensaje(@Body() dto: MensajeDto): Promise<MensajePortal> {
     return this.portal.enviarMensaje(dto.profesionalId, dto.contenido, dto.pacienteId);
   }
 
   @Post('epicrisis')
   @Roles(...PORTAL)
-  solicitarEpicrisis(@Body() dto: SolicitarEpicrisisDto) {
+  solicitarEpicrisis(@Body() dto: SolicitarEpicrisisDto): Promise<SolicitudEpicrisisPortal> {
     return this.portal.solicitarEpicrisis(dto.motivo, dto.pacienteId);
   }
 
   @Get('mis-datos')
   @Roles(...PORTAL)
-  misDatos(@Query() filtro: PacienteDelPortalDto) {
+  misDatos(@Query() filtro: PacienteDelPortalDto): Promise<MisDatosPortal> {
     return this.portal.misDatos(filtro.pacienteId);
   }
 
   /** C-9: telefono y correo (el correo nuevo se confirma por enlace). Nombre, fecha de nacimiento y adulto responsable: el centro. */
   @Patch('mis-datos')
   @Roles(...PORTAL)
-  actualizarMisDatos(@Body() dto: MisDatosDto) {
+  actualizarMisDatos(@Body() dto: MisDatosDto): Promise<MisDatosActualizados> {
     return this.portal.actualizarMisDatos(dto);
+  }
+
+  /** 03b-3: version vigente del consentimiento de atencion y la ultima aceptada. */
+  @Get('consentimiento-atencion')
+  @Roles(...PORTAL)
+  estadoConsentimientoAtencion(@Query() filtro: PacienteDelPortalDto): Promise<EstadoConsentimientoAtencion> {
+    return this.portal.estadoConsentimientoAtencion(filtro.pacienteId);
   }
 
   @Post('consentimiento-atencion')
   @Roles(...PORTAL)
-  consentimientoAtencion(@Body() dto: PacienteDelPortalDto) {
+  consentimientoAtencion(@Body() dto: PacienteDelPortalDto): Promise<AceptacionPortal> {
     return this.portal.aceptarConsentimientoAtencion(dto.pacienteId);
   }
 
   /** Reseñas escritas por la cuenta (con su estado de moderacion). */
   @Get('resenas')
   @Roles(...PORTAL)
-  misResenas() {
+  misResenas(): Promise<ResenaPortal[]> {
     return this.resenas.mias();
   }
 
   /** Una por paciente y profesional, con al menos una sesion realizada; queda PENDIENTE de moderacion. */
   @Post('resenas')
   @Roles(...PORTAL)
-  async crearResena(@Body() dto: CrearResenaDto) {
+  async crearResena(@Body() dto: CrearResenaDto): Promise<ResenaPortal> {
     return this.resenas.crear(dto, await this.portal.pacienteDelPortal(dto.pacienteId));
   }
 
   /** Editar vuelve a moderacion. */
   @Put('resenas/:id')
   @Roles(...PORTAL)
-  editarResena(@Param('id', Uuid) id: string, @Body() dto: ResenaDto) {
+  editarResena(@Param('id', Uuid) id: string, @Body() dto: ResenaDto): Promise<ResenaPortal> {
     return this.resenas.editar(id, dto);
   }
 
   @Post('resenas/:id/retiro')
   @HttpCode(200)
   @Roles(...PORTAL)
-  retirarResena(@Param('id', Uuid) id: string) {
+  retirarResena(@Param('id', Uuid) id: string): Promise<ResenaPortal> {
     return this.resenas.retirar(id);
   }
 }
@@ -288,7 +338,7 @@ export class ResenasController {
 
   @Get()
   @Roles('ADMIN')
-  cola() {
+  cola(): Promise<ResenaParaModerar[]> {
     return this.resenas.paraModerar();
   }
 
@@ -296,7 +346,7 @@ export class ResenasController {
   @Post(':id/moderacion')
   @HttpCode(200)
   @Roles('ADMIN')
-  moderar(@Param('id', Uuid) id: string, @Body() dto: ModerarResenaDto) {
+  moderar(@Param('id', Uuid) id: string, @Body() dto: ModerarResenaDto): Promise<ResenaModerada> {
     return this.resenas.moderar(id, dto.publicar, dto.motivo);
   }
 }
@@ -310,37 +360,37 @@ export class MatchConfigController {
 
   @Get('preguntas')
   @Roles('ADMIN')
-  preguntas() {
+  preguntas(): Promise<MatchPreguntaVista[]> {
     return this.config.preguntas();
   }
 
   @Post('preguntas')
   @Roles('ADMIN')
-  crearPregunta(@Body() dto: PreguntaMatchDto) {
+  crearPregunta(@Body() dto: PreguntaMatchDto): Promise<MatchPreguntaVista> {
     return this.config.crearPregunta(dto);
   }
 
   @Patch('preguntas/:id')
   @Roles('ADMIN')
-  editarPregunta(@Param('id', Uuid) id: string, @Body() dto: EditarPreguntaMatchDto) {
+  editarPregunta(@Param('id', Uuid) id: string, @Body() dto: EditarPreguntaMatchDto): Promise<MatchPreguntaVista> {
     return this.config.editarPregunta(id, dto);
   }
 
   @Post('preguntas/:id/opciones')
   @Roles('ADMIN')
-  crearOpcion(@Param('id', Uuid) id: string, @Body() dto: OpcionMatchDto) {
+  crearOpcion(@Param('id', Uuid) id: string, @Body() dto: OpcionMatchDto): Promise<MatchOpcionVista> {
     return this.config.crearOpcion(id, dto);
   }
 
   @Patch('opciones/:id')
   @Roles('ADMIN')
-  editarOpcion(@Param('id', Uuid) id: string, @Body() dto: EditarOpcionMatchDto) {
+  editarOpcion(@Param('id', Uuid) id: string, @Body() dto: EditarOpcionMatchDto): Promise<MatchOpcionVista> {
     return this.config.editarOpcion(id, dto);
   }
 
   @Get('metricas')
   @Roles('ADMIN')
-  metricas(@Query() q: MetricasMatchDto) {
+  metricas(@Query() q: MetricasMatchDto): Promise<MetricasMatch> {
     return this.config.metricas(q.dias);
   }
 }
@@ -353,7 +403,7 @@ export class MensajesController {
 
   @Get()
   @Roles('PACIENTE', 'RESPONSABLE', 'PROFESIONAL', 'PRACTICANTE')
-  listar() {
+  listar(): Promise<MensajePortal[]> {
     return this.portal.mensajes();
   }
 
@@ -372,14 +422,14 @@ export class EpicrisisController {
 
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  listar() {
+  listar(): Promise<SolicitudEpicrisisPortal[]> {
     return this.portal.epicrisis();
   }
 
   @Post(':id/resolucion')
   @HttpCode(200)
   @Roles('ADMIN', 'PROFESIONAL', 'PRACTICANTE')
-  resolver(@Param('id', Uuid) id: string, @Body() dto: ResolverEpicrisisDto) {
+  resolver(@Param('id', Uuid) id: string, @Body() dto: ResolverEpicrisisDto): Promise<SolicitudEpicrisisPortal> {
     return this.portal.resolverEpicrisis(id, dto.estado, dto.documentoRef);
   }
 }

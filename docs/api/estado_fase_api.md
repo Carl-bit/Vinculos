@@ -230,3 +230,22 @@ Ademas, al implementar:
 - 03a-2: tiempo real (SSE) de la mensajeria; adjuntos en mensajes; reportes
   sobre campos de plantilla; fusion de fichas duplicadas; validacion legal de
   D-4 (los cortes de edad ya son configurables). C-11 sigue pendiente.
+- 03b-3: la reserva desde la cuenta y la descarga directa de documentos
+  quedaron resueltas antes de 03b-4 (`POST portal/citas`,
+  `GET documentos-clinicos/{id}/pdf`). El
+  texto del consentimiento de practicante no esta versionado en la BD (el
+  portal registra `practicante-portal-v1`). Pendiente: tipo de politica
+  propio si el centro necesita editarlo.
+
+## 03b-4 (backoffice)
+
+- Sin migraciones ni endpoints nuevos. Contrato OpenAPI completado para las
+  vistas del backoffice (ver `docs/seguridad/requisitos_02_apis.md`, 03b-4):
+  60 de 276 operaciones siguen sin schema de respuesta.
+- `HorarioCentroDto` (antes `HorarioDto` del nucleo, choque de nombres con
+  Agenda en el OpenAPI).
+- Tests: unitarios 39/39, integracion 163/163
+  (`PUERTO_TEST=55431 npx jest --config test/jest-e2e.json --runInBand`),
+  front Vitest 21/21 y Playwright 29/29 (incluye `e2e/panel.spec.ts`, 8
+  casos del backoffice). `PUERTO=55439 sh prisma/tests/correr_tests_bd.sh`:
+  todos los casos OK (sin cambios en la BD en esta fase).

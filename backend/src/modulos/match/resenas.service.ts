@@ -84,6 +84,6 @@ export class ResenasService {
 
   async moderar(id: string, publicar: boolean, motivo?: string) {
     await this.bd.tx().$executeRaw`SELECT moderar_resena(${id}::uuid, ${publicar}, ${motivo ?? null})`;
-    return { id, estado: publicar ? 'PUBLICADA' : 'OCULTA' };
+    return { id, estado: publicar ? ('PUBLICADA' as const) : ('OCULTA' as const) };
   }
 }

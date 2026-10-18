@@ -6,15 +6,15 @@ Direccion de los imports, en un solo sentido:
 ui/  ->  shared/  ->  <modulo>/  ->  app/(publico) | app/(portal) | app/(admin)
 ```
 
-| Carpeta                 | Que va aca                                                                      | Que NO va                                  |
-| ----------------------- | ------------------------------------------------------------------------------- | ------------------------------------------ |
-| `ui/`                   | Primitivos puros: Button, Input, Badge, Modal, Card base                          | logica de negocio, fetch, nada de dominio  |
-| `shared/`               | Compuestos que ya asumen el dominio: LayoutPublico, LayoutAdmin, AvatarProfesional | organismos de un solo modulo               |
-| `agenda/`               | AgendaCalendar, SelectorHorario (libre / bloqueado por mi / por otro / confirmado) | imports desde otro `<modulo>/`             |
-| `pacientes/`            | FormularioPaciente, FichaClinicaTimeline                                          | idem                                       |
-| `equipo/`               | Gestion de profesionales y practicantes                                           | idem                                       |
-| `match/`                | MatchWizard, resultados rankeados                                                 | idem                                       |
-| `cobros/`               | Arriendos, pagos, emision de boleta                                               | idem                                       |
+| Carpeta      | Que va aca                                                                         | Que NO va                                 |
+| ------------ | ---------------------------------------------------------------------------------- | ----------------------------------------- |
+| `ui/`        | Primitivos puros: Button, Input, Badge, Modal, Card base                           | logica de negocio, fetch, nada de dominio |
+| `shared/`    | Compuestos que ya asumen el dominio: LayoutPublico, LayoutAdmin, AvatarProfesional | organismos de un solo modulo              |
+| `agenda/`    | AgendaCalendar, SelectorHorario (libre / bloqueado por mi / por otro / confirmado) | imports desde otro `<modulo>/`            |
+| `pacientes/` | FormularioPaciente, FichaClinicaTimeline                                           | idem                                      |
+| `equipo/`    | Gestion de profesionales y practicantes                                            | idem                                      |
+| `match/`     | MatchWizard, resultados rankeados                                                  | idem                                      |
+| `cobros/`    | Arriendos, pagos, emision de boleta                                                | idem                                      |
 
 Reglas:
 

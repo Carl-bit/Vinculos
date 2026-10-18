@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { EstadoDerivacion, TipoNotificacion } from '@prisma/client';
 
+import { texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
@@ -43,21 +44,23 @@ export class DerivacionesService {
 
   /** ADMIN todas; PROFESIONAL las que origino o de fichas que trata (RLS). */
   async listar(estado?: EstadoDerivacion) {
-    return this.bd.tx().derivacion.findMany({
+    const filas = await this.bd.tx().derivacion.findMany({
       where: estado ? { estado } : {},
       include: { candidatos: { select: { profesionalId: true, orden: true, estado: true, venceEn: true } } },
       orderBy: { fecha: 'desc' },
     });
+    return filas.map((d) => ({ ...d, motivo: texto(d.motivo), detalle: texto(d.detalle) }));
   }
 
   async obtener(id: string) {
-    return encontrado(
+    const d = encontrado(
       await this.bd.tx().derivacion.findUnique({
         where: { id },
         include: { candidatos: { select: { profesionalId: true, orden: true, estado: true, venceEn: true }, orderBy: { orden: 'asc' } } },
       }),
       'Derivacion',
     );
+    return { ...d, motivo: texto(d.motivo), detalle: texto(d.detalle) };
   }
 
   /** Bandeja de ADMIN y supervisores vigentes: motivo, edad y tipo (auditada por la funcion). */

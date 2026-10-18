@@ -195,3 +195,87 @@ export class SolicitudVerificada {
   invitacionEnviada!: boolean;
   adultoResponsable!: boolean;
 }
+
+/** resenas_para_moderar(): texto descifrado y reportes (solo ADMIN). Sin datos del paciente. */
+export class ReporteResenaVista {
+  motivo!: string;
+  creado_en!: string;
+}
+
+export class ResenaParaModerar {
+  id!: string;
+  profesional_id!: string;
+  calificacion!: number;
+  @ApiProperty({ type: String, nullable: true })
+  texto!: string | null;
+  @ApiProperty({ enum: ['ANONIMO', 'NOMBRE_INICIAL'], enumName: 'MostrarResena' })
+  mostrar_como!: 'ANONIMO' | 'NOMBRE_INICIAL';
+  @ApiProperty({ enum: ['PENDIENTE', 'PUBLICADA', 'OCULTA', 'RETIRADA'], enumName: 'EstadoResena' })
+  estado!: 'PENDIENTE' | 'PUBLICADA' | 'OCULTA' | 'RETIRADA';
+  @ApiProperty({ type: String, nullable: true })
+  motivo_ocultamiento!: string | null;
+  creada_en!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  editada_en!: Date | null;
+  reportes!: ReporteResenaVista[];
+}
+
+export class ResenaModerada {
+  id!: string;
+  @ApiProperty({ enum: ['PUBLICADA', 'OCULTA'] })
+  estado!: 'PUBLICADA' | 'OCULTA';
+}
+
+/** Opcion de una pregunta del match: criterio, objetivo y peso deciden el puntaje; estricto filtra. */
+export class MatchOpcionVista {
+  id!: string;
+  preguntaId!: string;
+  valor!: string;
+  etiqueta!: string;
+  @ApiProperty({ type: String, nullable: true })
+  nota!: string | null;
+  orden!: number;
+  activa!: boolean;
+  @ApiProperty({ enum: CriterioMatch, enumName: 'CriterioMatch', nullable: true })
+  criterio!: CriterioMatch | null;
+  @ApiProperty({ type: String, nullable: true })
+  objetivo!: string | null;
+  peso!: number;
+  estricto!: boolean;
+  @ApiProperty({ type: String, nullable: true })
+  mensaje!: string | null;
+}
+
+export class MatchPreguntaVista {
+  id!: string;
+  clave!: string;
+  texto!: string;
+  @ApiProperty({ type: String, nullable: true })
+  ayuda!: string | null;
+  @ApiProperty({ enum: ['UNICA', 'MULTIPLE', 'ESCALA', 'TEXTO', 'DIAS', 'FRANJAS'], enumName: 'TipoPreguntaMatch' })
+  tipo!: 'UNICA' | 'MULTIPLE' | 'ESCALA' | 'TEXTO' | 'DIAS' | 'FRANJAS';
+  orden!: number;
+  activa!: boolean;
+  obligatoria!: boolean;
+  @ApiProperty({ type: Number, nullable: true })
+  maxSelecciones!: number | null;
+  /** Pregunta agregada por el centro (las de fabrica no se eliminan, se desactivan). */
+  propiaCentro!: boolean;
+  createdAt!: Date;
+  updatedAt!: Date;
+  opciones!: MatchOpcionVista[];
+}
+
+export class RankingMatch {
+  profesional_id!: string;
+  @ApiProperty({ type: String, nullable: true })
+  nombre!: string | null;
+  recomendaciones!: number;
+}
+
+export class MetricasMatch {
+  completados!: number;
+  ranking!: RankingMatch[];
+  solicitudes_con_match!: number;
+  agendaron_con_recomendado!: number;
+}

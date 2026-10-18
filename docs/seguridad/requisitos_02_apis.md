@@ -134,7 +134,9 @@ DTOs (`class-validator`), antes de cifrar:
   `Usuario`/`Profesional` para mostrar nombres de otros usuarios (la RLS los
   oculta). Nombres ajenos salen solo de `directorio_interno()` (telefono
   cifrado, solo para ADMIN/GESTION), `mi_equipo_tratante()` y
-  `perfiles_publicos()`.
+  `perfiles_publicos()`. 03b-3: `supervisores_portal()` (quien supervisa a
+  los practicantes de los consentimientos del paciente o de sus menores) y
+  los nombres que devuelve `consultar_token_consentimiento` con el enlace.
 - Una cuenta cerrada tiene `nombre` nulo: la UI muestra "Profesional (cuenta
   cerrada)"; el nombre historico esta en la copia de autoria de cada evolucion.
 
@@ -508,3 +510,64 @@ Migraciones `20261019000000_03a2_enums` y `20261019000100_03a2_plantillas_mensaj
 - **Preferencias del adulto responsable**: `GET/PUT
   notificaciones/preferencias/pacientes/:pacienteId` (RESPONSABLE, solo
   menores a su cargo; si no, 404).
+
+## 03b-3 (portal del paciente)
+
+- **Contratos del portal documentados** (DTOs de respuesta para el cliente
+  generado): `portal/*`, `mensajes`, `epicrisis`, `notificaciones/bandeja` y
+  `preferencias`, `consentimientos`, `avisos-consentimiento`,
+  `documentos-clinicos` (lista y solicitud de adjunto), `lista-espera`,
+  `recordatorios/:token`, `citas/:id/enlace`, `cobros/citas` y
+  `cobros/citas/:id`, `publico/consentimientos/*`.
+- `GET portal/supervisores` (PACIENTE/RESPONSABLE): `supervisores_portal()`.
+- `GET portal/consentimiento-atencion?pacienteId`: version vigente del
+  consentimiento informado de atencion y la ultima aceptada (RLS de
+  `aceptaciones_politica`: el adolescente recibe `aceptada = null`).
+- `GET portal/mis-datos`: agrega `contactoEmergencia` (solo lectura, C-9) y
+  `adultosResponsables[].esMiCuenta` (el adulto responsable responde
+  consentimientos con su propio registro; la RLS solo le muestra el suyo).
+- `GET portal/citas`: agrega `espacioNombre` (catalogo de boxes, no un dato
+  de otro usuario).
+- `GET notificaciones/bandeja`: `asunto` y `cuerpo` salen como texto (antes
+  el contrato no los declaraba).
+- El correo de recordatorio apunta a `FRONTEND_URL/recordatorio?token=`
+  (pagina publica: el token autoriza sin sesion), ya no a `/portal/...`.
+
+## Antes de 03b-4 (pendientes de 03b-3)
+
+- `POST portal/citas` (PACIENTE adulto, RESPONSABLE): `reservar_cita_portal`.
+  Solo con el **tratante actual** (un tratante por paciente; otro
+  profesional = derivacion, C-4/C-5). El adolescente no reserva (422
+  `citas_portal_cuenta_restringida`). Hora fuera de los bloques o tomada:
+  409 `solicitudes_hora_disponible`. Online: enlace de videollamada en la
+  misma transaccion (`guardar_enlace_portal`). Politica y terminos vigentes
+  obligatorios (422 si no son la version vigente).
+- `GET portal/disponibilidad?pacienteId&desde&hasta`: horas libres del
+  tratante con el contexto del paciente (sirve aunque no tenga perfil
+  publico).
+- `GET documentos-clinicos/{id}/pdf` (PACIENTE adulto, RESPONSABLE):
+  `registrar_descarga_portal`; mismo registro que la descarga por enlace.
+
+## 03b-4 (backoffice)
+
+Sin endpoints, tablas ni migraciones nuevas: el backoffice usa la API
+existente. Cambios del contrato (OpenAPI):
+
+- Schemas de respuesta documentados para Agenda (citas, espacios, bloques,
+  huecos, horario habitual, bloqueos, videollamada, feed iCal), Cobros
+  (reporte, liquidaciones, arriendos, detalle de pago), Configuracion
+  (configuracion, contenido publico, logo, politicas, horario del centro),
+  Equipo (perfil, foto, trayectoria, datos privados, tarifas, tipos de
+  atencion, especialidades, supervisiones, cambio de supervisor), Usuarios,
+  Practicantes, Bajas, Alertas, Match (preguntas, opciones, metricas),
+  reseñas por moderar, plantillas de mensaje y accesos clinicos temporales.
+  Quedan 60 de 276 operaciones sin schema de respuesta (clinico de 03b-5,
+  login, descargas binarias y mensajeria interna).
+- `HorarioDto` del nucleo renombrado a `HorarioCentroDto`: el OpenAPI
+  documentaba `PUT configuracion/horario` con el cuerpo de la agenda
+  (mismo nombre de clase). El cuerpo real no cambia.
+- "Cubrir sesion": `POST pacientes/:id/accesos-temporales` (ADMIN, motivo
+  REEMPLAZO, LECTURA_ESCRITURA) y luego `PATCH citas/:id/profesional`. Son dos
+  transacciones: si la segunda falla, el acceso queda otorgado (append-only,
+  vence solo). GESTION no otorga accesos: si falta, la BD responde 422
+  `citas_profesional_con_acceso` y el front lo explica.

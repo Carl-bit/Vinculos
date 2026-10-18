@@ -408,3 +408,38 @@ export class MetricasMatchDto {
   @Max(365)
   dias?: number;
 }
+
+/**
+ * Antes de 03b-4: hora con su tratante desde la cuenta (PACIENTE adulto o
+ * RESPONSABLE por un menor). Acepta la politica de datos y los terminos
+ * vigentes (sus ids, como en Pedir hora).
+ */
+export class ReservaPortalDto extends PacienteDelPortalDto {
+  @IsEnum(ModalidadAtencion)
+  modalidad!: ModalidadAtencion;
+
+  @Type(() => Date)
+  @IsDate()
+  inicio!: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  fin!: Date;
+
+  @IsUUID()
+  politicaId!: string;
+
+  @IsUUID()
+  terminosId!: string;
+}
+
+/** Horas libres de su tratante para reservar desde la cuenta. */
+export class DisponibilidadPortalDto extends PacienteDelPortalDto {
+  @Type(() => Date)
+  @IsDate()
+  desde!: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  hasta!: Date;
+}

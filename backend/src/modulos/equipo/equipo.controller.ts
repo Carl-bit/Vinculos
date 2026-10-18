@@ -23,6 +23,19 @@ import {
   TrayectoriaDto,
   VerificarTrayectoriaDto,
 } from './dto/equipo.dto';
+import {
+  DatosPrivadosVista,
+  FotoSubida,
+  MiResenaRecibida,
+  PerfilProfesionalVista,
+  SupervisionVista,
+  SupervisorCambiado,
+  TarifaVista,
+  TipoAtencionProfesionalVista,
+  TipoAtencionVista,
+  TrayectoriaEliminada,
+  TrayectoriaVista,
+} from './dto/equipo-respuestas.dto';
 import { EquipoService } from './equipo.service';
 import { SupervisionService } from './supervision.service';
 
@@ -45,7 +58,7 @@ export class PerfilesController {
 
   @Put('yo/perfil')
   @Roles('PROFESIONAL')
-  guardarMiPerfil(@Body() dto: PerfilDto) {
+  guardarMiPerfil(@Body() dto: PerfilDto): Promise<PerfilProfesionalVista> {
     return this.equipo.guardarMiPerfil(dto);
   }
 
@@ -55,7 +68,7 @@ export class PerfilesController {
   @UseInterceptors(FileInterceptor('imagen', { limits: { fileSize: IMAGEN_MAX_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', required: ['imagen'], properties: { imagen: { type: 'string', format: 'binary' } } } })
-  subirMiFoto(@Actor() actor: UsuarioActual, @UploadedFile() imagen?: Express.Multer.File) {
+  subirMiFoto(@Actor() actor: UsuarioActual, @UploadedFile() imagen?: Express.Multer.File): Promise<FotoSubida> {
     return this.equipo.subirFoto(actor.id, exigirImagen(imagen));
   }
 
@@ -65,87 +78,91 @@ export class PerfilesController {
   @UseInterceptors(FileInterceptor('imagen', { limits: { fileSize: IMAGEN_MAX_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', required: ['imagen'], properties: { imagen: { type: 'string', format: 'binary' } } } })
-  subirFoto(@Param('id', Uuid) id: string, @UploadedFile() imagen?: Express.Multer.File) {
+  subirFoto(@Param('id', Uuid) id: string, @UploadedFile() imagen?: Express.Multer.File): Promise<FotoSubida> {
     return this.equipo.subirFoto(id, exigirImagen(imagen));
   }
 
   /** Reseñas recibidas con su estado y el feedback privado (solo el propio). */
   @Get('yo/resenas')
   @Roles('PROFESIONAL')
-  misResenas() {
+  misResenas(): Promise<MiResenaRecibida[]> {
     return this.equipo.misResenas();
   }
 
   @Get(':id/perfil')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  perfil(@Param('id', Uuid) id: string) {
+  perfil(@Param('id', Uuid) id: string): Promise<PerfilProfesionalVista> {
     return this.equipo.perfil(id);
   }
 
   @Patch(':id/perfil')
   @Roles('ADMIN', 'GESTION')
-  editarPerfil(@Param('id', Uuid) id: string, @Body() dto: EditarPerfilDto) {
+  editarPerfil(@Param('id', Uuid) id: string, @Body() dto: EditarPerfilDto): Promise<PerfilProfesionalVista> {
     return this.equipo.editarPerfil(id, dto);
   }
 
   @Patch(':id/margen')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  margen(@Param('id', Uuid) id: string, @Body() dto: MargenDto) {
+  margen(@Param('id', Uuid) id: string, @Body() dto: MargenDto): Promise<PerfilProfesionalVista> {
     return this.equipo.margen(id, dto.margenTrasladoMin);
   }
 
   @Get(':id/trayectoria')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  trayectoria(@Param('id', Uuid) id: string) {
+  trayectoria(@Param('id', Uuid) id: string): Promise<TrayectoriaVista[]> {
     return this.equipo.trayectoria(id);
   }
 
   @Put('yo/datos-privados')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  guardarDatosPrivados(@Body() dto: DatosPrivadosDto) {
+  guardarDatosPrivados(@Body() dto: DatosPrivadosDto): Promise<DatosPrivadosVista> {
     return this.equipo.guardarMisDatosPrivados(dto);
   }
 
   @Get(':id/datos-privados')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  datosPrivados(@Param('id', Uuid) id: string) {
+  datosPrivados(@Param('id', Uuid) id: string): Promise<DatosPrivadosVista> {
     return this.equipo.datosPrivados(id);
   }
 
   @Post('yo/tarifas')
   @Roles('PROFESIONAL')
-  crearTarifa(@Body() dto: TarifaDto) {
+  crearTarifa(@Body() dto: TarifaDto): Promise<TarifaVista> {
     return this.equipo.crearTarifa(dto);
   }
 
   @Get(':id/tarifas')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  tarifas(@Param('id', Uuid) id: string) {
+  tarifas(@Param('id', Uuid) id: string): Promise<TarifaVista[]> {
     return this.equipo.tarifas(id);
   }
 
   /** El propio propone; ADMIN aprueba o rechaza (solo los aprobados cuentan). */
   @Post('yo/tipos-atencion')
   @Roles('PROFESIONAL')
-  proponerTipo(@Body() dto: ProponerTipoAtencionDto) {
+  proponerTipo(@Body() dto: ProponerTipoAtencionDto): Promise<TipoAtencionProfesionalVista[]> {
     return this.equipo.proponerTipoAtencion(dto.tipoAtencionId);
   }
 
   @Get(':id/tipos-atencion')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  tiposDe(@Param('id', Uuid) id: string) {
+  tiposDe(@Param('id', Uuid) id: string): Promise<TipoAtencionProfesionalVista[]> {
     return this.equipo.tiposDe(id);
   }
 
   @Patch(':id/tipos-atencion/:tipoAtencionId')
   @Roles('ADMIN')
-  revisarTipo(@Param('id', Uuid) id: string, @Param('tipoAtencionId', Uuid) tipoId: string, @Body() dto: RevisarTipoAtencionDto) {
+  revisarTipo(
+    @Param('id', Uuid) id: string,
+    @Param('tipoAtencionId', Uuid) tipoId: string,
+    @Body() dto: RevisarTipoAtencionDto,
+  ): Promise<TipoAtencionProfesionalVista> {
     return this.equipo.revisarTipoAtencion(id, tipoId, dto.estado);
   }
 
   @Put(':id/tipos-atencion')
   @Roles('ADMIN')
-  asignarTipos(@Param('id', Uuid) id: string, @Body() dto: AsignarTiposAtencionDto) {
+  asignarTipos(@Param('id', Uuid) id: string, @Body() dto: AsignarTiposAtencionDto): Promise<TipoAtencionProfesionalVista[]> {
     return this.equipo.asignarTiposAtencion(id, dto.tipoAtencionIds);
   }
 }
@@ -158,25 +175,25 @@ export class TrayectoriaController {
 
   @Post()
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  crear(@Body() dto: TrayectoriaDto) {
+  crear(@Body() dto: TrayectoriaDto): Promise<TrayectoriaVista> {
     return this.equipo.crearTrayectoria(dto);
   }
 
   @Put(':id')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  editar(@Param('id', Uuid) id: string, @Body() dto: TrayectoriaDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: TrayectoriaDto): Promise<TrayectoriaVista> {
     return this.equipo.editarTrayectoria(id, dto);
   }
 
   @Delete(':id')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  eliminar(@Param('id', Uuid) id: string) {
+  eliminar(@Param('id', Uuid) id: string): Promise<TrayectoriaEliminada> {
     return this.equipo.eliminarTrayectoria(id);
   }
 
   @Post(':id/verificacion')
   @Roles('ADMIN')
-  verificar(@Param('id', Uuid) id: string, @Body() dto: VerificarTrayectoriaDto) {
+  verificar(@Param('id', Uuid) id: string, @Body() dto: VerificarTrayectoriaDto): Promise<TrayectoriaVista> {
     return this.equipo.verificarTrayectoria(id, dto.verificado);
   }
 }
@@ -190,26 +207,26 @@ export class TiposAtencionController {
 
   @Get()
   @Roles(...TODOS)
-  listar() {
+  listar(): Promise<TipoAtencionVista[]> {
     return this.equipo.tiposAtencion();
   }
 
   /** Cola de propuestas de profesionales (PROPUESTO). */
   @Get('propuestas')
   @Roles('ADMIN')
-  propuestas() {
+  propuestas(): Promise<TipoAtencionProfesionalVista[]> {
     return this.equipo.propuestasTiposAtencion();
   }
 
   @Post()
   @Roles('ADMIN')
-  crear(@Body() dto: TipoAtencionDto) {
+  crear(@Body() dto: TipoAtencionDto): Promise<TipoAtencionVista> {
     return this.equipo.crearTipoAtencion(dto);
   }
 
   @Patch(':id')
   @Roles('ADMIN')
-  editar(@Param('id', Uuid) id: string, @Body() dto: EditarTipoAtencionDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarTipoAtencionDto): Promise<TipoAtencionVista> {
     return this.equipo.editarTipoAtencion(id, dto);
   }
 }
@@ -222,14 +239,14 @@ export class SupervisionController {
 
   @Get('supervisiones')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  supervisiones() {
+  supervisiones(): Promise<SupervisionVista[]> {
     return this.supervision.supervisiones();
   }
 
   /** Sin hueco: cierra y abre en la misma transaccion; avisa a los pacientes. */
   @Post('practicantes/:id/supervisor')
   @Roles('ADMIN')
-  cambiarSupervisor(@Param('id', Uuid) id: string, @Body() dto: CambiarSupervisorDto) {
+  cambiarSupervisor(@Param('id', Uuid) id: string, @Body() dto: CambiarSupervisorDto): Promise<SupervisorCambiado> {
     return this.supervision.cambiarSupervisor(id, dto.supervisorId);
   }
 

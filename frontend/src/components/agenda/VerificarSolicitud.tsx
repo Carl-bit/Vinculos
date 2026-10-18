@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Eyebrow } from '@/components/ui/Eyebrow';
-import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
 import type { components } from '@/lib/api/esquema';
 import { ApiError } from '@/lib/api/errores';

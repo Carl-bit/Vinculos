@@ -3,8 +3,9 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { TAGS } from '../docs/openapi';
 import { Actor, Roles } from '../auth/decoradores';
+import { texto } from '../bd/claro';
 import { ContextoBd, encontrado, type UsuarioActual } from '../bd/contexto-bd.service';
-import { EditarPlantillaDto, PreferenciasDto } from './notificaciones.dto';
+import { EditarPlantillaDto, MensajeBandeja, Preferencias, PreferenciasDto, PlantillaMensajeVista } from './notificaciones.dto';
 
 const Uuid = new ParseUUIDPipe();
 const PREFERENCIAS = { recordatorios: true, avisosOperativos: true } as const;
@@ -45,26 +46,27 @@ export class NotificacionesController {
   /** Bandeja propia: mensajes ya armados (el job los arma en menos de un minuto). */
   @Get('bandeja')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  async bandeja(@Actor() actor: UsuarioActual) {
+  async bandeja(@Actor() actor: UsuarioActual): Promise<MensajeBandeja[]> {
     // RESPONSABLE (03a): los suyos y los de sus menores a cargo (la RLS los filtra).
     const propio = actor.rol === 'PACIENTE' ? { pacienteId: await this.pacienteActual() } : actor.rol === 'RESPONSABLE' ? {} : { usuarioId: actor.id };
-    return this.bd.tx().notificacion.findMany({
+    const filas = await this.bd.tx().notificacion.findMany({
       where: { ...propio, canal: 'BANDEJA', estado: 'ENVIADO' },
       select: { id: true, tipo: true, referenciaId: true, asunto: true, cuerpo: true, creadaEn: true },
       orderBy: { creadaEn: 'desc' },
       take: 200,
     });
+    return filas.map((n) => ({ ...n, asunto: texto(n.asunto), cuerpo: texto(n.cuerpo) }));
   }
 
   @Get('preferencias')
   @Roles('PACIENTE')
-  async preferencias() {
+  async preferencias(): Promise<Preferencias> {
     return (await this.bd.tx().preferenciaNotificacion.findFirst({ select: PREFERENCIAS })) ?? { recordatorios: true, avisosOperativos: true };
   }
 
   @Put('preferencias')
   @Roles('PACIENTE')
-  async guardarPreferencias(@Body() dto: PreferenciasDto) {
+  async guardarPreferencias(@Body() dto: PreferenciasDto): Promise<Preferencias> {
     const pacienteId = await this.pacienteActual();
     return this.bd.tx().preferenciaNotificacion.upsert({
       where: { pacienteId },
@@ -77,7 +79,7 @@ export class NotificacionesController {
   /** 03a-2: el adulto responsable elige los avisos de cada menor a su cargo (le llegan a el). */
   @Get('preferencias/pacientes/:pacienteId')
   @Roles('RESPONSABLE')
-  async preferenciasDe(@Param('pacienteId', Uuid) pacienteId: string) {
+  async preferenciasDe(@Param('pacienteId', Uuid) pacienteId: string): Promise<Preferencias> {
     await this.exigirACargo(pacienteId);
     return (
       (await this.bd.tx().preferenciaNotificacion.findUnique({ where: { pacienteId }, select: PREFERENCIAS })) ?? {
@@ -89,7 +91,7 @@ export class NotificacionesController {
 
   @Put('preferencias/pacientes/:pacienteId')
   @Roles('RESPONSABLE')
-  async guardarPreferenciasDe(@Param('pacienteId', Uuid) pacienteId: string, @Body() dto: PreferenciasDto) {
+  async guardarPreferenciasDe(@Param('pacienteId', Uuid) pacienteId: string, @Body() dto: PreferenciasDto): Promise<Preferencias> {
     await this.exigirACargo(pacienteId);
     return this.bd.tx().preferenciaNotificacion.upsert({ where: { pacienteId }, create: { pacienteId, ...dto }, update: dto, select: PREFERENCIAS });
   }
@@ -115,20 +117,20 @@ export class PlantillasMensajeController {
 
   @Get()
   @Roles('ADMIN')
-  listar() {
+  listar(): Promise<PlantillaMensajeVista[]> {
     return this.bd.tx().plantillaMensaje.findMany({ orderBy: [{ evento: 'asc' }, { destinatario: 'asc' }, { canal: 'asc' }] });
   }
 
   @Patch(':id')
   @Roles('ADMIN')
-  editar(@Param('id', Uuid) id: string, @Body() dto: EditarPlantillaDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarPlantillaDto): Promise<PlantillaMensajeVista> {
     return this.bd.tx().plantillaMensaje.update({ where: { id }, data: dto });
   }
 
   @Post(':id/restauracion')
   @HttpCode(200)
   @Roles('ADMIN')
-  async restaurar(@Param('id', Uuid) id: string) {
+  async restaurar(@Param('id', Uuid) id: string): Promise<PlantillaMensajeVista> {
     const p = encontrado(await this.bd.tx().plantillaMensaje.findUnique({ where: { id } }), 'Plantilla');
     return this.bd.tx().plantillaMensaje.update({ where: { id }, data: { asunto: p.asuntoEjemplo, cuerpo: p.cuerpoEjemplo, activa: true } });
   }

@@ -30,24 +30,35 @@ export function SelectorHorario({
   valor,
   onElegir,
   sinHoras,
+  portal,
+  equipo,
 }: {
   profesionalId: string;
   valor: Bloque | null;
   onElegir: (b: Bloque) => void;
   sinHoras: React.ReactNode;
+  /** Portal del paciente: horas de su tratante con su sesion (aunque no tenga perfil publico). */
+  portal?: { pacienteId: string | undefined };
+  /** Backoffice: huecos del profesional con la sesion del equipo; polling de 15 s mientras se ve (estandar_polling.md). */
+  equipo?: boolean;
 }) {
   const consulta = useQuery({
-    queryKey: ['disponibilidad-publica', profesionalId],
+    queryKey: equipo
+      ? ['huecos', profesionalId]
+      : portal
+        ? ['disponibilidad-portal', profesionalId, portal.pacienteId ?? 'propio']
+        : ['disponibilidad-publica', profesionalId],
     queryFn: () => {
       const desde = new Date();
       const hasta = new Date(desde.getTime() + DIAS_VENTANA * 86_400_000);
-      return datos(
-        api.GET('/api/publico/profesionales/{id}/disponibilidad', {
-          params: { path: { id: profesionalId }, query: { desde: desde.toISOString(), hasta: hasta.toISOString() } },
-        }),
-      );
+      const rango = { desde: desde.toISOString(), hasta: hasta.toISOString() };
+      if (equipo) return datos(api.GET('/api/profesionales/{profesionalId}/huecos', { params: { path: { profesionalId }, query: rango } }));
+      return portal
+        ? datos(api.GET('/api/portal/disponibilidad', { params: { query: { ...rango, pacienteId: portal.pacienteId } } }))
+        : datos(api.GET('/api/publico/profesionales/{id}/disponibilidad', { params: { path: { id: profesionalId }, query: rango } }));
     },
-    staleTime: 30_000,
+    staleTime: equipo ? 0 : 30_000,
+    refetchInterval: equipo ? 15_000 : false,
   });
 
   return <EstadoConsulta consulta={consulta}>{(huecos) => <Grilla huecos={huecos} valor={valor} onElegir={onElegir} sinHoras={sinHoras} />}</EstadoConsulta>;

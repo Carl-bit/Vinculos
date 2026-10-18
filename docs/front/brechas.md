@@ -413,3 +413,70 @@ Estado por fila de las secciones 1-5:
   dentro del panel, con menu y rol.
 - Duracion de la sesion clinica: sigue en bloques de 50 min a hora en punto
   (los 30 minutos pedidos eran de la sesion de login).
+
+## 11. Resolucion en 03b-3 (cuentas y portal del paciente)
+
+| Brecha (seccion 1.2 / 1.6 y pantallas nuevas) | Resolucion |
+|---|---|
+| "¿La olvidaste?", enlace de acceso, invitacion (1.2) | `/cuenta/recuperar` (pedir y elegir contraseña), `/cuenta/acceso` (pedir y usar), `/cuenta/activar` (vincula la cuenta al registro existente; roles clinicos siguen al TOTP). Respuesta identica exista o no la cuenta |
+| TOTP (1.2) | `PasoTotp` compartido por login, enlace e invitacion; enrolamiento con QR |
+| Cambio de contraseña | `/portal/seguridad` (y `CambioPassword` para "Mi perfil" del panel en 03b-4) |
+| Paginas por token | `/cuenta/correo`, `/consentimiento` (atencion, practicante, oposicion a cambio de supervisor; explica que se acepta y que pasa si se rechaza), `/recordatorio` (confirmar o cancelar con la politica que aplica ahora), `/portal/documentos/descarga`. El aviso de hora liberada llega a la bandeja y a `/portal/lista-espera` ("Se liberó una hora") |
+| Mi profesional, Mis horas, mensajes y historial, Mis datos (1.6) | Diseño implementado. "Por confirmar" = SOLICITADA (C-15). "Calificar" una vez por profesional (D-1) bajo la ultima sesion realizada. Citas online con "Entrar a la videollamada" |
+| Box de la cita ("Presencial, Box 2") | `portal/citas.espacioNombre` (nuevo) |
+| Mis datos: editar nombre y nacimiento, adulto responsable (C-9) | Solo telefono y correo; correo nuevo con enlace. Contacto de emergencia visible (lo registra el centro) |
+| Pagos, documentos, epicrisis, consentimientos y avisos, preferencias, lista de espera (03b-3) | Secciones nuevas del portal. Datos para transferir solo con cobro directo y saldo |
+| Reseña (D-1) | `/portal/resenas`: anonima por defecto, confirmacion antes de mostrar el nombre, feedback privado, editar (vuelve a revision) y retirar |
+| Adolescente 14-17 y adulto responsable (D-4) | Menu sin pagos, documentos, consentimientos ni reseñas para el adolescente; el adulto responsable elige al menor y nunca ve los mensajes del adolescente (la API ya los filtra) |
+| Nombres en consentimientos | `supervisores_portal()` y nombres en `consultar_token_consentimiento` (migracion `20261021000000_03b3_portal`) |
+
+Pendiente o fuera de la API:
+
+- ~~Pedir hora desde la cuenta~~: resuelto antes de 03b-4 (`POST
+  portal/citas`, solo con el tratante actual; otro profesional =
+  derivacion).
+- Texto del consentimiento de practicante: no versionado en la BD (el front
+  registra `practicante-portal-v1`).
+- ~~Descarga solo por el enlace del correo~~: resuelto antes de 03b-4
+  (`GET documentos-clinicos/{id}/pdf`, con sesion y registrada).
+
+## 12. Resolucion en 03b-4 (backoffice segun diseño)
+
+| Brecha (seccion 2 y pantallas intermedias) | Resolucion |
+|---|---|
+| Dashboard por rol (2.1) | `InicioPanel`: ADMIN/GESTION agregados sin datos clinicos; el profesional los suyos. Pendientes enlazan a la pestaña que los resuelve |
+| Fichas y vista administrativa (2.2, 2.3) | Lista con filtros en la URL, vista por profesional (solo metadata), detalle con RUT de recepcion y duplicados. El contenido clinico es 03b-5 |
+| "Reasignar a otro profesional" en Agenda (C-4/C-5) | Dos acciones: "Cubrir sesion" (ADMIN/GESTION; otro profesional atiende esa sesion con acceso clinico temporal vigente; ADMIN lo otorga en el mismo paso, GESTION no otorga accesos) y "Derivar paciente" (solo el tratante, abre la derivacion en la ficha con `?derivar=1`) |
+| "Por confirmar" en el calendario | Cita SOLICITADA (paciente nuevo de un profesional que aprueba antes): "Aprobar hora" (ADMIN, GESTION, PROFESIONAL) o cancelar |
+| "Reservando..." en el calendario | No se muestra: `GET agenda/horarios-tomados` solo devuelve las retenciones propias. El EXCLUDE sigue siendo la fuente de verdad (409 con alternativas al confirmar) |
+| Editar box: abre / cierra (2.4) | Horario base por dia y horarios por periodo (semana, mes, trimestre); la ocupacion del box es el % apartado de la semana (horas de `bloques_atencion` ÷ horas abiertas) |
+| "Editar horario" del profesional (2.4) | La agenda sale de las horas de box apartadas (03b): "Apartar horas" (lo libre de cada box, con sugerencia segun el horario habitual), liberar, horario habitual como plantilla y "Bloquear agenda" (vacaciones, licencia, personal) |
+| Pantallas intermedias de Agenda | Pendientes (por aprobar, por reprogramar) y Lista de espera interna (agregar, agendar, marcar asignada, quitar) |
+| "Cerrar sesion" en Cobros (C-11) | "Registrar asistencia y pago": asistio (pago total o parcial, medio de pago incluido Convenio) o no asistio (inasistencia con el % del centro). Cita cancelada: devolucion o traslado a otra cita del paciente. Anular pago con motivo (ADMIN/GESTION). La boleta sale sola al quedar pagada |
+| Comision por derivacion, monto fijo o % (C-10) | La BD tiene un solo porcentaje del centro sobre lo cobrado (`comision_centro_porcentaje`), igual para todas las sesiones. El panel "Cobro por derivacion" del diseño no se implementa: se muestra el porcentaje vigente y se edita en Configuracion > Reglas y plazos. Reportado |
+| Liquidacion segun citas realizadas | `reporte_cobros` + liquidaciones (borrador, emitir, pagada, PDF) y arriendos de box. Con `liquidarExigeEvolucion`, solo sesiones con evolucion |
+| Exportar periodo | `GET cobros/reporte/pdf` |
+| Configuracion (2.7) | Datos y logo, servicios, color de marca, modulos (solo lectura), horario del centro, politicas versionadas (nueva version, nunca editar), plantillas de mensaje (sintaxis `{{variable}}`, restaurar ejemplo), reglas y plazos, rol de gestion |
+| Dominio propio, envio por WhatsApp | Fuera de la API: no se muestran |
+| "Solicitar modulo" | Sin endpoint (el alta es semi-manual por el panel maestro): se muestra el estado y se indica escribir a Vinculos |
+| "Transferir cuenta madre" (C-2) | No se implementa: puede haber varias cuentas ADMIN (Nueva cuenta con rol cuenta madre) |
+| Perfil profesional (2.8) | Equipo: integrantes (perfil editable por ADMIN/GESTION sin publicar, foto por ADMIN, tipos de atencion y especialidades por aprobar, trayectoria por verificar, tarifas, datos para pagos a pedido, horas y pacientes con solo metadata, calificaciones, cuenta), practicantes (extender, supervisor, revocar, historial), catalogos, moderacion de reseñas, alertas, bajas y pacientes por reasignar |
+| Mi perfil (2.8) | Cuenta propia, contraseña, perfil publico (publicar es solo del propio), declaraciones, trayectoria, tarifas, datos para pagos, calificaciones con feedback privado, sala de videollamada y feed iCal |
+| Protocolo del centro + "marcar como leido" | Fuera de la API: no se muestra |
+| Match configuracion (2.5) | Preguntas (activar, obligatoria, opciones con criterio, valor, peso y estricto, pregunta propia del centro), filtro directo, dias de retencion de respuestas y metricas de 30 dias |
+
+Backend de esta fase: schemas de respuesta de Agenda, Cobros, Configuracion,
+Equipo, Usuarios, Practicantes, Bajas, Alertas, Match (preguntas, opciones,
+metricas), reseñas por moderar, plantillas de mensaje, videollamada,
+calendario y acceso clinico temporal (`AccesoTemporalVista`). `HorarioDto` del
+nucleo pasa a `HorarioCentroDto`: tenia el mismo nombre que el de Agenda y el
+OpenAPI documentaba el `PUT configuracion/horario` con el cuerpo equivocado.
+
+Pendiente o fuera de la API:
+
+- "Cubrir sesion" con acceso nuevo son dos llamadas (otorgar acceso y mover
+  la cita): si la segunda falla, el acceso queda otorgado (append-only, vence
+  solo). Una funcion SECURITY DEFINER que haga ambas cosas lo evitaria.
+- Retenciones ajenas en el calendario ("Reservando...").
+- Calendario sin polling (estandar: sin polling fuera de la reserva): se
+  recarga al volver a la pestaña o tras una accion propia.

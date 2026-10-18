@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
+import type { MetricasMatch } from './dto/publico-respuestas.dto';
 import type { EditarOpcionMatchDto, EditarPreguntaMatchDto, OpcionMatchDto, PreguntaMatchDto } from './dto/match.dto';
 
 /** Configuracion del cuestionario del match (ADMIN, D-5). Nunca DELETE: se desactiva. */
@@ -35,7 +36,7 @@ export class MatchConfigService {
   }
 
   async metricas(dias = 30) {
-    const [{ m }] = await this.bd.tx().$queryRaw<[{ m: Record<string, unknown> }]>`SELECT metricas_match(${dias}::int) AS m`;
+    const [{ m }] = await this.bd.tx().$queryRaw<[{ m: MetricasMatch }]>`SELECT metricas_match(${dias}::int) AS m`;
     return m;
   }
 }

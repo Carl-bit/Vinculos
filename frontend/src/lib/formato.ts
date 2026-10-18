@@ -5,12 +5,15 @@ const ZONA = 'America/Santiago';
 const fechaLarga = new Intl.DateTimeFormat('es-CL', { timeZone: ZONA, weekday: 'long', day: 'numeric', month: 'long' });
 const fechaHora = new Intl.DateTimeFormat('es-CL', { timeZone: ZONA, dateStyle: 'medium', timeStyle: 'short' });
 const hora = new Intl.DateTimeFormat('es-CL', { timeZone: ZONA, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const fechaCompleta = new Intl.DateTimeFormat('es-CL', { timeZone: ZONA, day: 'numeric', month: 'long', year: 'numeric' });
 const clp = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 export const formatoFechaLarga = (d: Date | string) => fechaLarga.format(new Date(d));
 export const formatoFechaHora = (d: Date | string) => fechaHora.format(new Date(d));
 export const formatoHora = (d: Date | string) => hora.format(new Date(d));
 export const formatoClp = (monto: number) => clp.format(monto);
+/** "12 de marzo de 1992". Una fecha sin hora (AAAA-MM-DD) se lee como ese dia en Chile. */
+export const formatoFecha = (d: Date | string) => fechaCompleta.format(typeof d === 'string' && d.length === 10 ? new Date(`${d}T12:00:00`) : new Date(d));
 
 /** Digito verificador (modulo 11) del cuerpo del RUT. */
 function dv(cuerpo: string): string {

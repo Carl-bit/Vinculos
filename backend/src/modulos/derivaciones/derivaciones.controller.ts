@@ -8,9 +8,13 @@ import { Roles } from '../../core/auth/decoradores';
 import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
 import { DerivacionesService } from './derivaciones.service';
 import {
+  AvisoConsentimientoVista,
   CancelarDerivacionDto,
   CandidatosDto,
+  ConsentimientoVista,
   CrearDerivacionDto,
+  DerivacionCreada,
+  DerivacionVista,
   ProponerPracticanteDto,
   ResponderAvisoDto,
   ResponderConsentimientoDto,
@@ -30,13 +34,13 @@ export class DerivacionesController {
 
   @Post()
   @Roles('ADMIN', 'PROFESIONAL')
-  crear(@Body() dto: CrearDerivacionDto) {
+  crear(@Body() dto: CrearDerivacionDto): Promise<DerivacionCreada> {
     return this.derivaciones.crear(dto);
   }
 
   @Get()
   @Roles('ADMIN', 'PROFESIONAL')
-  listar(@Query('estado', new ParseEnumPipe(EstadoDerivacion, { optional: true })) estado?: EstadoDerivacion) {
+  listar(@Query('estado', new ParseEnumPipe(EstadoDerivacion, { optional: true })) estado?: EstadoDerivacion): Promise<DerivacionVista[]> {
     return this.derivaciones.listar(estado);
   }
 
@@ -49,7 +53,7 @@ export class DerivacionesController {
 
   @Get(':id')
   @Roles('ADMIN', 'PROFESIONAL')
-  obtener(@Param('id', Uuid) id: string) {
+  obtener(@Param('id', Uuid) id: string): Promise<DerivacionVista> {
     return this.derivaciones.obtener(id);
   }
 
@@ -106,7 +110,7 @@ export class ConsentimientosController {
 
   @Get('consentimientos')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  listar() {
+  listar(): Promise<ConsentimientoVista[]> {
     return this.derivaciones.consentimientos();
   }
 
@@ -119,27 +123,27 @@ export class ConsentimientosController {
   @Post('consentimientos/:id/respuesta')
   @HttpCode(200)
   @Roles('PACIENTE', 'RESPONSABLE', 'ADMIN', 'GESTION')
-  responder(@Param('id', Uuid) id: string, @Body() dto: ResponderConsentimientoDto) {
+  responder(@Param('id', Uuid) id: string, @Body() dto: ResponderConsentimientoDto): Promise<ConsentimientoVista> {
     return this.derivaciones.responderConsentimiento(id, dto);
   }
 
   @Post('consentimientos/:id/revocacion')
   @HttpCode(200)
   @Roles('PACIENTE', 'RESPONSABLE', 'ADMIN', 'GESTION')
-  revocar(@Param('id', Uuid) id: string, @Body() dto: RevocarConsentimientoDto) {
+  revocar(@Param('id', Uuid) id: string, @Body() dto: RevocarConsentimientoDto): Promise<ConsentimientoVista> {
     return this.derivaciones.revocarConsentimiento(id, dto);
   }
 
   @Get('avisos-consentimiento')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  avisos() {
+  avisos(): Promise<AvisoConsentimientoVista[]> {
     return this.derivaciones.avisos();
   }
 
   @Post('avisos-consentimiento/:id/respuesta')
   @HttpCode(200)
   @Roles('PACIENTE', 'RESPONSABLE', 'ADMIN', 'GESTION')
-  responderAviso(@Param('id', Uuid) id: string, @Body() dto: ResponderAvisoDto) {
+  responderAviso(@Param('id', Uuid) id: string, @Body() dto: ResponderAvisoDto): Promise<AvisoConsentimientoVista> {
     return this.derivaciones.responderAviso(id, dto);
   }
 

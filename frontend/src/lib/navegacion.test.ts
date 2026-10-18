@@ -24,7 +24,16 @@ describe('menuVisible', () => {
   });
 
   it('el portal no muestra opciones del backoffice', () => {
-    expect(etiquetas(menuVisible('portal', 'PACIENTE', ['AGENDA']))).toEqual(['Mi cuenta', 'Pedir una hora']);
-    expect(etiquetas(menuVisible('portal', 'PACIENTE', []))).toEqual(['Mi cuenta']);
+    const principal = (activos: Parameters<typeof menuVisible>[2]) => menuVisible('portal', 'PACIENTE', activos).filter((i) => i.grupo === 'principal');
+    expect(etiquetas(principal(['AGENDA']))).toEqual(['Mi cuenta', 'Pedir una hora']);
+    expect(etiquetas(principal([]))).toEqual(['Mi cuenta']);
+  });
+
+  it('la cuenta restringida del adolescente no ve pagos, documentos, consentimientos ni reseñas', () => {
+    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
+    const plena = etiquetas(menuVisible('portal', 'PACIENTE', todos).filter((i) => i.grupo === 'secciones'));
+    expect(plena).toEqual(['Resumen', 'Pagos', 'Documentos', 'Consentimientos', 'Avisos', 'Lista de espera', 'Reseñas', 'Seguridad']);
+    const restringida = etiquetas(menuVisible('portal', 'PACIENTE', todos, { restringida: true }).filter((i) => i.grupo === 'secciones'));
+    expect(restringida).toEqual(['Resumen', 'Avisos', 'Lista de espera', 'Seguridad']);
   });
 });

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Prisma, type TipoNotificacion } from '@prisma/client';
+import { Prisma, type MedioPago, type TipoNotificacion } from '@prisma/client';
 
 import { texto } from '../../core/bd/claro';
 import { generarPdfTabla } from '../../core/documentos/pdf';
@@ -33,7 +33,7 @@ export interface ReporteCobros {
   desde: string;
   hasta: string;
   profesionales: { profesional_id: string; nombre: string | null; sesiones: number; cobrado: number; pendiente: number; comision_estimada: number }[];
-  medios: { medio: string; pagos: number; monto: number }[];
+  medios: { medio: MedioPago; pagos: number; monto: number }[];
 }
 
 /**

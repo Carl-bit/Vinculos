@@ -35,8 +35,8 @@ export function condicionesAgendamiento(c: Centro, menor: boolean): string[] {
 }
 
 /** Edad cumplida en una fecha (la BD la calcula con la fecha de la cita en Chile). */
-export function edadEn(fechaNacimiento: string, fecha: Date): number {
-  const [a, m, d] = fechaNacimiento.split('-').map(Number) as [number, number, number];
+export function edadEn(fechaNacimiento: string, fecha: Date = new Date()): number {
+  const [a, m, d] = fechaNacimiento.slice(0, 10).split('-').map(Number) as [number, number, number];
   const [fa, fm, fd] = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Santiago' }).format(fecha).split('-').map(Number) as [number, number, number];
   return fa - a - (fm < m || (fm === m && fd < d) ? 1 : 0);
 }

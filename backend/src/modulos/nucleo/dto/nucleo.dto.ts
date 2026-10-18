@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ModeloCobro, ModuloCentro, Rol, TipoPolitica } from '@prisma/client';
+import { AccionAcceso, ModeloCobro, ModuloCentro, Rol, TipoAlerta, TipoPolitica } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -355,7 +355,7 @@ export class BloqueHorarioDto {
 }
 
 /** Reemplaza el horario completo (vacio = sin restriccion). */
-export class HorarioDto {
+export class HorarioCentroDto {
   @IsArray()
   @ArrayMaxSize(28)
   @ValidateNested({ each: true })
@@ -443,4 +443,269 @@ export class MiembroDirectorio {
   email!: string | null;
   @ApiProperty({ type: String, nullable: true })
   telefono!: string | null;
+}
+
+/** Proxima sesion del profesional (solo metadata). */
+export class ProximaSesionDashboard {
+  cita_id!: string;
+  inicio!: Date;
+  @ApiProperty({ type: String, nullable: true })
+  espacio_id!: string | null;
+  @ApiProperty({ enum: ['PRESENCIAL', 'ONLINE'] })
+  modalidad!: string;
+}
+
+/** Pendientes de administracion (conteos, sin datos clinicos). */
+export class PendientesDashboard {
+  solicitudes_por_aprobar!: number;
+  ruts_faltantes!: number;
+  posibles_duplicados!: number;
+  consentimientos_pendientes!: number;
+  practicantes_por_vencer!: number;
+  por_reprogramar!: number;
+  lista_espera!: number;
+  @ApiProperty({ type: Number, nullable: true, description: 'Solo ADMIN' })
+  resenas_por_moderar!: number | null;
+  @ApiProperty({ type: Number, nullable: true, description: 'Solo ADMIN' })
+  alertas_abiertas!: number | null;
+}
+
+/**
+ * reporte_dashboard() por rol: ADMIN/GESTION reciben los agregados del centro
+ * (y `pendientes`); PROFESIONAL/PRACTICANTE, los suyos. Cada campo existe
+ * solo para su grupo de roles.
+ */
+export class ReporteDashboard {
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  sesiones_hoy!: number;
+  pacientes_activos!: number;
+  @ApiProperty({ required: false, description: 'ADMIN/GESTION' })
+  pacientes_nuevos_mes?: number;
+  @ApiProperty({ required: false, description: 'ADMIN/GESTION: solicitudes y recordatorios sin respuesta en 48 h' })
+  por_confirmar?: number;
+  @ApiProperty({ required: false, description: 'ADMIN/GESTION: % de horas apartadas sobre el horario de boxes (muestra)' })
+  ocupacion_boxes_hoy?: number;
+  @ApiProperty({ required: false })
+  boxes_activos?: number;
+  @ApiProperty({ required: false, description: 'ADMIN/GESTION: sesiones realizadas sin evolucion (7 dias)' })
+  fichas_por_cerrar?: number;
+  @ApiProperty({ type: PendientesDashboard, required: false })
+  pendientes?: PendientesDashboard;
+  @ApiProperty({ required: false, description: 'PROFESIONAL/PRACTICANTE' })
+  sesiones_semana?: number;
+  @ApiProperty({ required: false })
+  fichas_sin_cerrar?: number;
+  @ApiProperty({ required: false })
+  borradores?: number;
+  @ApiProperty({ required: false })
+  solicitudes_por_aprobar?: number;
+  @ApiProperty({ required: false })
+  mensajes_sin_leer?: number;
+  @ApiProperty({ type: Number, nullable: true, required: false })
+  calificacion?: number | null;
+  @ApiProperty({ required: false })
+  resenas?: number;
+  @ApiProperty({ type: ProximaSesionDashboard, nullable: true, required: false })
+  proxima_sesion?: ProximaSesionDashboard | null;
+  @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
+  modulos!: ModuloCentro[];
+}
+
+/** configuracion_centro (fila unica). Los porcentajes son Decimal: llegan como texto. */
+export class ConfiguracionCentroVista {
+  rolGestionHabilitado!: boolean;
+  plazoRespuestaDerivacionHoras!: number;
+  @ApiProperty({ enum: ModeloCobro, enumName: 'ModeloCobro' })
+  modeloCobro!: ModeloCobro;
+  plazoConsentimientoHoras!: number;
+  plazoOposicionHoras!: number;
+  diasGraciaCierre!: number;
+  margenTrasladoMin!: number;
+  nombreCentro!: string;
+  @ApiProperty({ type: String, nullable: true })
+  rutCentro!: string | null;
+  plazoAvisoCancelacionHoras!: number;
+  @ApiProperty({ type: String, description: 'Decimal (0 a 100)' })
+  penalizacionCancelacionPorcentaje!: unknown;
+  @ApiProperty({ type: String, description: 'Decimal (0 a 100)' })
+  cobroInasistenciaPorcentaje!: unknown;
+  @ApiProperty({ type: String, description: 'Decimal (0 a 100): comision del centro sobre lo cobrado en la liquidacion' })
+  comisionCentroPorcentaje!: unknown;
+  recordatorioHorasAntes!: number;
+  @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
+  modulosActivos!: ModuloCentro[];
+  liquidarExigeEvolucion!: boolean;
+  matchFiltroDirecto!: boolean;
+  diasRetencionRespuestasMatch!: number;
+  minutosRetencionSolicitud!: number;
+  retencionMensajesDias!: number;
+  edadMinimaCuenta!: number;
+  diasListaEsperaPublica!: number;
+  updatedAt!: Date;
+}
+
+export class ServicioPublicoVista {
+  @ApiProperty({ type: String, required: false })
+  icono?: string;
+  titulo!: string;
+  texto!: string;
+}
+
+/** contenido_publico (fila unica): lo que muestra la pagina publica del centro. */
+export class ContenidoPublicoVista {
+  @ApiProperty({ type: String, nullable: true })
+  heroTitulo!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  heroTexto!: string | null;
+  @ApiProperty({ type: ServicioPublicoVista, isArray: true })
+  servicios!: unknown;
+  @ApiProperty({ type: String, nullable: true })
+  contactoCorreo!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  contactoTelefono!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  direccion!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  whatsapp!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  instagram!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  mision!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  vision!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorMarca!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  logoImagenId!: string | null;
+  updatedAt!: Date;
+}
+
+export class LogoSubido {
+  logoImagenId!: string;
+  url!: string;
+}
+
+/** Version de una politica (append-only: la vigente de cada tipo es la de mayor version). */
+export class PoliticaVista {
+  id!: string;
+  @ApiProperty({ enum: TipoPolitica, enumName: 'TipoPolitica' })
+  tipo!: TipoPolitica;
+  version!: number;
+  texto!: string;
+  vigenteDesde!: Date;
+  @ApiProperty({ type: String, nullable: true })
+  creadaPorId!: string | null;
+}
+
+export class HorarioCentroVista {
+  id!: string;
+  /** ISO: 1 = lunes ... 7 = domingo. */
+  diaSemana!: number;
+  inicioMin!: number;
+  finMin!: number;
+}
+
+export class InvitacionEquipo {
+  usuarioId!: string;
+  invitacionVence!: Date;
+}
+
+export class BajaRolResultado {
+  usuarioId!: string;
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  fechaEfectiva!: Date;
+  citasPorReprogramar!: number;
+}
+
+export class TotpReiniciado {
+  usuarioId!: string;
+  totpActivo!: boolean;
+}
+
+export class PracticanteVista {
+  usuarioId!: string;
+  @ApiProperty({ type: String, format: 'date' })
+  fechaInicio!: Date;
+  @ApiProperty({ type: String, format: 'date' })
+  fechaTerminoPractica!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
+}
+
+export class AccesoPracticanteOtorgado {
+  practicanteId!: string;
+  fechaExpiracion!: Date;
+  /** Pacientes avisados por el cambio de supervisor (plazo de oposicion). */
+  avisosCambioSupervisor!: number;
+}
+
+export class AccesoPracticanteRevocado {
+  practicanteId!: string;
+  revocado!: boolean;
+}
+
+export class HistorialAccesoPracticanteVista {
+  id!: string;
+  practicanteId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  actorId!: string | null;
+  @ApiProperty({ enum: AccionAcceso, enumName: 'AccionAcceso' })
+  accion!: AccionAcceso;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  fechaExpiracion!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  motivo!: string | null;
+  createdAt!: Date;
+}
+
+export class BajaIniciada {
+  usuarioId!: string;
+  fechaEfectiva!: Date;
+  citasPorReprogramar!: number;
+}
+
+export class BajaVista {
+  id!: string;
+  usuarioId!: string;
+  fechaEfectiva!: Date;
+  iniciadaPorId!: string;
+  iniciadaEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  procesadaEn!: Date | null;
+}
+
+/** pacientes_por_reasignar(): nombre solo para ADMIN/GESTION; el supervisor ve el codigo seudonimo. */
+export class PacientePorReasignar {
+  paciente_id!: string;
+  @ApiProperty({ type: String, nullable: true })
+  ficha_id!: string | null;
+  codigo!: string;
+  @ApiProperty({ type: String, nullable: true })
+  nombre!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  apellido!: string | null;
+  tratante_id!: string;
+  motivo!: string;
+  derivacion_abierta!: boolean;
+}
+
+export class AlertaInternaVista {
+  id!: string;
+  @ApiProperty({ enum: TipoAlerta, enumName: 'TipoAlerta' })
+  tipo!: TipoAlerta;
+  @ApiProperty({ type: String, nullable: true })
+  referenciaId!: string | null;
+  detalle!: string;
+  creadaEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  atendidaEn!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  atendidaPorId!: string | null;
+}
+
+export class AlertaAtendida {
+  id!: string;
+  atendida!: boolean;
 }

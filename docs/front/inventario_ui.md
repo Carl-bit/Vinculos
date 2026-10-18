@@ -72,11 +72,31 @@ El punto de la marca y los bordes siguen con `-600` (son decorativos, no son tex
 | Lista de espera sin cuenta (inscripcion, confirmar, salir) | (nuevo, 03b) | `InscripcionListaEspera`, `EnlaceListaEspera` | `agenda/` |
 | Casilla obligatoria con forma de tarjeta (aceptar politicas) | Pedir Hora | `Casilla` | `ui/` |
 | Ruta del panel o del portal sin pagina (404 dentro del layout) | (nuevo, 03b) | `not-found` de `/admin` y `/portal` con `EstadoVista` | `app/` |
-| Modal (overlay fijo) | 7 (9) | pendiente: entra con la primera vista que lo use | `ui/` |
+| Modal (overlay fijo) | 7 (9) | `Modal` (sobre `<dialog>` nativo, 03b-3) | `ui/` |
 | Tabla | 2 | pendiente | `ui/` |
-| Pestañas | 3 | pendiente | `ui/` |
-| Tile de estadística, tarjeta de módulo | Dashboard | pendiente (fase dashboard) | `shared/` |
-| Calendario, timeline de ficha, wizard de match | Agenda, Fichas, Match | fase de cada módulo | `<modulo>/` |
+| Pestañas | 3 | `Pestanas` (pildoras, patron tablist, 03b-3) | `ui/` |
+| Bloque de aviso (advertencia, exito, nota punteada) | Mi Cuenta | `Aviso` | `ui/` |
+| Seccion con h2 y bajada (superficie neutral-100 o verde) | Mi Cuenta | `Panel` | `ui/` |
+| Pildora de estado (Confirmada, Completada, Cancelada) | Mi Cuenta | `Badge tono` | `ui/` |
+| Interruptor, calificacion con estrellas | (nuevo, 03b-3) | `Interruptor`, `Estrellas` | `ui/` |
+| Encabezado de pagina, saludo del portal | Mi Cuenta | `Encabezado`, `SaludoPortal` | `shared/` |
+| Tarjeta de login (vidrio + manchas), paso TOTP con QR, contraseña nueva, cambio de contraseña | Inicio de Sesion + nuevo | `TarjetaIngreso`, `PasoTotp`, `CamposPassword`, `CambioPassword` | `shared/` |
+| Contexto del portal (menor elegido, cuenta restringida) | (nuevo, 03b-3) | `ContextoPortal`, `SoloCuentaPlena` | `shared/` |
+| Mi profesional, horas, mensajes, datos (Mi Cuenta) | Paciente - Mi Cuenta | `MiProfesional` (equipo), `MisHoras` (agenda), `MensajeProfesional`, `MisDatos`, `NotaFicha` (pacientes) | `<modulo>/` |
+| Pagos, documentos y copia de ficha, consentimientos, avisos, lista de espera, reseñas, pedir hora | (nuevo, 03b-3) | `PagosPortal` (cobros), `DocumentosPortal`/`CopiaFicha`/`ConsentimientosPortal` (pacientes), `AvisosPortal` (nucleo), `ListaEsperaPortal`/`PedirHoraPortal` (agenda), `ResenasPortal` (equipo) | `<modulo>/` |
+| Paginas por enlace: recuperar, acceso, activar, correo, consentimiento, recordatorio, descarga | (nuevo, 03b-3) | `RecuperarCuenta`, `EnlaceAcceso`, `ActivarCuenta`, `ConfirmarCorreo` (nucleo), `ConsentimientoEnlace`, `DescargaDocumento` (pacientes), `RecordatorioEnlace` (agenda) | `<modulo>/` |
+| Tile de estadística, tarjeta de módulo | Dashboard | `Estadistica`, `TarjetaModulo` (03b-4) | `shared/` |
+| Panel con título y acción, tabla con encabezado en mayúsculas | Fichas, Cobros | `Panel`, `Tabla`/`Th`/`Td` | `ui/` |
+| Dashboard por rol | Admin - Dashboard | `InicioPanel` | `nucleo/` |
+| Lista, vista administrativa y detalle de paciente, derivar | Admin - Fichas y Pacientes, Vista Administrativa | `ListaPacientes`, `VistaAdministrativa`, `DetallePaciente`, `SeccionesPaciente`, `CrearDerivacion` | `pacientes/` |
+| Calendario consolidado, detalle de sesión (cubrir, derivar, aprobar), agendar con retención | Admin - Agenda y Espacios | `AgendaEspacios`, `CalendarioAgenda`, `DetalleCita`, `AgendarSesion` | `agenda/` |
+| Espacios, horarios del equipo, pendientes, lista de espera interna | Admin - Agenda y Espacios (+ intermedias) | `EspaciosAgenda`, `HorariosEquipo`, `PendientesAgenda`, `ListaEsperaEquipo` | `agenda/` |
+| Resumen, asistencia y pago, liquidaciones y arriendos | Admin - Cobros | `CobrosCentro`, `ResumenCobros`, `SesionesPorCobrar`, `RegistrarAsistenciaPago`, `LiquidacionesCobros` | `cobros/` |
+| Configuración del centro | Admin - Configuracion | `ConfiguracionCentro`, `DatosCentro`, `HorarioPoliticasCentro`, `PlantillasMensaje`, `ReglasCentro` | `nucleo/` |
+| Equipo: integrantes, perfil, practicantes, catálogos, reseñas, alertas | Admin - Perfil Profesional | `EquipoCentro`, `FichaIntegrante`, `FormularioPerfil`, `PracticantesEquipo`, `CatalogosEquipo`, `ModeracionResenas`, `AlertasEquipo`, `NuevaCuenta` | `equipo/` |
+| Mi perfil | Admin - Mi Perfil | `MiCuentaEquipo` (nucleo), `MiPerfilProfesional` (equipo), `IntegracionesAgenda` (agenda), `CambioPassword` (shared) | `<modulo>/` |
+| Configuración del match | Admin - Match Configuracion | `ConfiguracionMatch` | `match/` |
+| Timeline de ficha, formularios clínicos | Fichas | 03b-5 | `pacientes/` |
 
 ## Huecos del diseño (resueltos en `design-system/vinculos/MASTER.md`)
 

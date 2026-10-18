@@ -10,6 +10,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
+  // next dev compila cada ruta la primera vez: 10 s evita falsos fallos en frio.
+  expect: { timeout: 10_000 },
   use: { baseURL: 'http://localhost:3000', trace: 'retain-on-failure', locale: 'es-CL', timezoneId: 'America/Santiago' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: { command: 'npm run dev', url: 'http://localhost:3000/ingreso', reuseExistingServer: true, timeout: 120_000 },

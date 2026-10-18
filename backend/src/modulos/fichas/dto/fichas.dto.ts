@@ -1,5 +1,6 @@
 import {
   AlcanceAccesoTemporal,
+  CanalAceptacion,
   DecisionRetencion,
   EstadoPlantillaClinica,
   EstadoTipoSesion,
@@ -8,6 +9,7 @@ import {
   NivelRiesgo,
   TipoPlantillaClinica,
 } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -564,4 +566,203 @@ export class CrearIngresoDto {
 export class ResolverDuplicadoDto {
   @IsIn(['DISTINTO', 'MISMO_PACIENTE'])
   resolucion!: 'DISTINTO' | 'MISMO_PACIENTE';
+}
+
+/** Documento emitido (metadatos, sin contenido): el PDF se entrega por el enlace del correo. */
+export class DocumentoClinicoVista {
+  id!: string;
+  pacienteId!: string;
+  tipoDocumentoId!: string;
+  emitidoPorId!: string;
+  nombreArchivo!: string;
+  tipoMime!: string;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true, description: 'El paciente pidio recibirlo adjunto' })
+  adjuntoSolicitadoEn!: Date | null;
+  emitidoEn!: Date;
+}
+
+/** Paciente (datos administrativos; la RLS decide quien lo ve). RUT, telefono y contacto de emergencia descifrados. */
+export class PacienteVista {
+  id!: string;
+  nombre!: string;
+  apellido!: string;
+  @ApiProperty({ type: String, nullable: true })
+  rut!: string | null;
+  @ApiProperty({ type: String, format: 'date' })
+  fechaNacimiento!: Date;
+  @ApiProperty({ type: String, nullable: true })
+  email!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  telefono!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Tratante' })
+  profesionalId!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Codigo para la supervision seudonimizada' })
+  codigoSeudonimo!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  tipoAtencionId!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  contactoEmergencia!: string | null;
+  creadoPorSolicitud!: boolean;
+  posibleDuplicado!: boolean;
+  createdAt!: Date;
+  updatedAt!: Date;
+}
+
+export class PacienteCreado extends PacienteVista {
+  @ApiProperty({ type: String, nullable: true, description: 'Ficha abierta en la misma transaccion (ADMIN o el tratante)' })
+  fichaId!: string | null;
+}
+
+export class AdultoResponsableVista {
+  id!: string;
+  pacienteId!: string;
+  nombre!: string;
+  @ApiProperty({ type: String, nullable: true })
+  parentesco!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  telefono!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  email!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  rut!: string | null;
+  createdAt!: Date;
+}
+
+/** Metadata de la ficha (nunca las evoluciones). */
+export class FichaVista {
+  id!: string;
+  pacienteId!: string;
+  fechaApertura!: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
+}
+
+class PoliticaDeAceptacion {
+  @ApiProperty({ enum: ['POLITICA_DATOS', 'CONSENTIMIENTO_ATENCION', 'TERMINOS_AGENDAMIENTO'] })
+  tipo!: string;
+  version!: number;
+}
+
+/** Politica o consentimiento aceptado por el paciente (version, canal y quien otorgo). */
+export class AceptacionVista {
+  id!: string;
+  @ApiProperty({ enum: CanalAceptacion, enumName: 'CanalAceptacion' })
+  canal!: CanalAceptacion;
+  @ApiProperty({ enum: ['PACIENTE', 'ADULTO_RESPONSABLE'], nullable: true })
+  otorgadoPor!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  adultoResponsableId!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Respaldo del documento firmado (registro presencial)' })
+  respaldoRef!: string | null;
+  aceptadaEn!: Date;
+  politica!: PoliticaDeAceptacion;
+}
+
+export class AceptacionRegistrada {
+  id!: string;
+  pacienteId!: string;
+}
+
+/** Enlace de un solo uso enviado por correo (consentimiento). */
+export class EnlaceEnviado {
+  referenciaId!: string;
+  venceEn!: Date;
+}
+
+export class InvitacionEnviada {
+  pacienteId!: string;
+  invitacionVence!: Date;
+}
+
+/** Estado administrativo de cada paciente de un profesional (sin contenido clinico). */
+export class EstadoFichaPaciente {
+  paciente_id!: string;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  ultima_sesion!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  proxima_sesion!: Date | null;
+  /** Sesiones realizadas con este profesional sin evolucion vinculada. */
+  sesiones_sin_cerrar!: number;
+  @ApiProperty({ type: String, format: 'date', nullable: true })
+  alta_en!: Date | null;
+}
+
+/** Lo que el paciente respondio en el match al pedir hora (solo el tratante). */
+export class RespuestasMatchPaciente {
+  solicitudId!: string;
+  creadaEn!: Date;
+  @ApiProperty({ type: 'object', additionalProperties: true, description: '{ clave de la pregunta: respuesta }' })
+  respuestas!: unknown;
+}
+
+/** Version de una plantilla clinica (la definicion son sus campos). */
+export class PlantillaClinicaVista {
+  id!: string;
+  familiaId!: string;
+  especialidadId!: string;
+  @ApiProperty({ enum: TipoPlantillaClinica, enumName: 'TipoPlantillaClinica' })
+  tipo!: TipoPlantillaClinica;
+  nombre!: string;
+  version!: number;
+  @ApiProperty({ enum: EstadoPlantillaClinica, enumName: 'EstadoPlantillaClinica' })
+  estado!: EstadoPlantillaClinica;
+  @ApiProperty({ type: [CampoPlantillaDto] })
+  definicion!: unknown;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  publicadaEn!: Date | null;
+}
+
+class CatalogoRef {
+  id!: string;
+  nombre!: string;
+}
+
+class CopiaAutoria {
+  @ApiProperty({ type: String, nullable: true })
+  nombre!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  rut!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  registro!: string | null;
+}
+
+/** Evolucion (append-only; solo el tratante). Correccion = registro nuevo con corrigeAId. */
+export class EvolucionVista {
+  id!: string;
+  fichaClinicaId!: string;
+  autorId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  notas!: string | null;
+  copiaAutoria!: CopiaAutoria;
+  @ApiProperty({ type: CatalogoRef, nullable: true })
+  tipoSesion!: CatalogoRef | null;
+  @ApiProperty({ type: CatalogoRef, nullable: true })
+  estadoAvance!: CatalogoRef | null;
+  intervenciones!: CatalogoRef[];
+  @ApiProperty({ enum: NivelRiesgo, enumName: 'NivelRiesgo', nullable: true })
+  nivelRiesgo!: NivelRiesgo | null;
+  @ApiProperty({ type: String, nullable: true })
+  corrigeAId!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Sesion que cierra' })
+  citaId!: string | null;
+  createdAt!: Date;
+  @ApiProperty({ type: PlantillaClinicaVista, nullable: true })
+  plantilla!: PlantillaClinicaVista | null;
+  @ApiProperty({ type: 'object', additionalProperties: true, nullable: true })
+  valores!: Record<string, unknown> | null;
+}
+
+/** Acceso clinico temporal (reemplazo o interconsulta, hasta 180 dias; append-only). */
+export class AccesoTemporalVista {
+  id!: string;
+  pacienteId!: string;
+  profesionalId!: string;
+  @ApiProperty({ enum: MotivoAccesoTemporal, enumName: 'MotivoAccesoTemporal' })
+  motivo!: MotivoAccesoTemporal;
+  @ApiProperty({ enum: AlcanceAccesoTemporal, enumName: 'AlcanceAccesoTemporal' })
+  alcance!: AlcanceAccesoTemporal;
+  desde!: Date;
+  hasta!: Date;
+  otorgadoPorId!: string;
+  creadoEn!: Date;
 }

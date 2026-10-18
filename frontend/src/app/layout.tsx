@@ -25,7 +25,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className={figtree.variable}>
       <head>
         {/* Iconos: no estan en el catalogo de next/font. Solo los glifos de lib/iconos.ts. */}
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link rel="stylesheet" href={URL_ICONOS} />
       </head>
       <body>

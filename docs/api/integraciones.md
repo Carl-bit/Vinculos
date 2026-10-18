@@ -113,7 +113,7 @@ tienen campo (un campo extra es 400): nunca se desactivan.
   desactivado). Job `enviar_recordatorios` (Agenda, cada 10 min, advisory
   lock): un recordatorio por cita y horario (`recordatorios_cita`, UNIQUE);
   si la cita se reprograma, sale otro para el horario nuevo.
-- El mensaje lleva `{{enlace}}` a `FRONTEND_URL/portal/citas/recordatorio?token=...`.
+- El mensaje lleva `{{enlace}}` a `FRONTEND_URL/recordatorio?token=...` (pagina publica: el enlace autoriza sin sesion, 03b-3).
   Token de 256 bits, **un solo uso** (confirmar o cancelar), valido hasta el
   inicio de la cita; se guarda su SHA-256 y la URL cifrada.
 - Sin sesion (el token autoriza, rate limit publico):

@@ -24,7 +24,7 @@ import {
   BajaRolDto,
   ContenidoPublicoDto,
   FiltroDirectorioDto,
-  HorarioDto,
+  HorarioCentroDto,
   OtorgarRolDto,
   PoliticaDto,
   CambiarPasswordDto,
@@ -36,8 +36,26 @@ import {
   MiCuenta,
   MiembroDirectorio,
   ModulosActivos,
+  ReporteDashboard,
   OtorgarAccesoDto,
   RevocarAccesoDto,
+  ConfiguracionCentroVista,
+  ContenidoPublicoVista,
+  HorarioCentroVista,
+  LogoSubido,
+  PoliticaVista,
+  AccesoPracticanteOtorgado,
+  AccesoPracticanteRevocado,
+  AlertaAtendida,
+  AlertaInternaVista,
+  BajaIniciada,
+  BajaRolResultado,
+  BajaVista,
+  HistorialAccesoPracticanteVista,
+  InvitacionEquipo,
+  PacientePorReasignar,
+  PracticanteVista,
+  TotpReiniciado,
 } from './dto/nucleo.dto';
 import { EquipoAccesoService } from './equipo-acceso.service';
 import { UsuariosService } from './usuarios.service';
@@ -54,13 +72,13 @@ export class UsuariosController {
 
   @Post()
   @Roles('ADMIN')
-  crear(@Body() dto: CrearUsuarioDto) {
+  crear(@Body() dto: CrearUsuarioDto): Promise<MiCuenta> {
     return this.usuarios.crear(dto);
   }
 
   @Get()
   @Roles('ADMIN')
-  listar() {
+  listar(): Promise<MiCuenta[]> {
     return this.usuarios.listar();
   }
 
@@ -85,41 +103,41 @@ export class UsuariosController {
 
   @Get(':id')
   @Roles('ADMIN')
-  obtener(@Param('id', Uuid) id: string) {
+  obtener(@Param('id', Uuid) id: string): Promise<MiCuenta> {
     return this.usuarios.obtener(id);
   }
 
   @Patch(':id')
   @Roles('ADMIN')
-  editar(@Param('id', Uuid) id: string, @Body() dto: EditarUsuarioDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarUsuarioDto): Promise<MiCuenta> {
     return this.usuarios.editar(id, dto);
   }
 
   /** Reenvia la invitacion de una cuenta de equipo (enlace de un solo uso para fijar la contraseña). */
   @Post(':id/invitacion')
   @Roles('ADMIN')
-  invitar(@Param('id', Uuid) id: string) {
+  invitar(@Param('id', Uuid) id: string): Promise<InvitacionEquipo> {
     return this.usuarios.invitar(id);
   }
 
   /** C-1: segundo rol (PROFESIONAL) de una cuenta ADMIN o GESTION. */
   @Post(':id/roles')
   @Roles('ADMIN')
-  otorgarRol(@Param('id', Uuid) id: string, @Body() dto: OtorgarRolDto) {
+  otorgarRol(@Param('id', Uuid) id: string, @Body() dto: OtorgarRolDto): Promise<MiCuenta> {
     return this.usuarios.otorgarRol(id, dto.rol);
   }
 
   /** Baja de un rol adicional (no de la cuenta). */
   @Post(':id/roles/PROFESIONAL/baja')
   @Roles('ADMIN')
-  bajaRol(@Param('id', Uuid) id: string, @Body() dto: BajaRolDto) {
+  bajaRol(@Param('id', Uuid) id: string, @Body() dto: BajaRolDto): Promise<BajaRolResultado> {
     return this.usuarios.bajaRol(id, 'PROFESIONAL', dto.fechaEfectiva);
   }
 
   @Post(':id/totp/reinicio')
   @HttpCode(200)
   @Roles('ADMIN')
-  reiniciarTotp(@Param('id', Uuid) id: string) {
+  reiniciarTotp(@Param('id', Uuid) id: string): Promise<TotpReiniciado> {
     return this.usuarios.reiniciarTotp(id);
   }
 }
@@ -131,13 +149,13 @@ export class ConfiguracionController {
 
   @Get()
   @Roles(...TODOS)
-  obtener() {
+  obtener(): Promise<ConfiguracionCentroVista> {
     return this.usuarios.obtenerConfiguracion();
   }
 
   @Patch()
   @Roles('ADMIN')
-  editar(@Body() dto: EditarConfiguracionDto) {
+  editar(@Body() dto: EditarConfiguracionDto): Promise<ConfiguracionCentroVista> {
     return this.usuarios.editarConfiguracion(dto);
   }
 }
@@ -157,13 +175,13 @@ export class CentroController {
 
   @Get('configuracion/contenido-publico')
   @Roles(...EQUIPO)
-  contenido() {
+  contenido(): Promise<ContenidoPublicoVista> {
     return this.centro.contenido();
   }
 
   @Patch('configuracion/contenido-publico')
   @Roles('ADMIN')
-  editarContenido(@Body() dto: ContenidoPublicoDto) {
+  editarContenido(@Body() dto: ContenidoPublicoDto): Promise<ContenidoPublicoVista> {
     return this.centro.editarContenido(dto);
   }
 
@@ -172,7 +190,7 @@ export class CentroController {
   @UseInterceptors(FileInterceptor('imagen', { limits: { fileSize: IMAGEN_MAX_BYTES } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', required: ['imagen'], properties: { imagen: { type: 'string', format: 'binary', description: 'JPEG, PNG o WebP' } } } })
-  subirLogo(@UploadedFile() imagen?: Express.Multer.File) {
+  subirLogo(@UploadedFile() imagen?: Express.Multer.File): Promise<LogoSubido> {
     if (!imagen) {
       throw new BadRequestException('Falta la imagen (campo "imagen", multipart/form-data)');
     }
@@ -182,33 +200,33 @@ export class CentroController {
   /** Todas las versiones (la vigente de cada tipo es la de mayor version). */
   @Get('politicas')
   @Roles(...EQUIPO)
-  politicas() {
+  politicas(): Promise<PoliticaVista[]> {
     return this.centro.politicas();
   }
 
   @Post('politicas')
   @Roles('ADMIN')
-  publicarPolitica(@Body() dto: PoliticaDto) {
+  publicarPolitica(@Body() dto: PoliticaDto): Promise<PoliticaVista> {
     return this.centro.publicarPolitica(dto.tipo, dto.texto);
   }
 
   @Get('configuracion/horario')
   @Roles(...EQUIPO)
-  horario() {
+  horario(): Promise<HorarioCentroVista[]> {
     return this.centro.horario();
   }
 
   @Put('configuracion/horario')
   @Roles('ADMIN')
-  reemplazarHorario(@Body() dto: HorarioDto) {
+  reemplazarHorario(@Body() dto: HorarioCentroDto): Promise<HorarioCentroVista[]> {
     return this.centro.reemplazarHorario(dto.bloques);
   }
 
   /** ADMIN/GESTION: agregados del centro (sin datos clinicos). PROFESIONAL/PRACTICANTE: los suyos. */
   @Get('reportes/dashboard')
   @Roles(...EQUIPO)
-  dashboard() {
-    return this.centro.dashboard();
+  dashboard(): Promise<ReporteDashboard> {
+    return this.centro.dashboard() as Promise<ReporteDashboard>;
   }
 }
 
@@ -220,25 +238,25 @@ export class PracticantesController {
   /** ADMIN/GESTION todos; el practicante el propio; el supervisor los suyos (RLS). */
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  listar() {
+  listar(): Promise<PracticanteVista[]> {
     return this.equipo.practicantes();
   }
 
   @Post(':id/acceso')
   @Roles('ADMIN')
-  otorgar(@Param('id', Uuid) id: string, @Body() dto: OtorgarAccesoDto) {
+  otorgar(@Param('id', Uuid) id: string, @Body() dto: OtorgarAccesoDto): Promise<AccesoPracticanteOtorgado> {
     return this.equipo.otorgarAcceso(id, dto);
   }
 
   @Post(':id/revocacion')
   @Roles('ADMIN')
-  revocar(@Param('id', Uuid) id: string, @Body() dto: RevocarAccesoDto) {
+  revocar(@Param('id', Uuid) id: string, @Body() dto: RevocarAccesoDto): Promise<AccesoPracticanteRevocado> {
     return this.equipo.revocarAcceso(id, dto.motivo);
   }
 
   @Get(':id/historial')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  historial(@Param('id', Uuid) id: string) {
+  historial(@Param('id', Uuid) id: string): Promise<HistorialAccesoPracticanteVista[]> {
     return this.equipo.historialAccesos(id);
   }
 }
@@ -251,20 +269,20 @@ export class BajasController {
   /** ADMIN (otro ADMIN, nunca la propia, nunca el ultimo: lo impone la BD). */
   @Post()
   @Roles('ADMIN')
-  iniciar(@Body() dto: IniciarBajaDto) {
+  iniciar(@Body() dto: IniciarBajaDto): Promise<BajaIniciada> {
     return this.equipo.iniciarBaja(dto);
   }
 
   @Get()
   @Roles('ADMIN', 'GESTION')
-  listar() {
+  listar(): Promise<BajaVista[]> {
     return this.equipo.bajas();
   }
 
   /** Bandeja: ADMIN/GESTION con nombre; supervisor (PROFESIONAL) seudonimizada. */
   @Get('por-reasignar')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  porReasignar() {
+  porReasignar(): Promise<PacientePorReasignar[]> {
     return this.equipo.pacientesPorReasignar();
   }
 }
@@ -276,14 +294,14 @@ export class AlertasController {
 
   @Get()
   @Roles('ADMIN')
-  listar() {
+  listar(): Promise<AlertaInternaVista[]> {
     return this.equipo.alertas();
   }
 
   @Post(':id/atendida')
   @HttpCode(200)
   @Roles('ADMIN')
-  atender(@Param('id', Uuid) id: string) {
+  atender(@Param('id', Uuid) id: string): Promise<AlertaAtendida> {
     return this.equipo.atenderAlerta(id);
   }
 }

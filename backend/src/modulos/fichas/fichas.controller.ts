@@ -39,18 +39,31 @@ import {
   ResolverDuplicadoDto,
   InvitarPacienteDto,
   ListarBorradoresDto,
+  AceptacionRegistrada,
+  AceptacionVista,
+  AdultoResponsableVista,
   CatalogoDto,
   CrearAdultoResponsableDto,
   CrearEvolucionDto,
   CrearPacienteDto,
+  DocumentoClinicoVista,
   EditarPacienteDto,
   EditarTipoDocumentoDto,
   EmitirDocumentoDto,
+  EnlaceEnviado,
   EnviarDocumentoDto,
+  EstadoFichaPaciente,
+  EvolucionVista,
+  FichaVista,
+  InvitacionEnviada,
+  PacienteCreado,
+  PacienteVista,
+  RespuestasMatchPaciente,
   ProponerTipoSesionDto,
   RevisarTipoSesionDto,
   RevisionRetencionDto,
   TipoDocumentoDto,
+  AccesoTemporalVista,
 } from './dto/fichas.dto';
 import { EvolucionesService } from './evoluciones.service';
 import { IngresosService } from './ingresos.service';
@@ -78,57 +91,57 @@ export class PacientesController {
 
   @Post()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  crear(@Body() dto: CrearPacienteDto) {
+  crear(@Body() dto: CrearPacienteDto): Promise<PacienteCreado> {
     return this.pacientes.crear(dto);
   }
 
   @Get()
   @Roles(...TODOS)
-  listar(@Query() filtro: BuscarPacientesDto) {
+  listar(@Query() filtro: BuscarPacientesDto): Promise<PacienteVista[]> {
     return this.pacientes.listar(filtro);
   }
 
   @Get(':id')
   @Roles(...TODOS)
-  obtener(@Param('id', Uuid) id: string) {
+  obtener(@Param('id', Uuid) id: string): Promise<PacienteVista> {
     return this.pacientes.obtener(id);
   }
 
   @Patch(':id')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  editar(@Param('id', Uuid) id: string, @Body() dto: EditarPacienteDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarPacienteDto): Promise<PacienteVista> {
     return this.pacientes.editar(id, dto);
   }
 
   @Post(':id/adultos-responsables')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  crearAdulto(@Param('id', Uuid) id: string, @Body() dto: CrearAdultoResponsableDto) {
+  crearAdulto(@Param('id', Uuid) id: string, @Body() dto: CrearAdultoResponsableDto): Promise<AdultoResponsableVista> {
     return this.pacientes.crearAdultoResponsable(id, dto);
   }
 
   @Get(':id/adultos-responsables')
   @Roles(...TODOS)
-  adultos(@Param('id', Uuid) id: string) {
+  adultos(@Param('id', Uuid) id: string): Promise<AdultoResponsableVista[]> {
     return this.pacientes.adultosResponsables(id);
   }
 
   /** Metadata: ADMIN y el tratante. GESTION y PACIENTE nunca (clinico). */
   @Get(':id/ficha')
   @Roles('ADMIN', 'PROFESIONAL', 'PRACTICANTE')
-  ficha(@Param('id', Uuid) id: string) {
+  ficha(@Param('id', Uuid) id: string): Promise<FichaVista> {
     return this.pacientes.ficha(id);
   }
 
   @Post(':id/ficha')
   @Roles('ADMIN', 'PROFESIONAL')
-  abrirFicha(@Param('id', Uuid) id: string) {
+  abrirFicha(@Param('id', Uuid) id: string): Promise<FichaVista> {
     return this.pacientes.abrirFicha(id);
   }
 
   /** Invitacion de cuenta: el paciente (desde 14 años) o su adulto responsable si es menor. */
   @Post(':id/invitacion')
   @Roles('ADMIN', 'GESTION')
-  invitar(@Param('id', Uuid) id: string, @Body() dto: InvitarPacienteDto) {
+  invitar(@Param('id', Uuid) id: string, @Body() dto: InvitarPacienteDto): Promise<InvitacionEnviada> {
     return this.pacientes.invitar(id, dto);
   }
 
@@ -139,28 +152,28 @@ export class PacientesController {
   @Post(':id/duplicado-revisado')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION')
-  duplicadoRevisado(@Param('id', Uuid) id: string, @Body() dto: ResolverDuplicadoDto) {
+  duplicadoRevisado(@Param('id', Uuid) id: string, @Body() dto: ResolverDuplicadoDto): Promise<PacienteVista> {
     return this.pacientes.duplicadoRevisado(id, dto.resolucion);
   }
 
   /** Politicas y consentimientos aceptados (version, canal, otorgante). */
   @Get(':id/aceptaciones')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  aceptaciones(@Param('id', Uuid) id: string) {
+  aceptaciones(@Param('id', Uuid) id: string): Promise<AceptacionVista[]> {
     return this.pacientes.aceptaciones(id);
   }
 
   /** Consentimiento informado de atencion firmado en el centro (respaldo obligatorio). */
   @Post(':id/consentimiento-atencion')
   @Roles('ADMIN', 'GESTION')
-  consentimientoAtencion(@Param('id', Uuid) id: string, @Body() dto: ConsentimientoAtencionDto) {
+  consentimientoAtencion(@Param('id', Uuid) id: string, @Body() dto: ConsentimientoAtencionDto): Promise<AceptacionRegistrada> {
     return this.pacientes.consentimientoAtencion(id, dto.respaldoRef, dto.adultoResponsableId);
   }
 
   /** Enlace de un solo uso por correo para el consentimiento de atencion. */
   @Post(':id/consentimiento-atencion/enlace')
   @Roles('ADMIN', 'GESTION')
-  enlaceConsentimiento(@Param('id', Uuid) id: string) {
+  enlaceConsentimiento(@Param('id', Uuid) id: string): Promise<EnlaceEnviado> {
     return this.pacientes.enlaceConsentimientoAtencion(id);
   }
 
@@ -180,20 +193,20 @@ export class PacientesController {
   /** Lo que el paciente respondio en el match al pedir hora (solo el tratante; ADMIN/GESTION nunca). */
   @Get(':id/respuestas-match')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  respuestasMatch(@Param('id', Uuid) id: string) {
+  respuestasMatch(@Param('id', Uuid) id: string): Promise<RespuestasMatchPaciente[]> {
     return this.seguimiento.respuestasMatch(id);
   }
 
   /** Acceso clinico temporal (reemplazo o interconsulta): ADMIN o el tratante. */
   @Post(':id/accesos-temporales')
   @Roles('ADMIN', 'PROFESIONAL')
-  otorgarAcceso(@Param('id', Uuid) id: string, @Body() dto: AccesoTemporalDto) {
+  otorgarAcceso(@Param('id', Uuid) id: string, @Body() dto: AccesoTemporalDto): Promise<AccesoTemporalVista> {
     return this.seguimiento.otorgarAccesoTemporal(id, dto);
   }
 
   @Get(':id/accesos-temporales')
   @Roles('ADMIN', 'PROFESIONAL')
-  accesosTemporales(@Param('id', Uuid) id: string) {
+  accesosTemporales(@Param('id', Uuid) id: string): Promise<AccesoTemporalVista[]> {
     return this.seguimiento.accesosTemporales(id);
   }
 }
@@ -242,14 +255,14 @@ export class SeguimientoController {
   /** ADMIN: todos; PROFESIONAL: recibidos y de sus pacientes. */
   @Get('accesos-temporales')
   @Roles('ADMIN', 'PROFESIONAL')
-  accesosTemporales() {
+  accesosTemporales(): Promise<AccesoTemporalVista[]> {
     return this.seguimiento.accesosTemporales();
   }
 
   /** Vista administrativa: ultima/proxima sesion y sesiones sin cerrar por paciente (sin contenido clinico). */
   @Get('profesionales/:id/estado-fichas')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  estadoFichas(@Param('id', Uuid) id: string) {
+  estadoFichas(@Param('id', Uuid) id: string): Promise<EstadoFichaPaciente[]> {
     return this.seguimiento.estadoFichas(id);
   }
 }
@@ -269,7 +282,7 @@ export class EvolucionesController {
 
   @Get()
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  listar(@Param('fichaId', Uuid) fichaId: string) {
+  listar(@Param('fichaId', Uuid) fichaId: string): Promise<EvolucionVista[]> {
     return this.evoluciones.listar(fichaId);
   }
 }
@@ -395,7 +408,7 @@ export class DocumentosController {
 
   @Get()
   @Roles('PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  listar(@Query('pacienteId', new ParseUUIDPipe({ optional: true })) pacienteId?: string) {
+  listar(@Query('pacienteId', new ParseUUIDPipe({ optional: true })) pacienteId?: string): Promise<DocumentoClinicoVista[]> {
     return this.documentos.listar(pacienteId);
   }
 
@@ -404,6 +417,14 @@ export class DocumentosController {
   @Roles('PACIENTE', 'RESPONSABLE')
   async descargar(@Param('token') token: string) {
     const { nombreArchivo, pdf } = await this.documentos.descargar(token);
+    return archivo(pdf, 'application/pdf', nombreArchivo);
+  }
+
+  /** Antes de 03b-4: descarga desde el portal con sesion (queda registrada como la del enlace). */
+  @Get(':id/pdf')
+  @Roles('PACIENTE', 'RESPONSABLE')
+  async descargarPortal(@Param('id', Uuid) id: string) {
+    const { nombreArchivo, pdf } = await this.documentos.descargarPortal(id);
     return archivo(pdf, 'application/pdf', nombreArchivo);
   }
 
@@ -422,7 +443,7 @@ export class DocumentosController {
   @Post(':id/solicitud-adjunto')
   @HttpCode(200)
   @Roles('PACIENTE', 'RESPONSABLE')
-  solicitarAdjunto(@Param('id', Uuid) id: string) {
+  solicitarAdjunto(@Param('id', Uuid) id: string): Promise<DocumentoClinicoVista> {
     return this.documentos.solicitarAdjunto(id);
   }
 }
