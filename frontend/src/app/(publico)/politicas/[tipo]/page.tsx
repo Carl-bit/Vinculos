@@ -8,6 +8,7 @@ const TITULOS: Record<TipoPolitica, string> = {
   POLITICA_DATOS: 'Política de datos personales',
   TERMINOS_AGENDAMIENTO: 'Términos de agendamiento y cancelación',
   CONSENTIMIENTO_ATENCION: 'Consentimiento informado de atención',
+  CONSENTIMIENTO_PRACTICANTE: 'Consentimiento de atención con practicante supervisado',
 };
 
 const esTipo = (t: string): t is TipoPolitica => t in TITULOS;

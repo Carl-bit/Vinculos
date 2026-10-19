@@ -7,7 +7,7 @@
  */
 import { applyDecorators, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiProperty, ApiPropertyOptional, ApiResponse, DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
+import { ApiOkResponse, ApiProduces, ApiProperty, ApiPropertyOptional, ApiResponse, DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 
 /** Horario libre cercano que acompaña un 409 de agenda (citas.service). */
 export class AlternativaHorario {
@@ -58,6 +58,16 @@ export const ErroresAutenticados = () =>
 export const ErroresPublicos = () => applyDecorators(error(400, 'Parametros invalidos'), error(429, 'Limite de consultas por minuto e IP'));
 
 export const ErrorCuerpoGrande = () => error(413, 'Cuerpo mayor al limite (JSON 1 MB; adjuntos ADJUNTO_MAX_MB)');
+
+/** Descarga binaria (PDF, imagen): el front la pide con fetch y la entrega como archivo, nunca la guarda. */
+export const RespuestaArchivo = (...tipos: string[]) =>
+  applyDecorators(
+    ApiProduces(...tipos),
+    ApiOkResponse({
+      description: 'Archivo (Content-Disposition: attachment)',
+      content: Object.fromEntries(tipos.map((t) => [t, { schema: { type: 'string', format: 'binary' } }])),
+    }),
+  );
 
 export const TAGS = {
   auth: 'Autenticacion',

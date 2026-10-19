@@ -428,6 +428,78 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
       expect(correo.adjuntos).toEqual([expect.objectContaining({ nombre: doc.body.nombreArchivo, tipo: 'application/pdf' })]);
       expect(textoPdf(correo.adjuntos![0].contenido).replace(/\s+/g, ' ')).toContain(CONTENIDO);
     });
+
+    it('03b-5: vista previa sin guardar (solo el tratante) y copia del PDF emitido para el tratante (auditada)', async () => {
+      const cuerpo = { pacienteId: paciente.pacienteId, tipoDocumentoId: tipoDocId, contenido: 'Texto de la vista previa' };
+      const antes = await t.dueno.documentoClinico.count();
+      const previa = await t
+        .http()
+        .post('/api/documentos-clinicos/vista-previa')
+        .set(await tk(prof))
+        .send(cuerpo)
+        .buffer(true)
+        .parse(binario);
+      expect(previa.status).toBe(200);
+      expect(previa.headers['content-type']).toContain('application/pdf');
+      expect(pdfDe(previa)).toContain('Texto de la vista previa');
+      expect(await t.dueno.documentoClinico.count()).toBe(antes);
+      // Paciente ajeno: 404 (no revela que existe); administracion y el paciente: 403.
+      expect(
+        (
+          await t
+            .http()
+            .post('/api/documentos-clinicos/vista-previa')
+            .set(await tk(otroProf))
+            .send(cuerpo)
+        ).status,
+      ).toBe(404);
+      for (const u of [admin, gestion, paciente]) {
+        expect(
+          (
+            await t
+              .http()
+              .post('/api/documentos-clinicos/vista-previa')
+              .set(await tk(u))
+              .send(cuerpo)
+          ).status,
+        ).toBe(403);
+      }
+
+      const doc = await t
+        .http()
+        .post('/api/documentos-clinicos')
+        .set(await tk(prof))
+        .send({ ...cuerpo, contenido: CONTENIDO });
+      const lecturas = () => t.dueno.accesoFicha.count({ where: { usuarioId: prof.id, recurso: 'documentos_clinicos', accion: 'LECTURA' } });
+      const previas = await lecturas();
+      const copia = await t
+        .http()
+        .get(`/api/documentos-clinicos/${doc.body.id}/copia`)
+        .set(await tk(prof))
+        .buffer(true)
+        .parse(binario);
+      expect(copia.status).toBe(200);
+      expect(pdfDe(copia)).toContain(CONTENIDO);
+      expect(await lecturas()).toBe(previas + 1);
+      expect(
+        (
+          await t
+            .http()
+            .get(`/api/documentos-clinicos/${doc.body.id}/copia`)
+            .set(await tk(otroProf))
+        ).status,
+      ).toBe(404);
+      for (const u of [admin, gestion, paciente]) {
+        expect(
+          (
+            await t
+              .http()
+              .get(`/api/documentos-clinicos/${doc.body.id}/copia`)
+              .set(await tk(u))
+          ).status,
+        ).toBe(403);
+      }
+    });
   });
 
   describe('A3 notificaciones de derivacion', () => {

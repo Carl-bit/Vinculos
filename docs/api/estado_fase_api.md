@@ -19,6 +19,7 @@ Integraciones y mensajeria: `docs/api/integraciones.md`.
 | `20261018000100_03a_cuentas_portal_agenda` | 03a-1 | varios roles por cuenta, tokens por correo y TOTP, politicas y aceptaciones, menores y RESPONSABLE, citas SOLICITADA y solicitudes de hora sin cuenta, horario del centro y por box, lista de espera, perfil publico ampliado, match configurable, imagenes publicas, modulos activables, reseñas, acceso clinico temporal, borradores de evolucion, altas, liquidacion por cita realizada, reportes (ver `docs/front/brechas.md` seccion 6) |
 | `20261019000000_03a2_enums` | 03a-2 | valores de enum: alerta y aviso POSIBLE_DUPLICADO, aviso MENSAJE_INTERNO |
 | `20261019000100_03a2_plantillas_mensajeria` | 03a-2 | `especialidades`, `profesional_especialidades`, `plantillas_clinicas` (versionadas, con ejemplos), `ingresos_ficha`, plantilla y valores en `evoluciones` y `borradores_evolucion`; `hilos_internos`, `participantes_hilo`, `mensajes_internos`, `lecturas_hilo`; `correos_cuenta_pendientes`; `configuracion_centro.retencion_mensajes_dias` y `edad_minima_cuenta`; duplicados solo via funcion (alerta y aviso); RUT antes de la primera evolucion para todo paciente |
+| `20261024000000_quitar_lista_espera` | rollback | retira la lista de espera (con cuenta 03a, publica 03b y "avisarme si se libera una hora"): tablas, triggers de aviso, funciones, job y columnas. Implementacion futura; ver la seccion final |
 
 Todas siguen el checklist de tabla nueva: categoria A (salvo
 `tipos_documento_clinico` y `plantillas_mensaje`, B), ENABLE + FORCE RLS, politicas por rol +
@@ -249,3 +250,63 @@ Ademas, al implementar:
   front Vitest 21/21 y Playwright 29/29 (incluye `e2e/panel.spec.ts`, 8
   casos del backoffice). `PUERTO=55439 sh prisma/tests/correr_tests_bd.sh`:
   todos los casos OK (sin cambios en la BD en esta fase).
+
+## 03b-5.1 (ficha clinica)
+
+- Endpoints: `POST documentos-clinicos/vista-previa`, `GET
+  documentos-clinicos/:id/copia`, `PATCH intervenciones/:id`, `PATCH
+  estados-avance/:id`; `GET borradores` con `pacienteId`. Detalle en
+  `docs/seguridad/requisitos_02_apis.md` (03b-5.1).
+- OpenAPI: 280 operaciones; Fichas sin operaciones sin schema.
+- Tests de integracion nuevos: vista previa y copia por rol (02h), catalogos
+  desactivables solo por ADMIN (02c), `pacienteId` en borradores (03a).
+- Seed demo: especialidad aprobada para Profesional Uno, plantillas de
+  ingreso y evolucion publicadas, un ingreso, una evolucion con plantilla y
+  un borrador pendiente (Paciente Prueba).
+
+## 03b-5.2 (acceso a fichas ajenas y equipo)
+
+- Migraciones: `20261023000000_03b5_enums`,
+  `20261023000100_03b5_consentimiento_practicante` (detalle en
+  requisitos_02_apis.md 03b-5.2). `seguridad_bd.sql` caso 64: version no
+  vigente rechazada; los casos 64, 73 y 75 aceptan con la version vigente.
+- Tests de integracion actualizados: 02f (pacienteId en la derivacion, antes
+  y despues del traspaso; version vigente), 03b3 (el enlace muestra el texto
+  y la version del consentimiento de practicante; una version vieja da 422).
+- Seed demo: comentario de supervision, conversacion general y del caso,
+  acceso temporal de interconsulta.
+
+## 03b-5.3 (cierre de flujos)
+
+- Sin cambios de API ni migraciones. El front usa el resto del contrato
+  (epicrisis, cierre requerido, cita por id, verificacion previa, horarios
+  tomados, match directo, reporte de reseñas). Cobertura: 274 operaciones
+  con pantalla, 6 excepciones justificadas.
+
+## Rollback: lista de espera (implementacion futura)
+
+La lista de espera se ve en una entrega posterior; se retira de la primera
+version de prueba con una migracion nueva (`20261024000000_quitar_lista_espera`),
+sin editar las aplicadas:
+
+- BD: sin `lista_espera`, `lista_espera_publica`, `estado_lista_espera`,
+  `solicitudes_hora.lista_espera` ni `configuracion_centro.dias_lista_espera_publica`;
+  sin los triggers `citas_hora_liberada` y `bloques_atencion_avisan` ni las
+  funciones de inscripcion, verificacion, baja y avisos. `crear_solicitud_hora`
+  pierde `p_lista_espera`; `concretar_solicitud_hora`, `registrar_alta`,
+  `reporte_dashboard` (sin `pendientes.lista_espera`) y
+  `notificaciones_por_enviar` se redefinen sin la lista. Se borran las
+  plantillas de HORA_LIBERADA y los enlaces de la lista publica pendientes.
+- Quedan sin uso los valores de enum HORA_LIBERADA (`tipo_notificacion`) y
+  VERIFICACION_LISTA_ESPERA / BAJA_LISTA_ESPERA (`tipo_token_correo`):
+  PostgreSQL no quita valores de un enum sin recrear el tipo.
+- API: sin `/lista-espera` ni `/publico/lista-espera`, sin el job
+  `avisar_lista_espera_publica` y sin `listaEspera` en la solicitud de hora.
+- Front: sin la seccion del portal, la pestaña de Agenda, el formulario en
+  Pedir hora, las paginas `/lista-espera/verificar` y `/lista-espera/baja` ni
+  la tarjeta del dashboard.
+- Tests: `seguridad_bd.sql` casos 107 y 124 verifican que no queda nada
+  (sin avisos al cancelar, sin tablas, funciones ni columnas); 106 y 110
+  quedan sin la lista.
+- Para retomarla: el diseño anterior queda en el historial de git (commits de
+  03a-1 y 03b) y en `design-system/vinculos/MASTER.md`.

@@ -110,7 +110,7 @@ export class AgendaService {
       throw new BadRequestException('fin debe ser posterior a inicio');
     }
     const creadoPorId = this.bd.usuario().id;
-    // createMany: una sola sentencia (el aviso a la lista de espera sale una vez).
+    // createMany: una sola sentencia.
     await this.bd.tx().bloqueAtencion.createMany({ data: bloques.map((b) => ({ ...b, profesionalId, creadoPorId })) });
     const desde = new Date(Math.min(...bloques.map((b) => b.inicio.getTime())));
     const hasta = new Date(Math.max(...bloques.map((b) => b.fin.getTime())));

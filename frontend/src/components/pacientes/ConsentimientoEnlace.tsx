@@ -12,7 +12,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { textoConsentimiento, VERSION_PRACTICANTE } from '@/lib/consentimientos';
+import { textoConsentimiento } from '@/lib/consentimientos';
 import { formatoFechaHora } from '@/lib/formato';
 
 /**
@@ -53,7 +53,7 @@ export function ConsentimientoEnlace() {
     try {
       await datos(
         api.POST('/api/publico/consentimientos/respuesta', {
-          body: { token, acepta, version: acepta ? (c.tipo === 'ATENCION' ? String(c.politica_version) : VERSION_PRACTICANTE) : undefined },
+          body: { token, acepta, version: acepta ? String(c.politica_version) : undefined },
         }),
       );
       setResultado(acepta);
@@ -101,7 +101,7 @@ export function ConsentimientoEnlace() {
           ))}
         </ul>
       )}
-      {c.tipo === 'ATENCION' && (
+      {c.tipo !== 'AVISO_SUPERVISOR' && (
         <div className="mb-6 max-h-[46vh] overflow-y-auto rounded-lg border border-divider bg-neutral-100 px-6 py-5 shadow-sm">
           <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Documento, versión {c.politica_version}</p>
           <div className="text-[15px] leading-[1.75] whitespace-pre-line text-pretty text-neutral-800">{c.politica_texto}</div>

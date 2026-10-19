@@ -463,7 +463,6 @@ export class PendientesDashboard {
   consentimientos_pendientes!: number;
   practicantes_por_vencer!: number;
   por_reprogramar!: number;
-  lista_espera!: number;
   @ApiProperty({ type: Number, nullable: true, description: 'Solo ADMIN' })
   resenas_por_moderar!: number | null;
   @ApiProperty({ type: Number, nullable: true, description: 'Solo ADMIN' })
@@ -541,7 +540,6 @@ export class ConfiguracionCentroVista {
   minutosRetencionSolicitud!: number;
   retencionMensajesDias!: number;
   edadMinimaCuenta!: number;
-  diasListaEsperaPublica!: number;
   updatedAt!: Date;
 }
 
@@ -708,4 +706,11 @@ export class AlertaInternaVista {
 export class AlertaAtendida {
   id!: string;
   atendida!: boolean;
+}
+
+/** Profesional del equipo tratante del paciente (portal), solo nombre. */
+export class IntegranteEquipoTratante {
+  id!: string;
+  @ApiProperty({ type: String, nullable: true })
+  nombre!: string | null;
 }

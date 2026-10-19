@@ -56,6 +56,7 @@ import {
   PacientePorReasignar,
   PracticanteVista,
   TotpReiniciado,
+  IntegranteEquipoTratante,
 } from './dto/nucleo.dto';
 import { EquipoAccesoService } from './equipo-acceso.service';
 import { UsuariosService } from './usuarios.service';
@@ -320,7 +321,7 @@ export class DirectorioController {
 
   @Get('mi-equipo')
   @Roles('PACIENTE', 'RESPONSABLE')
-  miEquipo() {
+  miEquipo(): Promise<IntegranteEquipoTratante[]> {
     return this.equipo.miEquipoTratante();
   }
 }

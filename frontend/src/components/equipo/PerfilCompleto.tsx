@@ -6,6 +6,8 @@ import { formatoClp, formatoFechaLarga } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
 import { NOMBRE_MODALIDAD, NOMBRE_TRAYECTORIA, previsionTexto, textoCalificacion } from '@/lib/perfiles';
 
+import { ReportarResena } from './ReportarResena';
+
 /*
  * Perfil publico completo (no esta en el diseño: se arma con las secciones del
  * detalle de "Match Publico"). Cada seccion aparece solo si tiene datos.
@@ -149,6 +151,7 @@ export function Resenas({ perfil, resenas }: { perfil: PerfilPublico; resenas: R
                 </time>
               </div>
               {r.texto && <p className="m-0 text-[14px] leading-relaxed text-pretty text-neutral-800">{r.texto}</p>}
+              <ReportarResena resenaId={r.id} />
             </li>
           ))}
         </ul>

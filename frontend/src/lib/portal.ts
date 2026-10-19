@@ -25,7 +25,6 @@ export type Consentimiento = components['schemas']['ConsentimientoVista'];
 export type AvisoConsentimiento = components['schemas']['AvisoConsentimientoVista'];
 export type MensajeBandeja = components['schemas']['MensajeBandeja'];
 export type Preferencias = components['schemas']['Preferencias'];
-export type ListaEspera = components['schemas']['ListaEsperaVista'];
 
 const MINUTO = 60_000;
 
@@ -122,14 +121,6 @@ export function usePreferencias(pacienteId: string | undefined, responsable: boo
 
 export function useCobrosPortal(habilitado = true) {
   return useQuery({ queryKey: ['portal', 'cobros'], queryFn: () => datos(api.GET('/api/cobros/citas')), enabled: habilitado });
-}
-
-export function useListaEsperaPortal(habilitado = true) {
-  return useQuery({
-    queryKey: ['portal', 'lista-espera'],
-    queryFn: () => datos(api.GET('/api/lista-espera', { params: { query: { estado: 'ACTIVA' } } })),
-    enabled: habilitado,
-  });
 }
 
 /** Estado de una cita para el paciente (diseño "Mi Cuenta"). "Por confirmar" = SOLICITADA (espera aprobacion). */

@@ -21,7 +21,13 @@ import {
   ResponderDerivacionDto,
   RevocarConsentimientoDto,
   SolicitarConsentimientoDto,
+  ConsentimientoSolicitado,
+  DerivacionPendiente,
+  DerivacionRespondida,
+  OfertaDerivacion,
+  PracticantePropuesto,
 } from './dto/derivaciones.dto';
+import { EnlaceEnviado } from '../fichas/dto/fichas.dto';
 
 const Uuid = new ParseUUIDPipe();
 
@@ -47,7 +53,7 @@ export class DerivacionesController {
   /** Bandeja de ofertas: ADMIN y supervisores vigentes. */
   @Get('pendientes')
   @Roles('ADMIN', 'PROFESIONAL')
-  pendientes() {
+  pendientes(): Promise<DerivacionPendiente[]> {
     return this.derivaciones.pendientes();
   }
 
@@ -59,41 +65,41 @@ export class DerivacionesController {
 
   @Get(':id/oferta')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  oferta(@Param('id', Uuid) id: string) {
+  oferta(@Param('id', Uuid) id: string): Promise<OfertaDerivacion> {
     return this.derivaciones.oferta(id);
   }
 
   @Post(':id/respuesta')
   @HttpCode(200)
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  responder(@Param('id', Uuid) id: string, @Body() dto: ResponderDerivacionDto) {
+  responder(@Param('id', Uuid) id: string, @Body() dto: ResponderDerivacionDto): Promise<DerivacionRespondida> {
     return this.derivaciones.responder(id, dto.acepta);
   }
 
   @Post(':id/cancelacion')
   @HttpCode(200)
   @Roles('ADMIN', 'PROFESIONAL')
-  cancelar(@Param('id', Uuid) id: string, @Body() dto: CancelarDerivacionDto) {
+  cancelar(@Param('id', Uuid) id: string, @Body() dto: CancelarDerivacionDto): Promise<DerivacionVista> {
     return this.derivaciones.cancelar(id, dto.motivo);
   }
 
   @Put(':id/candidatos')
   @Roles('ADMIN')
-  definirCandidatos(@Param('id', Uuid) id: string, @Body() dto: CandidatosDto) {
+  definirCandidatos(@Param('id', Uuid) id: string, @Body() dto: CandidatosDto): Promise<DerivacionVista> {
     return this.derivaciones.definirCandidatos(id, dto.candidatos);
   }
 
   @Post(':id/candidatos/:profesionalId/reintegro')
   @HttpCode(200)
   @Roles('ADMIN')
-  reintegrar(@Param('id', Uuid) id: string, @Param('profesionalId', Uuid) profesionalId: string) {
+  reintegrar(@Param('id', Uuid) id: string, @Param('profesionalId', Uuid) profesionalId: string): Promise<DerivacionVista> {
     return this.derivaciones.reintegrar(id, profesionalId);
   }
 
   @Post(':id/practicantes')
   @HttpCode(200)
   @Roles('ADMIN', 'PROFESIONAL')
-  proponer(@Param('id', Uuid) id: string, @Body() dto: ProponerPracticanteDto) {
+  proponer(@Param('id', Uuid) id: string, @Body() dto: ProponerPracticanteDto): Promise<PracticantePropuesto> {
     return this.derivaciones.proponerPracticante(id, dto.practicanteId);
   }
 }
@@ -116,7 +122,7 @@ export class ConsentimientosController {
 
   @Post('consentimientos/solicitudes')
   @Roles('ADMIN', 'PROFESIONAL')
-  solicitar(@Body() dto: SolicitarConsentimientoDto) {
+  solicitar(@Body() dto: SolicitarConsentimientoDto): Promise<ConsentimientoSolicitado> {
     return this.derivaciones.solicitarConsentimiento(dto.pacienteId);
   }
 
@@ -150,14 +156,14 @@ export class ConsentimientosController {
   /** D-3: enlace de un solo uso por correo para responder la solicitud (al paciente o a su adulto responsable). */
   @Post('consentimientos/:id/enlace')
   @Roles('ADMIN', 'GESTION')
-  enlaceConsentimiento(@Param('id', Uuid) id: string) {
+  enlaceConsentimiento(@Param('id', Uuid) id: string): Promise<EnlaceEnviado> {
     return this.correos.enlaceConsentimiento(id);
   }
 
   /** D-3: enlace de un solo uso para responder (o oponerse a) un aviso de cambio de supervisor. */
   @Post('avisos-consentimiento/:id/enlace')
   @Roles('ADMIN', 'GESTION')
-  enlaceAviso(@Param('id', Uuid) id: string) {
+  enlaceAviso(@Param('id', Uuid) id: string): Promise<EnlaceEnviado> {
     return this.correos.enlaceConsentimiento(id);
   }
 }

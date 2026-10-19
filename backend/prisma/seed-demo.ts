@@ -368,7 +368,7 @@ async function main(): Promise<void> {
     await llamar(practicante, 'POST', `/derivaciones/${derivCamila.id}/respuesta`, { acepta: true });
     const paciente2 = await login(`paciente2@${DOMINIO}`);
     const [solicitud] = (await llamar(paciente2, 'GET', '/consentimientos')) as unknown as { id: string }[];
-    await llamar(paciente2, 'POST', `/consentimientos/${solicitud.id}/respuesta`, { acepta: true, versionDocumento: 'v1-demo', otorgadoPorTipo: 'PACIENTE' });
+    await llamar(paciente2, 'POST', `/consentimientos/${solicitud.id}/respuesta`, { acepta: true, versionDocumento: '1', otorgadoPorTipo: 'PACIENTE' });
 
     // Derivacion en curso de Diego con dos candidatos: la oferta queda en Profesional Dos.
     await llamar(prof1, 'POST', '/derivaciones', {
@@ -392,6 +392,73 @@ async function main(): Promise<void> {
       notas: 'Evolucion demo del practicante (la ve el supervisor seudonimizada).',
       tipoSesionId: tiposSesion[0].id,
       nivelRiesgo: 'BAJO',
+    });
+
+    // --- 03b-5: especialidad aprobada y plantillas clinicas publicadas (ingreso y evolucion) ---
+    const especialidad = await llamar(admin, 'POST', '/especialidades', { nombre: 'Psicologia clinica (Demo)' });
+    await llamar(prof1, 'POST', '/profesionales/yo/especialidades', { especialidadId: especialidad.id });
+    await llamar(admin, 'POST', `/profesionales/${prof1Id}/especialidades/${especialidad.id}/revision`, { aprobar: true });
+    const campos = (lista: [string, string, string, Cuerpo?][]) =>
+      lista.map(([clave, etiqueta, tipo, extra], i) => ({
+        clave,
+        etiqueta,
+        tipo,
+        obligatorio: false,
+        orden: i + 1,
+        visible_en_supervision: false,
+        es_texto_libre: tipo === 'TEXTO' || tipo === 'TEXTO_LARGO',
+        ...extra,
+      }));
+    const plantillaIngreso = await llamar(admin, 'POST', '/plantillas-clinicas', {
+      especialidadId: especialidad.id,
+      tipo: 'INGRESO',
+      nombre: 'Anamnesis adultos (Demo)',
+      definicion: campos([
+        ['motivo_consulta', 'Motivo de consulta', 'TEXTO_LARGO', { obligatorio: true }],
+        ['derivado_por', 'Derivado por', 'SELECCION_UNICA', { opciones: ['Consulta espontanea', 'Medico', 'Colegio', 'Otro'] }],
+        ['tratamiento_previo', 'Tratamiento psicologico previo', 'SI_NO'],
+        ['antecedentes', 'Antecedentes relevantes', 'TEXTO_LARGO'],
+      ]),
+    });
+    await llamar(admin, 'POST', `/plantillas-clinicas/${plantillaIngreso.id}/publicacion`);
+    const plantillaEvolucion = await llamar(admin, 'POST', '/plantillas-clinicas', {
+      especialidadId: especialidad.id,
+      tipo: 'EVOLUCION',
+      nombre: 'Evolucion psicoterapia (Demo)',
+      definicion: campos([
+        ['foco', 'Foco de la sesion', 'SELECCION_MULTIPLE', { opciones: ['Sintomas', 'Vinculos', 'Trabajo', 'Plan de seguridad'], visible_en_supervision: true }],
+        ['animo', 'Animo reportado (1 a 10)', 'NUMERO', { visible_en_supervision: true }],
+        ['tareas', 'Tareas acordadas', 'TEXTO'],
+      ]),
+    });
+    await llamar(admin, 'POST', `/plantillas-clinicas/${plantillaEvolucion.id}/publicacion`);
+    await llamar(prof1, 'POST', `/fichas/${fichaPrueba}/ingresos`, {
+      plantillaId: plantillaIngreso.id,
+      valores: { motivo_consulta: 'Motivo ficticio del centro de demostracion.', derivado_por: 'Consulta espontanea', tratamiento_previo: false },
+    });
+    await llamar(prof1, 'POST', `/fichas/${fichaPrueba}/evoluciones`, {
+      notas: 'Evolucion demo con plantilla (texto ficticio).',
+      tipoSesionId: tiposSesion[0].id,
+      nivelRiesgo: 'NINGUNO',
+      plantillaId: plantillaEvolucion.id,
+      valores: { foco: ['Sintomas'], animo: 6 },
+    });
+    await llamar(prof1, 'POST', `/fichas/${fichaPrueba}/borradores`, { contenido: 'Borrador demo sin confirmar (texto ficticio).' });
+
+    // --- 03b-5.2: supervision seudonimizada, mensajeria interna y acceso temporal ---
+    const [caso] = (await llamar(prof2, 'GET', '/supervision/casos')) as unknown as { codigo: string }[];
+    const [evolucionCaso] = (await llamar(prof2, 'GET', `/supervision/casos/${caso.codigo}/evoluciones`)) as unknown as { evolucionId: string }[];
+    await llamar(prof2, 'POST', `/supervision/evoluciones/${evolucionCaso.evolucionId}/comentarios`, {
+      texto: 'Comentario demo de supervision: revisar el plan de la proxima sesion (texto ficticio).',
+    });
+    await llamar(prof1, 'POST', '/hilos', { tipo: 'GENERAL', asunto: 'Coordinacion de la semana (demo)', participantes: [prof2Id] });
+    const hiloCaso = await llamar(prof1, 'POST', '/hilos', { tipo: 'CASO', asunto: 'Interconsulta del caso (demo)', pacienteId: pacientePrueba });
+    await llamar(prof1, 'POST', `/hilos/${hiloCaso.id}/mensajes`, { contenido: 'Mensaje demo del caso (texto ficticio).' });
+    await llamar(prof1, 'POST', `/pacientes/${pacientePrueba}/accesos-temporales`, {
+      profesionalId: prof3Id,
+      motivo: 'INTERCONSULTA',
+      alcance: 'LECTURA',
+      hasta: new Date(Date.now() + 14 * 86_400_000).toISOString(),
     });
 
     // --- Citas -------------------------------------------------------------------
@@ -445,7 +512,7 @@ async function main(): Promise<void> {
     await cita({ pacienteId: tomas.id, profesionalId: prof2Id, modalidad: 'ONLINE', ...horario(5, '16:00') });
     await llamar(prof1, 'PATCH', `/pacientes/${pacientePrueba}`, { contactoEmergencia: 'Contacto Demo (hermana) +56922222222' });
 
-    // Paciente Prueba: mensajes a su profesional, documento emitido, copia de ficha pedida y lista de espera con cuenta.
+    // Paciente Prueba: mensajes a su profesional, documento emitido y copia de ficha pedida.
     await llamar(paciente, 'POST', '/portal/mensajes', {
       profesionalId: prof1Id,
       contenido: 'Mensaje demo: ¿la sesión del jueves es presencial u online? Gracias.',
@@ -457,7 +524,6 @@ async function main(): Promise<void> {
       contenido: 'Certificado ficticio de atencion del centro de demostracion.',
     });
     await llamar(paciente, 'POST', '/portal/epicrisis', { motivo: 'Copia demo para un control con otro especialista.' });
-    await llamar(paciente, 'POST', '/lista-espera', { pacienteId: pacientePrueba, profesionalId: prof2Id, preferencias: 'Tardes después de las 18:00' });
     const madreToken = await login(`madre.demo@${DOMINIO}`);
     await llamar(madreToken, 'POST', '/portal/mensajes', {
       profesionalId: prof2Id,

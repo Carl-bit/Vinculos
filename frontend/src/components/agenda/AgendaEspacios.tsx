@@ -1,5 +1,6 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
@@ -7,6 +8,7 @@ import { Encabezado } from '@/components/shared/Encabezado';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Pestanas } from '@/components/ui/Pestanas';
+import { api, datos } from '@/lib/api/cliente';
 import { nombresPacientes, usePacientes, type CitaVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
@@ -16,16 +18,14 @@ import { CalendarioAgenda } from './CalendarioAgenda';
 import { DetalleCita } from './DetalleCita';
 import { EspaciosAgenda } from './EspaciosAgenda';
 import { HorariosEquipo } from './HorariosEquipo';
-import { ListaEsperaEquipo } from './ListaEsperaEquipo';
 import { PendientesAgenda } from './PendientesAgenda';
 
-type Vista = 'calendario' | 'espacios' | 'equipo' | 'pendientes' | 'lista-espera';
+type Vista = 'calendario' | 'espacios' | 'equipo' | 'pendientes';
 const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'calendario', etiqueta: 'Calendario consolidado' },
   { valor: 'espacios', etiqueta: 'Espacios' },
   { valor: 'equipo', etiqueta: 'Horarios del equipo' },
   { valor: 'pendientes', etiqueta: 'Pendientes' },
-  { valor: 'lista-espera', etiqueta: 'Lista de espera' },
 ];
 
 /**
@@ -37,11 +37,18 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
   const admin = esAdministracion(rol);
   const router = useRouter();
   const parametros = useSearchParams();
-  // La lista de espera interna no es para practicantes (matriz).
-  const vistas = VISTAS.filter((v) => v.valor !== 'lista-espera' || rol !== 'PRACTICANTE');
-  const vista = vistas.find((v) => v.valor === parametros.get('vista'))?.valor ?? 'calendario';
+  const vista = VISTAS.find((v) => v.valor === parametros.get('vista'))?.valor ?? 'calendario';
   const agendar = parametros.get('nueva') === '1' || !!parametros.get('paciente');
   const [elegida, setElegida] = useState<CitaVista | null>(null);
+  // `?cita=<id>` (desde un aviso o el dashboard): abre el detalle de esa cita.
+  const citaPedida = parametros.get('cita');
+  const enlazada = useQuery({
+    queryKey: ['panel', 'cita', citaPedida],
+    queryFn: () => datos(api.GET('/api/citas/{id}', { params: { path: { id: citaPedida! } } })),
+    enabled: !!citaPedida,
+    retry: false,
+  });
+  const detalle = elegida ?? (citaPedida ? (enlazada.data ?? null) : null);
   const [reprogramar, setReprogramar] = useState<CitaVista | null>(null);
   const [nuevoBox, setNuevoBox] = useState(false);
   const pacientes = usePacientes();
@@ -85,7 +92,7 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
         }
       />
       {admin && (
-        <p className="m-0 mb-[22px] flex items-center gap-2 text-[13px] font-semibold text-neutral-700">
+        <p className="m-0 mb-[22px] flex items-center gap-2 text-[13px] font-semibold text-neutral-800">
           <Icon name="groups" size={17} />
           Vista de coordinación: todas las agendas del centro (o la del profesional elegido en el menú lateral).
         </p>
@@ -104,17 +111,20 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
           {vista === 'espacios' && <EspaciosAgenda puedeEditar={admin} nuevo={nuevoBox} onNuevoCerrado={() => setNuevoBox(false)} />}
           {vista === 'equipo' && <HorariosEquipo rol={rol} />}
           {vista === 'pendientes' && <PendientesAgenda rol={rol} onElegir={setElegida} />}
-          {vista === 'lista-espera' && <ListaEsperaEquipo rol={rol} />}
         </div>
       </div>
 
       <DetalleCita
-        cita={elegida}
-        nombrePaciente={elegida ? (nombres.get(elegida.pacienteId) ?? 'Paciente') : ''}
+        cita={detalle}
+        nombrePaciente={detalle ? (nombres.get(detalle.pacienteId) ?? 'Paciente') : ''}
         rol={rol}
-        onCerrar={() => setElegida(null)}
+        onCerrar={() => {
+          setElegida(null);
+          if (citaPedida) ir({ cita: null });
+        }}
         onReprogramar={(c) => {
           setElegida(null);
+          if (citaPedida) ir({ cita: null });
           setReprogramar(c);
         }}
       />

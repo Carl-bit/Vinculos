@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
 import { Aviso } from '@/components/ui/Aviso';
@@ -76,16 +76,45 @@ export function AgendarSesion({
     onCerrar();
   };
 
+  // Retencion propia que sigue vigente (p. ej. tras recargar): se retoma con su cuenta regresiva.
+  const retenidas = useQuery({
+    queryKey: ['agenda', 'horarios-tomados'],
+    queryFn: () => datos(api.GET('/api/agenda/horarios-tomados')),
+    enabled: abierto && !!profesionalId && !reprogramar,
+    staleTime: 0,
+  });
+  useEffect(() => {
+    if (retencion || !retenidas.data) return;
+    const propia = retenidas.data.find((h) => h.profesionalId === profesionalId && new Date(h.expiraEn).getTime() > Date.now());
+    if (propia)
+      setRetencion({
+        id: propia.id,
+        bloque: { modalidad: propia.modalidad, inicio: new Date(propia.inicio), fin: new Date(propia.fin) },
+        desde: new Date(propia.createdAt),
+        hasta: new Date(propia.expiraEn),
+      });
+    // Solo al llegar la lista: elegir otra hora despues no la vuelve a imponer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retenidas.data]);
+
   const tomar = useMutation({
-    mutationFn: (b: Bloque) =>
-      datos(
-        api.POST('/api/agenda/horarios-tomados', {
-          body: { profesionalId: profesionalId!, modalidad: b.modalidad, inicio: b.inicio.toISOString(), fin: b.fin.toISOString() },
-        }),
-      ),
-    onSuccess: (r, b) => {
+    mutationFn: async (b: Bloque) => {
+      const cuerpo = { profesionalId: profesionalId!, modalidad: b.modalidad, inicio: b.inicio.toISOString(), fin: b.fin.toISOString() };
+      // Verificacion previa (opcion C), ANTES de retener: la propia retencion contaria como choque. Margen de
+      // traslado, box y bloqueos. Al reprogramar la propia cita ocupa el horario: se omite y decide el EXCLUDE.
+      const v = reprogramar ? null : await datos(api.POST('/api/citas/verificacion', { body: cuerpo }));
+      if (v && !v.disponible) return { r: null, v };
+      return { r: await datos(api.POST('/api/agenda/horarios-tomados', { body: cuerpo })), v };
+    },
+    onSuccess: ({ r, v }, b) => {
       setAviso(undefined);
-      setRetencion({ id: r.id, bloque: b, desde: new Date(), hasta: new Date(r.expiraEn) });
+      if (r) {
+        setRetencion({ id: r.id, bloque: b, desde: new Date(), hasta: new Date(r.expiraEn) });
+        return;
+      }
+      setAviso(`${nombreProfesional} no puede atender a esa hora (otra cita, un bloqueo o el margen de traslado). Te mostramos las horas libres más cercanas.`);
+      setAlternativas(v?.alternativas ?? []);
+      void cliente.invalidateQueries({ queryKey: ['huecos', profesionalId] });
     },
     onError: (e) => {
       setAviso(

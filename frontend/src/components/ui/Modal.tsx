@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { Icon } from './Icon';
 
 /**
  * Modal sobre `<dialog>` nativo (foco atrapado, Escape y fondo inerte los da
  * el navegador). Mismo panel que el diseño: radio grande, sombra lg, fondo
- * crema. El foco vuelve al elemento que lo abrio al cerrar.
+ * crema. El foco vuelve al elemento que lo abrio al cerrar. Se monta en un
+ * portal sobre `body` (solo en el cliente): asi nunca queda anidado dentro de
+ * la tarjeta o la fila que lo abre.
  */
 export function Modal({
   abierto,
@@ -28,14 +31,17 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
     if (abierto && !d.open) d.showModal();
     else if (!abierto && d.open) d.close();
-  }, [abierto]);
+  }, [abierto, montado]);
 
-  return (
+  if (!montado) return null;
+  return createPortal(
     <dialog
       ref={ref}
       aria-labelledby={`${id}-titulo`}
@@ -73,6 +79,7 @@ export function Modal({
           {acciones && <div className="mt-1 flex flex-wrap justify-end gap-2.5">{acciones}</div>}
         </div>
       )}
-    </dialog>
+    </dialog>,
+    document.body,
   );
 }

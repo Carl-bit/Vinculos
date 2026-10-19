@@ -248,7 +248,7 @@ function pendientesCentro(r: ReporteDashboard, rol: Rol): Pendiente[] {
       icono: 'verified_user',
       titulo: plural(p.consentimientos_pendientes, 'consentimiento pendiente', 'consentimientos pendientes'),
       meta: 'Atención con practicante supervisado',
-      href: '/admin/fichas?filtro=consentimientos',
+      href: '/admin/fichas?vista=consentimientos',
       tono: 'neutra',
     },
     p.practicantes_por_vencer > 0 && {
@@ -256,13 +256,6 @@ function pendientesCentro(r: ReporteDashboard, rol: Rol): Pendiente[] {
       titulo: plural(p.practicantes_por_vencer, 'practicante por vencer', 'practicantes por vencer'),
       meta: 'Acceso termina en menos de 14 días',
       href: '/admin/equipo?vista=practicantes',
-      tono: 'neutra',
-    },
-    p.lista_espera > 0 && {
-      icono: 'hourglass_empty',
-      titulo: plural(p.lista_espera, 'persona en lista de espera', 'personas en lista de espera'),
-      meta: 'Ofrecer las horas que se liberen',
-      href: '/admin/agenda?vista=lista-espera',
       tono: 'neutra',
     },
     rol === 'ADMIN' &&
@@ -298,7 +291,7 @@ function pendientesPropios(r: ReporteDashboard): Pendiente[] {
       icono: 'draft',
       titulo: plural(r.borradores!, 'borrador sin confirmar', 'borradores sin confirmar'),
       meta: 'Confírmalos en el expediente',
-      href: '/admin/fichas?filtro=borradores',
+      href: '/admin/fichas?vista=borradores',
       tono: 'atencion',
     },
     (r.solicitudes_por_aprobar ?? 0) > 0 && {
@@ -312,7 +305,7 @@ function pendientesPropios(r: ReporteDashboard): Pendiente[] {
       icono: 'mail',
       titulo: plural(r.mensajes_sin_leer!, 'mensaje sin leer', 'mensajes sin leer'),
       meta: 'Escritos por tus pacientes desde el portal',
-      href: '/admin/fichas?vista=mensajes',
+      href: '/admin/mensajes?vista=pacientes',
       tono: 'neutra',
     },
   ];

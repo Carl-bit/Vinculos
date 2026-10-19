@@ -78,7 +78,7 @@ export class SolicitudesService {
         ${c(dto.rut, 'rut')}, ${dto.rut ? Buffer.from(this.llavero.hmacRut(dto.rut)) : null}, ${dto.adultoNombre ?? null},
         ${dto.adultoParentesco ?? null}, ${c(dto.adultoTelefono, 'adulto_telefono')},
         ${dto.respuestas ? c(JSON.stringify(dto.respuestas), 'respuestas') : null}, ${dto.recomendadoId ?? null}::uuid,
-        ${dto.listaEspera ?? false}, ${dto.politicaId}::uuid, ${dto.terminosId ?? null}::uuid, ${hash}) AS expira`;
+        ${dto.politicaId}::uuid, ${dto.terminosId ?? null}::uuid, ${hash}) AS expira`;
     await this.correos.enviar('VERIFICACION_SOLICITUD', dto.email, token, expira);
     return { expiraEn: expira, verificacionEnviada: true };
   }

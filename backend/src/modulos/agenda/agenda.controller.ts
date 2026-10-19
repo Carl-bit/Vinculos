@@ -6,7 +6,6 @@ import { TAGS } from '../../core/docs/openapi';
 import { Modulo } from '../../core/modulos/modulos';
 import { Publico, Roles } from '../../core/auth/decoradores';
 import { AgendaService } from './agenda.service';
-import { ListaEsperaService } from './lista-espera.service';
 import { CitasService } from './citas.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
 import { RecordatoriosService } from './recordatorios.service';
@@ -25,23 +24,18 @@ import {
   HoraLibreBox,
   HorarioTomado,
   HuecoAgenda,
-  ListaEsperaVista,
   OcupacionBox,
   RecordatorioConsulta,
   RecordatorioRespuesta,
   VerificacionHorario,
   FeedCalendario,
   SalaVideollamadaVista,
+  CierreRequerido,
 } from './dto/agenda-respuestas.dto';
-import { InscribirListaEsperaDto, InscripcionListaEspera, InscripcionVerificada, TokenListaEsperaDto } from './dto/lista-espera-publica.dto';
-import { ListaEsperaPublicaService } from './lista-espera-publica.service';
 import {
   ApartarBloquesDto,
-  CerrarListaEsperaDto,
   CrearBloqueoAgendaDto,
-  CrearListaEsperaDto,
   CubrirCitaDto,
-  FiltroListaEsperaDto,
   HorarioEspacioDto,
   CrearCitaDto,
   CrearDisponibilidadDto,
@@ -297,35 +291,8 @@ export class CitasController {
   @Post(':id/cierre-requerido')
   @HttpCode(200)
   @Roles('ADMIN')
-  requerirCierre(@Param('id', Uuid) id: string) {
+  requerirCierre(@Param('id', Uuid) id: string): Promise<CierreRequerido> {
     return this.citas.requerirCierre(id);
-  }
-}
-
-/** Lista de espera por profesional o tipo de atencion (03a). */
-@ApiTags(TAGS.agenda)
-@Controller('lista-espera')
-@Modulo('AGENDA')
-export class ListaEsperaController {
-  constructor(private readonly lista: ListaEsperaService) {}
-
-  @Get()
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
-  listar(@Query() filtro: FiltroListaEsperaDto): Promise<ListaEsperaVista[]> {
-    return this.lista.listar(filtro);
-  }
-
-  @Post()
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
-  crear(@Body() dto: CrearListaEsperaDto): Promise<ListaEsperaVista> {
-    return this.lista.crear(dto);
-  }
-
-  @Post(':id/cierre')
-  @HttpCode(200)
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
-  cerrar(@Param('id', Uuid) id: string, @Body() dto: CerrarListaEsperaDto): Promise<ListaEsperaVista> {
-    return this.lista.cerrar(id, dto.estado);
   }
 }
 
@@ -403,39 +370,5 @@ export class RecordatoriosPublicoController {
   @HttpCode(200)
   cancelar(@Param('token') token: string): Promise<RecordatorioRespuesta> {
     return this.recordatorios.responder(token, 'CANCELADA');
-  }
-}
-
-/**
- * Lista de espera publica (03b): sin cuenta ni sesion; verificada por correo.
- * Rate limit publico por IP. No revela si un correo ya estaba inscrito.
- */
-@ApiTags(TAGS.publico)
-@Controller('publico/lista-espera')
-@Modulo('AGENDA')
-@Publico()
-@UseGuards(ThrottlerGuard)
-@SkipThrottle({ login: true })
-export class ListaEsperaPublicaController {
-  constructor(private readonly lista: ListaEsperaPublicaService) {}
-
-  @Post()
-  @HttpCode(202)
-  inscribir(@Body() dto: InscribirListaEsperaDto): Promise<InscripcionListaEspera> {
-    return this.lista.inscribir(dto);
-  }
-
-  /** El enlace del correo activa la inscripcion (un solo uso). */
-  @Post('verificacion')
-  @HttpCode(200)
-  verificar(@Body() dto: TokenListaEsperaDto): Promise<InscripcionVerificada> {
-    return this.lista.verificar(dto.token);
-  }
-
-  /** El enlace de baja borra la inscripcion. */
-  @Post('baja')
-  @HttpCode(204)
-  async baja(@Body() dto: TokenListaEsperaDto): Promise<void> {
-    await this.lista.baja(dto.token);
   }
 }

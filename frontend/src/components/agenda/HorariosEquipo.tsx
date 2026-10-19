@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useEquipoActivo } from '@/components/shared/EquipoActivo';
 import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
 import { Avatar } from '@/components/ui/Avatar';
+import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
@@ -22,6 +23,7 @@ import type { Rol } from '@/lib/sesion';
 
 import { NOMBRE_MODALIDAD_CITA } from './SelectorHorario';
 import { DIAS_SEMANA, hhmm, minutos } from './tonosAgenda';
+import { MargenTraslado, useConflictosMargen } from './MargenTraslado';
 
 type Habitual = components['schemas']['DisponibilidadHabitual'];
 type Bloque = components['schemas']['BloqueAtencionVista'];
@@ -105,7 +107,8 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
     queryKey: ['panel', 'bloqueos', miembro.id],
     queryFn: () => datos(api.GET('/api/profesionales/{profesionalId}/bloqueos', { params: { path: { profesionalId: miembro.id } } })),
   });
-  const [modal, setModal] = useState<'habitual' | 'apartar' | 'bloquear' | null>(null);
+  const [modal, setModal] = useState<'habitual' | 'apartar' | 'bloquear' | 'margen' | null>(null);
+  const esProfesional = miembro.roles.includes('PROFESIONAL');
   const [error, setError] = useState<string>();
 
   const liberar = useMutation({
@@ -142,7 +145,7 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <Avatar name={nombre} size={38} />
         <div className="min-w-0">
-          <h3 className="m-0 text-[17px] font-black tracking-[-0.02em]">{nombre}</h3>
+          <h2 className="m-0 text-[17px] font-black tracking-[-0.02em]">{nombre}</h2>
           <p className="m-0 text-[12.5px] font-semibold text-neutral-700">
             {miembro.roles.includes('PROFESIONAL') ? 'Profesional' : (NOMBRE_ROL[miembro.rol] ?? miembro.rol)}
           </p>
@@ -157,12 +160,18 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
           <Button variant="secondary" icon="event_busy" onClick={() => setModal('bloquear')} className="!py-2.5">
             Bloquear agenda
           </Button>
+          {esProfesional && (
+            <Button variant="secondary" icon="timer" onClick={() => setModal('margen')} className="!py-2.5">
+              Margen de traslado
+            </Button>
+          )}
           <Button variant="team" icon="add" onClick={() => setModal('apartar')} className="!py-2.5">
             Apartar horas
           </Button>
         </div>
       </div>
 
+      {esProfesional && <AvisoConflictos profesionalId={miembro.id} onVer={() => setModal('margen')} />}
       <p className="m-0 mb-2 text-[11px] font-extrabold tracking-[0.08em] text-neutral-700 uppercase">Horario habitual</p>
       <div className="mb-5 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2.5">
         {diasConHabitual.map((d, i) => {
@@ -258,7 +267,29 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
         rangoInicial={rango}
       />
       <BloquearAgenda abierto={modal === 'bloquear'} onCerrar={() => setModal(null)} profesionalId={miembro.id} nombre={nombre} />
+      {esProfesional && <MargenTraslado abierto={modal === 'margen'} onCerrar={() => setModal(null)} profesionalId={miembro.id} nombre={nombre} />}
     </article>
+  );
+}
+
+/** Aviso en la tarjeta cuando hay horas que ya no cumplen el margen de traslado. */
+function AvisoConflictos({ profesionalId, onVer }: { profesionalId: string; onVer: () => void }) {
+  const conflictos = useConflictosMargen(profesionalId);
+  const n = conflictos.data?.length ?? 0;
+  if (!n) return null;
+  return (
+    <Aviso
+      tono="advertencia"
+      icono="timer"
+      className="mb-4"
+      accion={
+        <Button variant="secondary" onClick={onVer} className="!py-2">
+          Ver horas
+        </Button>
+      }
+    >
+      {n === 1 ? '1 hora no cumple el margen de traslado.' : `${n} horas no cumplen el margen de traslado.`} Reprográmalas en el calendario.
+    </Aviso>
   );
 }
 

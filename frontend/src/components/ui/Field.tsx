@@ -31,7 +31,7 @@ export function Field({ label, hint, error, required, aside, children }: FieldPr
       </span>
       {children({ id, 'aria-describedby': describedBy, 'aria-invalid': error ? true : undefined, required })}
       {hint && (
-        <span id={`${id}-ayuda`} className="text-[12.5px] font-semibold text-neutral-700">
+        <span id={`${id}-ayuda`} className="text-[12.5px] font-semibold text-neutral-800">
           {hint}
         </span>
       )}

@@ -1135,6 +1135,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/intervenciones/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Roles: ADMIN */
+        patch: operations["CatalogosClinicosController_editarIntervencion"];
+        trace?: never;
+    };
     "/api/estados-avance": {
         parameters: {
             query?: never;
@@ -1151,6 +1168,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/estados-avance/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Roles: ADMIN */
+        patch: operations["CatalogosClinicosController_editarEstadoAvance"];
         trace?: never;
     };
     "/api/retencion/fichas": {
@@ -1241,6 +1275,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/documentos-clinicos/vista-previa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Vista previa del PDF tal como se emitiria (no guarda ni envia). Tipo desactivado -> 403.
+         * @description Roles: PROFESIONAL, PRACTICANTE
+         */
+        post: operations["DocumentosController_vistaPrevia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/documentos-clinicos/descarga/{token}": {
         parameters: {
             query?: never;
@@ -1273,6 +1327,26 @@ export interface paths {
          * @description Roles: PACIENTE, RESPONSABLE
          */
         get: operations["DocumentosController_descargarPortal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/documentos-clinicos/{id}/copia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Copia del tratante: el PDF de un documento emitido (queda en accesos_ficha).
+         * @description Roles: PROFESIONAL, PRACTICANTE
+         */
+        get: operations["DocumentosController_copia"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2148,91 +2222,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["RecordatoriosPublicoController_cancelar"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/lista-espera": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Roles: ADMIN, GESTION, PROFESIONAL, PACIENTE, RESPONSABLE */
-        get: operations["ListaEsperaController_listar"];
-        put?: never;
-        /** @description Roles: ADMIN, GESTION, PROFESIONAL, PACIENTE, RESPONSABLE */
-        post: operations["ListaEsperaController_crear"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/lista-espera/{id}/cierre": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Roles: ADMIN, GESTION, PROFESIONAL, PACIENTE, RESPONSABLE */
-        post: operations["ListaEsperaController_cerrar"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/publico/lista-espera": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["ListaEsperaPublicaController_inscribir"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/publico/lista-espera/verificacion": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** El enlace del correo activa la inscripcion (un solo uso). */
-        post: operations["ListaEsperaPublicaController_verificar"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/publico/lista-espera/baja": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** El enlace de baja borra la inscripcion. */
-        post: operations["ListaEsperaPublicaController_baja"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4145,6 +4134,27 @@ export interface components {
         };
         /** @enum {string} */
         TipoNotificacion: "CITA_CONFIRMADA" | "CITA_CANCELADA" | "CITA_REPROGRAMADA" | "ENLACE_ONLINE" | "CONSENTIMIENTO_SOLICITADO" | "AVISO_CAMBIO_SUPERVISOR" | "DERIVACION_OFRECIDA" | "MENSAJE_PACIENTE" | "DOCUMENTO_CLINICO" | "DERIVACION_ACTUALIZADA" | "RECORDATORIO_CITA" | "CONSENTIMIENTO_POR_VENCER" | "PAGO_REGISTRADO" | "BOLETA_EMITIDA" | "HORA_LIBERADA" | "ACCESO_CLINICO_TEMPORAL" | "SOLICITUD_HORA" | "CIERRE_REQUERIDO" | "MENSAJE_INTERNO" | "POSIBLE_DUPLICADO";
+        /** @enum {string} */
+        CanalMensaje: "BANDEJA" | "CORREO" | "WHATSAPP";
+        /** @enum {string} */
+        EstadoNotificacion: "PENDIENTE" | "ENVIADO" | "FALLIDO";
+        NotificacionRegistro: {
+            tipo: components["schemas"]["TipoNotificacion"];
+            canal: components["schemas"]["CanalMensaje"];
+            pacienteId: string | null;
+            usuarioId: string | null;
+            estado: components["schemas"]["EstadoNotificacion"];
+            /** Format: date-time */
+            procesadaEn: string | null;
+            id: string;
+            /** @description Lo que origino el aviso (cita, derivacion, mensaje, documento...). */
+            referenciaId: string;
+            intentos: number;
+            /** Format: date-time */
+            proximoIntento: string;
+            /** Format: date-time */
+            creadaEn: string;
+        };
         MensajeBandeja: {
             tipo: components["schemas"]["TipoNotificacion"];
             /** @description Cita, documento, consentimiento, etc. segun el tipo */
@@ -4165,8 +4175,6 @@ export interface components {
         };
         /** @enum {string} */
         DestinatarioMensaje: "PACIENTE" | "EQUIPO";
-        /** @enum {string} */
-        CanalMensaje: "BANDEJA" | "CORREO" | "WHATSAPP";
         PlantillaMensajeVista: {
             /** @description TipoNotificacion */
             evento: string;
@@ -4312,7 +4320,6 @@ export interface components {
             minutosRetencionSolicitud: number;
             retencionMensajesDias: number;
             edadMinimaCuenta: number;
-            diasListaEsperaPublica: number;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -4397,7 +4404,7 @@ export interface components {
             url: string;
         };
         /** @enum {string} */
-        TipoPolitica: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO";
+        TipoPolitica: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE";
         PoliticaVista: {
             tipo: components["schemas"]["TipoPolitica"];
             creadaPorId: string | null;
@@ -4409,7 +4416,7 @@ export interface components {
         };
         PoliticaDto: {
             /** @enum {string} */
-            tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO";
+            tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE";
             texto: string;
         };
         HorarioCentroVista: {
@@ -4440,7 +4447,6 @@ export interface components {
             consentimientos_pendientes: number;
             practicantes_por_vencer: number;
             por_reprogramar: number;
-            lista_espera: number;
         };
         ProximaSesionDashboard: {
             espacio_id: string | null;
@@ -4581,6 +4587,10 @@ export interface components {
             id: string;
             tiposAtencion: string[];
         };
+        IntegranteEquipoTratante: {
+            nombre: string | null;
+            id: string;
+        };
         CrearPacienteDto: {
             nombre: string;
             apellido: string;
@@ -4711,8 +4721,7 @@ export interface components {
         /** @enum {string} */
         CanalAceptacion: "SOLICITUD" | "PORTAL" | "TOKEN" | "PRESENCIAL";
         PoliticaDeAceptacion: {
-            /** @enum {string} */
-            tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO";
+            tipo: components["schemas"]["TipoPolitica"];
             version: number;
         };
         AceptacionVista: {
@@ -4748,6 +4757,22 @@ export interface components {
             /** Format: date-time */
             fecha: string;
             motivo: string;
+        };
+        AltaRegistrada: {
+            /** Format: date */
+            fecha: string;
+            id: string;
+            pacienteId: string;
+        };
+        AltaVista: {
+            /** Format: date */
+            fecha: string;
+            motivo: string | null;
+            id: string;
+            pacienteId: string;
+            registradaPorId: string;
+            /** Format: date-time */
+            creadaEn: string;
         };
         RespuestasMatchPaciente: {
             /** @description { clave de la pregunta: respuesta } */
@@ -4878,6 +4903,28 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        EvolucionCreada: {
+            evolucion: components["schemas"]["EvolucionVista"];
+            /** @description Aviso que la UI muestra junto al texto libre (no escribir datos identificatorios). */
+            advertencia: string;
+        };
+        /** @enum {string} */
+        EstadoTipoSesion: "PROPUESTO" | "APROBADO" | "RECHAZADO";
+        TipoSesionVista: {
+            descripcion: string | null;
+            estado: components["schemas"]["EstadoTipoSesion"];
+            revisadoPorId: string | null;
+            /** Format: date-time */
+            revisadoEn: string | null;
+            id: string;
+            nombre: string;
+            propuestoPorId: string;
+            activo: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         ProponerTipoSesionDto: {
             nombre: string;
             descripcion?: string;
@@ -4887,9 +4934,35 @@ export interface components {
             estado?: "APROBADO" | "RECHAZADO";
             activo?: boolean;
         };
+        CatalogoClinicoVista: {
+            descripcion: string | null;
+            id: string;
+            nombre: string;
+            activo: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         CatalogoDto: {
             nombre: string;
             descripcion?: string;
+        };
+        EditarCatalogoDto: {
+            nombre?: string;
+            descripcion?: string;
+            activo?: boolean;
+        };
+        /** @enum {string} */
+        DecisionRetencion: "CONSERVAR" | "PURGAR";
+        FichaSobreRetencion: {
+            ultima_decision: components["schemas"]["DecisionRetencion"] | null;
+            /** Format: date-time */
+            ultima_revision_en: string | null;
+            ficha_id: string;
+            paciente_id: string;
+            /** Format: date-time */
+            ultima_atencion_en: string;
         };
         RevisionRetencionDto: {
             /** Format: uuid */
@@ -4897,6 +4970,25 @@ export interface components {
             /** @enum {string} */
             decision: "CONSERVAR" | "PURGAR";
             motivo: string;
+        };
+        RevisionRetencionVista: {
+            decision: components["schemas"]["DecisionRetencion"];
+            id: string;
+            fichaId: string;
+            revisadoPorId: string;
+            /** Format: date-time */
+            revisadoEn: string;
+            motivo: string;
+        };
+        TipoDocumentoVista: {
+            id: string;
+            nombre: string;
+            activo: boolean;
+            plantilla: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         TipoDocumentoDto: {
             nombre: string;
@@ -4932,6 +5024,58 @@ export interface components {
         EnviarDocumentoDto: {
             /** @enum {string} */
             modo?: "ENLACE" | "ADJUNTO";
+        };
+        /** @enum {string} */
+        ModoEnvioDocumento: "ENLACE" | "ADJUNTO";
+        EnvioDocumentoVista: {
+            modo: components["schemas"]["ModoEnvioDocumento"];
+            /** Format: date-time */
+            expiraEn: string | null;
+            id: string;
+            documentoId: string;
+            /** Format: date-time */
+            enviadoEn: string;
+        };
+        DescargaDocumentoVista: {
+            usuarioId: string;
+            /** Format: date-time */
+            descargadoEn: string;
+        };
+        EnvioDocumentoDetalle: {
+            modo: components["schemas"]["ModoEnvioDocumento"];
+            /** Format: date-time */
+            expiraEn: string | null;
+            id: string;
+            enviadoPorId: string;
+            /** Format: date-time */
+            enviadoEn: string;
+            descargas: components["schemas"]["DescargaDocumentoVista"][];
+        };
+        AdjuntoFichaVista: {
+            id: string;
+            pacienteId: string;
+            subidoPorId: string;
+            nombreArchivo: string;
+            tipoMime: string;
+            tamanoBytes: number;
+            /** Format: date-time */
+            subidoEn: string;
+        };
+        BorradorVista: {
+            /** @description Solo en la lista: null si el autor ya no ve la ficha (por ejemplo, tras una derivacion). */
+            pacienteId?: string | null;
+            citaId: string | null;
+            plantillaId: string | null;
+            valores: {
+                [key: string]: unknown;
+            } | null;
+            id: string;
+            fichaClinicaId: string;
+            contenido: string;
+            /** Format: date-time */
+            creadoEn: string;
+            /** Format: date-time */
+            actualizadoEn: string;
         };
         BorradorDto: {
             contenido: string;
@@ -4989,6 +5133,18 @@ export interface components {
              * @description Correccion: fila nueva con la misma version de plantilla.
              */
             corrigeAId?: string;
+        };
+        IngresoVista: {
+            valores: {
+                [key: string]: unknown;
+            };
+            corrigeAId: string | null;
+            id: string;
+            fichaClinicaId: string;
+            autorId: string;
+            /** Format: date-time */
+            createdAt: string;
+            plantilla: components["schemas"]["PlantillaClinicaVista"];
         };
         EspacioVista: {
             nota: string | null;
@@ -5281,6 +5437,10 @@ export interface components {
              */
             otorgarAccesoHasta?: string;
         };
+        CierreRequerido: {
+            citaId: string;
+            avisado: boolean;
+        };
         /** @enum {string} */
         ModoVideollamada: "ENLACE_PROPIO" | "JITSI";
         SalaVideollamadaVista: {
@@ -5318,68 +5478,6 @@ export interface components {
         RecordatorioRespuesta: {
             respuesta: components["schemas"]["RespuestaRecordatorio"];
             cancelacion?: components["schemas"]["CancelacionRecordatorio"];
-        };
-        /** @enum {string} */
-        EstadoListaEspera: "ACTIVA" | "ASIGNADA" | "CANCELADA";
-        ListaEsperaVista: {
-            profesionalId: string | null;
-            tipoAtencionId: string | null;
-            preferencias: string | null;
-            estado: components["schemas"]["EstadoListaEspera"];
-            creadaPorId: string | null;
-            /**
-             * Format: date-time
-             * @description Ultimo aviso de hora liberada
-             */
-            avisadaEn: string | null;
-            /** Format: date-time */
-            cerradaEn: string | null;
-            id: string;
-            pacienteId: string;
-            /** Format: date-time */
-            creadaEn: string;
-        };
-        CrearListaEsperaDto: {
-            /** Format: uuid */
-            pacienteId: string;
-            /** Format: uuid */
-            profesionalId?: string;
-            /** Format: uuid */
-            tipoAtencionId?: string;
-            preferencias?: string;
-        };
-        CerrarListaEsperaDto: {
-            /** @enum {string} */
-            estado: "ASIGNADA" | "CANCELADA";
-        };
-        InscribirListaEsperaDto: {
-            /** Format: uuid */
-            profesionalId: string;
-            nombre: string;
-            /** Format: email */
-            email: string;
-            telefono?: string;
-            /** Format: uuid */
-            politicaId: string;
-            /** @description Trampa para bots: un humano lo deja vacio. */
-            sitioWeb?: string;
-        };
-        InscripcionListaEspera: {
-            verificacionEnviada: boolean;
-            /**
-             * Format: date-time
-             * @description Vencimiento del enlace de verificacion (24 horas).
-             */
-            expiraEn: string;
-        };
-        TokenListaEsperaDto: {
-            token: string;
-        };
-        InscripcionVerificada: {
-            /** Format: uuid */
-            profesionalId: string;
-            /** Format: date-time */
-            expiraEn: string;
         };
         PerfilDto: {
             especialidad: string;
@@ -5541,8 +5639,6 @@ export interface components {
             /** Format: uuid */
             tipoAtencionId: string;
         };
-        /** @enum {string} */
-        EstadoTipoSesion: "PROPUESTO" | "APROBADO" | "RECHAZADO";
         TipoAtencionProfesionalVista: {
             estado: components["schemas"]["EstadoTipoSesion"];
             revisadoPorId: string | null;
@@ -5615,8 +5711,47 @@ export interface components {
             /** @description Pacientes con consentimiento vigente avisados del cambio (plazo de oposicion). */
             avisosCreados: number;
         };
+        CasoSupervision: {
+            tipo_atencion: string | null;
+            codigo: string;
+            practicante_id: string;
+            edad_paciente: number;
+        };
+        PlantillaSupervisada: {
+            id: string;
+            nombre: string;
+            version: number;
+        };
+        EvolucionSupervisada: {
+            estadoAvance: string | null;
+            nivelRiesgo: components["schemas"]["NivelRiesgo"];
+            notas: string | null;
+            corrigeAId: string | null;
+            plantilla: components["schemas"]["PlantillaSupervisada"] | null;
+            /** @description Solo campos visible_en_supervision */
+            valores: {
+                [key: string]: unknown;
+            } | null;
+            evolucionId: string;
+            autorId: string;
+            tipoSesion: string;
+            intervenciones: string[];
+            /** Format: date-time */
+            creadoEn: string;
+            /** @description Claves de texto libre entre los valores visibles (la UI muestra el aviso). */
+            camposTextoLibre: string[];
+            advertenciaTextoLibre: string;
+        };
         ComentarioDto: {
             texto: string;
+        };
+        ComentarioSupervision: {
+            texto: string | null;
+            id: string;
+            evolucionId: string;
+            supervisorId: string;
+            /** Format: date-time */
+            creadoEn: string;
         };
         EspecialidadVista: {
             id: string;
@@ -5663,11 +5798,77 @@ export interface components {
             /** @description Solo GENERAL: integrantes vigentes del equipo (el creador participa siempre). */
             participantes?: string[];
         };
+        /** @enum {string} */
+        TipoHiloInterno: "GENERAL" | "CASO";
+        HiloVista: {
+            tipo: components["schemas"]["TipoHiloInterno"];
+            asunto: string | null;
+            pacienteId: string | null;
+            id: string;
+            creadoPorId: string;
+            /** Format: date-time */
+            creadoEn: string;
+            /** Format: date-time */
+            ultimoMensajeEn: string;
+        };
+        HiloConNoLeidos: {
+            tipo: components["schemas"]["TipoHiloInterno"];
+            asunto: string | null;
+            pacienteId: string | null;
+            id: string;
+            creadoPorId: string;
+            /** Format: date-time */
+            creadoEn: string;
+            /** Format: date-time */
+            ultimoMensajeEn: string;
+            noLeidos: number;
+        };
+        MensajeInternoVista: {
+            rolAutor: components["schemas"]["Rol"];
+            /** @description null si fue retirado */
+            contenido: string | null;
+            id: string;
+            autorId: string;
+            /** @description Nombre via nombres_hilo(); "Ex integrante del equipo" si la cuenta se cerro. */
+            autor: string;
+            retirado: boolean;
+            /** Format: date-time */
+            creadoEn: string;
+        };
+        LecturaHiloVista: {
+            usuarioId: string;
+            nombre: string;
+            /** Format: date-time */
+            leidoEn: string;
+        };
+        MensajesHilo: {
+            hilo: components["schemas"]["HiloVista"];
+            mensajes: components["schemas"]["MensajeInternoVista"][];
+            lecturas: components["schemas"]["LecturaHiloVista"][];
+        };
         MensajeInternoDto: {
             contenido: string;
         };
+        MensajeInternoEnviado: {
+            rolAutor: components["schemas"]["Rol"];
+            contenido: string | null;
+            id: string;
+            hiloId: string;
+            autorId: string;
+            /** Format: date-time */
+            creadoEn: string;
+        };
         ParticipantesDto: {
             participantes: string[];
+        };
+        ParticipanteHiloVista: {
+            usuarioId: string;
+            /** Format: date-time */
+            agregadoEn: string;
+        };
+        MensajeRetirado: {
+            id: string;
+            retirado: boolean;
         };
         CrearDerivacionDto: {
             /** Format: uuid */
@@ -5695,6 +5896,8 @@ export interface components {
             orden: number;
         };
         DerivacionVista: {
+            /** @description null si quien consulta ya no ve la ficha (p. ej. el origen tras el traspaso). */
+            pacienteId: string | null;
             /** @description Texto clinico */
             motivo: string;
             detalle: string | null;
@@ -5711,7 +5914,32 @@ export interface components {
             updatedAt: string;
             candidatos: components["schemas"]["CandidatoDerivacion"][];
         };
+        DerivacionPendiente: {
+            estado: components["schemas"]["EstadoDerivacion"];
+            /** @description Texto clinico */
+            motivo: string | null;
+            detalle: string | null;
+            derivacionId: string;
+            tipoAtencion: string;
+            edadPaciente: number;
+        };
+        OfertaDerivacion: {
+            /** @description Texto clinico */
+            motivo: string | null;
+            detalle: string | null;
+            derivacionId: string;
+            tipoAtencion: string;
+            edadPaciente: number;
+            /** Format: date-time */
+            venceEn: string;
+            /** @description Citas futuras del paciente que chocan con la agenda del candidato (se reprograman al aceptar). */
+            citasEnConflicto: number;
+        };
         ResponderDerivacionDto: {
+            acepta: boolean;
+        };
+        DerivacionRespondida: {
+            derivacionId: string;
             acepta: boolean;
         };
         CancelarDerivacionDto: {
@@ -5722,6 +5950,10 @@ export interface components {
         };
         ProponerPracticanteDto: {
             /** Format: uuid */
+            practicanteId: string;
+        };
+        PracticantePropuesto: {
+            derivacionId: string;
             practicanteId: string;
         };
         /** @enum {string} */
@@ -5751,6 +5983,10 @@ export interface components {
         };
         SolicitarConsentimientoDto: {
             /** Format: uuid */
+            pacienteId: string;
+        };
+        ConsentimientoSolicitado: {
+            id: string;
             pacienteId: string;
         };
         ResponderConsentimientoDto: {
@@ -5938,6 +6174,15 @@ export interface components {
             /** @description Etiquetas de las opciones elegidas. */
             resumen: string[];
         };
+        ResultadoMatchDirecto: {
+            /** @description CLP */
+            tarifa: number | null;
+            /** Format: date-time */
+            primerHueco: string | null;
+            perfil: components["schemas"]["PerfilPublico"];
+            cumpleTiempos: boolean;
+            cumplePrecio: boolean;
+        };
         SolicitudHoraDto: {
             /** Format: uuid */
             profesionalId: string;
@@ -5971,8 +6216,6 @@ export interface components {
              * @description Profesional recomendado por el match (metricas).
              */
             recomendadoId?: string;
-            /** @description "Avisarme si se libera una hora antes". */
-            listaEspera?: boolean;
             /**
              * Format: uuid
              * @description Version de la politica de datos aceptada (id de GET /publico/politicas/POLITICA_DATOS).
@@ -6244,6 +6487,10 @@ export interface components {
              * @enum {string}
              */
             mostrarComo?: "ANONIMO" | "NOMBRE_INICIAL";
+        };
+        MensajeLeido: {
+            id: string;
+            leido: boolean;
         };
         ResolverEpicrisisDto: {
             /** @enum {string} */
@@ -7080,7 +7327,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NotificacionRegistro"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -10177,7 +10426,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IntegranteEquipoTratante"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -11262,7 +11513,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AltaRegistrada"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -11335,7 +11588,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AltaVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -11716,7 +11971,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EvolucionCreada"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -11789,7 +12046,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TipoSesionVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -11865,7 +12124,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["TipoSesionVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -11944,7 +12203,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["TipoSesionVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -12016,7 +12275,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CatalogoClinicoVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12092,7 +12353,86 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["CatalogoClinicoVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CatalogosClinicosController_editarIntervencion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditarCatalogoDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogoClinicoVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -12164,7 +12504,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CatalogoClinicoVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12240,7 +12582,86 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["CatalogoClinicoVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CatalogosClinicosController_editarEstadoAvance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditarCatalogoDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogoClinicoVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -12312,7 +12733,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FichaSobreRetencion"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12383,7 +12806,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["RevisionRetencionVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12459,7 +12884,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["RevisionRetencionVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -12531,7 +12956,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TipoDocumentoVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12606,7 +13033,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TipoDocumentoVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12684,7 +13113,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["TipoDocumentoVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -12835,7 +13264,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DocumentoClinicoVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12902,6 +13333,93 @@ export interface operations {
             };
         };
     };
+    DocumentosController_vistaPrevia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmitirDocumentoDto"];
+            };
+        };
+        responses: {
+            /** @description Archivo (Content-Disposition: attachment) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Cuerpo mayor al limite (JSON 1 MB; adjuntos ADJUNTO_MAX_MB) */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
     DocumentosController_descargar: {
         parameters: {
             query?: never;
@@ -12913,11 +13431,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Archivo (Content-Disposition: attachment) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/pdf": string;
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12925,7 +13446,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Sin token, token vencido o cuenta inactiva/expirada */
@@ -12934,7 +13455,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
@@ -12943,7 +13464,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description No existe o no es visible para el usuario (RLS) */
@@ -12952,7 +13473,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
@@ -12961,7 +13482,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Regla de negocio de la BD (23514, 23503) */
@@ -12970,7 +13491,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
         };
@@ -12986,11 +13507,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Archivo (Content-Disposition: attachment) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/pdf": string;
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -12998,7 +13522,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Sin token, token vencido o cuenta inactiva/expirada */
@@ -13007,7 +13531,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
@@ -13016,7 +13540,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description No existe o no es visible para el usuario (RLS) */
@@ -13025,7 +13549,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
@@ -13034,7 +13558,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Regla de negocio de la BD (23514, 23503) */
@@ -13043,7 +13567,83 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    DocumentosController_copia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archivo (Content-Disposition: attachment) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
         };
@@ -13063,7 +13663,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvioDocumentoDetalle"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -13140,7 +13742,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvioDocumentoVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -13288,7 +13892,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AdjuntoFichaVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -13371,7 +13977,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AdjuntoFichaVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -13449,11 +14057,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Archivo (Content-Disposition: attachment) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/pdf": string;
+                    "image/png": string;
+                    "image/jpeg": string;
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -13461,7 +14074,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                    "image/png": components["schemas"]["ErrorRespuesta"];
+                    "image/jpeg": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Sin token, token vencido o cuenta inactiva/expirada */
@@ -13470,7 +14085,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                    "image/png": components["schemas"]["ErrorRespuesta"];
+                    "image/jpeg": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
@@ -13479,7 +14096,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                    "image/png": components["schemas"]["ErrorRespuesta"];
+                    "image/jpeg": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description No existe o no es visible para el usuario (RLS) */
@@ -13488,7 +14107,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                    "image/png": components["schemas"]["ErrorRespuesta"];
+                    "image/jpeg": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
@@ -13497,7 +14118,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                    "image/png": components["schemas"]["ErrorRespuesta"];
+                    "image/jpeg": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Regla de negocio de la BD (23514, 23503) */
@@ -13506,7 +14129,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
+                    "image/png": components["schemas"]["ErrorRespuesta"];
+                    "image/jpeg": components["schemas"]["ErrorRespuesta"];
                 };
             };
         };
@@ -13527,7 +14152,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": components["schemas"]["BorradorVista"][];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -13606,7 +14231,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["BorradorVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -13685,7 +14310,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["BorradorVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -13836,7 +14461,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EvolucionCreada"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14059,7 +14686,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlantillaClinicaVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14134,7 +14763,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlantillaClinicaVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14207,7 +14838,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlantillaClinicaVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14284,7 +14917,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlantillaClinicaVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14357,7 +14992,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlantillaClinicaVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14430,7 +15067,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlantillaClinicaVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14503,7 +15142,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlantillaClinicaVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14576,7 +15217,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IngresoVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -14653,7 +15296,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IngresoVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -17096,7 +17741,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CierreRequerido"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -17512,359 +18159,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RecordatorioRespuesta"];
                 };
-            };
-            /** @description Parametros invalidos */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Limite de consultas por minuto e IP */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-        };
-    };
-    ListaEsperaController_listar: {
-        parameters: {
-            query?: {
-                profesionalId?: string;
-                estado?: "CANCELADA" | "ACTIVA" | "ASIGNADA";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListaEsperaVista"][];
-                };
-            };
-            /** @description DTO invalido (class-validator) o campo no declarado */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Sin token, token vencido o cuenta inactiva/expirada */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description No existe o no es visible para el usuario (RLS) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Regla de negocio de la BD (23514, 23503) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-        };
-    };
-    ListaEsperaController_crear: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CrearListaEsperaDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListaEsperaVista"];
-                };
-            };
-            /** @description DTO invalido (class-validator) o campo no declarado */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Sin token, token vencido o cuenta inactiva/expirada */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description No existe o no es visible para el usuario (RLS) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Regla de negocio de la BD (23514, 23503) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-        };
-    };
-    ListaEsperaController_cerrar: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CerrarListaEsperaDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListaEsperaVista"];
-                };
-            };
-            /** @description DTO invalido (class-validator) o campo no declarado */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Sin token, token vencido o cuenta inactiva/expirada */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description No existe o no es visible para el usuario (RLS) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Regla de negocio de la BD (23514, 23503) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-        };
-    };
-    ListaEsperaPublicaController_inscribir: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InscribirListaEsperaDto"];
-            };
-        };
-        responses: {
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InscripcionListaEspera"];
-                };
-            };
-            /** @description Parametros invalidos */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Limite de consultas por minuto e IP */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-        };
-    };
-    ListaEsperaPublicaController_verificar: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TokenListaEsperaDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InscripcionVerificada"];
-                };
-            };
-            /** @description Parametros invalidos */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Limite de consultas por minuto e IP */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-        };
-    };
-    ListaEsperaPublicaController_baja: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TokenListaEsperaDto"];
-            };
-        };
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Parametros invalidos */
             400: {
@@ -19898,7 +20192,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CasoSupervision"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -19972,7 +20268,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>[];
+                    "application/json": components["schemas"]["EvolucionSupervisada"][];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -20050,7 +20346,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ComentarioSupervision"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -20123,7 +20421,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ComentarioSupervision"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -20657,7 +20957,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["HiloConNoLeidos"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -20733,7 +21035,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["HiloVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -20807,7 +21109,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MensajesHilo"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -20884,7 +21188,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MensajeInternoEnviado"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -20961,7 +21267,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ParticipanteHiloVista"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21034,7 +21342,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MensajeRetirado"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21257,7 +21567,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DerivacionPendiente"][];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21405,7 +21717,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OfertaDerivacion"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21482,7 +21796,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DerivacionRespondida"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21559,7 +21875,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DerivacionVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21636,7 +21954,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DerivacionVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21710,7 +22030,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DerivacionVista"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21787,7 +22109,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PracticantePropuesto"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -21935,7 +22259,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ConsentimientoSolicitado"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -22318,7 +22644,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnlaceEnviado"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -22391,7 +22719,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnlaceEnviado"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -22491,7 +22821,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO";
+                tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE";
             };
             cookie?: never;
         };
@@ -22536,11 +22866,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Archivo (Content-Disposition: attachment) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
             };
             /** @description Parametros invalidos */
             400: {
@@ -22781,7 +23116,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ResultadoMatchDirecto"][];
+                };
             };
             /** @description Parametros invalidos */
             400: {
@@ -24387,7 +24724,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MensajeLeido"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -25840,11 +26179,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Archivo (Content-Disposition: attachment) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/pdf": string;
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -25852,7 +26194,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Sin token, token vencido o cuenta inactiva/expirada */
@@ -25861,7 +26203,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
@@ -25870,7 +26212,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description No existe o no es visible para el usuario (RLS) */
@@ -25879,7 +26221,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
@@ -25888,7 +26230,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Regla de negocio de la BD (23514, 23503) */
@@ -25897,7 +26239,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
         };
@@ -25913,11 +26255,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Archivo (Content-Disposition: attachment) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/pdf": string;
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -25925,7 +26270,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Sin token, token vencido o cuenta inactiva/expirada */
@@ -25934,7 +26279,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
@@ -25943,7 +26288,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description No existe o no es visible para el usuario (RLS) */
@@ -25952,7 +26297,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
@@ -25961,7 +26306,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
             /** @description Regla de negocio de la BD (23514, 23503) */
@@ -25970,7 +26315,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
+                    "application/pdf": components["schemas"]["ErrorRespuesta"];
                 };
             };
         };

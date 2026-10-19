@@ -21,7 +21,7 @@ import { TipoPolitica } from '@prisma/client';
 import { Publico, Roles } from '../../core/auth/decoradores';
 import { hashToken } from '../../core/auth/tokens-correo';
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
-import { TAGS } from '../../core/docs/openapi';
+import { RespuestaArchivo, TAGS } from '../../core/docs/openapi';
 import { Modulo } from '../../core/modulos/modulos';
 import {
   CalcularMatchDto,
@@ -64,6 +64,8 @@ import {
   MetricasMatch,
   ResenaModerada,
   ResenaParaModerar,
+  MensajeLeido,
+  ResultadoMatchDirecto,
 } from './dto/publico-respuestas.dto';
 import {
   AceptacionPortal,
@@ -119,6 +121,7 @@ export class PublicoController {
 
   /** Foto de perfil o logo (publicas, sin metadatos). */
   @Get('imagenes/:id')
+  @RespuestaArchivo('image/jpeg', 'image/png', 'image/webp')
   @Header('Cache-Control', 'public, max-age=31536000, immutable')
   async imagen(@Param('id', Uuid) id: string) {
     const i = await this.match.imagen(id);
@@ -169,7 +172,7 @@ export class PublicoController {
   /** Filtro directo ("prefiero filtrar yo mismo"): necesidad > tiempos > precio. */
   @Get('match')
   @Modulo('MATCH')
-  buscar(@Query() dto: MatchDto) {
+  buscar(@Query() dto: MatchDto): Promise<ResultadoMatchDirecto[]> {
     return this.match.match(dto);
   }
 
@@ -410,7 +413,7 @@ export class MensajesController {
   @Post(':id/leido')
   @HttpCode(200)
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  leido(@Param('id', Uuid) id: string) {
+  leido(@Param('id', Uuid) id: string): Promise<MensajeLeido> {
     return this.portal.marcarLeido(id);
   }
 }

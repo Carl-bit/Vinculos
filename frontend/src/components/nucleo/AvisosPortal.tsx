@@ -22,7 +22,6 @@ const DESTINO: Partial<Record<MensajeBandeja['tipo'], { icono: Icono; href: stri
   CITA_REPROGRAMADA: { icono: 'event_repeat', href: '/portal#horas', accion: 'Ver mis horas' },
   RECORDATORIO_CITA: { icono: 'alarm', href: '/portal#horas', accion: 'Ver mis horas' },
   ENLACE_ONLINE: { icono: 'videocam', href: '/portal#horas', accion: 'Ver mis horas' },
-  HORA_LIBERADA: { icono: 'notifications_active', href: '/portal/lista-espera', accion: 'Ver lista de espera' },
   CONSENTIMIENTO_SOLICITADO: { icono: 'verified_user', href: '/portal/consentimientos', accion: 'Responder' },
   CONSENTIMIENTO_POR_VENCER: { icono: 'verified_user', href: '/portal/consentimientos', accion: 'Responder' },
   AVISO_CAMBIO_SUPERVISOR: { icono: 'supervisor_account', href: '/portal/consentimientos', accion: 'Revisar' },
@@ -34,7 +33,7 @@ const DESTINO: Partial<Record<MensajeBandeja['tipo'], { icono: Icono; href: stri
 
 /**
  * Avisos del portal: la bandeja (registro oficial de lo que el centro te
- * comunico, incluido el aviso de hora liberada de la lista de espera) y las
+ * comunico) y las
  * preferencias de correo. Los avisos legales llegan siempre.
  */
 export function AvisosPortal() {

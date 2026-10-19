@@ -15,6 +15,10 @@ oliva, crema: calza con Organic), con el checklist de "Accessible & Ethical".
 
 - Contraste AA sobre el diseño: texto claro sobre `accent-2-700` /
   `accent-700` (no `-600`); texto secundario en `neutral-700` (no `-600`).
+- Texto directo sobre el fondo del panel (`neutral-300`): `neutral-800`
+  (`neutral-700` da 4.4:1). Por eso la bajada de `Encabezado`,
+  `EnlaceVolver`, la ayuda de `Field` y las opciones de `ChoiceGroup` van en
+  `neutral-800` (03b-5.1).
 - Verde (`accent-2`) = paciente y público. Terracota (`accent`) = equipo.
 - Textura: grano de papel (SVG fractalNoise, opacidad 0.06, multiply) fijo
   sobre todo el sitio. Le quita la planitud de plantilla generada.
@@ -97,8 +101,9 @@ de baja friccion.
 
 ## Correcciones 03b (lista de espera, 404 en el panel, inactividad)
 
-- Lista de espera sin cuenta: vive dentro de Pedir hora, nunca como pantalla
-  aparte. Sin horas, es la accion principal (tarjeta accent-2 bajo el
+- Lista de espera: retirada de la primera version (implementacion futura).
+  Si se retoma, el criterio de diseño era este: vive dentro de Pedir hora,
+  nunca como pantalla aparte. Sin horas, es la accion principal (tarjeta accent-2 bajo el
   mensaje); con horas, va en un `<details>` despues de "Continuar" para no
   competir con la accion primaria. Mismo patron de formulario que Pedir hora
   (Field, `Casilla` de politica, trampa para bots) y la misma respuesta
@@ -116,8 +121,8 @@ de baja friccion.
 
 - "Mi cuenta" sigue el diseño (dos columnas que bajan a una: profesional,
   horas, mensajes | datos, nota de ficha). Las secciones que el diseño no
-  tiene (pagos, documentos, consentimientos, avisos, lista de espera,
-  reseñas, seguridad) van en una fila de pildoras bajo el header, con la
+  tiene (pagos, documentos, consentimientos, avisos, reseñas,
+  seguridad) van en una fila de pildoras bajo el header, con la
   activa en accent-2-700; en movil la fila hace scroll horizontal.
 - Solo el inicio del portal lleva sobretitulo ("Mi cuenta", como el diseño);
   las secciones nuevas y las paginas por enlace no (impeccable:
@@ -170,3 +175,62 @@ de baja friccion.
   se piden a la API solo al abrirlos y no quedan en caché (gcTime 0).
 - Listas de catálogo y de declaraciones: chips con borde (aprobado en
   accent-2, propuesto con badge "Por revisar", inactivo en neutral).
+
+## Ficha clínica, plantillas y catálogos (03b-5.1)
+
+- Ficha clínica: sobretítulo "Ficha clínica" (11 px, accent-800) sobre el
+  nombre del paciente; secciones en `Pestanas` tono equipo con `?vista=`;
+  columna derecha de 320 px (desde `xl`) con contacto de emergencia.
+- Línea de tiempo (`FichaClinicaTimeline`): de la más reciente a la más
+  antigua; cada registro en superficie neutral-100 con borde `divider`; el
+  registro ya corregido pasa a borde punteado neutral-400 y badge
+  "Corregida"; la corrección lleva badge "Corrección" y ambos se enlazan con
+  `#evolucion-<id>`. Nivel de riesgo MEDIO/ALTO en tono atención y un aviso
+  sobre la línea de tiempo con el último riesgo.
+- Editor de evolución: `Panel` variante equipo; indicador de guardado a la
+  derecha del título (12.5 px, `role=status`). Los campos estructurados van
+  en el modal de confirmación (no se guardan en el borrador). Texto libre
+  siempre con el aviso de no escribir datos identificatorios.
+- Registros append-only (evolución, ingreso, alta, documento): confirmar
+  explica que después no se edita ni se borra; corrección = registro nuevo.
+- Vista previa de documentos: PDF real de la API en un `iframe` dentro de
+  un marco neutral-100 con título; el object URL se libera al cambiar el
+  texto o cerrar. "Emitir" se habilita solo después de verla.
+- Editor de plantilla: cada campo en una tarjeta neutral-100 (sin tarjeta
+  exterior: el editor reemplaza la lista, no la envuelve); subir, bajar y
+  quitar con botones de icono de 40 px y `aria-label`; la clave interna se
+  deriva de la etiqueta y se muestra en monoespaciada.
+- Datos auditados al consultarlos (retención): no se piden al entrar a la
+  vista, sino con un botón explícito que avisa que la consulta queda
+  registrada.
+
+## Acceso a fichas ajenas, supervisión y mensajes (03b-5.2)
+
+- Ofertas de derivación: tarjeta accent-100 con borde accent-500 (requiere
+  respuesta); solo motivo, edad y tipo. Aceptar o rechazar confirma en un
+  modal que explica el traspaso (o el consentimiento, si es practicante).
+- Listas con estado (derivaciones, consentimientos, accesos): fila con
+  nombre en 14.5 px 800 + badge de estado, metadatos en 12.5 px y acciones a
+  la derecha; sin tarjeta por fila (divisores).
+- Supervisión: lista de casos por código en monoespaciada (nunca nombres) a
+  la izquierda, evoluciones del caso a la derecha. Comentarios separados por
+  divisores (no borde lateral de color: impeccable lo marca como side-tab).
+- Mensajes: lista de conversaciones a la izquierda con contador de no leídos
+  (píldora accent-700); burbuja propia en accent-200 a la derecha, ajena en bg
+  a la izquierda; "Mensaje retirado" en cursiva neutral-700; "Leído por" al
+  pie. Polling (30 s la lista, 15 s la conversación).
+
+## Cierre de flujos (03b-5.3)
+
+- Menú del panel en móvil (< md): barra superior con marca, "Rol: <rol>"
+  (12 px, siempre visible) y botón de icono de 40 px "Abrir menú"
+  (`aria-expanded`, `aria-controls`); se cierra al cambiar de ruta.
+- Modales: `ui/Modal` se monta en un portal sobre `body` (nunca anidado en
+  la tarjeta que lo abre).
+- Tamaño mínimo de texto funcional: 11 px (etiquetas en mayúsculas); 12 px
+  para texto corrido secundario.
+- `Eyebrow` tono paciente: accent-2-800 (accent-2-700 da 4.4:1 sobre el
+  fondo del panel).
+- Filtro directo del match: dentro de la tarjeta del asistente, resultados
+  separados por divisores (no tarjetas anidadas); el panel lateral cambia el
+  progreso por un texto que explica el modo.

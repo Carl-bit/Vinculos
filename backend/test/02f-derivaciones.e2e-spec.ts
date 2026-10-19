@@ -116,6 +116,15 @@ describe('02f derivaciones y consentimientos', () => {
           .set(await tk(origen))
       ).body.motivo,
     ).toBe('Motivo clinico de prueba');
+    // 03b-5: la vista trae el paciente mientras quien consulta ve la ficha.
+    expect(
+      (
+        await t
+          .http()
+          .get(`/api/derivaciones/${id}`)
+          .set(await tk(origen))
+      ).body.pacienteId,
+    ).toBe(paciente.pacienteId);
     expect(
       (
         await t
@@ -190,6 +199,13 @@ describe('02f derivaciones y consentimientos', () => {
           .set(await tk(candidatoC))
       ).status,
     ).toBe(200);
+    // Tras el traspaso el origen ya no ve la ficha: la derivacion sale sin paciente (null), sin error.
+    const tras = await t
+      .http()
+      .get('/api/derivaciones')
+      .set(await tk(origen));
+    expect(tras.status).toBe(200);
+    expect(tras.body.find((d: { id: string }) => d.id === id)?.pacienteId ?? null).toBeNull();
   });
 
   it('oferta vencida (job) y lista agotada -> SIN_ASIGNAR; el origen la cierra', async () => {
@@ -283,7 +299,7 @@ describe('02f derivaciones y consentimientos', () => {
           .http()
           .post(`/api/consentimientos/${consentimientoId}/respuesta`)
           .set(await tk(supervisor))
-          .send({ acepta: true, versionDocumento: 'v1', otorgadoPorTipo: 'PACIENTE' })
+          .send({ acepta: true, versionDocumento: '1', otorgadoPorTipo: 'PACIENTE' })
       ).status,
     ).toBe(403);
     expect(
@@ -299,7 +315,7 @@ describe('02f derivaciones y consentimientos', () => {
       .http()
       .post(`/api/consentimientos/${consentimientoId}/respuesta`)
       .set(await tk(paciente))
-      .send({ acepta: true, versionDocumento: 'v1', otorgadoPorTipo: 'PACIENTE' });
+      .send({ acepta: true, versionDocumento: '1', otorgadoPorTipo: 'PACIENTE' });
     expect(r.status).toBe(200);
     expect(r.body.estado).toBe('ACEPTADO');
     expect(await estadoDerivacion(derivacionId)).toBe('ACEPTADA');
@@ -404,14 +420,14 @@ describe('02f derivaciones y consentimientos', () => {
       .http()
       .post(`/api/consentimientos/${c.id}/respuesta`)
       .set(await tk(gestion))
-      .send({ acepta: true, versionDocumento: 'v1', otorgadoPorTipo: 'PACIENTE', respaldoDocumentoRef: 'doc' });
+      .send({ acepta: true, versionDocumento: '1', otorgadoPorTipo: 'PACIENTE', respaldoDocumentoRef: 'doc' });
     expect(comoPaciente.status).toBe(422);
     expect(comoPaciente.body.restriccion).toBe('consentimientos_menor_requiere_adulto_responsable');
     const ok = await t
       .http()
       .post(`/api/consentimientos/${c.id}/respuesta`)
       .set(await tk(gestion))
-      .send({ acepta: true, versionDocumento: 'v1', otorgadoPorTipo: 'ADULTO_RESPONSABLE', adultoResponsableId: adulto.id, respaldoDocumentoRef: 'doc' });
+      .send({ acepta: true, versionDocumento: '1', otorgadoPorTipo: 'ADULTO_RESPONSABLE', adultoResponsableId: adulto.id, respaldoDocumentoRef: 'doc' });
     expect(ok.body.estado).toBe('ACEPTADO');
   });
 

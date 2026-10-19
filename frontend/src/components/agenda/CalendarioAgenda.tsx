@@ -137,7 +137,7 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
           <section aria-label="Calendario de la semana" className="overflow-x-auto rounded-[var(--radius-lg)] border border-divider bg-bg shadow-md">
             <div className="min-w-[720px]">
               <div className="grid border-b border-divider bg-neutral-200" style={{ gridTemplateColumns: `74px repeat(${dias.length}, minmax(0, 1fr))` }}>
-                <span className="px-2.5 py-3 text-[10.5px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Hora</span>
+                <span className="px-2.5 py-3 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Hora</span>
                 {dias.map((d) => (
                   <span
                     key={d}
@@ -176,7 +176,7 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
                               <span className="max-w-full truncate text-[11px] font-bold text-neutral-800">
                                 {modo === 'profesional' ? `${pro} · ${box}` : `${box} · ${pro}`}
                               </span>
-                              <span className={`text-[10px] font-extrabold tracking-[0.06em] uppercase ${TEXTO_ESTADO[c.estado]}`}>
+                              <span className={`text-[11px] font-extrabold tracking-[0.06em] uppercase ${TEXTO_ESTADO[c.estado]}`}>
                                 {NOMBRE_ESTADO_CITA[c.estado]}
                               </span>
                             </button>

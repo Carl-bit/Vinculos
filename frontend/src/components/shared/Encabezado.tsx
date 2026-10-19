@@ -24,7 +24,7 @@ export function Encabezado({
       <div className="max-w-[640px]">
         {sobretitulo && <Eyebrow tone={tono}>{sobretitulo}</Eyebrow>}
         <h1 className="m-0 mb-3 text-[clamp(30px,4vw,44px)] leading-none font-black tracking-[-0.035em] text-balance">{titulo}</h1>
-        {bajada && <p className="m-0 text-[16px] leading-relaxed text-pretty text-neutral-700">{bajada}</p>}
+        {bajada && <p className="m-0 text-[16px] leading-relaxed text-pretty text-neutral-800">{bajada}</p>}
       </div>
       {accion}
     </div>

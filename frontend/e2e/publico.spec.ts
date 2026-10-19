@@ -142,32 +142,3 @@ test('ya soy paciente: solo pide el correo y responde siempre igual', async ({ p
     await expect(page.getByText(/Profesional (Uno|Dos|Tres)/)).toHaveCount(0);
   }
 });
-
-test('lista de espera sin cuenta (03b): desde Pedir hora, confirmación por correo y salida con el enlace', async ({ page }) => {
-  const email = correoNuevo('espera');
-  await page.goto('/equipo');
-  await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
-  await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
-  await page.getByText('¿Ninguna de estas horas te acomoda?').click();
-  const form = page.getByRole('form', { name: /Lista de espera de/ });
-  await form.getByLabel('Tu nombre').fill('Prueba Espera');
-  await form.getByRole('textbox', { name: 'Correo' }).fill(email);
-  await form.getByRole('button', { name: 'Avisarme cuando haya horas' }).click();
-  await expect(form.getByText('Para anotarte debes aceptar la política de datos.')).toBeVisible();
-  await form.getByLabel(/política de datos personales/).check();
-  await form.getByRole('button', { name: 'Avisarme cuando haya horas' }).click();
-  await expect(page.getByText('Revisa tu correo para confirmar')).toBeVisible();
-
-  await page.goto(await enlaceDelCorreo(email, '/lista-espera/verificar'));
-  await page.getByRole('button', { name: 'Confirmar inscripción' }).click();
-  await expect(page.getByRole('heading', { name: 'Quedaste en la lista de espera' })).toBeVisible();
-  await expect(page.getByText(/Inscripción vigente hasta el/)).toBeVisible();
-
-  await page.goto(await enlaceDelCorreo(email, '/lista-espera/baja'));
-  await page.getByRole('button', { name: 'Salir de la lista' }).click();
-  await expect(page.getByRole('heading', { name: 'Saliste de la lista de espera' })).toBeVisible();
-  // El enlace de baja no sirve dos veces.
-  await page.reload();
-  await page.getByRole('button', { name: 'Salir de la lista' }).click();
-  await expect(page.getByRole('heading', { name: 'Este enlace ya no sirve' })).toBeVisible();
-});

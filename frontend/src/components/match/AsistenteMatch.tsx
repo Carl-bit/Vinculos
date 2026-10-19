@@ -14,6 +14,7 @@ import { formatoFechaLarga } from '@/lib/formato';
 import { guardarMatch } from '@/lib/match-memoria';
 import { nombreCorto, nombrePerfil, textoTarifa } from '@/lib/perfiles';
 
+import { FiltroDirecto } from './FiltroDirecto';
 import { elegidos, PreguntaMatch, respondida, type Pregunta, type Respuesta } from './PreguntaMatch';
 
 type Resultado = components['schemas']['ResultadoMatch'];
@@ -31,8 +32,9 @@ const frase = (razones: string[]) => {
  * paso a paso, analisis por reglas en la API y tarjeta del profesional. No
  * guarda nada ni pide contacto (C-17): el resultado lleva a Pedir hora.
  */
-export function AsistenteMatch({ preguntas, agenda }: { preguntas: Pregunta[]; agenda: boolean }) {
+export function AsistenteMatch({ preguntas, agenda, filtroDirecto = false }: { preguntas: Pregunta[]; agenda: boolean; filtroDirecto?: boolean }) {
   const [paso, setPaso] = useState(0);
+  const [filtrar, setFiltrar] = useState(false);
   const [respuestas, setRespuestas] = useState<Record<string, Respuesta>>({});
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [error, setError] = useState<string>();
@@ -84,49 +86,66 @@ export function AsistenteMatch({ preguntas, agenda }: { preguntas: Pregunta[]; a
     <div className="flex items-start justify-center gap-[clamp(20px,3vw,40px)] pt-[clamp(10px,2vw,26px)] pb-10">
       <aside className="sticky top-6 hidden w-[292px] flex-none rounded-lg border border-divider bg-neutral-100 px-6 py-[26px] shadow-sm lg:block">
         <Eyebrow tone="patient">Match terapéutico</Eyebrow>
-        <div className="mb-1.5 text-[34px] leading-none font-black tracking-[-0.035em] tabular-nums">{pct}%</div>
-        <div className="mb-3 text-[12.5px] font-bold text-neutral-700">{resultado ? 'Resultado listo' : `Paso ${paso + 1} de ${total}`}</div>
-        <div className="mb-6 h-2 overflow-hidden rounded-full bg-neutral-300" aria-hidden="true">
-          <div className="h-full rounded-full bg-accent-700 transition-[width] duration-500 ease-out" style={{ width: `${pct}%` }} />
-        </div>
-        <ol className="m-0 flex list-none flex-col gap-1 p-0">
-          {preguntas.map((p, i) => {
-            const actual = !resultado && i === paso;
-            const hecho = respondida(p, respuestas[p.clave]) && (i < paso || !!resultado);
-            const alcanzable = !resultado && i <= paso;
-            return (
-              <li key={p.clave}>
-                <button
-                  type="button"
-                  disabled={!alcanzable}
-                  onClick={() => setPaso(i)}
-                  aria-current={actual ? 'step' : undefined}
-                  className={`flex w-full items-start gap-[11px] rounded-[14px] px-3 py-[11px] text-left transition-colors duration-200 enabled:cursor-pointer enabled:hover:bg-accent-2-100 ${actual ? 'bg-accent-2-200' : ''}`}
-                >
-                  <Icon
-                    name={hecho ? 'check_circle' : actual ? 'radio_button_checked' : 'radio_button_unchecked'}
-                    size={19}
-                    className={`mt-px ${hecho || actual ? 'text-accent-2-700' : 'text-neutral-500'} ${hecho ? "[font-variation-settings:'FILL'_1]" : ''}`}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className={`block text-[13px] leading-[1.3] tracking-[-0.015em] ${actual ? 'font-black' : 'font-bold'}`}>{p.texto}</span>
-                    <span className="mt-[3px] block truncate text-[12.5px] font-semibold text-neutral-700">
-                      {actual ? 'Respondiendo ahora' : (resumen(p) ?? (i < paso || resultado ? 'Sin respuesta' : 'Pendiente'))}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+        {filtrar ? (
+          <p className="m-0 text-[14px] leading-relaxed font-semibold text-pretty text-neutral-800">
+            Estás filtrando el equipo por tu cuenta. Puedes volver al cuestionario cuando quieras: tus respuestas siguen ahí.
+          </p>
+        ) : (
+          <>
+            <div className="mb-1.5 text-[34px] leading-none font-black tracking-[-0.035em] tabular-nums">{pct}%</div>
+            <div className="mb-3 text-[12.5px] font-bold text-neutral-700">{resultado ? 'Resultado listo' : `Paso ${paso + 1} de ${total}`}</div>
+            <div className="mb-6 h-2 overflow-hidden rounded-full bg-neutral-300" aria-hidden="true">
+              <div className="h-full rounded-full bg-accent-700 transition-[width] duration-500 ease-out" style={{ width: `${pct}%` }} />
+            </div>
+            <ol className="m-0 flex list-none flex-col gap-1 p-0">
+              {preguntas.map((p, i) => {
+                const actual = !resultado && i === paso;
+                const hecho = respondida(p, respuestas[p.clave]) && (i < paso || !!resultado);
+                const alcanzable = !resultado && i <= paso;
+                return (
+                  <li key={p.clave}>
+                    <button
+                      type="button"
+                      disabled={!alcanzable}
+                      onClick={() => setPaso(i)}
+                      aria-current={actual ? 'step' : undefined}
+                      className={`flex w-full items-start gap-[11px] rounded-[14px] px-3 py-[11px] text-left transition-colors duration-200 enabled:cursor-pointer enabled:hover:bg-accent-2-100 ${actual ? 'bg-accent-2-200' : ''}`}
+                    >
+                      <Icon
+                        name={hecho ? 'check_circle' : actual ? 'radio_button_checked' : 'radio_button_unchecked'}
+                        size={19}
+                        className={`mt-px ${hecho || actual ? 'text-accent-2-700' : 'text-neutral-500'} ${hecho ? "[font-variation-settings:'FILL'_1]" : ''}`}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-[13px] leading-[1.3] tracking-[-0.015em] ${actual ? 'font-black' : 'font-bold'}`}>{p.texto}</span>
+                        <span className="mt-[3px] block truncate text-[12.5px] font-semibold text-neutral-700">
+                          {actual ? 'Respondiendo ahora' : (resumen(p) ?? (i < paso || resultado ? 'Sin respuesta' : 'Pendiente'))}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </>
+        )}
         <p className="m-0 mt-[22px] flex gap-2.5 border-t border-divider pt-[18px] text-[12.5px] leading-normal font-semibold text-pretty text-neutral-700">
           <Icon name="lock" size={17} />
           Tus respuestas no se guardan: solo sirven para sugerirte un profesional del centro.
         </p>
+        {filtroDirecto && !filtrar && (
+          <button
+            type="button"
+            onClick={() => setFiltrar(true)}
+            className="mt-3 min-h-10 cursor-pointer text-left text-[13.5px] font-extrabold text-accent-700 underline underline-offset-2 hover:text-accent-800"
+          >
+            Prefiero filtrar yo mismo
+          </button>
+        )}
       </aside>
 
       <section className="w-full max-w-[720px] min-w-0 rounded-lg border border-divider bg-bg p-[clamp(22px,4vw,40px)] shadow-md">
-        <div className="mb-[22px] lg:hidden">
+        <div className={`mb-[22px] lg:hidden ${filtrar ? 'hidden' : ''}`}>
           <div className="mb-[9px] flex items-center justify-between gap-3">
             <span className="text-[11px] font-extrabold tracking-[0.14em] text-accent-700 uppercase">Match terapéutico</span>
             <span className="text-xs font-extrabold text-neutral-700">{resultado ? 'Resultado' : `Paso ${paso + 1} de ${total}`}</span>
@@ -134,9 +153,20 @@ export function AsistenteMatch({ preguntas, agenda }: { preguntas: Pregunta[]; a
           <div className="h-2 overflow-hidden rounded-full bg-neutral-300" aria-hidden="true">
             <div className="h-full rounded-full bg-accent-700 transition-[width] duration-500 ease-out" style={{ width: `${pct}%` }} />
           </div>
+          {filtroDirecto && !filtrar && (
+            <button
+              type="button"
+              onClick={() => setFiltrar(true)}
+              className="mt-2 min-h-10 cursor-pointer text-[13.5px] font-extrabold text-accent-700 underline underline-offset-2"
+            >
+              Prefiero filtrar yo mismo
+            </button>
+          )}
         </div>
 
-        {resultado ? (
+        {filtrar ? (
+          <FiltroDirecto agenda={agenda} onVolver={() => setFiltrar(false)} />
+        ) : resultado ? (
           <ResultadoMatch resultado={resultado} agenda={agenda} titulo={titulo} onReiniciar={reiniciar} />
         ) : (
           q && (
@@ -289,7 +319,7 @@ function TarjetaResultado({ opcion: o, agenda, destacada = false }: { opcion: Op
       </div>
       {o.razones.length > 0 && (
         <div className="mb-3.5 rounded-[18px] border border-accent-500 bg-accent-100 px-[19px] py-[15px]">
-          <div className="mb-1.5 text-[10.5px] font-extrabold tracking-[0.1em] text-accent-700 uppercase">Por qué te lo sugerimos</div>
+          <div className="mb-1.5 text-[11px] font-extrabold tracking-[0.1em] text-accent-700 uppercase">Por qué te lo sugerimos</div>
           <p className="m-0 text-[14.5px] leading-normal font-semibold text-pretty text-accent-900">{frase(o.razones)}</p>
         </div>
       )}

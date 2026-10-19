@@ -1,14 +1,10 @@
 /**
  * Textos de los consentimientos que responde el paciente (o su adulto
- * responsable): que se acepta y que pasa si se rechaza. El consentimiento de
- * atencion tiene texto versionado en la API (politica CONSENTIMIENTO_ATENCION);
- * el de practicante y el aviso de cambio de supervisor no tienen texto en la
- * BD: este es el documento que se muestra y su version queda registrada con
- * la respuesta (VERSION_PRACTICANTE).
+ * responsable): que se acepta y que pasa si se rechaza. El documento legal es
+ * una politica versionada en la API (CONSENTIMIENTO_ATENCION y, desde 03b-5,
+ * CONSENTIMIENTO_PRACTICANTE): aceptar envia su version vigente y la BD la
+ * exige. Aca solo va el resumen que acompaña al documento.
  */
-
-/** Version del texto de consentimiento de practicante mostrado en el portal y en el enlace. */
-export const VERSION_PRACTICANTE = 'practicante-portal-v1';
 
 export type TipoConsentimientoEnlace = 'ATENCION' | 'PRACTICANTE' | 'AVISO_SUPERVISOR';
 

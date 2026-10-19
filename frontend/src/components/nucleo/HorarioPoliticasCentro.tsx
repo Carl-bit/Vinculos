@@ -148,6 +148,11 @@ const TIPOS: { tipo: PoliticaVista['tipo']; titulo: string; bajada: string }[] =
   },
   { tipo: 'POLITICA_DATOS', titulo: 'Política de datos personales', bajada: 'Tratamiento de datos del paciente; se acepta al registrarse o pedir hora.' },
   { tipo: 'TERMINOS_AGENDAMIENTO', titulo: 'Términos de agendamiento', bajada: 'Cancelación, inasistencia y pagos; se aceptan al reservar.' },
+  {
+    tipo: 'CONSENTIMIENTO_PRACTICANTE',
+    titulo: 'Consentimiento de atención con practicante',
+    bajada: 'Lo acepta el paciente (o su adulto responsable) antes de que lo atienda un practicante supervisado.',
+  },
 ];
 
 /**

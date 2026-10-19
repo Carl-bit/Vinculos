@@ -9,7 +9,8 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Pestanas } from '@/components/ui/Pestanas';
-import { NOMBRE_ROL, useCuentasEquipo } from '@/lib/equipo';
+import { useMiCuenta } from '@/lib/consultas';
+import { NOMBRE_ROL, useCuentasEquipo, useSupervisiones } from '@/lib/equipo';
 import { useEquipoAgenda } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
@@ -20,8 +21,9 @@ import { FichaIntegrante } from './FichaIntegrante';
 import { ModeracionResenas } from './ModeracionResenas';
 import { NuevaCuenta } from './NuevaCuenta';
 import { PracticantesEquipo } from './PracticantesEquipo';
+import { SupervisionCasos } from './SupervisionCasos';
 
-type Vista = 'integrantes' | 'practicantes' | 'revisiones' | 'resenas' | 'alertas';
+type Vista = 'integrantes' | 'practicantes' | 'supervision' | 'revisiones' | 'resenas' | 'alertas';
 
 /**
  * Equipo (diseño "Admin - Perfil Profesional"): integrantes con su perfil y
@@ -34,9 +36,14 @@ export function EquipoCentro({ rol }: { rol: Rol }) {
   const gestiona = esAdministracion(rol);
   const router = useRouter();
   const parametros = useSearchParams();
+  const cuenta = useMiCuenta();
+  const supervisiones = useSupervisiones();
+  // Supervision seudonimizada: solo quien supervisa a un practicante vigente.
+  const supervisa = rol === 'PROFESIONAL' && (supervisiones.data ?? []).some((s) => s.supervisorId === cuenta.data?.id && !s.hasta);
   const vistas: { valor: Vista; etiqueta: string }[] = [
     { valor: 'integrantes', etiqueta: 'Integrantes' },
     { valor: 'practicantes', etiqueta: 'Practicantes' },
+    ...(supervisa ? ([{ valor: 'supervision', etiqueta: 'Supervisión' }] as const) : []),
     ...(admin
       ? ([
           { valor: 'revisiones', etiqueta: 'Catálogos y revisiones' },
@@ -86,6 +93,7 @@ export function EquipoCentro({ rol }: { rol: Rol }) {
         <div id="equipo-panel" role="tabpanel">
           {vista === 'integrantes' && <Integrantes rol={rol} abierto={parametros.get('id')} onAbrir={(id) => ir({ id })} />}
           {vista === 'practicantes' && <PracticantesEquipo rol={rol} />}
+          {vista === 'supervision' && <SupervisionCasos />}
           {vista === 'revisiones' && <CatalogosEquipo />}
           {vista === 'resenas' && <ModeracionResenas />}
           {vista === 'alertas' && <AlertasEquipo rol={rol} />}

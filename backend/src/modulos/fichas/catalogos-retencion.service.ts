@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { DecisionRetencion, EstadoTipoSesion } from '@prisma/client';
 
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
-import type { CatalogoDto, ProponerTipoSesionDto, RevisarTipoSesionDto, RevisionRetencionDto } from './dto/fichas.dto';
+import type { CatalogoDto, EditarCatalogoDto, ProponerTipoSesionDto, RevisarTipoSesionDto, RevisionRetencionDto } from './dto/fichas.dto';
 
 /**
  * Catalogos clinicos (B) y revision de retencion (15 años, sin purga
@@ -33,12 +33,21 @@ export class CatalogosRetencionService {
     return this.bd.tx().intervencion.create({ data: dto });
   }
 
+  /** Solo ADMIN (RLS intervenciones_update). Inexistente -> 404 (P2025). */
+  editarIntervencion(id: string, dto: EditarCatalogoDto) {
+    return this.bd.tx().intervencion.update({ where: { id }, data: dto });
+  }
+
   estadosAvance() {
     return this.bd.tx().estadoAvance.findMany({ orderBy: { nombre: 'asc' } });
   }
 
   crearEstadoAvance(dto: CatalogoDto) {
     return this.bd.tx().estadoAvance.create({ data: dto });
+  }
+
+  editarEstadoAvance(id: string, dto: EditarCatalogoDto) {
+    return this.bd.tx().estadoAvance.update({ where: { id }, data: dto });
   }
 
   /** Registra la consulta (consultas_retencion) y cada ficha (accesos_ficha RETENCION). */

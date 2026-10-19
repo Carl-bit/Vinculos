@@ -49,7 +49,17 @@ export class DerivacionesService {
       include: { candidatos: { select: { profesionalId: true, orden: true, estado: true, venceEn: true } } },
       orderBy: { fecha: 'desc' },
     });
-    return filas.map((d) => ({ ...d, motivo: texto(d.motivo), detalle: texto(d.detalle) }));
+    const paciente = await this.pacientesDe(filas.map((d) => d.fichaClinicaId));
+    return filas.map((d) => ({ ...d, motivo: texto(d.motivo), detalle: texto(d.detalle), pacienteId: paciente.get(d.fichaClinicaId) ?? null }));
+  }
+
+  /**
+   * Paciente de cada ficha, sin include: si la RLS oculta la ficha (el origen
+   * tras el traspaso) queda null en vez de romper la consulta.
+   */
+  private async pacientesDe(fichas: string[]) {
+    const filas = await this.bd.tx().fichaClinica.findMany({ where: { id: { in: [...new Set(fichas)] } }, select: { id: true, pacienteId: true } });
+    return new Map(filas.map((f) => [f.id, f.pacienteId]));
   }
 
   async obtener(id: string) {
@@ -60,7 +70,8 @@ export class DerivacionesService {
       }),
       'Derivacion',
     );
-    return { ...d, motivo: texto(d.motivo), detalle: texto(d.detalle) };
+    const paciente = await this.pacientesDe([d.fichaClinicaId]);
+    return { ...d, motivo: texto(d.motivo), detalle: texto(d.detalle), pacienteId: paciente.get(d.fichaClinicaId) ?? null };
   }
 
   /** Bandeja de ADMIN y supervisores vigentes: motivo, edad y tipo (auditada por la funcion). */

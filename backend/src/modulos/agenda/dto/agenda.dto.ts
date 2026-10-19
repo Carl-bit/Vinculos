@@ -1,4 +1,4 @@
-import { EstadoCita, EstadoListaEspera, ModalidadAtencion, ModoVideollamada, MotivoBloqueoAgenda } from '@prisma/client';
+import { EstadoCita, ModalidadAtencion, ModoVideollamada, MotivoBloqueoAgenda } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -243,41 +243,6 @@ export class CubrirCitaDto {
   @Type(() => Date)
   @IsDate()
   otorgarAccesoHasta?: Date;
-}
-
-/** Lista de espera por profesional o tipo de atencion (al menos uno). */
-export class CrearListaEsperaDto {
-  @IsUUID()
-  pacienteId!: string;
-
-  @ValidateIf((o: CrearListaEsperaDto) => !o.tipoAtencionId)
-  @IsUUID()
-  profesionalId?: string;
-
-  @ValidateIf((o: CrearListaEsperaDto) => !o.profesionalId)
-  @IsUUID()
-  tipoAtencionId?: string;
-
-  @IsOptional()
-  @Recortar()
-  @IsString()
-  @Length(1, 500)
-  preferencias?: string;
-}
-
-export class FiltroListaEsperaDto {
-  @IsOptional()
-  @IsUUID()
-  profesionalId?: string;
-
-  @IsOptional()
-  @IsEnum(EstadoListaEspera)
-  estado?: EstadoListaEspera;
-}
-
-export class CerrarListaEsperaDto {
-  @IsIn([EstadoListaEspera.ASIGNADA, EstadoListaEspera.CANCELADA])
-  estado!: 'ASIGNADA' | 'CANCELADA';
 }
 
 /** 03b: horas de un box que el profesional aparta (dentro del horario del box). */

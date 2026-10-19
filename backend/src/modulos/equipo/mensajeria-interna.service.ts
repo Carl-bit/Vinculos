@@ -124,7 +124,7 @@ export class MensajeriaInternaService {
     return this.bd.tx().participanteHilo.findMany({ where: { hiloId }, select: { usuarioId: true, agregadoEn: true } });
   }
 
-  private async hilo(id: string): Promise<Hilo & Record<string, unknown>> {
+  private async hilo(id: string) {
     return encontrado(await this.bd.tx().hiloInterno.findUnique({ where: { id }, select: VISTA_HILO }), 'Hilo');
   }
 

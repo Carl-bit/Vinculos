@@ -520,6 +520,44 @@ describe('02c fichas y pacientes', () => {
         .set(await tk(admin));
       expect(cola.body.every((x: { estado: string }) => x.estado === 'PROPUESTO')).toBe(true);
     });
+
+    it('03b-5: intervenciones y estados de avance se desactivan (solo ADMIN), nunca se borran', async () => {
+      for (const ruta of ['/api/intervenciones', '/api/estados-avance']) {
+        const r = await t
+          .http()
+          .post(ruta)
+          .set(await tk(admin))
+          .send({ nombre: `Catalogo ${randomUUID().slice(0, 8)}` });
+        expect(r.status).toBe(201);
+        for (const u of [gestion, profesional, practicante]) {
+          expect(
+            (
+              await t
+                .http()
+                .patch(`${ruta}/${r.body.id}`)
+                .set(await tk(u))
+                .send({ activo: false })
+            ).status,
+          ).toBe(403);
+        }
+        const off = await t
+          .http()
+          .patch(`${ruta}/${r.body.id}`)
+          .set(await tk(admin))
+          .send({ activo: false });
+        expect(off.status).toBe(200);
+        expect(off.body.activo).toBe(false);
+        expect(
+          (
+            await t
+              .http()
+              .patch(`${ruta}/${randomUUID()}`)
+              .set(await tk(admin))
+              .send({ activo: false })
+          ).status,
+        ).toBe(404);
+      }
+    });
   });
 
   describe('retencion', () => {

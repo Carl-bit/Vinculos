@@ -97,8 +97,6 @@ model ConfiguracionCentro {
   retencionMensajesDias             Int            @default(365) @map("retencion_mensajes_dias")
   /// 03a-2 (D-4): edad minima para la cuenta propia del paciente (antes: el adulto responsable).
   edadMinimaCuenta                  Int            @default(14) @map("edad_minima_cuenta")
-  /// 03b: dias que dura una inscripcion verificada en la lista de espera publica (sin cuenta).
-  diasListaEsperaPublica            Int            @default(60) @map("dias_lista_espera_publica") @db.SmallInt
   updatedAt                         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("configuracion_centro")
@@ -163,8 +161,6 @@ model Usuario {
   resenasEscritas            Resena[]                     @relation("ResenaAutor")
   resenasModeradas           Resena[]                     @relation("ResenaModeradaPor")
   altasRegistradas           AltaPaciente[]
-  listaEsperaProfesional     ListaEspera[]                @relation("ListaEsperaProfesional")
-  listaEsperaCreada          ListaEspera[]                @relation("ListaEsperaCreadaPor")
   accesosTemporales          AccesoClinicoTemporal[]      @relation("AccesoTemporalProfesional")
   accesosTemporalesOtorgados AccesoClinicoTemporal[]      @relation("AccesoTemporalOtorgadoPor")
   borradoresEvolucion        BorradorEvolucion[]
@@ -197,7 +193,6 @@ model Usuario {
   disponibilidad             DisponibilidadProfesional[]
   bloquesAtencion            BloqueAtencion[]             @relation("BloqueAtencionProfesional")
   bloquesAtencionCreados     BloqueAtencion[]             @relation("BloqueAtencionCreadoPor")
-  listaEsperaPublica         ListaEsperaPublica[]
   bloqueosAgenda             BloqueoAgenda[]
   consentimientosPracticante Consentimiento[]             @relation("ConsentimientoPracticante")
   consentimientosSupervisor  Consentimiento[]             @relation("ConsentimientoSupervisor")
@@ -405,8 +400,9 @@ enum TipoNotificacion {
   CONSENTIMIENTO_POR_VENCER
   PAGO_REGISTRADO
   BOLETA_EMITIDA
-  /// 03a: hora liberada (lista de espera, la crea la BD), acceso clinico temporal
-  /// (aviso legal al paciente), solicitud por aprobar y cierre requerido (al equipo).
+  /// 03a: acceso clinico temporal (aviso legal al paciente), solicitud por aprobar
+  /// y cierre requerido (al equipo). HORA_LIBERADA queda sin uso: la lista de espera
+  /// se retiro (implementacion futura) y PostgreSQL no quita valores de un enum.
   HORA_LIBERADA
   ACCESO_CLINICO_TEMPORAL
   SOLICITUD_HORA
@@ -643,7 +639,6 @@ model Paciente {
   solicitudesHora      SolicitudHora[]
   resenas              Resena[]
   altas                AltaPaciente[]
-  listaEspera          ListaEspera[]
   accesosTemporales    AccesoClinicoTemporal[]
   hilosInternos        HiloInterno[]
 
@@ -1290,11 +1285,10 @@ model TipoAtencion {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profesionales      ProfesionalTipoAtencion[]
-  derivaciones       Derivacion[]
-  pacientes          Paciente[]
-  tarifas            Tarifa[]
-  listaEspera        ListaEspera[]
+  profesionales ProfesionalTipoAtencion[]
+  derivaciones  Derivacion[]
+  pacientes     Paciente[]
+  tarifas       Tarifa[]
 
   @@map("tipos_atencion")
 }
@@ -1870,6 +1864,7 @@ enum TipoTokenCorreo {
   ACCESO
   VERIFICACION_CORREO
   CONSENTIMIENTO
+  /// Sin uso: lista de espera publica retirada (implementacion futura).
   VERIFICACION_LISTA_ESPERA
   BAJA_LISTA_ESPERA
 
@@ -1906,6 +1901,8 @@ enum TipoPolitica {
   POLITICA_DATOS
   CONSENTIMIENTO_ATENCION
   TERMINOS_AGENDAMIENTO
+  /// 03b-5: consentimiento de atencion con practicante supervisado (versionado).
+  CONSENTIMIENTO_PRACTICANTE
 
   @@map("tipo_politica")
 }
@@ -1920,11 +1917,10 @@ model Politica {
   vigenteDesde DateTime     @default(now()) @map("vigente_desde") @db.Timestamptz(6)
   creadaPorId  String?      @map("creada_por_id") @db.Uuid
 
-  creadaPor          Usuario?             @relation(fields: [creadaPorId], references: [id], onDelete: Restrict)
-  aceptaciones       AceptacionPolitica[]
-  solicitudes        SolicitudHora[]      @relation("SolicitudPolitica")
-  solicitudesT       SolicitudHora[]      @relation("SolicitudTerminos")
-  listaEsperaPublica ListaEsperaPublica[]
+  creadaPor    Usuario?             @relation(fields: [creadaPorId], references: [id], onDelete: Restrict)
+  aceptaciones AceptacionPolitica[]
+  solicitudes  SolicitudHora[]      @relation("SolicitudPolitica")
+  solicitudesT SolicitudHora[]      @relation("SolicitudTerminos")
 
   @@unique([tipo, version])
   @@map("politicas")
@@ -2002,7 +1998,6 @@ model SolicitudHora {
   respuestas       Bytes?
   /// Profesional recomendado por el match (metricas; sin datos personales).
   recomendadoId    String?             @map("recomendado_id") @db.Uuid
-  listaEspera      Boolean             @default(false) @map("lista_espera")
   /// Versiones aceptadas al enviar la solicitud (politica de datos y terminos de agendamiento).
   politicaId       String              @map("politica_id") @db.Uuid
   terminosId       String?             @map("terminos_id") @db.Uuid
@@ -2268,39 +2263,6 @@ model HorarioEspacio {
 
   @@index([espacioId])
   @@map("horarios_espacio")
-}
-
-enum EstadoListaEspera {
-  ACTIVA
-  ASIGNADA
-  CANCELADA
-
-  @@map("estado_lista_espera")
-}
-
-/// Lista de espera por profesional o tipo de atencion (A, 03a). Al liberarse
-/// una hora del profesional (o de alguien que atiende el tipo) la BD avisa
-/// (HORA_LIBERADA) a las entradas ACTIVA.
-model ListaEspera {
-  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  pacienteId     String            @map("paciente_id") @db.Uuid
-  profesionalId  String?           @map("profesional_id") @db.Uuid
-  tipoAtencionId String?           @map("tipo_atencion_id") @db.Uuid
-  preferencias   String?
-  estado         EstadoListaEspera @default(ACTIVA)
-  creadaPorId    String?           @map("creada_por_id") @db.Uuid
-  creadaEn       DateTime          @default(now()) @map("creada_en") @db.Timestamptz(6)
-  avisadaEn      DateTime?         @map("avisada_en") @db.Timestamptz(6)
-  cerradaEn      DateTime?         @map("cerrada_en") @db.Timestamptz(6)
-
-  paciente     Paciente      @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
-  profesional  Usuario?      @relation("ListaEsperaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  tipoAtencion TipoAtencion? @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
-  creadaPor    Usuario?      @relation("ListaEsperaCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
-
-  @@index([profesionalId, estado])
-  @@index([tipoAtencionId, estado])
-  @@map("lista_espera")
 }
 
 enum MotivoAccesoTemporal {
@@ -2597,30 +2559,4 @@ model BloqueAtencion {
   @@index([profesionalId, inicio])
   @@index([espacioId, inicio])
   @@map("bloques_atencion")
-}
-
-/// 03b (A): lista de espera publica, sin cuenta. Inscripcion verificada por
-/// correo para un profesional (por tipo de atencion: pendiente, futuro); un
-/// job avisa por correo cuando hay horas nuevas o liberadas. No crea paciente ni ficha; se borra al
-/// vencer o con el enlace de baja. Telefono cifrado; id generado por la API.
-/// Sin GRANT de escritura: solo funciones.
-model ListaEsperaPublica {
-  id               String    @id @db.Uuid
-  profesionalId    String    @map("profesional_id") @db.Uuid
-  nombre           String
-  email            String
-  /// cifrado (IDENTIFICACION)
-  telefono         Bytes?
-  politicaId       String    @map("politica_id") @db.Uuid
-  creadaEn         DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
-  verificadaEn     DateTime? @map("verificada_en") @db.Timestamptz(6)
-  expiraEn         DateTime  @map("expira_en") @db.Timestamptz(6)
-  avisoPendienteEn DateTime? @map("aviso_pendiente_en") @db.Timestamptz(6)
-  avisadaEn        DateTime? @map("avisada_en") @db.Timestamptz(6)
-
-  profesional Usuario  @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
-  politica    Politica @relation(fields: [politicaId], references: [id], onDelete: Restrict)
-
-  @@index([profesionalId])
-  @@map("lista_espera_publica")
 }

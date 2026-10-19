@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { TipoNotificacion } from '@prisma/client';
+import { CanalMensaje, EstadoNotificacion, TipoNotificacion } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
 
@@ -71,4 +71,26 @@ export class PlantillaMensajeVista {
   asuntoEjemplo!: string;
   cuerpoEjemplo!: string;
   updatedAt!: Date;
+}
+
+/** Registro de una notificacion (metadatos, sin contenido ni quien la origino). */
+export class NotificacionRegistro {
+  id!: string;
+  @ApiProperty({ enum: TipoNotificacion, enumName: 'TipoNotificacion' })
+  tipo!: TipoNotificacion;
+  @ApiProperty({ enum: CanalMensaje, enumName: 'CanalMensaje' })
+  canal!: CanalMensaje;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  usuarioId!: string | null;
+  /** Lo que origino el aviso (cita, derivacion, mensaje, documento...). */
+  referenciaId!: string;
+  @ApiProperty({ enum: EstadoNotificacion, enumName: 'EstadoNotificacion' })
+  estado!: EstadoNotificacion;
+  intentos!: number;
+  proximoIntento!: Date;
+  creadaEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  procesadaEn!: Date | null;
 }

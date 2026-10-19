@@ -3,7 +3,17 @@
  * cliente generado del front.
  */
 import { ApiProperty } from '@nestjs/swagger';
-import { EstadoResena, EstadoTipoSesion, Modalidad, ModalidadAtencion, MostrarResena, TipoTrayectoria } from '@prisma/client';
+import {
+  EstadoResena,
+  EstadoTipoSesion,
+  Modalidad,
+  ModalidadAtencion,
+  MostrarResena,
+  NivelRiesgo,
+  Rol,
+  TipoHiloInterno,
+  TipoTrayectoria,
+} from '@prisma/client';
 
 /** Tipo de atencion del catalogo (adultos, parejas, infanto-juvenil...). Nunca se borra: se desactiva. */
 export class TipoAtencionVista {
@@ -168,4 +178,121 @@ export class SupervisorCambiado {
   supervisorId!: string;
   /** Pacientes con consentimiento vigente avisados del cambio (plazo de oposicion). */
   avisosCreados!: number;
+}
+
+// ---------------------------------------------------------------------------
+// 03b-5.2: supervision seudonimizada y mensajeria interna.
+// ---------------------------------------------------------------------------
+
+/** Caso supervisado por codigo: nunca nombre, RUT, paciente_id ni ficha_id. */
+export class CasoSupervision {
+  codigo!: string;
+  practicante_id!: string;
+  edad_paciente!: number;
+  @ApiProperty({ type: String, nullable: true })
+  tipo_atencion!: string | null;
+}
+
+class PlantillaSupervisada {
+  id!: string;
+  nombre!: string;
+  version!: number;
+}
+
+/** Evolucion vista por el supervisor: campos estructurados, notas y solo los campos de plantilla visibles en supervision. */
+export class EvolucionSupervisada {
+  evolucionId!: string;
+  autorId!: string;
+  tipoSesion!: string;
+  intervenciones!: string[];
+  @ApiProperty({ type: String, nullable: true })
+  estadoAvance!: string | null;
+  @ApiProperty({ enum: NivelRiesgo, enumName: 'NivelRiesgo' })
+  nivelRiesgo!: NivelRiesgo;
+  @ApiProperty({ type: String, nullable: true })
+  notas!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  corrigeAId!: string | null;
+  creadoEn!: Date;
+  @ApiProperty({ type: PlantillaSupervisada, nullable: true })
+  plantilla!: PlantillaSupervisada | null;
+  @ApiProperty({ type: 'object', additionalProperties: true, nullable: true, description: 'Solo campos visible_en_supervision' })
+  valores!: Record<string, unknown> | null;
+  /** Claves de texto libre entre los valores visibles (la UI muestra el aviso). */
+  camposTextoLibre!: string[];
+  advertenciaTextoLibre!: string;
+}
+
+/** Comentario del supervisor (append-only). Lo leen el tratante actual y el supervisor vigente. */
+export class ComentarioSupervision {
+  id!: string;
+  evolucionId!: string;
+  supervisorId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  texto!: string | null;
+  creadoEn!: Date;
+}
+
+/** Hilo interno: GENERAL (sin pacientes) o CASO (con acceso clinico vigente). */
+export class HiloVista {
+  id!: string;
+  @ApiProperty({ enum: TipoHiloInterno, enumName: 'TipoHiloInterno' })
+  tipo!: TipoHiloInterno;
+  @ApiProperty({ type: String, nullable: true })
+  asunto!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
+  creadoPorId!: string;
+  creadoEn!: Date;
+  ultimoMensajeEn!: Date;
+}
+
+export class HiloConNoLeidos extends HiloVista {
+  noLeidos!: number;
+}
+
+export class MensajeInternoVista {
+  id!: string;
+  autorId!: string;
+  /** Nombre via nombres_hilo(); "Ex integrante del equipo" si la cuenta se cerro. */
+  autor!: string;
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rolAutor!: Rol;
+  @ApiProperty({ type: String, nullable: true, description: 'null si fue retirado' })
+  contenido!: string | null;
+  retirado!: boolean;
+  creadoEn!: Date;
+}
+
+class LecturaHiloVista {
+  usuarioId!: string;
+  nombre!: string;
+  leidoEn!: Date;
+}
+
+export class MensajesHilo {
+  hilo!: HiloVista;
+  mensajes!: MensajeInternoVista[];
+  lecturas!: LecturaHiloVista[];
+}
+
+export class MensajeInternoEnviado {
+  id!: string;
+  hiloId!: string;
+  autorId!: string;
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rolAutor!: Rol;
+  @ApiProperty({ type: String, nullable: true })
+  contenido!: string | null;
+  creadoEn!: Date;
+}
+
+export class MensajeRetirado {
+  id!: string;
+  retirado!: boolean;
+}
+
+export class ParticipanteHiloVista {
+  usuarioId!: string;
+  agregadoEn!: Date;
 }

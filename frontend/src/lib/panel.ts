@@ -59,6 +59,9 @@ export const nombresPacientes = (lista: PacienteVista[] | undefined) => new Map(
 const ZONA = 'America/Santiago';
 const diaChile = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: ZONA });
 
+/** Hoy en Chile como AAAA-MM-DD (para inputs de fecha). */
+export const fechaHoyChile = () => diaChile(new Date());
+
 /** Medianoche de Chile del dia AAAA-MM-DD (con el offset vigente ese dia). */
 export function inicioDiaChile(fecha: string): Date {
   const offset =

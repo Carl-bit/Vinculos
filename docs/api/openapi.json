@@ -648,7 +648,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificacionRegistro"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -4603,7 +4613,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntegranteEquipoTratante"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -6065,7 +6085,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AltaRegistrada"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -6155,7 +6182,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AltaVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -6560,7 +6597,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvolucionCreada"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -6748,7 +6792,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TipoSesionVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -6841,7 +6895,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/TipoSesionVista"
                 }
               }
             }
@@ -6948,7 +7002,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/TipoSesionVista"
                 }
               }
             }
@@ -7032,7 +7086,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogoClinicoVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -7125,7 +7189,114 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/CatalogoClinicoVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Fichas y pacientes"
+        ]
+      }
+    },
+    "/api/intervenciones/{id}": {
+      "patch": {
+        "description": "Roles: ADMIN",
+        "operationId": "CatalogosClinicosController_editarIntervencion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditarCatalogoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogoClinicoVista"
                 }
               }
             }
@@ -7209,7 +7380,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogoClinicoVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -7302,7 +7483,114 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/CatalogoClinicoVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Fichas y pacientes"
+        ]
+      }
+    },
+    "/api/estados-avance/{id}": {
+      "patch": {
+        "description": "Roles: ADMIN",
+        "operationId": "CatalogosClinicosController_editarEstadoAvance",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditarCatalogoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogoClinicoVista"
                 }
               }
             }
@@ -7386,7 +7674,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FichaSobreRetencion"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -7481,7 +7779,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/RevisionRetencionVista"
                 }
               }
             }
@@ -7563,7 +7861,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RevisionRetencionVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -7644,7 +7952,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TipoDocumentoVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -7733,7 +8051,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TipoDocumentoVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -7837,7 +8162,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/TipoDocumentoVista"
                 }
               }
             }
@@ -7931,7 +8256,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentoClinicoVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -8113,6 +8445,115 @@
         ]
       }
     },
+    "/api/documentos-clinicos/vista-previa": {
+      "post": {
+        "description": "Roles: PROFESIONAL, PRACTICANTE",
+        "operationId": "DocumentosController_vistaPrevia",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmitirDocumentoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Cuerpo mayor al limite (JSON 1 MB; adjuntos ADJUNTO_MAX_MB)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Vista previa del PDF tal como se emitiria (no guarda ni envia). Tipo desactivado -> 403.",
+        "tags": [
+          "Fichas y pacientes"
+        ]
+      }
+    },
     "/api/documentos-clinicos/descarga/{token}": {
       "get": {
         "description": "Roles: PACIENTE, RESPONSABLE",
@@ -8129,12 +8570,20 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8144,7 +8593,7 @@
           "401": {
             "description": "Sin token, token vencido o cuenta inactiva/expirada",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8154,7 +8603,7 @@
           "403": {
             "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8164,7 +8613,7 @@
           "404": {
             "description": "No existe o no es visible para el usuario (RLS)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8174,7 +8623,7 @@
           "409": {
             "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8184,7 +8633,7 @@
           "422": {
             "description": "Regla de negocio de la BD (23514, 23503)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8219,12 +8668,20 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8234,7 +8691,7 @@
           "401": {
             "description": "Sin token, token vencido o cuenta inactiva/expirada",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8244,7 +8701,7 @@
           "403": {
             "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8254,7 +8711,7 @@
           "404": {
             "description": "No existe o no es visible para el usuario (RLS)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8264,7 +8721,7 @@
           "409": {
             "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8274,7 +8731,7 @@
           "422": {
             "description": "Regla de negocio de la BD (23514, 23503)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8288,6 +8745,104 @@
           }
         ],
         "summary": "Antes de 03b-4: descarga desde el portal con sesion (queda registrada como la del enlace).",
+        "tags": [
+          "Fichas y pacientes"
+        ]
+      }
+    },
+    "/api/documentos-clinicos/{id}/copia": {
+      "get": {
+        "description": "Roles: PROFESIONAL, PRACTICANTE",
+        "operationId": "DocumentosController_copia",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Copia del tratante: el PDF de un documento emitido (queda en accesos_ficha).",
         "tags": [
           "Fichas y pacientes"
         ]
@@ -8319,7 +8874,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvioDocumentoVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -8407,7 +8969,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnvioDocumentoDetalle"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -8614,7 +9186,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdjuntoFichaVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -8712,7 +9291,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdjuntoFichaVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -8802,12 +9391,42 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
             "content": {
-              "application/json": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8817,7 +9436,17 @@
           "401": {
             "description": "Sin token, token vencido o cuenta inactiva/expirada",
             "content": {
-              "application/json": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8827,7 +9456,17 @@
           "403": {
             "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
             "content": {
-              "application/json": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8837,7 +9476,17 @@
           "404": {
             "description": "No existe o no es visible para el usuario (RLS)",
             "content": {
-              "application/json": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8847,7 +9496,17 @@
           "409": {
             "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
             "content": {
-              "application/json": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8857,7 +9516,17 @@
           "422": {
             "description": "Regla de negocio de la BD (23514, 23503)",
             "content": {
-              "application/json": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -8899,7 +9568,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/BorradorVista"
                   }
                 }
               }
@@ -9007,7 +9676,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/BorradorVista"
                 }
               }
             }
@@ -9114,7 +9783,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/BorradorVista"
                 }
               }
             }
@@ -9305,7 +9974,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvolucionCreada"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -9612,7 +10288,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlantillaClinicaVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -9701,7 +10387,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaClinicaVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -9791,7 +10484,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaClinicaVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -9889,7 +10589,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaClinicaVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -9979,7 +10686,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaClinicaVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -10069,7 +10783,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaClinicaVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -10159,7 +10880,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlantillaClinicaVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -10259,7 +10987,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngresoVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -10347,7 +11082,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IngresoVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -13641,7 +14386,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreRequerido"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -14184,471 +14936,6 @@
         },
         "tags": [
           "Agenda y espacios"
-        ]
-      }
-    },
-    "/api/lista-espera": {
-      "get": {
-        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PACIENTE, RESPONSABLE",
-        "operationId": "ListaEsperaController_listar",
-        "parameters": [
-          {
-            "name": "profesionalId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "name": "estado",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "CANCELADA",
-                "ACTIVA",
-                "ASIGNADA"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ListaEsperaVista"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "DTO invalido (class-validator) o campo no declarado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sin token, token vencido o cuenta inactiva/expirada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No existe o no es visible para el usuario (RLS)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Regla de negocio de la BD (23514, 23503)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "jwt": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "Agenda y espacios"
-        ]
-      },
-      "post": {
-        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PACIENTE, RESPONSABLE",
-        "operationId": "ListaEsperaController_crear",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CrearListaEsperaDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListaEsperaVista"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "DTO invalido (class-validator) o campo no declarado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sin token, token vencido o cuenta inactiva/expirada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No existe o no es visible para el usuario (RLS)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Regla de negocio de la BD (23514, 23503)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "jwt": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "Agenda y espacios"
-        ]
-      }
-    },
-    "/api/lista-espera/{id}/cierre": {
-      "post": {
-        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PACIENTE, RESPONSABLE",
-        "operationId": "ListaEsperaController_cerrar",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CerrarListaEsperaDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListaEsperaVista"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "DTO invalido (class-validator) o campo no declarado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sin token, token vencido o cuenta inactiva/expirada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No existe o no es visible para el usuario (RLS)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Regla de negocio de la BD (23514, 23503)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "jwt": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "Agenda y espacios"
-        ]
-      }
-    },
-    "/api/publico/lista-espera": {
-      "post": {
-        "operationId": "ListaEsperaPublicaController_inscribir",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InscribirListaEsperaDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InscripcionListaEspera"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Parametros invalidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Limite de consultas por minuto e IP",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Match publico"
-        ]
-      }
-    },
-    "/api/publico/lista-espera/verificacion": {
-      "post": {
-        "operationId": "ListaEsperaPublicaController_verificar",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TokenListaEsperaDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InscripcionVerificada"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Parametros invalidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Limite de consultas por minuto e IP",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "summary": "El enlace del correo activa la inscripcion (un solo uso).",
-        "tags": [
-          "Match publico"
-        ]
-      }
-    },
-    "/api/publico/lista-espera/baja": {
-      "post": {
-        "operationId": "ListaEsperaPublicaController_baja",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TokenListaEsperaDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "400": {
-            "description": "Parametros invalidos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Limite de consultas por minuto e IP",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "summary": "El enlace de baja borra la inscripcion.",
-        "tags": [
-          "Match publico"
         ]
       }
     },
@@ -17287,7 +17574,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CasoSupervision"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -17383,7 +17680,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/EvolucionSupervisada"
                   }
                 }
               }
@@ -17487,7 +17784,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComentarioSupervision"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -17577,7 +17881,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ComentarioSupervision"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -18279,7 +18593,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/HiloVista"
                 }
               }
             }
@@ -18371,7 +18685,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HiloConNoLeidos"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -18461,7 +18785,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MensajesHilo"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -18559,7 +18890,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MensajeInternoEnviado"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -18659,7 +18997,17 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ParticipanteHiloVista"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -18749,7 +19097,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MensajeRetirado"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -19026,7 +19381,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DerivacionPendiente"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -19213,7 +19578,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfertaDerivacion"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -19313,7 +19685,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DerivacionRespondida"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -19413,7 +19792,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DerivacionVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -19513,7 +19899,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DerivacionVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -19611,7 +20004,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DerivacionVista"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -19711,7 +20111,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PracticantePropuesto"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -19893,7 +20300,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentimientoSolicitado"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -20395,7 +20809,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnlaceEnviado"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -20485,7 +20906,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnlaceEnviado"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -20613,7 +21041,8 @@
               "enum": [
                 "POLITICA_DATOS",
                 "CONSENTIMIENTO_ATENCION",
-                "TERMINOS_AGENDAMIENTO"
+                "TERMINOS_AGENDAMIENTO",
+                "CONSENTIMIENTO_PRACTICANTE"
               ],
               "type": "string"
             }
@@ -20671,7 +21100,27 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -21095,7 +21544,17 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResultadoMatchDirecto"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Parametros invalidos",
@@ -23113,7 +23572,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MensajeLeido"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
@@ -25056,12 +25522,20 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25071,7 +25545,7 @@
           "401": {
             "description": "Sin token, token vencido o cuenta inactiva/expirada",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25081,7 +25555,7 @@
           "403": {
             "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25091,7 +25565,7 @@
           "404": {
             "description": "No existe o no es visible para el usuario (RLS)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25101,7 +25575,7 @@
           "409": {
             "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25111,7 +25585,7 @@
           "422": {
             "description": "Regla de negocio de la BD (23514, 23503)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25146,12 +25620,20 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "400": {
             "description": "DTO invalido (class-validator) o campo no declarado",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25161,7 +25643,7 @@
           "401": {
             "description": "Sin token, token vencido o cuenta inactiva/expirada",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25171,7 +25653,7 @@
           "403": {
             "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25181,7 +25663,7 @@
           "404": {
             "description": "No existe o no es visible para el usuario (RLS)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25191,7 +25673,7 @@
           "409": {
             "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25201,7 +25683,7 @@
           "422": {
             "description": "Regla de negocio de la BD (23514, 23503)",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorRespuesta"
                 }
@@ -25985,6 +26467,92 @@
           "POSIBLE_DUPLICADO"
         ]
       },
+      "CanalMensaje": {
+        "type": "string",
+        "enum": [
+          "BANDEJA",
+          "CORREO",
+          "WHATSAPP"
+        ]
+      },
+      "EstadoNotificacion": {
+        "type": "string",
+        "enum": [
+          "PENDIENTE",
+          "ENVIADO",
+          "FALLIDO"
+        ]
+      },
+      "NotificacionRegistro": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoNotificacion"
+              }
+            ]
+          },
+          "canal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CanalMensaje"
+              }
+            ]
+          },
+          "pacienteId": {
+            "type": "string",
+            "nullable": true
+          },
+          "usuarioId": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoNotificacion"
+              }
+            ]
+          },
+          "procesadaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "referenciaId": {
+            "type": "string",
+            "description": "Lo que origino el aviso (cita, derivacion, mensaje, documento...)."
+          },
+          "intentos": {
+            "type": "number"
+          },
+          "proximoIntento": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "creadaEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "canal",
+          "pacienteId",
+          "usuarioId",
+          "estado",
+          "procesadaEn",
+          "id",
+          "referenciaId",
+          "intentos",
+          "proximoIntento",
+          "creadaEn"
+        ]
+      },
       "MensajeBandeja": {
         "type": "object",
         "properties": {
@@ -26056,14 +26624,6 @@
         "enum": [
           "PACIENTE",
           "EQUIPO"
-        ]
-      },
-      "CanalMensaje": {
-        "type": "string",
-        "enum": [
-          "BANDEJA",
-          "CORREO",
-          "WHATSAPP"
         ]
       },
       "PlantillaMensajeVista": {
@@ -26546,9 +27106,6 @@
           "edadMinimaCuenta": {
             "type": "number"
           },
-          "diasListaEsperaPublica": {
-            "type": "number"
-          },
           "updatedAt": {
             "format": "date-time",
             "type": "string"
@@ -26576,7 +27133,6 @@
           "minutosRetencionSolicitud",
           "retencionMensajesDias",
           "edadMinimaCuenta",
-          "diasListaEsperaPublica",
           "updatedAt"
         ]
       },
@@ -26908,7 +27464,8 @@
         "enum": [
           "POLITICA_DATOS",
           "CONSENTIMIENTO_ATENCION",
-          "TERMINOS_AGENDAMIENTO"
+          "TERMINOS_AGENDAMIENTO",
+          "CONSENTIMIENTO_PRACTICANTE"
         ]
       },
       "PoliticaVista": {
@@ -26956,7 +27513,8 @@
             "enum": [
               "POLITICA_DATOS",
               "CONSENTIMIENTO_ATENCION",
-              "TERMINOS_AGENDAMIENTO"
+              "TERMINOS_AGENDAMIENTO",
+              "CONSENTIMIENTO_PRACTICANTE"
             ]
           },
           "texto": {
@@ -27066,9 +27624,6 @@
           },
           "por_reprogramar": {
             "type": "number"
-          },
-          "lista_espera": {
-            "type": "number"
           }
         },
         "required": [
@@ -27079,8 +27634,7 @@
           "posibles_duplicados",
           "consentimientos_pendientes",
           "practicantes_por_vencer",
-          "por_reprogramar",
-          "lista_espera"
+          "por_reprogramar"
         ]
       },
       "ProximaSesionDashboard": {
@@ -27575,6 +28129,22 @@
           "tiposAtencion"
         ]
       },
+      "IntegranteEquipoTratante": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "id"
+        ]
+      },
       "CrearPacienteDto": {
         "type": "object",
         "properties": {
@@ -27991,11 +28561,10 @@
         "type": "object",
         "properties": {
           "tipo": {
-            "type": "string",
-            "enum": [
-              "POLITICA_DATOS",
-              "CONSENTIMIENTO_ATENCION",
-              "TERMINOS_AGENDAMIENTO"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoPolitica"
+              }
             ]
           },
           "version": {
@@ -28120,6 +28689,60 @@
         "required": [
           "fecha",
           "motivo"
+        ]
+      },
+      "AltaRegistrada": {
+        "type": "object",
+        "properties": {
+          "fecha": {
+            "type": "string",
+            "format": "date"
+          },
+          "id": {
+            "type": "string"
+          },
+          "pacienteId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fecha",
+          "id",
+          "pacienteId"
+        ]
+      },
+      "AltaVista": {
+        "type": "object",
+        "properties": {
+          "fecha": {
+            "type": "string",
+            "format": "date"
+          },
+          "motivo": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "pacienteId": {
+            "type": "string"
+          },
+          "registradaPorId": {
+            "type": "string"
+          },
+          "creadaEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fecha",
+          "motivo",
+          "id",
+          "pacienteId",
+          "registradaPorId",
+          "creadaEn"
         ]
       },
       "RespuestasMatchPaciente": {
@@ -28584,6 +29207,87 @@
           "createdAt"
         ]
       },
+      "EvolucionCreada": {
+        "type": "object",
+        "properties": {
+          "evolucion": {
+            "$ref": "#/components/schemas/EvolucionVista"
+          },
+          "advertencia": {
+            "type": "string",
+            "description": "Aviso que la UI muestra junto al texto libre (no escribir datos identificatorios)."
+          }
+        },
+        "required": [
+          "evolucion",
+          "advertencia"
+        ]
+      },
+      "EstadoTipoSesion": {
+        "type": "string",
+        "enum": [
+          "PROPUESTO",
+          "APROBADO",
+          "RECHAZADO"
+        ]
+      },
+      "TipoSesionVista": {
+        "type": "object",
+        "properties": {
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoTipoSesion"
+              }
+            ]
+          },
+          "revisadoPorId": {
+            "type": "string",
+            "nullable": true
+          },
+          "revisadoEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "propuestoPorId": {
+            "type": "string"
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "descripcion",
+          "estado",
+          "revisadoPorId",
+          "revisadoEn",
+          "id",
+          "nombre",
+          "propuestoPorId",
+          "activo",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "ProponerTipoSesionDto": {
         "type": "object",
         "properties": {
@@ -28616,6 +29320,40 @@
           }
         }
       },
+      "CatalogoClinicoVista": {
+        "type": "object",
+        "properties": {
+          "descripcion": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "descripcion",
+          "id",
+          "nombre",
+          "activo",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "CatalogoDto": {
         "type": "object",
         "properties": {
@@ -28631,6 +29369,65 @@
         },
         "required": [
           "nombre"
+        ]
+      },
+      "EditarCatalogoDto": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "descripcion": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DecisionRetencion": {
+        "type": "string",
+        "enum": [
+          "CONSERVAR",
+          "PURGAR"
+        ]
+      },
+      "FichaSobreRetencion": {
+        "type": "object",
+        "properties": {
+          "ultima_decision": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DecisionRetencion"
+              }
+            ]
+          },
+          "ultima_revision_en": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "ficha_id": {
+            "type": "string"
+          },
+          "paciente_id": {
+            "type": "string"
+          },
+          "ultima_atencion_en": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ultima_decision",
+          "ultima_revision_en",
+          "ficha_id",
+          "paciente_id",
+          "ultima_atencion_en"
         ]
       },
       "RevisionRetencionDto": {
@@ -28657,6 +29454,75 @@
           "fichaId",
           "decision",
           "motivo"
+        ]
+      },
+      "RevisionRetencionVista": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DecisionRetencion"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "fichaId": {
+            "type": "string"
+          },
+          "revisadoPorId": {
+            "type": "string"
+          },
+          "revisadoEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "id",
+          "fichaId",
+          "revisadoPorId",
+          "revisadoEn",
+          "motivo"
+        ]
+      },
+      "TipoDocumentoVista": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "plantilla": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "activo",
+          "plantilla",
+          "createdAt",
+          "updatedAt"
         ]
       },
       "TipoDocumentoDto": {
@@ -28772,6 +29638,190 @@
             ]
           }
         }
+      },
+      "ModoEnvioDocumento": {
+        "type": "string",
+        "enum": [
+          "ENLACE",
+          "ADJUNTO"
+        ]
+      },
+      "EnvioDocumentoVista": {
+        "type": "object",
+        "properties": {
+          "modo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModoEnvioDocumento"
+              }
+            ]
+          },
+          "expiraEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "documentoId": {
+            "type": "string"
+          },
+          "enviadoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "modo",
+          "expiraEn",
+          "id",
+          "documentoId",
+          "enviadoEn"
+        ]
+      },
+      "DescargaDocumentoVista": {
+        "type": "object",
+        "properties": {
+          "usuarioId": {
+            "type": "string"
+          },
+          "descargadoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuarioId",
+          "descargadoEn"
+        ]
+      },
+      "EnvioDocumentoDetalle": {
+        "type": "object",
+        "properties": {
+          "modo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModoEnvioDocumento"
+              }
+            ]
+          },
+          "expiraEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "enviadoPorId": {
+            "type": "string"
+          },
+          "enviadoEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "descargas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DescargaDocumentoVista"
+            }
+          }
+        },
+        "required": [
+          "modo",
+          "expiraEn",
+          "id",
+          "enviadoPorId",
+          "enviadoEn",
+          "descargas"
+        ]
+      },
+      "AdjuntoFichaVista": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "pacienteId": {
+            "type": "string"
+          },
+          "subidoPorId": {
+            "type": "string"
+          },
+          "nombreArchivo": {
+            "type": "string"
+          },
+          "tipoMime": {
+            "type": "string"
+          },
+          "tamanoBytes": {
+            "type": "number"
+          },
+          "subidoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "pacienteId",
+          "subidoPorId",
+          "nombreArchivo",
+          "tipoMime",
+          "tamanoBytes",
+          "subidoEn"
+        ]
+      },
+      "BorradorVista": {
+        "type": "object",
+        "properties": {
+          "pacienteId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Solo en la lista: null si el autor ya no ve la ficha (por ejemplo, tras una derivacion)."
+          },
+          "citaId": {
+            "type": "string",
+            "nullable": true
+          },
+          "plantillaId": {
+            "type": "string",
+            "nullable": true
+          },
+          "valores": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "fichaClinicaId": {
+            "type": "string"
+          },
+          "contenido": {
+            "type": "string"
+          },
+          "creadoEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "actualizadoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "citaId",
+          "plantillaId",
+          "valores",
+          "id",
+          "fichaClinicaId",
+          "contenido",
+          "creadoEn",
+          "actualizadoEn"
+        ]
       },
       "BorradorDto": {
         "type": "object",
@@ -28941,6 +29991,44 @@
         "required": [
           "plantillaId",
           "valores"
+        ]
+      },
+      "IngresoVista": {
+        "type": "object",
+        "properties": {
+          "valores": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "corrigeAId": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "fichaClinicaId": {
+            "type": "string"
+          },
+          "autorId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "plantilla": {
+            "$ref": "#/components/schemas/PlantillaClinicaVista"
+          }
+        },
+        "required": [
+          "valores",
+          "corrigeAId",
+          "id",
+          "fichaClinicaId",
+          "autorId",
+          "createdAt",
+          "plantilla"
         ]
       },
       "EspacioVista": {
@@ -29884,6 +30972,21 @@
           "profesionalId"
         ]
       },
+      "CierreRequerido": {
+        "type": "object",
+        "properties": {
+          "citaId": {
+            "type": "string"
+          },
+          "avisado": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "citaId",
+          "avisado"
+        ]
+      },
       "ModoVideollamada": {
         "type": "string",
         "enum": [
@@ -30031,199 +31134,6 @@
         },
         "required": [
           "respuesta"
-        ]
-      },
-      "EstadoListaEspera": {
-        "type": "string",
-        "enum": [
-          "ACTIVA",
-          "ASIGNADA",
-          "CANCELADA"
-        ]
-      },
-      "ListaEsperaVista": {
-        "type": "object",
-        "properties": {
-          "profesionalId": {
-            "type": "string",
-            "nullable": true
-          },
-          "tipoAtencionId": {
-            "type": "string",
-            "nullable": true
-          },
-          "preferencias": {
-            "type": "string",
-            "nullable": true
-          },
-          "estado": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EstadoListaEspera"
-              }
-            ]
-          },
-          "creadaPorId": {
-            "type": "string",
-            "nullable": true
-          },
-          "avisadaEn": {
-            "type": "string",
-            "nullable": true,
-            "format": "date-time",
-            "description": "Ultimo aviso de hora liberada"
-          },
-          "cerradaEn": {
-            "type": "string",
-            "nullable": true,
-            "format": "date-time"
-          },
-          "id": {
-            "type": "string"
-          },
-          "pacienteId": {
-            "type": "string"
-          },
-          "creadaEn": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "profesionalId",
-          "tipoAtencionId",
-          "preferencias",
-          "estado",
-          "creadaPorId",
-          "avisadaEn",
-          "cerradaEn",
-          "id",
-          "pacienteId",
-          "creadaEn"
-        ]
-      },
-      "CrearListaEsperaDto": {
-        "type": "object",
-        "properties": {
-          "pacienteId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "profesionalId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "tipoAtencionId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "preferencias": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          }
-        },
-        "required": [
-          "pacienteId"
-        ]
-      },
-      "CerrarListaEsperaDto": {
-        "type": "object",
-        "properties": {
-          "estado": {
-            "type": "string",
-            "enum": [
-              "ASIGNADA",
-              "CANCELADA"
-            ]
-          }
-        },
-        "required": [
-          "estado"
-        ]
-      },
-      "InscribirListaEsperaDto": {
-        "type": "object",
-        "properties": {
-          "profesionalId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "nombre": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "email": {
-            "type": "string",
-            "maxLength": 254,
-            "format": "email"
-          },
-          "telefono": {
-            "type": "string"
-          },
-          "politicaId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "sitioWeb": {
-            "type": "string",
-            "description": "Trampa para bots: un humano lo deja vacio.",
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "profesionalId",
-          "nombre",
-          "email",
-          "politicaId"
-        ]
-      },
-      "InscripcionListaEspera": {
-        "type": "object",
-        "properties": {
-          "verificacionEnviada": {
-            "type": "boolean"
-          },
-          "expiraEn": {
-            "format": "date-time",
-            "type": "string",
-            "description": "Vencimiento del enlace de verificacion (24 horas)."
-          }
-        },
-        "required": [
-          "verificacionEnviada",
-          "expiraEn"
-        ]
-      },
-      "TokenListaEsperaDto": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string",
-            "minLength": 20,
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "token"
-        ]
-      },
-      "InscripcionVerificada": {
-        "type": "object",
-        "properties": {
-          "profesionalId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "expiraEn": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "profesionalId",
-          "expiraEn"
         ]
       },
       "PerfilDto": {
@@ -30843,14 +31753,6 @@
           "tipoAtencionId"
         ]
       },
-      "EstadoTipoSesion": {
-        "type": "string",
-        "enum": [
-          "PROPUESTO",
-          "APROBADO",
-          "RECHAZADO"
-        ]
-      },
       "TipoAtencionProfesionalVista": {
         "type": "object",
         "properties": {
@@ -31120,6 +32022,132 @@
           "avisosCreados"
         ]
       },
+      "CasoSupervision": {
+        "type": "object",
+        "properties": {
+          "tipo_atencion": {
+            "type": "string",
+            "nullable": true
+          },
+          "codigo": {
+            "type": "string"
+          },
+          "practicante_id": {
+            "type": "string"
+          },
+          "edad_paciente": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "tipo_atencion",
+          "codigo",
+          "practicante_id",
+          "edad_paciente"
+        ]
+      },
+      "PlantillaSupervisada": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "version"
+        ]
+      },
+      "EvolucionSupervisada": {
+        "type": "object",
+        "properties": {
+          "estadoAvance": {
+            "type": "string",
+            "nullable": true
+          },
+          "nivelRiesgo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NivelRiesgo"
+              }
+            ]
+          },
+          "notas": {
+            "type": "string",
+            "nullable": true
+          },
+          "corrigeAId": {
+            "type": "string",
+            "nullable": true
+          },
+          "plantilla": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlantillaSupervisada"
+              }
+            ]
+          },
+          "valores": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true,
+            "description": "Solo campos visible_en_supervision"
+          },
+          "evolucionId": {
+            "type": "string"
+          },
+          "autorId": {
+            "type": "string"
+          },
+          "tipoSesion": {
+            "type": "string"
+          },
+          "intervenciones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "creadoEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "camposTextoLibre": {
+            "description": "Claves de texto libre entre los valores visibles (la UI muestra el aviso).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "advertenciaTextoLibre": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "estadoAvance",
+          "nivelRiesgo",
+          "notas",
+          "corrigeAId",
+          "plantilla",
+          "valores",
+          "evolucionId",
+          "autorId",
+          "tipoSesion",
+          "intervenciones",
+          "creadoEn",
+          "camposTextoLibre",
+          "advertenciaTextoLibre"
+        ]
+      },
       "ComentarioDto": {
         "type": "object",
         "properties": {
@@ -31131,6 +32159,35 @@
         },
         "required": [
           "texto"
+        ]
+      },
+      "ComentarioSupervision": {
+        "type": "object",
+        "properties": {
+          "texto": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "evolucionId": {
+            "type": "string"
+          },
+          "supervisorId": {
+            "type": "string"
+          },
+          "creadoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "texto",
+          "id",
+          "evolucionId",
+          "supervisorId",
+          "creadoEn"
         ]
       },
       "EspecialidadVista": {
@@ -31282,6 +32339,191 @@
           "asunto"
         ]
       },
+      "TipoHiloInterno": {
+        "type": "string",
+        "enum": [
+          "GENERAL",
+          "CASO"
+        ]
+      },
+      "HiloVista": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoHiloInterno"
+              }
+            ]
+          },
+          "asunto": {
+            "type": "string",
+            "nullable": true
+          },
+          "pacienteId": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "creadoPorId": {
+            "type": "string"
+          },
+          "creadoEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ultimoMensajeEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "asunto",
+          "pacienteId",
+          "id",
+          "creadoPorId",
+          "creadoEn",
+          "ultimoMensajeEn"
+        ]
+      },
+      "HiloConNoLeidos": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoHiloInterno"
+              }
+            ]
+          },
+          "asunto": {
+            "type": "string",
+            "nullable": true
+          },
+          "pacienteId": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "creadoPorId": {
+            "type": "string"
+          },
+          "creadoEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ultimoMensajeEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "noLeidos": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "tipo",
+          "asunto",
+          "pacienteId",
+          "id",
+          "creadoPorId",
+          "creadoEn",
+          "ultimoMensajeEn",
+          "noLeidos"
+        ]
+      },
+      "MensajeInternoVista": {
+        "type": "object",
+        "properties": {
+          "rolAutor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "contenido": {
+            "type": "string",
+            "nullable": true,
+            "description": "null si fue retirado"
+          },
+          "id": {
+            "type": "string"
+          },
+          "autorId": {
+            "type": "string"
+          },
+          "autor": {
+            "type": "string",
+            "description": "Nombre via nombres_hilo(); \"Ex integrante del equipo\" si la cuenta se cerro."
+          },
+          "retirado": {
+            "type": "boolean"
+          },
+          "creadoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rolAutor",
+          "contenido",
+          "id",
+          "autorId",
+          "autor",
+          "retirado",
+          "creadoEn"
+        ]
+      },
+      "LecturaHiloVista": {
+        "type": "object",
+        "properties": {
+          "usuarioId": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "leidoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuarioId",
+          "nombre",
+          "leidoEn"
+        ]
+      },
+      "MensajesHilo": {
+        "type": "object",
+        "properties": {
+          "hilo": {
+            "$ref": "#/components/schemas/HiloVista"
+          },
+          "mensajes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MensajeInternoVista"
+            }
+          },
+          "lecturas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LecturaHiloVista"
+            }
+          }
+        },
+        "required": [
+          "hilo",
+          "mensajes",
+          "lecturas"
+        ]
+      },
       "MensajeInternoDto": {
         "type": "object",
         "properties": {
@@ -31293,6 +32535,43 @@
         },
         "required": [
           "contenido"
+        ]
+      },
+      "MensajeInternoEnviado": {
+        "type": "object",
+        "properties": {
+          "rolAutor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "contenido": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "hiloId": {
+            "type": "string"
+          },
+          "autorId": {
+            "type": "string"
+          },
+          "creadoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rolAutor",
+          "contenido",
+          "id",
+          "hiloId",
+          "autorId",
+          "creadoEn"
         ]
       },
       "ParticipantesDto": {
@@ -31310,6 +32589,37 @@
         },
         "required": [
           "participantes"
+        ]
+      },
+      "ParticipanteHiloVista": {
+        "type": "object",
+        "properties": {
+          "usuarioId": {
+            "type": "string"
+          },
+          "agregadoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuarioId",
+          "agregadoEn"
+        ]
+      },
+      "MensajeRetirado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "retirado": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "retirado"
         ]
       },
       "CrearDerivacionDto": {
@@ -31418,6 +32728,11 @@
       "DerivacionVista": {
         "type": "object",
         "properties": {
+          "pacienteId": {
+            "type": "string",
+            "nullable": true,
+            "description": "null si quien consulta ya no ve la ficha (p. ej. el origen tras el traspaso)."
+          },
           "motivo": {
             "type": "string",
             "description": "Texto clinico"
@@ -31468,6 +32783,7 @@
           }
         },
         "required": [
+          "pacienteId",
           "motivo",
           "detalle",
           "motivoCierre",
@@ -31482,6 +32798,84 @@
           "candidatos"
         ]
       },
+      "DerivacionPendiente": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoDerivacion"
+              }
+            ]
+          },
+          "motivo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Texto clinico"
+          },
+          "detalle": {
+            "type": "string",
+            "nullable": true
+          },
+          "derivacionId": {
+            "type": "string"
+          },
+          "tipoAtencion": {
+            "type": "string"
+          },
+          "edadPaciente": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "estado",
+          "motivo",
+          "detalle",
+          "derivacionId",
+          "tipoAtencion",
+          "edadPaciente"
+        ]
+      },
+      "OfertaDerivacion": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Texto clinico"
+          },
+          "detalle": {
+            "type": "string",
+            "nullable": true
+          },
+          "derivacionId": {
+            "type": "string"
+          },
+          "tipoAtencion": {
+            "type": "string"
+          },
+          "edadPaciente": {
+            "type": "number"
+          },
+          "venceEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "citasEnConflicto": {
+            "type": "number",
+            "description": "Citas futuras del paciente que chocan con la agenda del candidato (se reprograman al aceptar)."
+          }
+        },
+        "required": [
+          "motivo",
+          "detalle",
+          "derivacionId",
+          "tipoAtencion",
+          "edadPaciente",
+          "venceEn",
+          "citasEnConflicto"
+        ]
+      },
       "ResponderDerivacionDto": {
         "type": "object",
         "properties": {
@@ -31490,6 +32884,21 @@
           }
         },
         "required": [
+          "acepta"
+        ]
+      },
+      "DerivacionRespondida": {
+        "type": "object",
+        "properties": {
+          "derivacionId": {
+            "type": "string"
+          },
+          "acepta": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "derivacionId",
           "acepta"
         ]
       },
@@ -31532,6 +32941,21 @@
           }
         },
         "required": [
+          "practicanteId"
+        ]
+      },
+      "PracticantePropuesto": {
+        "type": "object",
+        "properties": {
+          "derivacionId": {
+            "type": "string"
+          },
+          "practicanteId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "derivacionId",
           "practicanteId"
         ]
       },
@@ -31647,6 +33071,21 @@
           }
         },
         "required": [
+          "pacienteId"
+        ]
+      },
+      "ConsentimientoSolicitado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "pacienteId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
           "pacienteId"
         ]
       },
@@ -32412,6 +33851,37 @@
           "resumen"
         ]
       },
+      "ResultadoMatchDirecto": {
+        "type": "object",
+        "properties": {
+          "tarifa": {
+            "type": "number",
+            "nullable": true,
+            "description": "CLP"
+          },
+          "primerHueco": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "perfil": {
+            "$ref": "#/components/schemas/PerfilPublico"
+          },
+          "cumpleTiempos": {
+            "type": "boolean"
+          },
+          "cumplePrecio": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tarifa",
+          "primerHueco",
+          "perfil",
+          "cumpleTiempos",
+          "cumplePrecio"
+        ]
+      },
       "SolicitudHoraDto": {
         "type": "object",
         "properties": {
@@ -32483,10 +33953,6 @@
             "type": "string",
             "description": "Profesional recomendado por el match (metricas).",
             "format": "uuid"
-          },
-          "listaEspera": {
-            "type": "boolean",
-            "description": "\"Avisarme si se libera una hora antes\"."
           },
           "politicaId": {
             "type": "string",
@@ -33380,6 +34846,21 @@
         },
         "required": [
           "calificacion"
+        ]
+      },
+      "MensajeLeido": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "leido": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "leido"
         ]
       },
       "ResolverEpicrisisDto": {

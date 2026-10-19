@@ -30,7 +30,7 @@ test('paciente: Mi cuenta con su profesional, horas, mensajes y datos; contacto 
   await expect(page.getByText('Escribe el teléfono con código de país')).toBeVisible();
 });
 
-test('paciente: pagos con saldo, documentos, copia de ficha y lista de espera', async ({ page }) => {
+test('paciente: pagos con saldo, documentos, y copia de ficha', async ({ page }) => {
   await ingresar(page, 'paciente');
   await secciones(page).getByRole('link', { name: 'Pagos' }).click();
   await expect(page.getByText(/Tienes \$[\d.]+ por pagar/)).toBeVisible();
@@ -39,8 +39,6 @@ test('paciente: pagos con saldo, documentos, copia de ficha y lista de espera', 
   await expect(page.getByText(/Certificado de atencion/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Copia de la ficha clínica' })).toBeVisible();
   await expect(page.getByText(/Pedida el/)).toBeVisible();
-  await secciones(page).getByRole('link', { name: 'Lista de espera' }).click();
-  await expect(page.getByText('Tardes después de las 18:00', { exact: false })).toBeVisible();
 });
 
 test('adolescente: cuenta restringida sin pagos, documentos ni consentimientos', async ({ page }) => {
@@ -87,7 +85,11 @@ test('paciente: pide hora con su tratante sin repetir datos y descarga su docume
   await expect(page.getByRole('heading', { name: /^Con / })).toBeVisible();
   await page.getByRole('button', { name: 'Reservar esta hora' }).waitFor();
   // Primera hora libre de la grilla.
-  await page.locator('button[aria-pressed]').filter({ hasText: /^\d{2}:\d{2}$/ }).first().click();
+  await page
+    .locator('button[aria-pressed]')
+    .filter({ hasText: /^\d{2}:\d{2}$/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Reservar esta hora' }).click();
   await expect(page.getByText('Para reservar, acepta la política de datos')).toBeVisible();
   await page.getByRole('checkbox').check();

@@ -279,3 +279,19 @@ export class MetricasMatch {
   solicitudes_con_match!: number;
   agendaron_con_recomendado!: number;
 }
+
+/** Filtro directo del match publico: perfil, tarifa aplicable y primera hora libre. */
+export class ResultadoMatchDirecto {
+  perfil!: PerfilPublico;
+  @ApiProperty({ type: Number, nullable: true, description: 'CLP' })
+  tarifa!: number | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  primerHueco!: Date | null;
+  cumpleTiempos!: boolean;
+  cumplePrecio!: boolean;
+}
+
+export class MensajeLeido {
+  id!: string;
+  leido!: boolean;
+}

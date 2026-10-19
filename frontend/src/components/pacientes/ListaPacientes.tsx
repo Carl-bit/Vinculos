@@ -60,7 +60,9 @@ export function ListaPacientes({ rol }: { rol: Rol }) {
         { valor: 'menores', etiqueta: 'Menores' },
         { valor: 'derivados', etiqueta: 'Derivados a mí' },
       ];
-  const elegir = (f: Filtro) => router.replace(f === 'todos' ? '/admin/fichas' : `/admin/fichas?filtro=${f}`, { scroll: false });
+  // ADMIN/GESTION llegan aca desde la pestaña "Todos los pacientes": "Todos" no debe devolverlos a la vista por profesional.
+  const elegir = (f: Filtro) =>
+    router.replace(f === 'todos' ? (admin ? '/admin/fichas?vista=pacientes' : '/admin/fichas') : `/admin/fichas?filtro=${f}`, { scroll: false });
   const lista = (consulta.data ?? []).filter((p) => {
     if (filtro === 'sin-rut') return !p.rut;
     if (filtro === 'sin-cerrar') return (porPaciente.get(p.id)?.sesiones_sin_cerrar ?? 0) > 0;

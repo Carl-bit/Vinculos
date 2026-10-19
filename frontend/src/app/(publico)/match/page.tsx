@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 export default async function Match() {
   const [centro, q] = await Promise.all([centroPublico(), cuestionario()]);
   if (!centro?.modulos.includes('MATCH') || !q || q.preguntas.length === 0) notFound();
-  return <AsistenteMatch preguntas={q.preguntas} agenda={centro.modulos.includes('AGENDA')} />;
+  return <AsistenteMatch preguntas={q.preguntas} agenda={centro.modulos.includes('AGENDA')} filtroDirecto={q.filtroDirecto} />;
 }

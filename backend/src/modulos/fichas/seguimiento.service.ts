@@ -43,12 +43,21 @@ export class SeguimientoService {
 
   /** Borradores propios (la RLS solo muestra los del autor). */
   async borradores(fichaId?: string) {
-    const filas = await this.bd.tx().borradorEvolucion.findMany({
+    const tx = this.bd.tx();
+    const filas = await tx.borradorEvolucion.findMany({
       where: fichaId ? { fichaClinicaId: fichaId } : {},
       select: VISTA_BORRADOR,
       orderBy: { actualizadoEn: 'desc' },
     });
-    return filas.map(vistaBorrador);
+    // Paciente de cada borrador (para la lista de pendientes). Sin include: si
+    // el autor perdio el acceso a la ficha (derivacion), la RLS la oculta y el
+    // borrador queda con pacienteId null en vez de romper la consulta.
+    const fichas = await tx.fichaClinica.findMany({
+      where: { id: { in: [...new Set(filas.map((b) => b.fichaClinicaId))] } },
+      select: { id: true, pacienteId: true },
+    });
+    const paciente = new Map(fichas.map((f) => [f.id, f.pacienteId]));
+    return filas.map((b) => ({ ...vistaBorrador(b), pacienteId: paciente.get(b.fichaClinicaId) ?? null }));
   }
 
   /** Valores de plantilla de un borrador: tipos y opciones validos; los obligatorios se exigen al confirmar. */
@@ -105,7 +114,7 @@ export class SeguimientoService {
     return resultado;
   }
 
-  /** Alta (tratante): fecha y motivo cifrado; borra las respuestas del match y cierra la lista de espera. */
+  /** Alta (tratante): fecha y motivo cifrado; borra las respuestas del match. */
   async registrarAlta(pacienteId: string, fecha: Date, motivo: string) {
     const id = randomUUID();
     await this.bd.tx().$executeRaw`

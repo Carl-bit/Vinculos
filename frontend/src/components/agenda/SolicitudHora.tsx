@@ -20,7 +20,6 @@ import { olvidarMatch, ultimoMatch } from '@/lib/match-memoria';
 import { nombreCorto, nombrePerfil } from '@/lib/perfiles';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
-import { InscripcionListaEspera } from './InscripcionListaEspera';
 import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
 
 type Centro = components['schemas']['CentroPublico'];
@@ -43,7 +42,6 @@ interface Datos {
   adultoTelefono: string;
   aceptaDatos: boolean;
   aceptaTerminos: boolean;
-  listaEspera: boolean;
   sitioWeb: string;
 }
 
@@ -60,7 +58,6 @@ const VACIO: Datos = {
   adultoTelefono: '',
   aceptaDatos: false,
   aceptaTerminos: false,
-  listaEspera: false,
   sitioWeb: '',
 };
 
@@ -156,7 +153,6 @@ export function SolicitudHora({
             rut: d.rut.trim() || undefined,
             ...(menor ? { adultoNombre: d.adultoNombre.trim(), adultoParentesco: d.adultoParentesco.trim(), adultoTelefono: opcional(d.adultoTelefono) } : {}),
             ...(match ? { respuestas: match.respuestas, recomendadoId: match.recomendadoId ?? undefined } : {}),
-            listaEspera: d.listaEspera,
             politicaId: politicaDatos.id,
             terminosId: terminos?.id,
             sitioWeb: d.sitioWeb || undefined,
@@ -234,7 +230,7 @@ export function SolicitudHora({
                   setBloque(b);
                   setError(undefined);
                 }}
-                sinHoras={<SinHoras perfil={perfil} centro={centro} politicaDatos={politicaDatos} />}
+                sinHoras={<SinHoras perfil={perfil} centro={centro} />}
               />
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -246,17 +242,6 @@ export function SolicitudHora({
                 {bloque ? `${formatoFechaLarga(bloque.inicio)}, ${formatoHora(bloque.inicio)}` : 'Elige una hora para continuar.'}
               </span>
             </div>
-            {/* 03b: lista de espera sin cuenta tambien cuando hay horas pero ninguna acomoda. */}
-            <details className="group mt-8 rounded-lg border border-divider bg-bg px-5 py-4 open:pb-6">
-              <summary className="flex cursor-pointer list-none items-center gap-2.5 text-[14px] font-extrabold text-text marker:hidden">
-                <Icon name="notifications" size={19} className="text-accent-2-700" />
-                ¿Ninguna de estas horas te acomoda? Te avisamos cuando haya otras
-                <Icon name="expand_more" size={19} className="ml-auto transition-transform duration-200 group-open:rotate-180" />
-              </summary>
-              <div className="mt-4">
-                <InscripcionListaEspera profesionalId={perfil.id} nombreProfesional={nombreCorto(perfil)} politicaDatos={politicaDatos} />
-              </div>
-            </details>
           </section>
         )}
 
@@ -385,15 +370,6 @@ export function SolicitudHora({
                     (versión {terminos.version}).
                   </Casilla>
                 )}
-                <label className="flex cursor-pointer items-center gap-2.5 px-1 text-[13.5px] font-bold text-neutral-800">
-                  <input
-                    type="checkbox"
-                    checked={d.listaEspera}
-                    onChange={(e) => cambiar('listaEspera', e.target.checked)}
-                    className="size-[17px] cursor-pointer accent-accent-2-600"
-                  />
-                  Avisarme si se libera una hora antes
-                </label>
               </div>
             </section>
 
@@ -503,23 +479,17 @@ export function SolicitudHora({
   );
 }
 
-/**
- * Sin horas en la ventana: lista de espera sin cuenta (03b). Quien ya es
- * paciente tambien puede anotarse desde su cuenta.
- */
-function SinHoras({ perfil, centro, politicaDatos }: { perfil: Perfil; centro: Centro; politicaDatos: Politica }) {
+/** Sin horas en la ventana: ver otros profesionales o entrar a la cuenta. */
+function SinHoras({ perfil, centro }: { perfil: Perfil; centro: Centro }) {
   return (
     <div className="flex flex-col items-start gap-4 py-4">
       <Icon name="event_busy" size={28} className="text-neutral-500" />
       <div>
         <p className="m-0 mb-1 text-base font-extrabold">{nombreCorto(perfil)} no tiene horas libres en las próximas semanas.</p>
         <p className="m-0 max-w-[56ch] text-[13.5px] font-semibold text-pretty text-neutral-800">
-          Anótate en su lista de espera y te avisamos por correo cuando aparte horas nuevas o se libere una.
+          Vuelve a revisar más adelante o mira otros profesionales del centro.
           {centro.contacto_correo && ` También puedes escribir a ${centro.contacto_correo}.`}
         </p>
-      </div>
-      <div className="w-full rounded-lg border border-accent-2-500 bg-accent-2-100 p-[clamp(16px,3vw,24px)]">
-        <InscripcionListaEspera profesionalId={perfil.id} nombreProfesional={nombreCorto(perfil)} politicaDatos={politicaDatos} />
       </div>
       <div className="flex flex-wrap gap-2.5">
         <ButtonLink href="/equipo" variant="secondary" icon="group">

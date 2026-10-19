@@ -2,7 +2,7 @@
  * 03a-1: alineacion con el diseño. Por rol, cada endpoint nuevo: cuentas
  * (roles por cuenta, TOTP, recuperacion, enlace de acceso, invitaciones),
  * centro (modulos, contenido, politicas, horario, dashboard), match por
- * reglas, solicitud de hora sin cuenta, lista de espera, acceso temporal,
+ * reglas, solicitud de hora sin cuenta, acceso temporal,
  * borradores, alta, reseñas, portal (menores y adulto responsable) y cobros.
  */
 import { randomUUID } from 'node:crypto';
@@ -768,6 +768,15 @@ describe('03a alineacion con el diseño', () => {
         .set(await tk(prof))
         .send({ contenido: 'Primer borrador', citaId: cita.id });
       expect(b.status).toBe(201);
+      // 03b-5: la lista de pendientes trae el paciente de cada borrador.
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/borradores')
+            .set(await tk(prof))
+        ).body.find((x: { id: string }) => x.id === b.body.id)?.pacienteId,
+      ).toBe(paciente.pacienteId);
       expect(
         (
           await t
@@ -816,32 +825,8 @@ describe('03a alineacion con el diseño', () => {
       expect(estado.body.find((e: { paciente_id: string }) => e.paciente_id === paciente.pacienteId)).toBeDefined();
     });
 
-    it('lista de espera, alta y contacto de emergencia', async () => {
+    it('alta y contacto de emergencia', async () => {
       const otro = await t.datos.usuarioPaciente(prof.id);
-      const le = await t
-        .http()
-        .post('/api/lista-espera')
-        .set(await tk(otro))
-        .send({ pacienteId: otro.pacienteId, profesionalId: prof.id, preferencias: 'Martes en la tarde' });
-      expect(le.status).toBe(201);
-      expect(
-        (
-          await t
-            .http()
-            .post('/api/lista-espera')
-            .set(await tk(otro))
-            .send({ pacienteId: paciente.pacienteId, profesionalId: prof.id })
-        ).status,
-      ).toBe(403);
-      expect(
-        (
-          await t
-            .http()
-            .get('/api/lista-espera')
-            .query({ profesionalId: prof.id })
-            .set(await tk(gestion))
-        ).body.map((x: { id: string }) => x.id),
-      ).toContain(le.body.id);
       expect(
         (
           await t
@@ -874,7 +859,6 @@ describe('03a alineacion con el diseño', () => {
         .get(`/api/pacientes/${otro.pacienteId}/altas`)
         .set(await tk(prof));
       expect(altas.body[0].motivo).toBe('objetivos cumplidos');
-      expect((await t.dueno.listaEspera.findUniqueOrThrow({ where: { id: le.body.id } })).estado).toBe('CANCELADA');
     });
   });
 

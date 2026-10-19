@@ -280,3 +280,122 @@ No estan en el diseño: diseñarlas con el sistema Organic y el inventario de
   seed publica una v1. Reemplaza `practicante-portal-v1` del front. Las
   respuestas ya registradas conservan su version (append-only).
 - Pasar cada vista nueva por impeccable y adjuntar captura.
+
+#### Division de 03b-5 (2026-10-18)
+
+Diagnostico al empezar (`docs/api/openapi.json` contra el front): 276
+operaciones, 55 sin schema de respuesta y ~70 que ninguna pantalla usa
+(descontando auth, salud y descargas por enlace). Varias son huecos de flujo
+de 03b-3/03b-4 (la regla era generar tambien las pantallas intermedias que
+el flujo necesite): la oferta de derivacion no llega al candidato, la
+solicitud de consentimiento del practicante, la resolucion de epicrisis en
+el portal, el reporte publico de reseñas, conflictos de margen, "requerir
+cierre", foto, margen y tipos de atencion por profesional. Se cierran aqui.
+
+Criterio de cierre de la seccion: toda operacion del OpenAPI la usa una
+pantalla o tiene la justificacion escrita en
+`frontend/scripts/cobertura-api.excepciones.json`
+(`npm run api:cobertura` en `frontend/`), y ninguna operacion que use el
+front queda sin schema de respuesta. Al final, inventario de todas las
+pantallas nuevas para revision del usuario antes de pasar a 04.
+
+Tres fases, sin recortar alcance (todo lo de la lista de arriba entra):
+
+1. **03b-5.1 Clinico (Fichas y pacientes).** Schemas de respuesta de todo
+   Fichas. Ficha clinica del tratante: ingreso y evoluciones con
+   `shared/FormularioDinamico` segun la version de plantilla de cada
+   registro, campos estructurados, borradores (autoguardado, "Confirmar en
+   el expediente", pendientes), correccion como registro nuevo, documentos
+   emitidos (redaccion, vista previa, envios, tipos de documento),
+   adjuntos, contacto de emergencia, alta e historial de altas. Catalogos
+   clinicos (tipos de sesion, intervenciones, estados de avance) con
+   propuesta y aprobacion. Editor de plantillas clinicas (campos, tipos,
+   opciones, orden, visible en supervision; propuesta, publicacion,
+   versiones, desactivacion). Revision de retencion.
+2. **03b-5.2 Acceso a fichas ajenas y equipo.** Accesos clinicos
+   temporales (otorgar, activos y vencidos). Derivaciones completas
+   (candidatos, estado del origen, bandeja de ofertas del candidato,
+   respuesta, cancelacion, reintegro, practicantes, gestion ADMIN).
+   Practicantes: solicitud de consentimientos y enlaces, supervision
+   seudonimizada con comentarios, cambio de supervisor, consentimiento de
+   practicante versionado (migracion). Mensajeria interna (hilos GENERAL y
+   CASO, retiro en 5 min, leidos, polling) y notificaciones. Equipo: foto,
+   margen y tipos de atencion por profesional, especialidades con
+   aprobacion, directorio `mi-equipo`.
+3. **03b-5.3 Cierre de flujos y auditoria.** Agenda (conflictos de margen,
+   requerir cierre), cobros (PDF), portal (resolucion de epicrisis, leido de
+   mensajes), reporte publico de reseñas, contenido publico del centro.
+   Auditoria item por item de la lista contra las pantallas de 03b-4.
+   `api:cobertura` en cero, impeccable, e2e, docs (brechas, inventario,
+   MASTER, guion, matriz si cambia) e inventario de pantallas para revision.
+
+Avance de 03b-5.1 (2026-10-18):
+
+- Hecho: ficha clinica `/admin/fichas/[id]/ficha` (evoluciones con borrador
+  y confirmacion, correccion, ingreso, documentos con vista previa del PDF,
+  adjuntos, alta, contacto de emergencia), Fichas › Borradores, Plantillas
+  clinicas (editor y versiones), Catalogos clinicos y Retencion. Backend:
+  schemas de todo Fichas y de las descargas binarias, `vista-previa` y
+  `copia` de documentos, PATCH de intervenciones y estados de avance,
+  `pacienteId` en borradores. Seed demo con especialidad, plantillas,
+  ingreso, evolucion con plantilla y borrador. Huecos de 03b-4 corregidos:
+  ruta de la ficha (404), `?filtro=borradores` del dashboard, "Todos" en la
+  vista de ADMIN, acceso temporal sin boton de ficha. Detalle en
+  `docs/front/brechas.md` 13.
+- Criterio de cierre medible: `npm run api:cobertura` (frontend) con
+  excepciones justificadas en `scripts/cobertura-api.excepciones.json`.
+- Tests: integracion 02c/02h/03a OK (42 + 14), Vitest 26, Playwright 32
+  (3 nuevos en `e2e/ficha.spec.ts`, idempotentes).
+- impeccable sobre el HTML renderizado con sesion (no solo regex): sin
+  tarjetas anidadas, sin saltos de encabezado, contraste AA. Falsos
+  positivos comprobados con HTML minimo: `cramped-padding` con
+  `calc()`/`clamp()` (todo el padding de Tailwind v4). La vista previa del
+  PDF se ve en blanco solo en Chromium headless (sin visor); en Chrome real
+  se ve el PDF.
+- Para 5.3 (shell de 03b-4, aparece en todas las pantallas): etiquetas del
+  menu "Modulos"/"Centro" a 10.5 px y "Rol activo" a 11.5 px (impeccable:
+  bajo el minimo), y el menu lateral no se colapsa en movil (queda apilado
+  sobre el contenido).
+
+Avance de 03b-5.2 (2026-10-18):
+
+- Hecho: accesos clinicos temporales (ficha, detalle del paciente, Fichas ›
+  Accesos), derivaciones (ofertas del candidato, bandeja de ADMIN y
+  supervisores, lista y gestion), consentimientos de practicante (equipo) y
+  su version vigente (migraciones 03b5), supervision seudonimizada con
+  comentarios (Equipo › Supervision y en la ficha del practicante),
+  `/admin/mensajes` (equipo, de pacientes, avisos), asignar tipos (ADMIN),
+  margen de traslado con horas en conflicto. Schemas de todo el contrato
+  (solo `GET salud` sin schema, justificado). Detalle en brechas.md 14.
+- `ui/Modal` en portal sobre `body` (impeccable: dialogo anidado en tarjeta);
+  texto de 10.5 px a 11 px y "Rol activo" a 12 px en todo el panel.
+- Tests: integracion 166/166, BD OK, Vitest 26, Playwright 37 (5 nuevos en
+  `e2e/equipo-clinico.spec.ts`; el de retirar mensaje apuntaba a la burbuja
+  equivocada y se corrigio).
+- Para decidir en 5.3: impeccable marca "tarjeta dentro de tarjeta" en
+  pantallas de 03b-4 que copian el diseño (tiles de horario dentro de la
+  tarjeta del profesional, datos dentro del panel del integrante, texto de
+  la politica dentro de su panel). La regla de 03_front lo prohibe; el
+  diseño lo tiene.
+
+Avance de 03b-5.3 (2026-10-19):
+
+- Hecho: solicitudes de copia de la ficha (equipo), requerir cierre, enlace
+  directo a una cita, verificacion previa y retomar la retencion al agendar,
+  filtro directo del match publico (la opcion existia en Configuracion sin
+  efecto), reporte publico de reseñas, menu del panel en movil. Auditoria de
+  la lista de 03b-5 contra 03b-4: completa. `npm run api:cobertura`:
+  "Cobertura completa" (274 operaciones con pantalla, 6 excepciones).
+- Tests: integracion 166/166, BD OK, Vitest 26, `next build` OK. Playwright:
+  41 tests (4 nuevos en `e2e/cierre-flujos.spec.ts`); la corrida completa dio
+  40/41 y el que fallo (agendar) paso tras la correccion al repetir
+  `panel.spec.ts` (8/8). La verificacion previa al
+  agendar se hacia despues de retener y la propia retencion contaba como
+  choque (lo detecto el e2e de agendar): ahora verifica antes.
+- impeccable sobre el HTML renderizado de cada pantalla nueva. Corregido:
+  dialogos anidados (Modal en portal), contraste de textos sobre el fondo del
+  panel, texto de 10 px, saltos de encabezado. Falsos positivos comprobados:
+  `cramped-padding` con calc()/clamp().
+- Inventario para revision: `docs/front/pantallas_03b5.md`.
+
+**03b-5 cerrado (2026-10-19), pendiente de la revision del usuario.**

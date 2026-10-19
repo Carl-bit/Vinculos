@@ -263,7 +263,7 @@ Marcar la casilla con OK o con lo observado.
 | 9.5 | `paciente` | Documentos | Certificado demo; "Prefiero recibirlo adjunto" queda marcado; copia de ficha pedida | [ ] |
 | 9.6 | `paciente` | Consentimientos | Consentimiento de atencion: leer y aceptar (modal con el texto y la consecuencia) | [ ] |
 | 9.7 | `paciente2` | Consentimientos | Consentimiento de practicante aceptado con practicante y supervisor; "Retirar" explica que pasa antes | [ ] |
-| 9.8 | `paciente` | Lista de espera | Inscripcion con Profesional Dos; salir; volver a anotarse | [ ] |
+| 9.8 | `paciente` | Lista de espera | Retirada en esta version (implementacion futura): no aparece en el portal, en Pedir hora ni en Agenda | [ ] |
 | 9.9 | `paciente` | Reseñas | Ya calificó a Profesional Uno (publicada); editar la deja "En revision"; elegir "con mi nombre" pide confirmacion | [ ] |
 | 9.10 | `paciente` | Seguridad: contraseña actual incorrecta / correcta | Error en el campo / "Listo" | [ ] |
 | 9.11 | `adolescente` | Entrar | Aviso de cuenta de adolescente; sin Pagos, Documentos, Consentimientos ni Reseñas; `/portal/pagos` explica que lo ve el adulto responsable | [ ] |
@@ -298,6 +298,53 @@ Marcar la casilla con OK o con lo observado.
 | 10.18 | `admin` | Equipo > Reseñas > Ocultar | Pide motivo; Publicar la deja visible en el perfil público | [ ] |
 | 10.19 | `profesional1` | Mi perfil > tarifa nueva > publicar perfil | La tarifa encabeza el historial; el perfil queda publicado | [ ] |
 | 10.20 | `admin` | Match > apagar una pregunta | No aparece en `/match`; las métricas muestran los últimos 30 días | [ ] |
+
+### 11. Ficha clínica (03b-5.1, front en http://localhost:3000)
+
+| # | Cuenta | Paso | Esperado | OK |
+|---|---|---|---|---|
+| 11.1 | `profesional1` | Fichas > Paciente Prueba > Abrir ficha clínica | Pestañas Evoluciones, Ficha de ingreso, Documentos, Adjuntos y Alta; contacto de emergencia a la derecha | [ ] |
+| 11.2 | `profesional1` | Evoluciones > el borrador demo > Continuar, escribir | "Borrador guardado" a los segundos; al recargar, el texto sigue en el borrador | [ ] |
+| 11.3 | `profesional1` | Confirmar en el expediente sin tipo de sesión ni riesgo | El botón Confirmar queda deshabilitado; con ambos, la evolución aparece primera en la línea de tiempo y el borrador desaparece | [ ] |
+| 11.4 | `profesional1` | Nueva evolución > plantilla "Evolucion psicoterapia (Demo)" | Aparecen sus campos; la evolución guardada los muestra con "versión 1" | [ ] |
+| 11.5 | `profesional1` | Corregir la evolución recién creada | Registro nuevo con badge "Corrección"; el original queda "Corregida" y enlazado; no hay botón Corregir en el original | [ ] |
+| 11.6 | `profesional1` | Documentos > Emitir > tipo Demo > Vista previa | Se ve el PDF con el nombre del paciente y del centro; Emitir solo se habilita tras la vista previa | [ ] |
+| 11.7 | `profesional1` | Documento emitido > Ver PDF / Enviar por correo | El PDF descarga; el envío por enlace llega a Mailpit; "Envíos" muestra el envío | [ ] |
+| 11.8 | `profesional1` | Adjuntos > subir un .txt renombrado a .pdf | Error claro (solo PDF, PNG o JPEG por contenido); un PDF real sube y descarga | [ ] |
+| 11.9 | `admin` | `/admin/fichas/<id>/ficha` por URL | "La ficha clínica es del equipo tratante" (sin contenido) | [ ] |
+| 11.10 | `admin` | Fichas > Plantillas clínicas > Nueva versión de la de evolución, agregar un campo, Publicar | v2 publicada, v1 inactiva; las evoluciones escritas con v1 siguen mostrando sus campos | [ ] |
+| 11.11 | `profesional1` | Fichas > Catálogos clínicos > Proponer "Sesión de cierre" | Queda "Por revisar"; `admin` lo aprueba y aparece al confirmar evoluciones | [ ] |
+| 11.12 | `admin` | Fichas > Retención > Revisar | Lista vacía en el seed (ninguna ficha supera 15 años); la consulta queda en `consultas_retencion` | [ ] |
+| 11.13 | `profesional1` | Inicio > "borrador sin confirmar" | Abre Fichas › Borradores con el pendiente | [ ] |
+
+### 12. Acceso a fichas ajenas, supervisión y mensajes (03b-5.2)
+
+| # | Cuenta | Paso | Esperado | OK |
+|---|---|---|---|---|
+| 12.1 | `profesional2` | Fichas › Derivaciones | Oferta de Diego con solo motivo, edad y tipo; sin nombre ni quién la originó | [ ] |
+| 12.2 | `profesional1` | Fichas › Derivaciones › Ver detalle | Candidatos en orden con su estado; puede cancelar con motivo | [ ] |
+| 12.3 | `admin` | Fichas › Derivaciones › Bandeja | Definir candidatos y "Volver a ofrecer" a uno que no respondió | [ ] |
+| 12.4 | `profesional1` | Ficha de Paciente Prueba › Accesos › Otorgar a Profesional Tres, solo lectura | Aparece vigente; `profesional3` ve "Abrir ficha clínica" en el paciente y la ficha sin poder escribir | [ ] |
+| 12.5 | `admin` | Fichas › Consentimientos › Registrar firmado (sin respaldo) | No deja registrar; con respaldo queda Aceptado con la versión vigente | [ ] |
+| 12.6 | `admin` | Configuración › Consentimiento de atención con practicante › nueva versión | Un consentimiento por responder exige la nueva versión (la anterior da error claro) | [ ] |
+| 12.7 | `profesional2` | Equipo › Supervisión › caso | Código, edad y tipo; evoluciones con solo los campos visibles; comentar | [ ] |
+| 12.8 | `practicante` | Ficha de Camila › Evoluciones | Bajo su evolución, el comentario del supervisor | [ ] |
+| 12.9 | `profesional1` | Mensajes › Equipo › conversación del caso › enviar y retirar | "Mensaje retirado" dentro de 5 minutos; después ya no se ofrece | [ ] |
+| 12.10 | `admin` | Mensajes › Nueva conversación | Solo tipo General (sin casos clínicos) | [ ] |
+| 12.11 | `profesional1` | Mensajes › De pacientes › Marcar leído | Desaparece el contador del dashboard | [ ] |
+| 12.12 | `admin` | Agenda › Horarios del equipo › Margen de traslado de Profesional Uno = 120 | Lista las horas en conflicto y la tarjeta muestra el aviso | [ ] |
+
+### 13. Cierre de flujos (03b-5.3)
+
+| # | Cuenta | Paso | Esperado | OK |
+|---|---|---|---|---|
+| 13.1 | sin sesión | `/match` › "Prefiero filtrar yo mismo" › Ver profesionales | Resultados con primera hora y "Pedir hora"; "Volver al cuestionario" conserva las respuestas | [ ] |
+| 13.2 | sin sesión | Equipo › perfil de Profesional Uno › Reportar valoración | Pide el motivo; al enviar, "el centro revisará esta valoración"; `admin` lo ve en Equipo › Reseñas | [ ] |
+| 13.3 | `profesional1` | Ficha de Paciente Prueba › Documentos | Solicitud de copia de la ficha: en proceso, entregada (con referencia) o rechazada | [ ] |
+| 13.4 | `admin` | Agenda › sesión pasada confirmada | "Requerir cierre" avisa al profesional | [ ] |
+| 13.5 | `admin` | Mensajes › Avisos › aviso de una cita › Ir a resolverlo | Abre el detalle de esa cita en la agenda | [ ] |
+| 13.6 | `admin` | Agendar sesión › elegir hora › recargar la página › Agendar sesión | Retoma la hora retenida con la cuenta regresiva | [ ] |
+| 13.7 | `admin` (móvil) | Panel en el teléfono | Barra con el rol y "Menú"; al navegar el menú se cierra | [ ] |
 
 ## Revisar la BD
 

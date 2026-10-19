@@ -286,7 +286,6 @@ DTOs (`class-validator`), antes de cifrar:
 | `notificaciones_por_enviar` + `guardar_contenido_notificacion` + `marcar_notificacion` (02i) | cada minuto | mensajes armados y cerrados; correo con backoff 1, 2, 4, 8 min, FALLIDO al quinto intento |
 | `avisar_consentimientos_por_vencer()` (02i) | cada 10 min | avisos legales (una vez por solicitud) |
 | `citas_por_recordar` + `registrar_recordatorio` (02i, Agenda) | cada 10 min | recordatorios registrados (uno por cita y horario) |
-| `avisos_lista_espera_publica` + `token_baja_lista_espera` + `limpiar_lista_espera_publica` (03b, Agenda) | cada 10 min | avisos de horas disponibles a la lista de espera publica (correo despues del COMMIT) e inscripciones vencidas borradas |
 
 Idempotentes y con `SKIP LOCKED`: correr dos instancias a la vez no duplica
 efectos. Loguear el numero devuelto con el logger de Nest. Ademas el envio de
@@ -572,3 +571,51 @@ existente. Cambios del contrato (OpenAPI):
   la misma transaccion del interceptor: si mover la cita falla (409, 422), el
   acceso no queda otorgado. Sin acceso vigente, la BD responde 422
   `citas_profesional_con_acceso` y el front lo explica.
+
+## 03b-5.1 (ficha clinica, plantillas, catalogos y retencion)
+
+Sin tablas ni migraciones nuevas. Endpoints nuevos, dentro de la transaccion
+del RlsInterceptor:
+
+- `POST documentos-clinicos/vista-previa` (PROFESIONAL, PRACTICANTE): el PDF
+  tal como se emitiria, sin guardar ni enviar. Paciente ajeno 404 (RLS);
+  tipo desactivado 403 (mismo resultado que emitir). No queda en
+  `accesos_ficha`: no lee datos clinicos guardados.
+- `GET documentos-clinicos/:id/copia` (PROFESIONAL, PRACTICANTE): copia del
+  tratante de un documento ya emitido; la lectura queda en `accesos_ficha`
+  (LECTURA). Antes el tratante no podia volver a ver lo que emitio.
+- `PATCH intervenciones/:id` y `PATCH estados-avance/:id` (ADMIN): editar o
+  desactivar (nunca DELETE). La BD ya tenia GRANT UPDATE y politica
+  `*_update` solo ADMIN; faltaba el endpoint.
+- `GET borradores` devuelve `pacienteId` (consulta aparte a
+  `fichas_clinicas`, sin include: si el autor perdio el acceso, queda null).
+- Schemas de respuesta de todo Fichas (evoluciones, borradores, ingresos,
+  altas, catalogos, retencion, tipos de documento, envios, adjuntos,
+  plantillas) y de las descargas binarias (`RespuestaArchivo`), incluidas
+  las de Cobros. Quedan 25 operaciones sin schema: `GET salud` y las de
+  03b-5.2 y 5.3.
+
+## 03b-5.2 (acceso a fichas ajenas, supervision, mensajeria y equipo)
+
+- Migraciones `20261023000000_03b5_enums` y
+  `20261023000100_03b5_consentimiento_practicante`: politica
+  `CONSENTIMIENTO_PRACTICANTE` (v1 en la migracion; ADMIN publica versiones en
+  Configuracion). `responder_consentimiento` exige la version vigente al
+  aceptar (23514 `aceptaciones_politica_version_vigente` -> 422) y
+  `consultar_token_consentimiento` devuelve el texto de esa politica para el
+  consentimiento de practicante y el aviso de cambio de supervisor. Las
+  respuestas anteriores conservan su version (append-only). El front dejo de
+  enviar la constante `practicante-portal-v1`.
+- `DerivacionVista.pacienteId` (nullable): consulta aparte a
+  `fichas_clinicas`; null para quien ya no ve la ficha (el origen tras el
+  traspaso).
+- Bandeja de ofertas del candidato sin endpoint nuevo: notificaciones propias
+  `DERIVACION_OFRECIDA` (referencia = derivacion) + `GET
+  derivaciones/:id/oferta` (404 si ya no esta ofrecida: no revela si paso a
+  otro).
+- Schemas de respuesta del resto del contrato: derivaciones (pendientes,
+  oferta, respuesta, cancelacion, candidatos, reintegro, practicantes),
+  consentimientos (solicitud, enlaces), supervision (casos, evoluciones,
+  comentarios), hilos internos, registro de notificaciones, leido de
+  mensajes, requerir cierre, match directo, imagen publica y mi equipo
+  tratante. Solo `GET salud` queda sin schema (justificado).

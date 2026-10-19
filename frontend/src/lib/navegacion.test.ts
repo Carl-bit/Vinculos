@@ -32,8 +32,8 @@ describe('menuVisible', () => {
   it('la cuenta restringida del adolescente no ve pagos, documentos, consentimientos ni reseñas', () => {
     const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
     const plena = etiquetas(menuVisible('portal', 'PACIENTE', todos).filter((i) => i.grupo === 'secciones'));
-    expect(plena).toEqual(['Resumen', 'Pagos', 'Documentos', 'Consentimientos', 'Avisos', 'Lista de espera', 'Reseñas', 'Seguridad']);
+    expect(plena).toEqual(['Resumen', 'Pagos', 'Documentos', 'Consentimientos', 'Avisos', 'Reseñas', 'Seguridad']);
     const restringida = etiquetas(menuVisible('portal', 'PACIENTE', todos, { restringida: true }).filter((i) => i.grupo === 'secciones'));
-    expect(restringida).toEqual(['Resumen', 'Avisos', 'Lista de espera', 'Seguridad']);
+    expect(restringida).toEqual(['Resumen', 'Avisos', 'Seguridad']);
   });
 });

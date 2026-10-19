@@ -8,16 +8,7 @@ import { ContextoBd } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
 import { ProveedorCorreo } from './correo';
 
-export type TipoCorreoCuenta =
-  | 'INVITACION'
-  | 'RECUPERACION'
-  | 'ACCESO'
-  | 'VERIFICACION_SOLICITUD'
-  | 'VERIFICACION_CORREO'
-  | 'CONSENTIMIENTO'
-  | 'VERIFICACION_LISTA_ESPERA'
-  | 'ALTA_LISTA_ESPERA'
-  | 'AVISO_LISTA_ESPERA';
+export type TipoCorreoCuenta = 'INVITACION' | 'RECUPERACION' | 'ACCESO' | 'VERIFICACION_SOLICITUD' | 'VERIFICACION_CORREO' | 'CONSENTIMIENTO';
 
 const TEXTOS: Record<TipoCorreoCuenta, { ruta: string; asunto: string; cuerpo: string }> = {
   INVITACION: {
@@ -49,22 +40,6 @@ const TEXTOS: Record<TipoCorreoCuenta, { ruta: string; asunto: string; cuerpo: s
     ruta: '/consentimiento',
     asunto: 'Solicitud de consentimiento',
     cuerpo: 'El centro le solicita revisar y responder un consentimiento. Enlace de un solo uso:',
-  },
-  // 03b: lista de espera publica (sin cuenta). El alta y cada aviso llevan el enlace de baja.
-  VERIFICACION_LISTA_ESPERA: {
-    ruta: '/lista-espera/verificar',
-    asunto: 'Confirme su inscripción en la lista de espera',
-    cuerpo: 'Para recibir avisos cuando haya horas disponibles, confirme su correo con este enlace de un solo uso:',
-  },
-  ALTA_LISTA_ESPERA: {
-    ruta: '/lista-espera/baja',
-    asunto: 'Quedó inscrito en la lista de espera',
-    cuerpo: 'Le avisaremos por correo cuando haya horas disponibles. Si ya no quiere avisos, salga de la lista con este enlace:',
-  },
-  AVISO_LISTA_ESPERA: {
-    ruta: '/lista-espera/baja',
-    asunto: 'Hay horas disponibles',
-    cuerpo: 'Si ya no quiere recibir estos avisos, salga de la lista con este enlace:',
   },
 };
 

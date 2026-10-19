@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import type { Icono } from '@/lib/iconos';
 
-/** Pantalla de resultado de un enlace del correo (confirmar hora, lista de espera, baja). */
+/** Pantalla de resultado de un enlace del correo (confirmar hora, recordatorio). */
 export function ResultadoEnlace({
   icono,
   titulo,

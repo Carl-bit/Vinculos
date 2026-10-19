@@ -1,0 +1,8 @@
+{
+  "GET /api/salud": "Healthcheck de infraestructura (Docker y Traefik); no es una pantalla.",
+  "GET /api/plantillas-clinicas/{id}": "La lista (GET plantillas-clinicas) ya trae cada version completa con su definicion; el detalle por id queda para integraciones.",
+  "GET /api/calendario/{token}": "Feed iCal: lo consume la app de calendario del profesional desde la URL que muestra Mi perfil (IntegracionesAgenda), no una pantalla.",
+  "GET /api/publico/imagenes/{id}": "Foto de perfil o logo: la pide el navegador con <img src> desde fotoUrl / logo del centro, fuera del cliente generado.",
+  "GET /api/usuarios/{id}": "Equipo usa GET usuarios (la lista ya trae cada cuenta completa); el detalle por id queda para integraciones.",
+  "GET /api/directorio/mi-equipo": "El portal usa GET portal/equipo (mismo equipo tratante con datos del perfil); esta variante del nucleo queda para integraciones."
+}

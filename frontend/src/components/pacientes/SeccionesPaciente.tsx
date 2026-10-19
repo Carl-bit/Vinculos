@@ -32,9 +32,14 @@ import {
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
-/** Ficha clinica: el tratante la abre; ADMIN ve solo la metadata (nunca las evoluciones); GESTION nada clinico. */
+/**
+ * Ficha clinica: el tratante la abre; tambien quien tiene un acceso clinico
+ * temporal vigente (la RLS decide: sin acceso, 404). ADMIN ve solo la
+ * metadata (nunca las evoluciones); GESTION nada clinico.
+ */
 export function AccesoFicha({ paciente, rol, tratante }: { paciente: PacienteVista; rol: Rol; tratante: boolean }) {
-  const puede = rol === 'ADMIN' || tratante;
+  const clinico = rol === 'PROFESIONAL' || rol === 'PRACTICANTE';
+  const puede = rol === 'ADMIN' || tratante || clinico;
   const ficha = useFicha(paciente.id, puede);
   const cliente = useQueryClient();
   const abrir = useMutation({
@@ -49,6 +54,13 @@ export function AccesoFicha({ paciente, rol, tratante }: { paciente: PacienteVis
     );
   }
   const sinFicha = ficha.error instanceof ApiError && ficha.error.status === 404;
+  if (sinFicha && !tratante && rol !== 'ADMIN') {
+    return (
+      <Panel titulo="Ficha clínica">
+        <Aviso tono="nota">La ficha clínica la ven solo su profesional tratante y quien tenga un acceso clínico temporal vigente.</Aviso>
+      </Panel>
+    );
+  }
   return (
     <Panel titulo="Ficha clínica" variante={tratante ? 'equipo' : 'claro'}>
       {ficha.isPending ? (
@@ -69,11 +81,16 @@ export function AccesoFicha({ paciente, rol, tratante }: { paciente: PacienteVis
           <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
             Abierta el {formatoFecha(ficha.data.fechaApertura)}. Se conserva al menos 15 años desde la última atención.
           </p>
-          {tratante ? (
-            <div>
-              <ButtonLink href={`/admin/fichas/${paciente.id}/ficha`} variant="team" icon="edit_note">
-                Abrir ficha clínica
-              </ButtonLink>
+          {clinico ? (
+            <div className="flex flex-col gap-2">
+              {!tratante && (
+                <p className="m-0 text-[12.5px] font-semibold text-neutral-700">Tienes acceso a esta ficha sin ser su tratante (acceso clínico temporal).</p>
+              )}
+              <div>
+                <ButtonLink href={`/admin/fichas/${paciente.id}/ficha`} variant="team" icon="edit_note">
+                  Abrir ficha clínica
+                </ButtonLink>
+              </div>
             </div>
           ) : (
             <Aviso tono="nota" icono="shield_person">

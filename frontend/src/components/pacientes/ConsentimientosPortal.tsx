@@ -12,7 +12,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { textoConsentimiento, VERSION_PRACTICANTE, type TextoConsentimiento } from '@/lib/consentimientos';
+import { textoConsentimiento, type TextoConsentimiento } from '@/lib/consentimientos';
 import { formatoFechaHora, formatoFechaLarga } from '@/lib/formato';
 import {
   nombresDe,
@@ -54,6 +54,12 @@ export function ConsentimientosPortal() {
   const supervisores = useSupervisoresPortal();
   const misDatos = useMisDatos(portal.pacienteParam, portal.responsable && !!portal.pacienteId);
   const nombres = nombresDe(equipo.data, supervisores.data);
+  // Documento vigente del consentimiento de practicante (03b-5): se muestra y su version se envia al aceptar.
+  const politica = useQuery({
+    queryKey: ['publico', 'politica', 'CONSENTIMIENTO_PRACTICANTE'],
+    queryFn: () => datos(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo: 'CONSENTIMIENTO_PRACTICANTE' } } })),
+    retry: false,
+  });
   const [pendiente, setPendiente] = useState<Pendiente | null>(null);
   const [error, setError] = useState<string>();
   const [hecho, setHecho] = useState<string>();
@@ -68,7 +74,7 @@ export function ConsentimientosPortal() {
         return datos(
           api.POST('/api/consentimientos/{id}/respuesta', {
             params: { path: { id: p.c.id } },
-            body: { acepta: p.acepta, versionDocumento: p.acepta ? VERSION_PRACTICANTE : undefined, ...otorgante },
+            body: { acepta: p.acepta, versionDocumento: p.acepta ? String(politica.data?.version ?? '') : undefined, ...otorgante },
           }),
         );
       if (p.tipo === 'revocar') return datos(api.POST('/api/consentimientos/{id}/revocacion', { params: { path: { id: p.c.id } }, body: otorgante }));
@@ -249,7 +255,7 @@ export function ConsentimientosPortal() {
               <Button
                 variant={(pendiente.tipo === 'practicante' && pendiente.acepta) || (pendiente.tipo === 'aviso' && pendiente.conforme) ? 'primary' : 'team'}
                 loading={responder.isPending}
-                disabled={portal.responsable && !otorgante.adultoResponsableId}
+                disabled={(portal.responsable && !otorgante.adultoResponsableId) || (pendiente.tipo === 'practicante' && pendiente.acepta && !politica.data)}
                 onClick={() => {
                   setError(undefined);
                   setHecho(undefined);
@@ -271,11 +277,23 @@ export function ConsentimientosPortal() {
         }
       >
         {pendiente?.tipo === 'practicante' && pendiente.acepta && (
-          <ul className="m-0 flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-relaxed font-semibold text-pretty">
-            {pendiente.t.puntos.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
+          <div className="flex flex-col gap-4">
+            <ul className="m-0 flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-relaxed font-semibold text-pretty">
+              {pendiente.t.puntos.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+            {politica.data ? (
+              <div className="max-h-[36vh] overflow-y-auto border-t border-divider pt-3.5">
+                <p className="m-0 mb-2 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Documento, versión {politica.data.version}</p>
+                <p className="m-0 text-[14px] leading-[1.7] whitespace-pre-line text-pretty text-neutral-800">{politica.data.texto}</p>
+              </div>
+            ) : (
+              <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+                No pudimos cargar el documento. Intenta de nuevo en unos minutos.
+              </p>
+            )}
+          </div>
         )}
       </Modal>
     </div>

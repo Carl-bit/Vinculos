@@ -247,7 +247,7 @@ export class Fixtures {
           estado: 'ACEPTADO',
           solicitadoPorId: supervisorId,
           venceEn: new Date(Date.now() + 86_400_000),
-          versionDocumento: 'v1',
+          versionDocumento: '1',
           otorgadoPorTipo: 'PACIENTE',
           respondidoPorId: supervisorId,
           respondidoEn: new Date(),

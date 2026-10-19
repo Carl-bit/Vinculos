@@ -82,6 +82,10 @@ describe('03b-3 portal del paciente', () => {
         supervisor_anterior: null,
       }),
     );
+    // 03b-5: el texto y la version son los del consentimiento de practicante (no el de atencion).
+    const politica = await t.http().get('/api/publico/politicas/CONSENTIMIENTO_PRACTICANTE');
+    expect(consulta.body.politica_version).toBe(politica.body.version);
+    expect(consulta.body.politica_texto).toBe(politica.body.texto);
     expect((await t.http().post('/api/publico/consentimientos/consulta').send({ token })).status).toBe(200);
 
     // Portal: el supervisor (no es tratante) sale de supervisores_portal; nadie mas.
@@ -110,7 +114,14 @@ describe('03b-3 portal del paciente', () => {
     ).toEqual([]);
 
     // Responde por el enlace: un solo uso.
-    const r = await t.http().post('/api/publico/consentimientos/respuesta').send({ token, acepta: true, version: 'practicante-v1' });
+    // Una version que no es la vigente se rechaza (422) y el enlace sigue sirviendo.
+    const vieja = await t.http().post('/api/publico/consentimientos/respuesta').send({ token, acepta: true, version: 'practicante-v1' });
+    expect(vieja.status).toBe(422);
+    expect(vieja.body.restriccion).toBe('aceptaciones_politica_version_vigente');
+    const r = await t
+      .http()
+      .post('/api/publico/consentimientos/respuesta')
+      .send({ token, acepta: true, version: String(consulta.body.politica_version) });
     expect(r.body).toEqual({ tipo: 'PRACTICANTE', acepta: true });
     expect((await t.http().post('/api/publico/consentimientos/consulta').send({ token })).status).toBe(404);
   });

@@ -477,3 +477,84 @@ Pendiente o fuera de la API:
 - Retenciones ajenas en el calendario ("Reservando...").
 - Calendario sin polling (estandar: sin polling fuera de la reserva): se
   recarga al volver a la pestaña o tras una accion propia.
+
+## 13. Resolucion en 03b-5.1 (ficha clinica)
+
+Pantallas nuevas (no estaban en el diseño; sistema Organic + MASTER.md):
+
+| Necesidad | Resolucion |
+|---|---|
+| "Abrir ficha clinica" y "Registrar evolucion" de 03b-4 llevaban a `/admin/fichas/{id}/ficha`, ruta que no existia (404 del panel) | `FichaClinica` en esa ruta, solo PROFESIONAL/PRACTICANTE con acceso (tratante o acceso temporal; la RLS decide). ADMIN/GESTION ven "sin permiso" con la explicacion del secreto profesional |
+| Evoluciones con plantilla de la especialidad y campos estructurados | Editor con borrador (autoguardado a 1,2 s) y "Confirmar en el expediente": tipo de sesion, nivel de riesgo, estado de avance e intervenciones se eligen al confirmar (el borrador no los guarda); aviso de que despues no se edita |
+| Correccion como registro nuevo | "Corregir" en evoluciones e ingresos propios: registro nuevo con `corrigeAId` y la misma version de plantilla; original y correccion enlazados en la linea de tiempo (una correccion por registro: indice unico) |
+| Borradores pendientes | En la ficha (continuar o descartar) y en Fichas › Borradores (todas las fichas). El dashboard enlazaba a `?filtro=borradores`, que no existia: ahora `?vista=borradores` |
+| Ficha de ingreso | Plantilla INGRESO publicada de la especialidad aprobada; cada registro con su version |
+| Documentos emitidos con vista previa | Redaccion, vista previa del PDF real (`vista-previa`, nada se guarda), emitir, copia del tratante (`copia`), envio por enlace o adjunto (solo si el paciente lo pidio) e historial de envios con descargas |
+| Adjuntos, contacto de emergencia, alta | Subida/descarga con errores 413/422 claros; contacto de emergencia y adultos responsables en la columna de la ficha; alta con fecha y motivo cifrado e historial |
+| Plantillas clinicas | Fichas › Plantillas clinicas: por especialidad y uso, historial de versiones, editor de campos (tipo, opciones, orden, obligatorio, visible en supervision, texto libre) con vista previa del formulario, proponer (ADMIN y profesional con la especialidad aprobada), publicar y desactivar (ADMIN), version nueva |
+| Catalogos con propuesta y aprobacion | Fichas › Catalogos clinicos: tipos de sesion (proponer / aprobar, rechazar, activar), intervenciones y estados de avance (ADMIN, desactivables con el PATCH nuevo) y tipos de documento (formato con variables permitidas) |
+| Revision de retencion | Fichas › Retencion (ADMIN): la consulta se pide al pulsar "Revisar" porque queda auditada; decision CONSERVAR/PURGAR con motivo (PURGAR solo se registra) e historial |
+| ADMIN en "Todos los pacientes" volvia a "Por profesional" al elegir el filtro Todos | Corregido (`?vista=pacientes`) |
+| Profesional con acceso temporal no veia "Abrir ficha clinica" | `AccesoFicha` consulta la ficha para el equipo clinico y muestra el boton si la RLS la entrega |
+
+Reportado, no implementado:
+
+- La plantilla de evolucion es opcional (la API lo permite: solo notas). Si
+  el centro quiere exigirla, es una regla nueva de la BD.
+- "Corregir" se ofrece solo al autor del registro (criterio clinico); la BD
+  permite que corrija cualquier tratante con acceso.
+
+## 14. Resolucion en 03b-5.2 (acceso a fichas ajenas y equipo)
+
+| Necesidad | Resolucion |
+|---|---|
+| Accesos clinicos temporales (otorgar, activos y vencidos, aviso al paciente) | Panel en la ficha clinica (pestaña Accesos, tratante) y en el detalle del paciente (ADMIN); Fichas › Accesos temporales con vigentes y vencidos. Antes solo se otorgaban dentro de "Cubrir sesion" |
+| Derivaciones: crear con candidatos, estado para el origen, bandeja de ofertas, gestion de ADMIN | Fichas › Derivaciones: ofertas para el candidato (solo motivo, edad, tipo; aceptar o rechazar, con choques de agenda), bandeja de ADMIN y supervisores (proponer practicante, gestionar), lista con detalle y candidatos (definir candidatos, volver a ofrecer, cancelar con motivo). Crear sigue en el detalle del paciente (03b-4) |
+| La oferta no llegaba al candidato (03b-4) | Sin endpoint nuevo: notificaciones `DERIVACION_OFRECIDA` + `oferta/:id` |
+| Consentimientos de practicante | Fichas › Consentimientos (ADMIN, GESTION y supervisores): estado, enviar enlace, registrar firmado o retiro con respaldo, pedir uno nuevo; avisos de cambio de supervisor. El dashboard enlazaba a `?filtro=consentimientos` (no existia) |
+| Consentimiento de practicante versionado (pendiente de 03b-3) | Politica `CONSENTIMIENTO_PRACTICANTE` (migracion); Configuracion la publica; portal y enlace muestran su texto y envian su version |
+| Supervision seudonimizada con comentarios | Equipo › Supervision (supervisores): casos por codigo, evoluciones con solo los campos visibles en supervision y comentarios; el practicante ve los comentarios bajo cada evolucion de su ficha (`shared/ComentariosSupervision`) |
+| Mensajeria interna | `/admin/mensajes` (menu "Mensajes"): conversaciones GENERAL y CASO con polling, no leidos, leido por, retirar dentro de 5 minutos, agregar personas; conversaciones del caso en la ficha clinica |
+| Bandeja del equipo | `/admin/mensajes`: "De pacientes" (mensajes del portal, marcar leido; respuesta por canal externo) y "Avisos" (bandeja propia con enlace a donde se resuelve). El dashboard enlazaba a `/admin/fichas?vista=mensajes` (no existia) |
+| Equipo: tipos de atencion asignados por ADMIN, margen de traslado | Equipo › integrante › "Asignar tipos" (PUT); Agenda › Horarios del equipo › "Margen de traslado" con las horas en conflicto y aviso en la tarjeta |
+
+Reportado, no implementado:
+
+- Revocar un acceso temporal antes de su fecha: la BD no lo permite (se corta
+  solo al vencer, append-only). Si el centro lo necesita, es una funcion nueva.
+- "Mensajes de pacientes" muestra telefono y correo para responder fuera de la
+  app: la respuesta in-app esta fuera de alcance (CLAUDE.md).
+
+## 15. Resolucion en 03b-5.3 (cierre de flujos y auditoria)
+
+| Necesidad | Resolucion |
+|---|---|
+| Copia de la ficha (epicrisis) pedida desde el portal sin pantalla del equipo | `SolicitudesEpicrisis`: en la ficha (Documentos, el tratante) y en el detalle del paciente (ADMIN resuelve, GESTION ve): en proceso, entregada con referencia o rechazada |
+| "Requerir cierre" | Detalle de una sesion pasada confirmada (ADMIN) |
+| Enlace directo a una cita | `/admin/agenda?cita=<id>` abre su detalle; la bandeja de avisos lo usa para los avisos de citas |
+| Verificacion previa al agendar | `AgendarSesion` verifica (margen, box, bloqueos) antes de retener; si no se puede, muestra alternativas sin retener |
+| Retomar una retencion propia | Al abrir "Agendar sesion" se retoma la hora retenida vigente (p. ej. tras recargar) con su cuenta regresiva |
+| "Prefiero filtrar yo mismo" se configuraba en Match pero no existia en el sitio (03b-4) | `FiltroDirecto` en `/match`: tipo, modalidad, plazo y precio maximo; resultados con primera hora y "Pedir hora" |
+| Reporte publico de reseñas | "Reportar valoracion" en el perfil publico (llega a la moderacion) |
+| Menu del panel en movil (03b-4: quedaba apilado sobre el contenido) | Barra con marca, rol activo y boton "Menu"; se cierra al navegar |
+| Auditoria de la lista de 03b-5 contra 03b-4 | Equipo, Agenda, Cobros, plantillas de mensaje, reseñas y Configuracion: todo presente (ver prompts/03_front.md) |
+
+Criterio de cierre: `npm run api:cobertura` = "Cobertura completa" (274
+operaciones con pantalla, 6 excepciones justificadas en
+`frontend/scripts/cobertura-api.excepciones.json`).
+
+Pendiente de decision del usuario: impeccable marca "tarjeta dentro de
+tarjeta" en pantallas de 03b-4 que copian el diseño del handoff (tiles de
+horario dentro de la tarjeta del profesional en Agenda, datos dentro del
+panel del integrante en Equipo, texto de la politica dentro de su panel en
+Configuracion, avisos dentro de paneles en el detalle del paciente).
+
+## 16. Lista de espera retirada (decision del usuario, 2026-10-19)
+
+La lista de espera (con cuenta 03a, publica sin cuenta 03b y "avisarme si se
+libera una hora antes") queda como implementacion futura, para una entrega
+posterior. Reemplaza lo dicho sobre la lista en las secciones 6, 9, 10, 11 y
+12: no hay seccion en el portal, pestaña en Agenda, formulario en Pedir hora
+ni tarjeta en el dashboard. Sin horas, Pedir hora ofrece ver otros
+profesionales o entrar a la cuenta. Detalle tecnico en
+`docs/api/estado_fase_api.md` (Rollback: lista de espera).

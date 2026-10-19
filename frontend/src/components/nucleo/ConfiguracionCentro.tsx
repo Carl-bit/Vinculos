@@ -40,7 +40,7 @@ export function ConfiguracionCentro() {
         titulo="Configuración del centro"
         bajada="Datos, horario, políticas y reglas que usan todos los módulos y la página pública."
       />
-      <p className="m-0 mb-[22px] flex items-center gap-2 text-[13px] font-semibold text-neutral-700">
+      <p className="m-0 mb-[22px] flex items-center gap-2 text-[13px] font-semibold text-neutral-800">
         <Icon name="tune" size={17} />
         Estos parámetros atraviesan todos los módulos del centro y su página pública.
       </p>

@@ -30,6 +30,7 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
   admin: [
     { etiqueta: 'Inicio', icono: 'space_dashboard', href: '/admin', grupo: 'principal', roles: EQUIPO },
     { etiqueta: 'Mi perfil', icono: 'account_circle', href: '/admin/perfil', grupo: 'principal', roles: EQUIPO },
+    { etiqueta: 'Mensajes', icono: 'chat', href: '/admin/mensajes', grupo: 'principal', roles: EQUIPO },
     { etiqueta: 'Fichas y Pacientes', icono: 'folder_shared', href: '/admin/fichas', grupo: 'modulos', roles: EQUIPO, modulo: 'FICHAS' },
     { etiqueta: 'Agenda y Espacios', icono: 'calendar_month', href: '/admin/agenda', grupo: 'modulos', roles: EQUIPO, modulo: 'AGENDA' },
     { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'modulos', roles: EQUIPO, modulo: 'EQUIPO' },
@@ -54,7 +55,6 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
       soloCuentaPlena: true,
     },
     { etiqueta: 'Avisos', icono: 'notifications', href: '/portal/avisos', grupo: 'secciones', roles: PORTAL },
-    { etiqueta: 'Lista de espera', icono: 'hourglass_empty', href: '/portal/lista-espera', grupo: 'secciones', roles: PORTAL, modulo: 'AGENDA' },
     { etiqueta: 'Reseñas', icono: 'rate_review', href: '/portal/resenas', grupo: 'secciones', roles: PORTAL, modulo: 'PAGINA_PUBLICA', soloCuentaPlena: true },
     { etiqueta: 'Seguridad', icono: 'lock', href: '/portal/seguridad', grupo: 'secciones', roles: PORTAL },
   ],

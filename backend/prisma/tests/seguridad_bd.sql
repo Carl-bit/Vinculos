@@ -10,7 +10,7 @@
 -- aprovisionamiento de llaves (infra/scripts/llaves/aprovisionar.sh).
 --
 -- Casos 1-17: los 17 del prompt 01. 18-27: prompt 01b. 28-44: prompt 01c.
--- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 101-115: prompt 03a-1 (roles por cuenta, cuentas y tokens, politicas, menores, agenda, solicitudes sin cuenta, lista de espera, acceso temporal, borradores, alta, reseñas, reportes, contenido publico, liquidacion por cita realizada); 03a agrega a 67 las tablas append-only nuevas y a 78 excluye imagenes_publicas (publicas, sin cifrar). 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
+-- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 101-115: prompt 03a-1 (roles por cuenta, cuentas y tokens, politicas, menores, agenda, solicitudes sin cuenta, acceso temporal (lista de espera retirada en 107 y 124), borradores, alta, reseñas, reportes, contenido publico, liquidacion por cita realizada); 03a agrega a 67 las tablas append-only nuevas y a 78 excluye imagenes_publicas (publicas, sin cifrar). 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
 -- derivacion traspasa el paciente); 01d redefinio 36, 37 y 42 (tipo de
 -- atencion por catalogo, oferta con citas en conflicto, el origen cancela en
 -- SIN_ASIGNAR); 01e redefinio 19 (tablas sin GRANT), 50 (perfil
@@ -1466,18 +1466,25 @@ DO $$ DECLARE c record; BEGIN
 END $$;
 DO $$ BEGIN
   PERFORM test.ctx('b3', 'PROFESIONAL');
-  PERFORM responder_consentimiento(test.id('cons_fede'), true, 'v2', 'PACIENTE', NULL, 'doc-1');
+  PERFORM responder_consentimiento(test.id('cons_fede'), true, '1', 'PACIENTE', NULL, 'doc-1');
   RAISE EXCEPTION 'caso 64: supervisor registra debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 DO $$ BEGIN
   PERFORM test.ctx('a3', 'GESTION');
   BEGIN
-    PERFORM responder_consentimiento(test.id('cons_fede'), true, 'v2', 'PACIENTE', NULL, NULL);
+    PERFORM responder_consentimiento(test.id('cons_fede'), true, '1', 'PACIENTE', NULL, NULL);
     RAISE EXCEPTION 'caso 64: GESTION sin respaldo debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
-  PERFORM responder_consentimiento(test.id('cons_fede'), true, 'v2', 'PACIENTE', NULL, 'escaneo-firma-fede.pdf');
+  -- 03b-5: aceptar exige la version vigente de CONSENTIMIENTO_PRACTICANTE.
   BEGIN
-    PERFORM responder_consentimiento(test.id('cons_fede'), true, 'v2', 'PACIENTE', NULL, 'otra');
+    PERFORM responder_consentimiento(test.id('cons_fede'), true, 'v-vieja', 'PACIENTE', NULL, 'escaneo-firma-fede.pdf');
+    RAISE EXCEPTION 'caso 64: version que no es la vigente debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM responder_consentimiento(test.id('cons_fede'), true, '1', 'PACIENTE', NULL, 'escaneo-firma-fede.pdf');
+  ASSERT (SELECT version_documento FROM consentimientos WHERE id = test.id('cons_fede'))
+         = (SELECT version::text FROM politica_vigente('CONSENTIMIENTO_PRACTICANTE')), 'caso 64: guarda la version vigente';
+  BEGIN
+    PERFORM responder_consentimiento(test.id('cons_fede'), true, '1', 'PACIENTE', NULL, 'otra');
     RAISE EXCEPTION 'caso 64: responder dos veces debio fallar';
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
 END $$;
@@ -1820,14 +1827,14 @@ DO $$ DECLARE v uuid; v_mama uuid; v_pareja uuid; BEGIN
   SELECT id INTO v_mama FROM adultos_responsables WHERE paciente_id = test.u('0b');
   SELECT id INTO v_pareja FROM adultos_responsables WHERE paciente_id = test.u('0a');
   BEGIN
-    PERFORM responder_consentimiento(v, true, 'v2', 'PACIENTE', NULL, 'doc');
+    PERFORM responder_consentimiento(v, true, '1', 'PACIENTE', NULL, 'doc');
     RAISE EXCEPTION 'caso 73: menor responde solo debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
   BEGIN
-    PERFORM responder_consentimiento(v, true, 'v2', 'ADULTO_RESPONSABLE', v_pareja, 'doc');
+    PERFORM responder_consentimiento(v, true, '1', 'ADULTO_RESPONSABLE', v_pareja, 'doc');
     RAISE EXCEPTION 'caso 73: adulto de otro paciente debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
-  PERFORM responder_consentimiento(v, true, 'v2', 'ADULTO_RESPONSABLE', v_mama, 'firma-mama.pdf');
+  PERFORM responder_consentimiento(v, true, '1', 'ADULTO_RESPONSABLE', v_mama, 'firma-mama.pdf');
   ASSERT (SELECT profesional_id FROM pacientes WHERE id = test.u('0b')) = test.u('c1'), 'caso 73: traspaso al practicante';
 END $$;
 
@@ -1873,7 +1880,7 @@ DO $$ DECLARE v uuid; BEGIN
   ASSERT (SELECT estado FROM derivacion_candidatos WHERE derivacion_id = test.id('d8')) = 'RECHAZADO_POR_PACIENTE', 'caso 75: candidato';
   ASSERT (SELECT estado FROM derivaciones WHERE id = test.id('d8')) = 'SIN_ASIGNAR', 'caso 75: sin mas candidatos';
   PERFORM test.ctx('a3', 'GESTION');
-  PERFORM responder_consentimiento(v, true, 'v2', 'PACIENTE', NULL, 'tarde');
+  PERFORM responder_consentimiento(v, true, '1', 'PACIENTE', NULL, 'tarde');
   RAISE EXCEPTION 'caso 75: responder vencido debio fallar';
 EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END $$;
 
@@ -3321,34 +3328,34 @@ DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
   BEGIN
     PERFORM crear_solicitud_hora(test.u('3a'), test.u('b9'), 'PRESENCIAL', test.dia(20, 10), test.dia(20, 11), 'Ema', 'Nueva',
-                                 '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, gen_random_uuid(),
+                                 '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, gen_random_uuid(),
                                  v_ter, sha256('s106a'));
     RAISE EXCEPTION 'caso 106: version vieja de la politica';
   EXCEPTION WHEN check_violation THEN NULL; END;
   PERFORM crear_solicitud_hora(test.u('3b'), test.u('b9'), 'PRESENCIAL', test.dia(20, 10), test.dia(20, 11), 'Ema', 'Nueva',
                                '1990-01-01', 'Ema@X', test.cif('+56900000001'), NULL, NULL, NULL, NULL, NULL,
-                               test.cif('{"motivos":["ansiedad"]}'), test.u('b9'), true, v_pol, v_ter, sha256('s106b'));
+                               test.cif('{"motivos":["ansiedad"]}'), test.u('b9'), v_pol, v_ter, sha256('s106b'));
   ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b9'), test.dia(20, 9), test.dia(20, 12)) d
                      WHERE d.modalidad = 'PRESENCIAL' AND d.inicio <= test.dia(20, 10) AND d.fin >= test.dia(20, 11)),
     'caso 106: la hora queda retenida';
   BEGIN
     PERFORM crear_solicitud_hora(test.u('3c'), test.u('b9'), 'PRESENCIAL', test.dia(20, 10), test.dia(20, 11), 'Otro', 'Mas',
-                                 '1990-01-01', 'otro@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, v_pol, v_ter,
+                                 '1990-01-01', 'otro@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
                                  sha256('s106c'));
     RAISE EXCEPTION 'caso 106: hora ya retenida';
   EXCEPTION WHEN exclusion_violation THEN NULL; END;
   BEGIN
     PERFORM crear_solicitud_hora(test.u('3d'), test.u('b9'), 'PRESENCIAL', test.dia(21, 10), test.dia(21, 11), 'Nino', 'Chico',
-                                 '2016-01-01', 'mama@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, v_pol, v_ter,
+                                 '2016-01-01', 'mama@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
                                  sha256('s106d'));
     RAISE EXCEPTION 'caso 106: menor sin adulto responsable';
   EXCEPTION WHEN check_violation THEN NULL; END;
   PERFORM crear_solicitud_hora(test.u('3e'), test.u('b9'), 'PRESENCIAL', test.dia(22, 10), test.dia(22, 11), 'Ema', 'Nueva',
-                               '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, v_pol, v_ter,
+                               '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
                                sha256('s106e'));
   BEGIN
     PERFORM crear_solicitud_hora(test.u('3f'), test.u('b9'), 'PRESENCIAL', test.dia(23, 10), test.dia(23, 11), 'Ema', 'Nueva',
-                                 '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, v_pol, v_ter,
+                                 '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
                                  sha256('s106f'));
     RAISE EXCEPTION 'caso 106: maximo de pendientes por correo';
   EXCEPTION WHEN check_violation THEN NULL; END;
@@ -3373,7 +3380,6 @@ DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
   ASSERT EXISTS (SELECT 1 FROM fichas_clinicas WHERE paciente_id = test.u('16')), 'caso 106: con ficha';
   ASSERT (SELECT count(*) FROM aceptaciones_politica WHERE paciente_id = test.u('16') AND canal = 'SOLICITUD') = 2,
     'caso 106: politica y terminos aceptados';
-  ASSERT (SELECT count(*) FROM lista_espera WHERE paciente_id = test.u('16')) = 1, 'caso 106: avisarme si se libera una hora';
   ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'CITA_CONFIRMADA' AND paciente_id = test.u('16')), 'caso 106: aviso de cita';
   -- Profesional que aprueba pacientes nuevos: SOLICITADA y aviso al profesional; mismo correo = posible duplicado.
   PERFORM test.ctx('b9', 'PROFESIONAL');
@@ -3412,34 +3418,16 @@ DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
   -- Una solicitud mas que el job vencera (caso 115).
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
   PERFORM crear_solicitud_hora(test.u('3c'), test.u('b9'), 'PRESENCIAL', test.dia(24, 10), test.dia(24, 11), 'Vence', 'Pronto',
-                               '1990-01-01', 'vence@x', NULL, NULL, NULL, NULL, NULL, NULL, test.cif('{"a":1}'), NULL, false, v_pol,
+                               '1990-01-01', 'vence@x', NULL, NULL, NULL, NULL, NULL, NULL, test.cif('{"a":1}'), NULL, v_pol,
                                v_ter, sha256('s106g'));
 END $$;
 
-\echo 107 Lista de espera: el paciente se anota, ADMIN/GESTION ven todo, el profesional las suyas; al liberarse una hora la BD avisa
+\echo 107 Lista de espera retirada (implementacion futura): cancelar una cita futura no genera avisos de hora liberada
 DO $$ BEGIN
-  PERFORM test.ctx('a2', 'PACIENTE');
-  INSERT INTO lista_espera (paciente_id, profesional_id, creada_por_id) VALUES (test.u('0a'), test.u('b9'), test.u('a2'));
-  BEGIN
-    INSERT INTO lista_espera (paciente_id, profesional_id, creada_por_id) VALUES (test.u('15'), test.u('b9'), test.u('a2'));
-    RAISE EXCEPTION 'caso 107: no anota a otro paciente';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  BEGIN
-    INSERT INTO lista_espera (paciente_id, creada_por_id) VALUES (test.u('0a'), test.u('a2'));
-    RAISE EXCEPTION 'caso 107: profesional o tipo de atencion';
-  EXCEPTION WHEN check_violation THEN NULL; END;
-  PERFORM test.ctx('a3', 'GESTION');
-  ASSERT (SELECT count(*) FROM lista_espera WHERE profesional_id = test.u('b9')) = 2, 'caso 107: GESTION ve todas';
-  PERFORM test.ctx('b5', 'PROFESIONAL');
-  ASSERT (SELECT count(*) FROM lista_espera WHERE profesional_id = test.u('b9')) = 0, 'caso 107: otro profesional no';
-  PERFORM test.ctx('b9', 'PROFESIONAL');
-  ASSERT (SELECT count(*) FROM lista_espera WHERE profesional_id = test.u('b9')) = 2, 'caso 107: el profesional las suyas';
   PERFORM test.ctx('a1', 'ADMIN');
   UPDATE citas SET estado = 'CANCELADA' WHERE paciente_id = test.u('16') AND estado = 'CONFIRMADA' AND inicio > now();
-  ASSERT EXISTS (SELECT 1 FROM notificaciones n JOIN lista_espera l ON l.id = n.referencia_id
-                 WHERE n.tipo = 'HORA_LIBERADA' AND n.paciente_id = test.u('0a')), 'caso 107: aviso de hora liberada';
-  ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'HORA_LIBERADA' AND paciente_id = test.u('16')),
-    'caso 107: no a quien la libero';
+  ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'HORA_LIBERADA'), 'caso 107: sin aviso de hora liberada';
+  ASSERT NOT EXISTS (SELECT 1 FROM plantillas_mensaje WHERE evento = 'HORA_LIBERADA'), 'caso 107: sin plantillas del aviso';
 END $$;
 
 \echo 108 Acceso clinico temporal (C-4, C-5): ADMIN o el tratante; lectura o escritura hasta el termino; aviso y auditoria; mover una cita solo a quien tiene acceso
@@ -3530,7 +3518,7 @@ DO $$ BEGIN
   ASSERT (SELECT procesada_en IS NOT NULL FROM bajas WHERE usuario_id = test.u('ba')), 'caso 109: sin borradores se completa';
 END $$;
 
-\echo 110 Alta (append-only): el tratante con fecha y motivo cifrado; borra respuestas del match y cierra la lista de espera; ADMIN no la lee
+\echo 110 Alta (append-only): el tratante con fecha y motivo cifrado; borra respuestas del match; ADMIN no la lee
 DO $$ BEGIN
   PERFORM test.ctx('b2', 'PROFESIONAL');
   BEGIN
@@ -3551,7 +3539,6 @@ DO $$ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   PERFORM test.ctx('a1', 'ADMIN');
   ASSERT (SELECT count(*) FROM altas_paciente) = 0, 'caso 110: ADMIN no (motivo clinico)';
-  ASSERT (SELECT estado FROM lista_espera WHERE paciente_id = test.u('16')) = 'CANCELADA', 'caso 110: lista de espera cerrada';
 END $$;
 
 \echo 111 Reseñas (D-1): una por paciente y profesional con sesion realizada; moderacion de ADMIN; editar vuelve a moderacion; retirar; feedback privado solo del profesional; reporte publico; auditoria
@@ -4146,71 +4133,20 @@ DO $$ BEGIN
   DELETE FROM horarios_espacio WHERE espacio_id = test.u('e1');
 END $$;
 
-\echo 124 Lista de espera publica (03b, A): sin cuenta, verificada por correo; misma respuesta si ya esta inscrito; el equipo solo lee; aviso por job y baja con enlace
-DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS')); r record; BEGIN
-  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
-  BEGIN
-    PERFORM inscribir_lista_espera_publica(test.u('4a'), test.u('b9'), 'Lia', 'lia@x', NULL, gen_random_uuid(), sha256('l124x'));
-    RAISE EXCEPTION 'caso 124: version vieja de la politica';
-  EXCEPTION WHEN check_violation THEN NULL; END;
-  BEGIN
-    PERFORM inscribir_lista_espera_publica(test.u('4a'), test.u('b5'), 'Lia', 'lia@x', NULL, v_pol, sha256('l124x'));
-    RAISE EXCEPTION 'caso 124: profesional sin perfil publico';
-  EXCEPTION WHEN check_violation THEN NULL; END;
-  BEGIN
-    PERFORM inscribir_lista_espera_publica(test.u('4a'), NULL, 'Lia', 'lia@x', NULL, v_pol, sha256('l124x'));
-    RAISE EXCEPTION 'caso 124: sin profesional';
-  EXCEPTION WHEN check_violation THEN NULL; END;
-  SELECT * INTO r FROM inscribir_lista_espera_publica(test.u('4a'), test.u('b9'), 'Lia', 'Lia@X', test.cif('+56900000002'),
-                                                      v_pol, sha256('l124a'));
-  ASSERT r.emitido AND r.expira > now() + interval '23 hours', 'caso 124: inscrita, enlace por 24 horas';
-  -- Mismo correo y destino: igual respuesta, no se crea otra ni se tocan los datos (el enlace nuevo anula el anterior
-  -- desde el segundo siguiente: emitir_token, como los demas enlaces).
-  SELECT * INTO r FROM inscribir_lista_espera_publica(test.u('4b'), test.u('b9'), 'Otro', 'lia@x', NULL, v_pol, sha256('l124b'));
-  ASSERT r.emitido, 'caso 124: misma respuesta';
-  PERFORM test.ctx('a3', 'GESTION');
-  ASSERT (SELECT count(*) FROM lista_espera_publica WHERE lower(email) = 'lia@x') = 1, 'caso 124: una por destino';
-  ASSERT (SELECT nombre FROM lista_espera_publica WHERE id = test.u('4a')) = 'Lia', 'caso 124: datos intactos';
-  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
-  SELECT * INTO r FROM verificar_lista_espera_publica(sha256('l124b'), sha256('l124c'));
-  ASSERT r.id = test.u('4a') AND r.expira_en > now() + interval '59 days', 'caso 124: verificada por 60 dias';
-  BEGIN
-    PERFORM verificar_lista_espera_publica(sha256('l124b'), sha256('l124d'));
-    RAISE EXCEPTION 'caso 124: un solo uso';
-  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
-  PERFORM test.ctx('a1', 'ADMIN');
-  BEGIN
-    PERFORM avisos_lista_espera_publica(10);
-    RAISE EXCEPTION 'caso 124: avisos solo el job';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  -- El equipo lee (el profesional las suyas), nadie escribe directo.
-  PERFORM test.ctx('b9', 'PROFESIONAL');
-  ASSERT (SELECT count(*) FROM lista_espera_publica) = 1, 'caso 124: el profesional ve la suya';
-  BEGIN
-    INSERT INTO lista_espera_publica (id, profesional_id, nombre, email, politica_id, expira_en)
-    VALUES (gen_random_uuid(), test.u('b9'), 'X', 'x@x', v_pol, now() + interval '1 day');
-    RAISE EXCEPTION 'caso 124: sin escritura directa';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  PERFORM test.ctx('b5', 'PROFESIONAL');
-  ASSERT (SELECT count(*) FROM lista_espera_publica) = 0, 'caso 124: otro profesional no';
-  PERFORM test.ctx('a2', 'PACIENTE');
-  ASSERT (SELECT count(*) FROM lista_espera_publica) = 0, 'caso 124: PACIENTE no';
-  -- Hora liberada de b9: queda el aviso pendiente; el job lo toma una vez.
+\echo 124 Lista de espera retirada (implementacion futura): sin tablas ni funciones; apartar un bloque o cancelar una cita no avisa a nadie
+DO $$ BEGIN
+  ASSERT to_regclass('public.lista_espera') IS NULL AND to_regclass('public.lista_espera_publica') IS NULL, 'caso 124: sin tablas';
+  ASSERT to_regtype('estado_lista_espera') IS NULL, 'caso 124: sin enum de estado';
+  ASSERT NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname ~ 'lista_espera|hora_liberada|avisar_bloques_nuevos'), 'caso 124: sin funciones';
+  ASSERT NOT EXISTS (SELECT 1 FROM information_schema.columns
+                     WHERE (table_name, column_name) IN (('solicitudes_hora', 'lista_espera'),
+                                                         ('configuracion_centro', 'dias_lista_espera_publica'))),
+    'caso 124: sin columnas';
   PERFORM test.ctx('a1', 'ADMIN');
   INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
     ('ONLINE', test.u('b9'), test.u('16'), test.dia(33, 10), test.dia(33, 11));
   UPDATE citas SET estado = 'CANCELADA' WHERE profesional_id = test.u('b9') AND inicio = test.dia(33, 10);
-  ASSERT (SELECT aviso_pendiente_en IS NOT NULL FROM lista_espera_publica WHERE id = test.u('4a')), 'caso 124: aviso pendiente';
-  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
-  SELECT * INTO r FROM avisos_lista_espera_publica(10);
-  ASSERT r.id = test.u('4a') AND r.email = 'lia@x' AND r.profesional_nombre = 'Prof 9',
-    format('caso 124: aviso %s', r);
-  ASSERT NOT EXISTS (SELECT 1 FROM avisos_lista_espera_publica(10)), 'caso 124: un aviso por vez';
-  PERFORM token_baja_lista_espera(test.u('4a'), sha256('l124e'));
-  PERFORM baja_lista_espera_publica(sha256('l124e'));
-  ASSERT limpiar_lista_espera_publica() = 0, 'caso 124: limpieza idempotente';
-  PERFORM test.ctx('a1', 'ADMIN');
-  ASSERT NOT EXISTS (SELECT 1 FROM lista_espera_publica WHERE id = test.u('4a')), 'caso 124: la baja la borra';
+  ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'HORA_LIBERADA'), 'caso 124: sin aviso';
 END $$;
 
 \echo 125 Portal (03b-3): supervisores_portal solo para PACIENTE/RESPONSABLE, solo id y nombre de quien supervisa sus consentimientos

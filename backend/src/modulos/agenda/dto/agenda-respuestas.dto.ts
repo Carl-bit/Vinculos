@@ -4,7 +4,7 @@
  * front lo tome del esquema generado.
  */
 import { ApiProperty } from '@nestjs/swagger';
-import { EstadoCita, EstadoListaEspera, ModalidadAtencion, MotivoBloqueoAgenda, RespuestaRecordatorio } from '@prisma/client';
+import { EstadoCita, ModalidadAtencion, MotivoBloqueoAgenda, RespuestaRecordatorio } from '@prisma/client';
 
 /** Horas de box apartadas por un profesional (su agenda). */
 export class BloqueAtencionVista {
@@ -25,27 +25,6 @@ export class HoraLibreBox {
 
 export class BloquesLiberados {
   eliminados!: number;
-}
-
-/** Lista de espera con cuenta (03a): por profesional o tipo de atencion. */
-export class ListaEsperaVista {
-  id!: string;
-  pacienteId!: string;
-  @ApiProperty({ type: String, nullable: true })
-  profesionalId!: string | null;
-  @ApiProperty({ type: String, nullable: true })
-  tipoAtencionId!: string | null;
-  @ApiProperty({ type: String, nullable: true })
-  preferencias!: string | null;
-  @ApiProperty({ enum: EstadoListaEspera, enumName: 'EstadoListaEspera' })
-  estado!: EstadoListaEspera;
-  @ApiProperty({ type: String, nullable: true })
-  creadaPorId!: string | null;
-  creadaEn!: Date;
-  @ApiProperty({ type: String, format: 'date-time', nullable: true, description: 'Ultimo aviso de hora liberada' })
-  avisadaEn!: Date | null;
-  @ApiProperty({ type: String, format: 'date-time', nullable: true })
-  cerradaEn!: Date | null;
 }
 
 /** Si cancela ahora: a tiempo (sin cargo) o tardia (penalizacion sobre lo pagado). */
@@ -242,4 +221,10 @@ export class SalaVideollamadaVista {
 /** URL privada del feed iCal: se muestra una sola vez (regenerarla invalida la anterior). */
 export class FeedCalendario {
   url!: string;
+}
+
+/** "Requerir cierre": aviso al profesional (sesion sin evolucion). */
+export class CierreRequerido {
+  citaId!: string;
+  avisado!: boolean;
 }

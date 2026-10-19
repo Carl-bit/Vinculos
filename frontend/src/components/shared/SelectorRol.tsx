@@ -21,7 +21,7 @@ export function SelectorRol({ rol, roles }: { rol: Rol; roles: readonly Rol[] })
 
   if (roles.length < 2) {
     return (
-      <p className="m-0 px-2 text-[11.5px] font-semibold text-neutral-700">
+      <p className="m-0 px-2 text-[12px] font-semibold text-neutral-700">
         Rol activo: <span className="font-extrabold text-text">{NOMBRE_ROL[rol]}</span>
       </p>
     );

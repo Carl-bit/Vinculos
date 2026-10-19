@@ -94,7 +94,7 @@ export function EspaciosAgenda({ puedeEditar, nuevo, onNuevoCerrado }: { puedeEd
                 <Dato etiqueta="Sesión por defecto" valor={e.duracionDefectoMin ? `${e.duracionDefectoMin} min` : '—'} />
                 <div className="min-w-[160px] flex-[1_1_180px]">
                   <div className="mb-1.5 flex items-baseline justify-between gap-2.5">
-                    <span className="text-[10.5px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Apartado esta semana</span>
+                    <span className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Apartado esta semana</span>
                     <span className="text-[13px] font-black tabular-nums">{abiertoMin ? `${pct}%` : '—'}</span>
                   </div>
                   <span
@@ -140,7 +140,7 @@ export function EspaciosAgenda({ puedeEditar, nuevo, onNuevoCerrado }: { puedeEd
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
     <div className="min-w-[120px]">
-      <div className="mb-1 text-[10.5px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{etiqueta}</div>
+      <div className="mb-1 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{etiqueta}</div>
       <div className="text-[14px] font-extrabold tabular-nums">{valor}</div>
     </div>
   );

@@ -5,7 +5,7 @@ import { TAGS } from '../docs/openapi';
 import { Actor, Roles } from '../auth/decoradores';
 import { texto } from '../bd/claro';
 import { ContextoBd, encontrado, type UsuarioActual } from '../bd/contexto-bd.service';
-import { EditarPlantillaDto, MensajeBandeja, Preferencias, PreferenciasDto, PlantillaMensajeVista } from './notificaciones.dto';
+import { EditarPlantillaDto, MensajeBandeja, NotificacionRegistro, Preferencias, PreferenciasDto, PlantillaMensajeVista } from './notificaciones.dto';
 
 const Uuid = new ParseUUIDPipe();
 const PREFERENCIAS = { recordatorios: true, avisosOperativos: true } as const;
@@ -22,7 +22,7 @@ export class NotificacionesController {
 
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  listar() {
+  listar(): Promise<NotificacionRegistro[]> {
     // Sin creadaPorId: un candidato de derivacion no debe saber quien rechazo antes (02h).
     return this.bd.tx().notificacion.findMany({
       select: {

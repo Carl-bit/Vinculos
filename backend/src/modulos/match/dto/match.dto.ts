@@ -197,11 +197,6 @@ export class SolicitudHoraDto {
   @IsUUID()
   recomendadoId?: string;
 
-  /** "Avisarme si se libera una hora antes". */
-  @IsOptional()
-  @IsBoolean()
-  listaEspera?: boolean;
-
   /** Version de la politica de datos aceptada (id de GET /publico/politicas/POLITICA_DATOS). */
   @IsUUID()
   politicaId!: string;

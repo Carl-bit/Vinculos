@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
-import { GoneException, Injectable } from '@nestjs/common';
+import { ForbiddenException, GoneException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { ModoEnvioDocumento, Prisma } from '@prisma/client';
@@ -69,12 +69,16 @@ export class DocumentosService {
     return this.bd.tx().tipoDocumentoClinico.update({ where: { id }, data: dto });
   }
 
-  /** Solo el tratante (RLS; PRACTICANTE con consentimiento). Tipo inactivo -> 403 (RLS). */
-  async emitir(dto: EmitirDocumentoDto) {
+  /**
+   * Arma el texto con la plantilla del tipo (solo sus variables). Lo usan la
+   * emision y la vista previa: el PDF de la vista previa es el mismo que se
+   * entregara. Paciente ajeno -> 404 (RLS).
+   */
+  private async armar(dto: EmitirDocumentoDto) {
     const actor = this.bd.usuario();
     const tx = this.bd.tx();
     const [tipo, paciente, [profesional], centro] = await Promise.all([
-      tx.tipoDocumentoClinico.findUnique({ where: { id: dto.tipoDocumentoId }, select: { nombre: true, plantilla: true } }),
+      tx.tipoDocumentoClinico.findUnique({ where: { id: dto.tipoDocumentoId }, select: { nombre: true, plantilla: true, activo: true } }),
       tx.paciente.findUnique({ where: { id: dto.pacienteId }, select: { nombre: true, apellido: true } }),
       tx.$queryRaw<{ nombre: string | null }[]>`SELECT nombre FROM directorio_interno() WHERE id = ${actor.id}::uuid`,
       tx.configuracionCentro.findUniqueOrThrow({ where: { id: true }, select: { nombreCentro: true } }),
@@ -89,6 +93,14 @@ export class DocumentosService {
       nombre_centro: centro.nombreCentro,
       contenido: dto.contenido,
     });
+    return { tipo: t, texto, nombreCentro: centro.nombreCentro };
+  }
+
+  /** Solo el tratante (RLS; PRACTICANTE con consentimiento). Tipo inactivo -> 403 (RLS). */
+  async emitir(dto: EmitirDocumentoDto) {
+    const actor = this.bd.usuario();
+    const tx = this.bd.tx();
+    const { tipo: t, texto } = await this.armar(dto);
     const doc = await tx.documentoClinico.create({
       data: {
         id: randomUUID(),
@@ -103,6 +115,26 @@ export class DocumentosService {
     });
     await registrarAcceso(tx, actor, [{ pacienteId: doc.pacienteId, recurso: 'documentos_clinicos', accion: 'ESCRITURA' }]);
     return doc;
+  }
+
+  /**
+   * Vista previa (03b-5): el PDF tal como se emitiria, sin guardar nada ni
+   * enviar. No queda en accesos_ficha porque no lee datos clinicos guardados:
+   * el texto lo acaba de redactar el propio tratante.
+   */
+  async vistaPrevia(dto: EmitirDocumentoDto): Promise<Buffer> {
+    const { tipo, texto, nombreCentro } = await this.armar(dto);
+    // Mismo resultado que emitir (ahi lo impone la RLS al insertar).
+    if (!tipo.activo) throw new ForbiddenException('El tipo de documento esta desactivado');
+    return generarPdfDocumento({ centro: nombreCentro, titulo: tipo.nombre, texto, emitidoEn: new Date() });
+  }
+
+  /** Copia del tratante (03b-5): el PDF de un documento ya emitido; la lectura queda en accesos_ficha. */
+  async copia(id: string): Promise<{ nombreArchivo: string; pdf: Buffer }> {
+    const tx = this.bd.tx();
+    const doc = encontrado(await tx.documentoClinico.findUnique({ where: { id }, select: { pacienteId: true } }), 'Documento');
+    await registrarAcceso(tx, this.bd.usuario(), [{ pacienteId: doc.pacienteId, recurso: 'documentos_clinicos', accion: 'LECTURA' }]);
+    return this.pdf(id);
   }
 
   /** Tratante: los de sus pacientes. PACIENTE: los suyos (RLS). */

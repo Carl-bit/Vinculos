@@ -125,7 +125,6 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   imagenes_publicas_validas: 'Imagen invalida (JPEG, PNG o WebP de hasta 1024 px y 1 MB tras procesar)',
   contenido_publico_valido: 'Contenido publico invalido (hasta 12 servicios, color #RRGGBB)',
   politicas_coherente: 'El texto de la politica no puede estar vacio',
-  lista_espera_coherente: 'Lista de espera: indicar profesional o tipo de atencion',
   horario_centro_valido: 'Horario invalido (dia 1-7 y minutos 0-1440, inicio antes del fin)',
   horarios_espacio_valido: 'Horario invalido (dia 1-7 y minutos 0-1440, inicio antes del fin)',
   // 03b
@@ -139,9 +138,6 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   bloques_atencion_dentro_de_horario_centro: 'El bloque cae fuera del horario de atencion del centro',
   bloques_atencion_con_citas: 'El bloque tiene citas o reservas en curso: reprograme o cancele antes de liberarlo',
   horarios_espacio_bloques_fuera: 'El horario nuevo deja bloques apartados fuera: liberelos o muevalos primero',
-  lista_espera_publica_destino: 'Ese profesional o tipo de atencion no recibe inscripciones en la lista de espera',
-  lista_espera_publica_coherente: 'Lista de espera: indicar un profesional o un tipo de atencion, con nombre y correo',
-  configuracion_centro_lista_espera_publica: 'La lista de espera publica dura entre 7 y 365 dias',
   // Antes de 03b-4: reserva desde la cuenta del paciente.
   citas_portal_cuenta_restringida: 'Las horas de un menor las pide su adulto responsable desde su cuenta',
   citas_portal_tratante: 'No tienes un profesional tratante que agende por el portal: escribe al centro',
@@ -160,10 +156,8 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/fuera del horario disponible del box/, 'bloques_atencion_dentro_de_horario_espacio'],
   [/El bloque cae fuera del horario de atencion del centro/, 'bloques_atencion_dentro_de_horario_centro'],
   [/El bloque tiene citas o reservas en curso/, 'bloques_atencion_con_citas'],
-  [/no disponible para la lista de espera/, 'lista_espera_publica_destino'],
   [/Las horas de un menor las pide su adulto responsable/, 'citas_portal_cuenta_restringida'],
   [/No tienes un profesional tratante que agende/, 'citas_portal_tratante'],
-  [/Lista de espera: un profesional o un tipo de atencion/, 'lista_espera_publica_coherente'],
   [/agenda bloqueada/, 'citas_fuera_de_bloqueos'],
   [/menor de 18 sin adulto responsable/, 'citas_menor_requiere_adulto_responsable'],
   [/menor de 18: (responde|el consentimiento lo otorga) un adulto/, 'consentimientos_menor_requiere_adulto_responsable'],

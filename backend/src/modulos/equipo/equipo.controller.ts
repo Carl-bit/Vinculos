@@ -29,6 +29,9 @@ import {
   MiResenaRecibida,
   PerfilProfesionalVista,
   SupervisionVista,
+  CasoSupervision,
+  ComentarioSupervision,
+  EvolucionSupervisada,
   SupervisorCambiado,
   TarifaVista,
   TipoAtencionProfesionalVista,
@@ -252,26 +255,26 @@ export class SupervisionController {
 
   @Get('supervision/casos')
   @Roles('PROFESIONAL')
-  casos() {
+  casos(): Promise<CasoSupervision[]> {
     return this.supervision.casos();
   }
 
   @Get('supervision/casos/:codigo/evoluciones')
   @Roles('PROFESIONAL')
-  evoluciones(@Param('codigo') codigo: string) {
+  evoluciones(@Param('codigo') codigo: string): Promise<EvolucionSupervisada[]> {
     return this.supervision.evoluciones(codigo);
   }
 
   @Post('supervision/evoluciones/:id/comentarios')
   @Roles('PROFESIONAL')
-  comentar(@Param('id', Uuid) id: string, @Body() dto: ComentarioDto) {
+  comentar(@Param('id', Uuid) id: string, @Body() dto: ComentarioDto): Promise<ComentarioSupervision> {
     return this.supervision.comentar(id, dto.texto);
   }
 
   /** Los lee el tratante actual (incluido el practicante autor) y el supervisor vigente. */
   @Get('evoluciones/:id/comentarios')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  async comentarios(@Param('id', Uuid) id: string) {
+  async comentarios(@Param('id', Uuid) id: string): Promise<ComentarioSupervision[]> {
     await this.supervision.exigirEvolucionVisible(id);
     return this.supervision.comentarios(id);
   }

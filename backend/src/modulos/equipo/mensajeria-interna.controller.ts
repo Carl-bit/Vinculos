@@ -15,7 +15,16 @@ import {
   RevisarEspecialidadDto,
 } from './dto/mensajeria-interna.dto';
 import { EspecialidadesService } from './especialidades.service';
-import { EspecialidadDeclaradaVista, EspecialidadVista } from './dto/equipo-respuestas.dto';
+import {
+  EspecialidadDeclaradaVista,
+  EspecialidadVista,
+  HiloConNoLeidos,
+  HiloVista,
+  MensajeInternoEnviado,
+  MensajeRetirado,
+  MensajesHilo,
+  ParticipanteHiloVista,
+} from './dto/equipo-respuestas.dto';
 import { MensajeriaInternaService } from './mensajeria-interna.service';
 
 const Uuid = new ParseUUIDPipe();
@@ -34,33 +43,33 @@ export class MensajeriaInternaController {
 
   @Post()
   @Roles(...EQUIPO)
-  crear(@Body() dto: CrearHiloDto) {
+  crear(@Body() dto: CrearHiloDto): Promise<HiloVista> {
     return this.mensajeria.crearHilo(dto);
   }
 
   /** Lectura por polling; incluye no leidos por hilo. */
   @Get()
   @Roles(...EQUIPO)
-  listar(@Query() filtro: ListarHilosDto) {
+  listar(@Query() filtro: ListarHilosDto): Promise<HiloConNoLeidos[]> {
     return this.mensajeria.hilos(filtro);
   }
 
   @Get(':id/mensajes')
   @Roles(...EQUIPO)
-  mensajes(@Param('id', Uuid) id: string) {
+  mensajes(@Param('id', Uuid) id: string): Promise<MensajesHilo> {
     return this.mensajeria.mensajes(id);
   }
 
   @Post(':id/mensajes')
   @Roles(...EQUIPO)
-  enviar(@Param('id', Uuid) id: string, @Body() dto: MensajeInternoDto) {
+  enviar(@Param('id', Uuid) id: string, @Body() dto: MensajeInternoDto): Promise<MensajeInternoEnviado> {
     return this.mensajeria.enviar(id, dto.contenido);
   }
 
   @Post(':id/participantes')
   @HttpCode(200)
   @Roles(...EQUIPO)
-  participantes(@Param('id', Uuid) id: string, @Body() dto: ParticipantesDto) {
+  participantes(@Param('id', Uuid) id: string, @Body() dto: ParticipantesDto): Promise<ParticipanteHiloVista[]> {
     return this.mensajeria.agregarParticipantes(id, dto.participantes);
   }
 
@@ -68,7 +77,7 @@ export class MensajeriaInternaController {
   @Post('mensajes/:mensajeId/retiro')
   @HttpCode(200)
   @Roles(...EQUIPO)
-  retirar(@Param('mensajeId', Uuid) id: string) {
+  retirar(@Param('mensajeId', Uuid) id: string): Promise<MensajeRetirado> {
     return this.mensajeria.retirar(id);
   }
 }

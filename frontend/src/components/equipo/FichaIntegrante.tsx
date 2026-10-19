@@ -8,8 +8,10 @@ import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { ChoiceGroup } from '@/components/ui/ChoiceGroup';
 import { Estrellas } from '@/components/ui/Estrellas';
 import { Field, Input } from '@/components/ui/Field';
+import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
@@ -123,7 +125,7 @@ export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: strin
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
     <div className="rounded-[14px] border border-divider bg-bg px-3.5 py-3">
-      <div className="mb-1 text-[10.5px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{etiqueta}</div>
+      <div className="mb-1 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{etiqueta}</div>
       <div className="text-[15px] font-black tracking-[-0.01em] first-letter:uppercase">{valor}</div>
     </div>
   );
@@ -139,6 +141,7 @@ function Revisiones({ profesionalId, admin }: { profesionalId: string; admin: bo
   const nombreTipo = new Map((catalogo.data ?? []).map((t) => [t.id, t.nombre]));
   const nombreEsp = new Map((catEsp.data ?? []).map((e) => [e.id, e.nombre]));
   const [error, setError] = useState<string>();
+  const [asignar, setAsignar] = useState(false);
   const revisarTipo = useMutation({
     mutationFn: ({ id, estado }: { id: string; estado: 'APROBADO' | 'RECHAZADO' }) =>
       datos(
@@ -181,6 +184,13 @@ function Revisiones({ profesionalId, admin }: { profesionalId: string; admin: bo
     <Panel
       titulo="Tipos de atención y especialidades"
       bajada="El profesional los declara; solo los aprobados aparecen en el match, el directorio y las plantillas clínicas."
+      accion={
+        admin && (
+          <Button variant="secondary" icon="checklist" onClick={() => setAsignar(true)} className="!py-2.5">
+            Asignar tipos
+          </Button>
+        )
+      }
     >
       <div className="mt-4 grid gap-5 xl:grid-cols-2">
         <div>
@@ -225,7 +235,68 @@ function Revisiones({ profesionalId, admin }: { profesionalId: string; admin: bo
           {error}
         </p>
       )}
+      <Modal abierto={asignar} onCerrar={() => setAsignar(false)} titulo="Asignar tipos de atención">
+        {asignar && (
+          <AsignarTipos
+            profesionalId={profesionalId}
+            actuales={(tipos.data ?? []).filter((t) => t.estado === 'APROBADO').map((t) => t.tipoAtencionId)}
+            catalogo={(catalogo.data ?? []).filter((t) => t.activo)}
+            onListo={() => setAsignar(false)}
+          />
+        )}
+      </Modal>
     </Panel>
+  );
+}
+
+/** ADMIN asigna los tipos directamente (quedan aprobados); reemplaza la lista completa. */
+function AsignarTipos({
+  profesionalId,
+  actuales,
+  catalogo,
+  onListo,
+}: {
+  profesionalId: string;
+  actuales: string[];
+  catalogo: { id: string; nombre: string }[];
+  onListo: () => void;
+}) {
+  const cliente = useQueryClient();
+  const [elegidos, setElegidos] = useState(actuales);
+  const guardar = useMutation({
+    mutationFn: () =>
+      datos(api.PUT('/api/profesionales/{id}/tipos-atencion', { params: { path: { id: profesionalId } }, body: { tipoAtencionIds: elegidos } })),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: ['equipo', 'tipos', profesionalId] });
+      onListo();
+    },
+  });
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
+        Quedan aprobados y cuentan en el match y el directorio. Los que quites dejan de ofrecerse; las horas ya agendadas no cambian.
+      </p>
+      <ChoiceGroup
+        legend="Tipos de atención"
+        type="checkbox"
+        value={elegidos}
+        onChange={setElegidos}
+        options={catalogo.map((t) => ({ value: t.id, label: t.nombre }))}
+      />
+      {guardar.error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {guardar.error instanceof ApiError ? guardar.error.message : 'No pudimos asignar los tipos.'}
+        </p>
+      )}
+      <div className="flex justify-end gap-2.5">
+        <Button variant="ghost" onClick={onListo}>
+          Cancelar
+        </Button>
+        <Button variant="team" icon="save" loading={guardar.isPending} onClick={() => guardar.mutate()}>
+          Guardar
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -325,7 +396,7 @@ function DatosPrivados({ profesionalId }: { profesionalId: string }) {
                     ['Número de cuenta', d.numeroCuenta],
                   ].map(([k, v]) => (
                     <div key={k}>
-                      <dt className="text-[10.5px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{k}</dt>
+                      <dt className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{k}</dt>
                       <dd className="m-0 text-[14px] font-bold">{v ?? '—'}</dd>
                     </div>
                   ))}

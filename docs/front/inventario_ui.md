@@ -39,6 +39,7 @@ del diseño. Se sube un tono:
 | Texto `neutral-100` sobre botón `accent-600` | 4.1:1 | `accent-700` (hover `-800`) | 6.2:1 |
 | Texto secundario `neutral-600` sobre `bg` | 3.6:1 | `neutral-700` | 5.5:1 |
 | Placeholder | 3.1:1 | `neutral-700` | 5.5:1 |
+| Texto secundario `neutral-700` sobre el fondo del panel `neutral-300` | 4.4:1 | `neutral-800` (bajada, volver, ayuda de campo, opciones; 03b-5.1) | 6.9:1 |
 
 El punto de la marca y los bordes siguen con `-600` (son decorativos, no son texto).
 
@@ -69,7 +70,6 @@ El punto de la marca y los bordes siguen con `-600` (son decorativos, no son tex
 | Tarjeta de profesional, perfil completo, reseñas | Equipo Publico | `TarjetaPerfil`, `PerfilCompleto`, `EquipoPublico` | `equipo/` |
 | Cuestionario paso a paso y resultado | Match Publico | `AsistenteMatch`, `PreguntaMatch` | `match/` |
 | Bifurcacion, horario, datos, retencion, verificacion | Paciente - Pedir Hora | `InicioPedirHora`, `SelectorHorario`, `SolicitudHora`, `CuentaRegresiva`, `VerificarSolicitud`, `ResultadoEnlace` | `agenda/` |
-| Lista de espera sin cuenta (inscripcion, confirmar, salir) | (nuevo, 03b) | `InscripcionListaEspera`, `EnlaceListaEspera` | `agenda/` |
 | Casilla obligatoria con forma de tarjeta (aceptar politicas) | Pedir Hora | `Casilla` | `ui/` |
 | Ruta del panel o del portal sin pagina (404 dentro del layout) | (nuevo, 03b) | `not-found` de `/admin` y `/portal` con `EstadoVista` | `app/` |
 | Modal (overlay fijo) | 7 (9) | `Modal` (sobre `<dialog>` nativo, 03b-3) | `ui/` |
@@ -83,20 +83,31 @@ El punto de la marca y los bordes siguen con `-600` (son decorativos, no son tex
 | Tarjeta de login (vidrio + manchas), paso TOTP con QR, contraseña nueva, cambio de contraseña | Inicio de Sesion + nuevo | `TarjetaIngreso`, `PasoTotp`, `CamposPassword`, `CambioPassword` | `shared/` |
 | Contexto del portal (menor elegido, cuenta restringida) | (nuevo, 03b-3) | `ContextoPortal`, `SoloCuentaPlena` | `shared/` |
 | Mi profesional, horas, mensajes, datos (Mi Cuenta) | Paciente - Mi Cuenta | `MiProfesional` (equipo), `MisHoras` (agenda), `MensajeProfesional`, `MisDatos`, `NotaFicha` (pacientes) | `<modulo>/` |
-| Pagos, documentos y copia de ficha, consentimientos, avisos, lista de espera, reseñas, pedir hora | (nuevo, 03b-3) | `PagosPortal` (cobros), `DocumentosPortal`/`CopiaFicha`/`ConsentimientosPortal` (pacientes), `AvisosPortal` (nucleo), `ListaEsperaPortal`/`PedirHoraPortal` (agenda), `ResenasPortal` (equipo) | `<modulo>/` |
+| Pagos, documentos y copia de ficha, consentimientos, avisos, reseñas, pedir hora | (nuevo, 03b-3) | `PagosPortal` (cobros), `DocumentosPortal`/`CopiaFicha`/`ConsentimientosPortal` (pacientes), `AvisosPortal` (nucleo), `PedirHoraPortal` (agenda), `ResenasPortal` (equipo) | `<modulo>/` |
 | Paginas por enlace: recuperar, acceso, activar, correo, consentimiento, recordatorio, descarga | (nuevo, 03b-3) | `RecuperarCuenta`, `EnlaceAcceso`, `ActivarCuenta`, `ConfirmarCorreo` (nucleo), `ConsentimientoEnlace`, `DescargaDocumento` (pacientes), `RecordatorioEnlace` (agenda) | `<modulo>/` |
 | Tile de estadística, tarjeta de módulo | Dashboard | `Estadistica`, `TarjetaModulo` (03b-4) | `shared/` |
 | Panel con título y acción, tabla con encabezado en mayúsculas | Fichas, Cobros | `Panel`, `Tabla`/`Th`/`Td` | `ui/` |
 | Dashboard por rol | Admin - Dashboard | `InicioPanel` | `nucleo/` |
 | Lista, vista administrativa y detalle de paciente, derivar | Admin - Fichas y Pacientes, Vista Administrativa | `ListaPacientes`, `VistaAdministrativa`, `DetallePaciente`, `SeccionesPaciente`, `CrearDerivacion` | `pacientes/` |
 | Calendario consolidado, detalle de sesión (cubrir, derivar, aprobar), agendar con retención | Admin - Agenda y Espacios | `AgendaEspacios`, `CalendarioAgenda`, `DetalleCita`, `AgendarSesion` | `agenda/` |
-| Espacios, horarios del equipo, pendientes, lista de espera interna | Admin - Agenda y Espacios (+ intermedias) | `EspaciosAgenda`, `HorariosEquipo`, `PendientesAgenda`, `ListaEsperaEquipo` | `agenda/` |
+| Espacios, horarios del equipo, pendientes | Admin - Agenda y Espacios (+ intermedias) | `EspaciosAgenda`, `HorariosEquipo`, `PendientesAgenda` | `agenda/` |
 | Resumen, asistencia y pago, liquidaciones y arriendos | Admin - Cobros | `CobrosCentro`, `ResumenCobros`, `SesionesPorCobrar`, `RegistrarAsistenciaPago`, `LiquidacionesCobros` | `cobros/` |
 | Configuración del centro | Admin - Configuracion | `ConfiguracionCentro`, `DatosCentro`, `HorarioPoliticasCentro`, `PlantillasMensaje`, `ReglasCentro` | `nucleo/` |
 | Equipo: integrantes, perfil, practicantes, catálogos, reseñas, alertas | Admin - Perfil Profesional | `EquipoCentro`, `FichaIntegrante`, `FormularioPerfil`, `PracticantesEquipo`, `CatalogosEquipo`, `ModeracionResenas`, `AlertasEquipo`, `NuevaCuenta` | `equipo/` |
 | Mi perfil | Admin - Mi Perfil | `MiCuentaEquipo` (nucleo), `MiPerfilProfesional` (equipo), `IntegracionesAgenda` (agenda), `CambioPassword` (shared) | `<modulo>/` |
 | Configuración del match | Admin - Match Configuracion | `ConfiguracionMatch` | `match/` |
-| Timeline de ficha, formularios clínicos | Fichas | 03b-5 | `pacientes/` |
+| Ficha clínica: evoluciones (timeline + editor con borrador), ingreso, documentos con vista previa, adjuntos, alta | (nuevo, 03b-5.1) | `FichaClinica`, `FichaClinicaTimeline`, `EditorEvolucion`, `IngresoFicha`, `DocumentosFicha`, `AdjuntosFicha`, `AltaPaciente` | `pacientes/` |
+| Borradores, plantillas clínicas (editor de campos), catálogos clínicos, retención | (nuevo, 03b-5.1) | `BorradoresPendientes`, `PlantillasClinicas`, `EditorPlantilla`, `CatalogosClinicos`, `RetencionFichas` | `pacientes/` |
+| Valores de un registro según la versión de su plantilla | (nuevo, 03b-5.1) | `ValoresPlantilla` (junto a `FormularioDinamico`; lo reusa la supervisión) | `shared/` |
+| Accesos temporales, derivaciones (ofertas, bandeja, gestión), consentimientos del equipo, mensajes de pacientes | (nuevo, 03b-5.2) | `AccesosTemporales`, `Derivaciones`, `ConsentimientosEquipo`, `MensajesPacientes` | `pacientes/` |
+| Supervisión seudonimizada, mensajería interna, asignar tipos | (nuevo, 03b-5.2) | `SupervisionCasos`, `MensajeriaInterna`, `FichaIntegrante` | `equipo/` |
+| Comentarios de supervisión (supervisor y practicante) | (nuevo, 03b-5.2) | `ComentariosSupervision` | `shared/` |
+| Margen de traslado y horas en conflicto | (nuevo, 03b-5.2) | `MargenTraslado` | `agenda/` |
+| Bandeja de avisos | (nuevo, 03b-5.2) | `BandejaAvisos` | `nucleo/` |
+| Solicitudes de copia de la ficha (equipo) | (nuevo, 03b-5.3) | `SolicitudesEpicrisis` | `pacientes/` |
+| Filtro directo del match público | (nuevo, 03b-5.3) | `FiltroDirecto` | `match/` |
+| Reportar una reseña pública | (nuevo, 03b-5.3) | `ReportarResena` | `equipo/` |
+| Menú del panel en móvil | (nuevo, 03b-5.3) | `LayoutAdmin` | `shared/` |
 
 ## Huecos del diseño (resueltos en `design-system/vinculos/MASTER.md`)
 

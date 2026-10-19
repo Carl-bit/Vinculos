@@ -157,6 +157,9 @@ class CandidatoDerivacion {
 export class DerivacionVista {
   id!: string;
   fichaClinicaId!: string;
+  /** null si quien consulta ya no ve la ficha (p. ej. el origen tras el traspaso). */
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
   profesionalOrigenId!: string;
   @ApiProperty({ type: String, description: 'Texto clinico' })
   motivo!: string;
@@ -176,4 +179,50 @@ export class DerivacionVista {
 /** Derivacion creada: solo el id (de oficio, el supervisor no ve la derivacion). */
 export class DerivacionCreada {
   id!: string;
+}
+
+// ---------------------------------------------------------------------------
+// 03b-5.2: respuestas que faltaban en el OpenAPI.
+// ---------------------------------------------------------------------------
+
+/** Bandeja de ADMIN y supervisores: solo motivo, edad y tipo (sin nombre ni ficha). */
+export class DerivacionPendiente {
+  derivacionId!: string;
+  @ApiProperty({ enum: EstadoDerivacion, enumName: 'EstadoDerivacion' })
+  estado!: EstadoDerivacion;
+  @ApiProperty({ type: String, nullable: true, description: 'Texto clinico' })
+  motivo!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  detalle!: string | null;
+  tipoAtencion!: string;
+  edadPaciente!: number;
+}
+
+/** Oferta para el candidato OFRECIDO: solo motivo, edad y tipo; nunca quien la origino ni quien rechazo. */
+export class OfertaDerivacion {
+  derivacionId!: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Texto clinico' })
+  motivo!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  detalle!: string | null;
+  tipoAtencion!: string;
+  edadPaciente!: number;
+  venceEn!: Date;
+  /** Citas futuras del paciente que chocan con la agenda del candidato (se reprograman al aceptar). */
+  citasEnConflicto!: number;
+}
+
+export class DerivacionRespondida {
+  derivacionId!: string;
+  acepta!: boolean;
+}
+
+export class PracticantePropuesto {
+  derivacionId!: string;
+  practicanteId!: string;
+}
+
+export class ConsentimientoSolicitado {
+  id!: string;
+  pacienteId!: string;
 }

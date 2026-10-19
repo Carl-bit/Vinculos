@@ -47,7 +47,7 @@ test('Agenda: agendar retiene la hora con cuenta regresiva y solo confirma al pu
   }
 });
 
-test('Agenda: pestañas de espacios, horarios del equipo, pendientes y lista de espera', async ({ page }) => {
+test('Agenda: pestañas de espacios, horarios del equipo y pendientes', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/agenda?vista=espacios');
   await expect(page.getByRole('heading', { name: 'Box 1 (Demo)' })).toBeVisible();
@@ -61,9 +61,6 @@ test('Agenda: pestañas de espacios, horarios del equipo, pendientes y lista de 
   await page.getByRole('tab', { name: 'Pendientes' }).click();
   await expect(page.getByRole('heading', { name: 'Por aprobar' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Por reprogramar' })).toBeVisible();
-
-  await page.getByRole('tab', { name: 'Lista de espera' }).click();
-  await expect(page.getByRole('button', { name: 'Agregar a la lista' })).toBeVisible();
 });
 
 test('Agenda: el detalle de una sesion futura ofrece cubrir sesion y explica la derivacion', async ({ page }) => {

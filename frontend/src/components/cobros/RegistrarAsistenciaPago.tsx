@@ -320,7 +320,7 @@ export function RegistrarAsistenciaPago({
 function Cifra({ etiqueta, valor, destacado }: { etiqueta: string; valor: string; destacado?: boolean }) {
   return (
     <div className={`rounded-[14px] border px-3.5 py-3 ${destacado ? 'border-accent-500 bg-accent-100' : 'border-divider bg-neutral-100'}`}>
-      <div className="mb-1 text-[10.5px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{etiqueta}</div>
+      <div className="mb-1 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{etiqueta}</div>
       <div className="text-[18px] font-black tracking-[-0.02em] tabular-nums">{valor}</div>
     </div>
   );

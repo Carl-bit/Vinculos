@@ -21,7 +21,9 @@ import { usePaciente, useTiposAtencion, type PacienteVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
+import { AccesosPaciente } from './AccesosTemporales';
 import { CrearDerivacion } from './CrearDerivacion';
+import { SolicitudesEpicrisis } from './SolicitudesEpicrisis';
 import {
   AccesoFicha,
   AdultosResponsables,
@@ -68,7 +70,7 @@ export function DetallePaciente({ id, rol }: { id: string; rol: Rol }) {
                   </h1>
                   {edad < 18 && <Badge tono="atencion">Menor de edad</Badge>}
                 </div>
-                <p className="m-0 mt-1.5 text-[14px] font-semibold text-neutral-700">
+                <p className="m-0 mt-1.5 text-[14px] font-semibold text-neutral-800">
                   {edad} años · {formatoFecha(p.fechaNacimiento.slice(0, 10))}
                   {tipo ? ` · ${tipo}` : ''}
                   {p.rut ? ` · RUT ${formatoRut(p.rut)}` : ''}
@@ -99,11 +101,13 @@ export function DetallePaciente({ id, rol }: { id: string; rol: Rol }) {
                 <DerivacionRecibida pacienteId={p.id} habilitado={rol === 'ADMIN' || tratante} />
                 {(rol === 'PROFESIONAL' || rol === 'PRACTICANTE') && tratante && <IndicacionesPaciente pacienteId={p.id} />}
                 <HistorialSesiones paciente={p} rol={rol} tratante={tratante} />
+                {admin && <SolicitudesEpicrisis pacienteId={p.id} puedeResolver={rol === 'ADMIN'} />}
               </div>
               <div className="flex min-w-0 flex-col gap-4">
                 <AccesoFicha paciente={p} rol={rol} tratante={tratante} />
                 <AdultosResponsables paciente={p} />
                 <ConsentimientoPaciente paciente={p} rol={rol} />
+                {rol === 'ADMIN' && <AccesosPaciente pacienteId={p.id} tratanteId={p.profesionalId} puedeOtorgar />}
                 {admin && <CuentaPaciente paciente={p} />}
               </div>
             </div>

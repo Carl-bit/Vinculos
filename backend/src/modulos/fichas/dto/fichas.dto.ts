@@ -6,6 +6,7 @@ import {
   EstadoTipoSesion,
   ModoEnvioDocumento,
   MotivoAccesoTemporal,
+  TipoPolitica,
   NivelRiesgo,
   TipoPlantillaClinica,
 } from '@prisma/client';
@@ -273,6 +274,25 @@ export class CatalogoDto {
   @IsString()
   @MaxLength(500)
   descripcion?: string;
+}
+
+/** Editar o desactivar una intervencion o un estado de avance (nunca DELETE: quedan en evoluciones antiguas). */
+export class EditarCatalogoDto {
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(2, 80)
+  nombre?: string;
+
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @MaxLength(500)
+  descripcion?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  activo?: boolean;
 }
 
 export class RevisionRetencionDto {
@@ -638,7 +658,7 @@ export class FichaVista {
 }
 
 class PoliticaDeAceptacion {
-  @ApiProperty({ enum: ['POLITICA_DATOS', 'CONSENTIMIENTO_ATENCION', 'TERMINOS_AGENDAMIENTO'] })
+  @ApiProperty({ enum: TipoPolitica, enumName: 'TipoPolitica' })
   tipo!: string;
   version!: number;
 }
@@ -765,4 +785,166 @@ export class AccesoTemporalVista {
   hasta!: Date;
   otorgadoPorId!: string;
   creadoEn!: Date;
+}
+
+// ---------------------------------------------------------------------------
+// 03b-5.1: respuestas del resto de Fichas (el front toma el contrato del
+// OpenAPI generado; nunca tipos a mano).
+// ---------------------------------------------------------------------------
+
+/** Respuesta de crear una evolucion (o confirmar un borrador): el registro y el aviso de texto libre. */
+export class EvolucionCreada {
+  evolucion!: EvolucionVista;
+  /** Aviso que la UI muestra junto al texto libre (no escribir datos identificatorios). */
+  advertencia!: string;
+}
+
+/** Borrador de evolucion (solo su autor lo ve). Contenido y valores descifrados. */
+export class BorradorVista {
+  id!: string;
+  fichaClinicaId!: string;
+  /** Solo en la lista: null si el autor ya no ve la ficha (por ejemplo, tras una derivacion). */
+  @ApiProperty({ type: String, nullable: true, required: false })
+  pacienteId?: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  citaId!: string | null;
+  contenido!: string;
+  @ApiProperty({ type: String, nullable: true })
+  plantillaId!: string | null;
+  @ApiProperty({ type: 'object', additionalProperties: true, nullable: true })
+  valores!: Record<string, unknown> | null;
+  creadoEn!: Date;
+  actualizadoEn!: Date;
+}
+
+/** Ficha de ingreso (append-only) con la version de plantilla con que se escribio. */
+export class IngresoVista {
+  id!: string;
+  fichaClinicaId!: string;
+  autorId!: string;
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  valores!: Record<string, unknown>;
+  @ApiProperty({ type: String, nullable: true })
+  corrigeAId!: string | null;
+  createdAt!: Date;
+  plantilla!: PlantillaClinicaVista;
+}
+
+export class AltaRegistrada {
+  id!: string;
+  pacienteId!: string;
+  @ApiProperty({ type: String, format: 'date' })
+  fecha!: Date;
+}
+
+/** Alta del paciente (motivo descifrado; solo el tratante). La ficha se conserva. */
+export class AltaVista {
+  id!: string;
+  pacienteId!: string;
+  @ApiProperty({ type: String, format: 'date' })
+  fecha!: Date;
+  @ApiProperty({ type: String, nullable: true })
+  motivo!: string | null;
+  registradaPorId!: string;
+  creadaEn!: Date;
+}
+
+/** Tipo de sesion (B): el equipo clinico propone, ADMIN aprueba, rechaza o desactiva. */
+export class TipoSesionVista {
+  id!: string;
+  nombre!: string;
+  @ApiProperty({ type: String, nullable: true })
+  descripcion!: string | null;
+  @ApiProperty({ enum: EstadoTipoSesion, enumName: 'EstadoTipoSesion' })
+  estado!: EstadoTipoSesion;
+  propuestoPorId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  revisadoPorId!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  revisadoEn!: Date | null;
+  activo!: boolean;
+  createdAt!: Date;
+  updatedAt!: Date;
+}
+
+/** Intervencion o estado de avance (catalogos B de ADMIN). */
+export class CatalogoClinicoVista {
+  id!: string;
+  nombre!: string;
+  @ApiProperty({ type: String, nullable: true })
+  descripcion!: string | null;
+  activo!: boolean;
+  createdAt!: Date;
+  updatedAt!: Date;
+}
+
+/** Ficha que supero los 15 años desde la ultima atencion (la consulta queda registrada). */
+export class FichaSobreRetencion {
+  ficha_id!: string;
+  paciente_id!: string;
+  ultima_atencion_en!: Date;
+  @ApiProperty({ enum: DecisionRetencion, enumName: 'DecisionRetencion', nullable: true })
+  ultima_decision!: DecisionRetencion | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  ultima_revision_en!: Date | null;
+}
+
+/** Decision de la revision de retencion (PURGAR solo se registra: la API no borra fichas). */
+export class RevisionRetencionVista {
+  id!: string;
+  fichaId!: string;
+  revisadoPorId!: string;
+  revisadoEn!: Date;
+  @ApiProperty({ enum: DecisionRetencion, enumName: 'DecisionRetencion' })
+  decision!: DecisionRetencion;
+  motivo!: string;
+}
+
+/** Tipo de documento clinico: plantilla con variables permitidas; nunca se borra (se desactiva). */
+export class TipoDocumentoVista {
+  id!: string;
+  nombre!: string;
+  activo!: boolean;
+  plantilla!: string;
+  createdAt!: Date;
+  updatedAt!: Date;
+}
+
+/** Envio de un documento por correo (enlace que expira o adjunto pedido por el paciente). */
+export class EnvioDocumentoVista {
+  id!: string;
+  documentoId!: string;
+  @ApiProperty({ enum: ModoEnvioDocumento, enumName: 'ModoEnvioDocumento' })
+  modo!: ModoEnvioDocumento;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  expiraEn!: Date | null;
+  enviadoEn!: Date;
+}
+
+class DescargaDocumentoVista {
+  usuarioId!: string;
+  descargadoEn!: Date;
+}
+
+/** Historial de envios de un documento con sus descargas (auditoria). */
+export class EnvioDocumentoDetalle {
+  id!: string;
+  @ApiProperty({ enum: ModoEnvioDocumento, enumName: 'ModoEnvioDocumento' })
+  modo!: ModoEnvioDocumento;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  expiraEn!: Date | null;
+  enviadoPorId!: string;
+  enviadoEn!: Date;
+  descargas!: DescargaDocumentoVista[];
+}
+
+/** Adjunto externo de la ficha (metadatos; el contenido se descarga aparte). */
+export class AdjuntoFichaVista {
+  id!: string;
+  pacienteId!: string;
+  subidoPorId!: string;
+  nombreArchivo!: string;
+  tipoMime!: string;
+  tamanoBytes!: number;
+  subidoEn!: Date;
 }

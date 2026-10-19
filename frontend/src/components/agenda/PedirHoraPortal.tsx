@@ -174,16 +174,8 @@ export function PedirHoraPortal() {
             setAviso(undefined);
           }}
           sinHoras={
-            <Aviso
-              tono="info"
-              titulo="Por ahora no hay horas libres"
-              accion={
-                <ButtonLink href="/portal/lista-espera" variant="secondary" icon="notifications_active">
-                  Avisarme cuando haya
-                </ButtonLink>
-              }
-            >
-              Anótate en la lista de espera y te avisamos cuando se libere una hora o tu profesional abra horas nuevas.
+            <Aviso tono="info" titulo="Por ahora no hay horas libres">
+              Vuelve a revisar más adelante: tu profesional abre horas nuevas en su agenda.
             </Aviso>
           }
         />

@@ -76,6 +76,11 @@ export function DetalleCita({
     onSuccess: listo,
     onError: fallo('No pudimos cancelar la cita.'),
   });
+  // ADMIN: aviso al profesional de que la sesion sigue sin evolucion (la cuenta madre no ve si la tiene: es clinico).
+  const requerir = useMutation({
+    mutationFn: () => datos(api.POST('/api/citas/{id}/cierre-requerido', { params: { path: { id: cita!.id } } })),
+    onError: fallo('No pudimos enviar el aviso.'),
+  });
 
   if (!cita) return null;
   const pasada = new Date(cita.fin).getTime() < Date.now();
@@ -159,7 +164,26 @@ export function DetalleCita({
         )}
 
         {pasada ? (
-          <p className="m-0 text-[13px] font-semibold text-neutral-700">Sesión ya ocurrida: la asistencia y el pago se registran en Cobros.</p>
+          <div className="flex flex-col gap-3">
+            <p className="m-0 text-[13px] font-semibold text-neutral-700">Sesión ya ocurrida: la asistencia y el pago se registran en Cobros.</p>
+            {rol === 'ADMIN' && cita.estado === 'CONFIRMADA' && (
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  variant="secondary"
+                  icon="notifications"
+                  loading={requerir.isPending}
+                  disabled={requerir.isSuccess}
+                  onClick={() => requerir.mutate()}
+                  className="!py-2.5"
+                >
+                  Requerir cierre
+                </Button>
+                <span role="status" className="text-[12.5px] font-semibold text-neutral-800">
+                  {requerir.isSuccess ? 'Avisamos al profesional.' : 'Avisa al profesional si la sesión sigue sin evolución registrada.'}
+                </span>
+              </div>
+            )}
+          </div>
         ) : cancelando ? (
           <div className="flex flex-wrap items-center justify-end gap-2.5">
             <span className="mr-auto text-[13.5px] font-extrabold">¿Cancelar esta cita? Se avisa al paciente.</span>

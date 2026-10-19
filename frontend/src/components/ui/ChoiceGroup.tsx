@@ -33,7 +33,7 @@ export function ChoiceGroup({ legend, options, type, value, onChange, required, 
         {required && <span aria-hidden="true"> *</span>}
       </legend>
       {options.map((o) => (
-        <label key={o.value} className="flex cursor-pointer items-center gap-[9px] text-[13.5px] font-semibold text-neutral-700">
+        <label key={o.value} className="flex cursor-pointer items-center gap-[9px] text-[13.5px] font-semibold text-neutral-800">
           <input
             type={type}
             name={id}

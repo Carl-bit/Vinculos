@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, StreamableFile } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-import { TAGS } from '../../core/docs/openapi';
+import { RespuestaArchivo, TAGS } from '../../core/docs/openapi';
 import { Modulo } from '../../core/modulos/modulos';
 import { Roles } from '../../core/auth/decoradores';
 import { CobrosService } from './cobros.service';
@@ -77,12 +77,14 @@ export class CobrosController {
   }
 
   @Get('reporte/pdf')
+  @RespuestaArchivo('application/pdf')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
   async reportePdf(@Query() periodo: PeriodoDto) {
     return pdf(await this.cobros.reportePdf(periodo.desde, periodo.hasta), 'reporte-cobros.pdf');
   }
 
   @Get('liquidaciones/:id/pdf')
+  @RespuestaArchivo('application/pdf')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
   async liquidacionPdf(@Param('id', Uuid) id: string) {
     return pdf(await this.cobros.liquidacionPdf(id), 'liquidacion.pdf');

@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin', '/portal', '/sesion', '/pedir-hora/verificar', '/lista-espera', '/ingreso', '/cuenta', '/consentimiento', '/recordatorio'],
+      disallow: ['/admin', '/portal', '/sesion', '/pedir-hora/verificar', '/ingreso', '/cuenta', '/consentimiento', '/recordatorio'],
     },
   };
 }

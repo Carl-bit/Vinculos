@@ -56,8 +56,11 @@ export function RecordatorioEnlace() {
     setEnviando(true);
     setError(undefined);
     try {
-      const ruta = tipo === 'confirmacion' ? '/api/recordatorios/{token}/confirmacion' : '/api/recordatorios/{token}/cancelacion';
-      const res = await datos(api.POST(ruta, { params: { path: { token } } }));
+      const res = await datos(
+        tipo === 'confirmacion'
+          ? api.POST('/api/recordatorios/{token}/confirmacion', { params: { path: { token } } })
+          : api.POST('/api/recordatorios/{token}/cancelacion', { params: { path: { token } } }),
+      );
       setResultado({ respuesta: res.respuesta, aTiempo: res.cancelacion?.aTiempo, penalizacion: res.cancelacion?.penalizacionPorcentaje });
       setCancelar(false);
     } catch (e) {

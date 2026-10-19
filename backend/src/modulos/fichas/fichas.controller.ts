@@ -20,7 +20,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { EstadoTipoSesion } from '@prisma/client';
 
-import { ErrorCuerpoGrande, TAGS } from '../../core/docs/openapi';
+import { ErrorCuerpoGrande, RespuestaArchivo, TAGS } from '../../core/docs/openapi';
 import { Roles } from '../../core/auth/decoradores';
 import { AdjuntosService } from './adjuntos.service';
 import { CatalogosRetencionService } from './catalogos-retencion.service';
@@ -43,6 +43,7 @@ import {
   AceptacionVista,
   AdultoResponsableVista,
   CatalogoDto,
+  EditarCatalogoDto,
   CrearAdultoResponsableDto,
   CrearEvolucionDto,
   CrearPacienteDto,
@@ -64,6 +65,20 @@ import {
   RevisionRetencionDto,
   TipoDocumentoDto,
   AccesoTemporalVista,
+  AdjuntoFichaVista,
+  AltaRegistrada,
+  AltaVista,
+  BorradorVista,
+  CatalogoClinicoVista,
+  EnvioDocumentoDetalle,
+  EnvioDocumentoVista,
+  EvolucionCreada,
+  FichaSobreRetencion,
+  IngresoVista,
+  PlantillaClinicaVista,
+  RevisionRetencionVista,
+  TipoDocumentoVista,
+  TipoSesionVista,
 } from './dto/fichas.dto';
 import { EvolucionesService } from './evoluciones.service';
 import { IngresosService } from './ingresos.service';
@@ -180,13 +195,13 @@ export class PacientesController {
   /** Alta: el tratante, con fecha y motivo (cifrado). La ficha se conserva. */
   @Post(':id/alta')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  alta(@Param('id', Uuid) id: string, @Body() dto: AltaDto) {
+  alta(@Param('id', Uuid) id: string, @Body() dto: AltaDto): Promise<AltaRegistrada> {
     return this.seguimiento.registrarAlta(id, dto.fecha, dto.motivo);
   }
 
   @Get(':id/altas')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  altas(@Param('id', Uuid) id: string) {
+  altas(@Param('id', Uuid) id: string): Promise<AltaVista[]> {
     return this.seguimiento.altas(id);
   }
 
@@ -221,34 +236,34 @@ export class SeguimientoController {
   /** Borradores propios (solo su autor los ve). */
   @Get('borradores')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  borradores(@Query() filtro: ListarBorradoresDto) {
+  borradores(@Query() filtro: ListarBorradoresDto): Promise<BorradorVista[]> {
     return this.seguimiento.borradores(filtro.fichaId);
   }
 
   @Post('fichas/:fichaId/borradores')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  crearBorrador(@Param('fichaId', Uuid) fichaId: string, @Body() dto: BorradorDto) {
+  crearBorrador(@Param('fichaId', Uuid) fichaId: string, @Body() dto: BorradorDto): Promise<BorradorVista> {
     return this.seguimiento.crearBorrador(fichaId, dto);
   }
 
   /** Guardado automatico. */
   @Put('borradores/:id')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  guardarBorrador(@Param('id', Uuid) id: string, @Body() dto: BorradorDto) {
+  guardarBorrador(@Param('id', Uuid) id: string, @Body() dto: BorradorDto): Promise<BorradorVista> {
     return this.seguimiento.guardarBorrador(id, dto);
   }
 
   @Delete('borradores/:id')
   @HttpCode(204)
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  descartarBorrador(@Param('id', Uuid) id: string) {
+  descartarBorrador(@Param('id', Uuid) id: string): Promise<void> {
     return this.seguimiento.descartarBorrador(id);
   }
 
   /** Pasa a evolucion (append-only) y el borrador se elimina. */
   @Post('borradores/:id/confirmacion')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  confirmarBorrador(@Param('id', Uuid) id: string, @Body() dto: ConfirmarBorradorDto) {
+  confirmarBorrador(@Param('id', Uuid) id: string, @Body() dto: ConfirmarBorradorDto): Promise<EvolucionCreada> {
     return this.seguimiento.confirmarBorrador(id, dto);
   }
 
@@ -276,7 +291,7 @@ export class EvolucionesController {
 
   @Post()
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  crear(@Param('fichaId', Uuid) fichaId: string, @Body() dto: CrearEvolucionDto) {
+  crear(@Param('fichaId', Uuid) fichaId: string, @Body() dto: CrearEvolucionDto): Promise<EvolucionCreada> {
     return this.evoluciones.crear(fichaId, dto);
   }
 
@@ -295,44 +310,56 @@ export class CatalogosClinicosController {
 
   @Get('tipos-sesion')
   @Roles(...TODOS)
-  tiposSesion(@Query('estado', new ParseEnumPipe(EstadoTipoSesion, { optional: true })) estado?: EstadoTipoSesion) {
+  tiposSesion(@Query('estado', new ParseEnumPipe(EstadoTipoSesion, { optional: true })) estado?: EstadoTipoSesion): Promise<TipoSesionVista[]> {
     return this.catalogos.tiposSesion(estado);
   }
 
   @Post('tipos-sesion')
   @Roles('ADMIN', 'PROFESIONAL', 'PRACTICANTE')
-  proponer(@Body() dto: ProponerTipoSesionDto) {
+  proponer(@Body() dto: ProponerTipoSesionDto): Promise<TipoSesionVista> {
     return this.catalogos.proponerTipoSesion(dto);
   }
 
   @Patch('tipos-sesion/:id')
   @Roles('ADMIN')
-  revisar(@Param('id', Uuid) id: string, @Body() dto: RevisarTipoSesionDto) {
+  revisar(@Param('id', Uuid) id: string, @Body() dto: RevisarTipoSesionDto): Promise<TipoSesionVista> {
     return this.catalogos.revisarTipoSesion(id, dto);
   }
 
   @Get('intervenciones')
   @Roles(...TODOS)
-  intervenciones() {
+  intervenciones(): Promise<CatalogoClinicoVista[]> {
     return this.catalogos.intervenciones();
   }
 
   @Post('intervenciones')
   @Roles('ADMIN')
-  crearIntervencion(@Body() dto: CatalogoDto) {
+  crearIntervencion(@Body() dto: CatalogoDto): Promise<CatalogoClinicoVista> {
     return this.catalogos.crearIntervencion(dto);
+  }
+
+  @Patch('intervenciones/:id')
+  @Roles('ADMIN')
+  editarIntervencion(@Param('id', Uuid) id: string, @Body() dto: EditarCatalogoDto): Promise<CatalogoClinicoVista> {
+    return this.catalogos.editarIntervencion(id, dto);
   }
 
   @Get('estados-avance')
   @Roles(...TODOS)
-  estadosAvance() {
+  estadosAvance(): Promise<CatalogoClinicoVista[]> {
     return this.catalogos.estadosAvance();
   }
 
   @Post('estados-avance')
   @Roles('ADMIN')
-  crearEstadoAvance(@Body() dto: CatalogoDto) {
+  crearEstadoAvance(@Body() dto: CatalogoDto): Promise<CatalogoClinicoVista> {
     return this.catalogos.crearEstadoAvance(dto);
+  }
+
+  @Patch('estados-avance/:id')
+  @Roles('ADMIN')
+  editarEstadoAvance(@Param('id', Uuid) id: string, @Body() dto: EditarCatalogoDto): Promise<CatalogoClinicoVista> {
+    return this.catalogos.editarEstadoAvance(id, dto);
   }
 }
 
@@ -345,19 +372,19 @@ export class RetencionController {
 
   @Get('fichas')
   @Roles('ADMIN')
-  fichas() {
+  fichas(): Promise<FichaSobreRetencion[]> {
     return this.catalogos.fichasSobreRetencion();
   }
 
   @Post('revisiones')
   @Roles('ADMIN')
-  revisar(@Body() dto: RevisionRetencionDto) {
+  revisar(@Body() dto: RevisionRetencionDto): Promise<RevisionRetencionVista> {
     return this.catalogos.revisarRetencion(dto);
   }
 
   @Get('revisiones')
   @Roles('ADMIN')
-  revisiones() {
+  revisiones(): Promise<RevisionRetencionVista[]> {
     return this.catalogos.revisionesRetencion();
   }
 }
@@ -371,19 +398,19 @@ export class TiposDocumentoController {
 
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  listar() {
+  listar(): Promise<TipoDocumentoVista[]> {
     return this.documentos.tipos();
   }
 
   @Post()
   @Roles('ADMIN')
-  crear(@Body() dto: TipoDocumentoDto) {
+  crear(@Body() dto: TipoDocumentoDto): Promise<TipoDocumentoVista> {
     return this.documentos.crearTipo(dto);
   }
 
   @Patch(':id')
   @Roles('ADMIN')
-  editar(@Param('id', Uuid) id: string, @Body() dto: EditarTipoDocumentoDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarTipoDocumentoDto): Promise<TipoDocumentoVista> {
     return this.documentos.editarTipo(id, dto);
   }
 }
@@ -402,8 +429,18 @@ export class DocumentosController {
   @Post()
   @Roles('PROFESIONAL', 'PRACTICANTE')
   @ErrorCuerpoGrande()
-  emitir(@Body() dto: EmitirDocumentoDto) {
+  emitir(@Body() dto: EmitirDocumentoDto): Promise<DocumentoClinicoVista> {
     return this.documentos.emitir(dto);
+  }
+
+  /** Vista previa del PDF tal como se emitiria (no guarda ni envia). Tipo desactivado -> 403. */
+  @Post('vista-previa')
+  @HttpCode(200)
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  @RespuestaArchivo('application/pdf')
+  @ErrorCuerpoGrande()
+  async vistaPrevia(@Body() dto: EmitirDocumentoDto) {
+    return archivo(await this.documentos.vistaPrevia(dto), 'application/pdf', 'vista-previa.pdf');
   }
 
   @Get()
@@ -415,6 +452,7 @@ export class DocumentosController {
   /** Destino del enlace del correo: exige sesion del paciente; registra la descarga. PDF generado al entregar. */
   @Get('descarga/:token')
   @Roles('PACIENTE', 'RESPONSABLE')
+  @RespuestaArchivo('application/pdf')
   async descargar(@Param('token') token: string) {
     const { nombreArchivo, pdf } = await this.documentos.descargar(token);
     return archivo(pdf, 'application/pdf', nombreArchivo);
@@ -423,20 +461,30 @@ export class DocumentosController {
   /** Antes de 03b-4: descarga desde el portal con sesion (queda registrada como la del enlace). */
   @Get(':id/pdf')
   @Roles('PACIENTE', 'RESPONSABLE')
+  @RespuestaArchivo('application/pdf')
   async descargarPortal(@Param('id', Uuid) id: string) {
     const { nombreArchivo, pdf } = await this.documentos.descargarPortal(id);
     return archivo(pdf, 'application/pdf', nombreArchivo);
   }
 
+  /** Copia del tratante: el PDF de un documento emitido (queda en accesos_ficha). */
+  @Get(':id/copia')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  @RespuestaArchivo('application/pdf')
+  async copia(@Param('id', Uuid) id: string) {
+    const { nombreArchivo, pdf } = await this.documentos.copia(id);
+    return archivo(pdf, 'application/pdf', nombreArchivo);
+  }
+
   @Post(':id/envios')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  enviar(@Param('id', Uuid) id: string, @Body() dto: EnviarDocumentoDto) {
+  enviar(@Param('id', Uuid) id: string, @Body() dto: EnviarDocumentoDto): Promise<EnvioDocumentoVista> {
     return this.documentos.enviar(id, dto.modo);
   }
 
   @Get(':id/envios')
   @Roles('ADMIN', 'PROFESIONAL', 'PRACTICANTE')
-  envios(@Param('id', Uuid) id: string) {
+  envios(@Param('id', Uuid) id: string): Promise<EnvioDocumentoDetalle[]> {
     return this.documentos.envios(id);
   }
 
@@ -466,7 +514,7 @@ export class AdjuntosFichaController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', required: ['archivo'], properties: { archivo: { type: 'string', format: 'binary', description: 'PDF, PNG o JPEG' } } } })
   @ErrorCuerpoGrande()
-  subir(@Param('id', Uuid) pacienteId: string, @UploadedFile() archivo?: Express.Multer.File) {
+  subir(@Param('id', Uuid) pacienteId: string, @UploadedFile() archivo?: Express.Multer.File): Promise<AdjuntoFichaVista> {
     if (!archivo) {
       throw new BadRequestException('Falta el archivo (campo "archivo", multipart/form-data)');
     }
@@ -475,12 +523,13 @@ export class AdjuntosFichaController {
 
   @Get('pacientes/:id/adjuntos')
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  listar(@Param('id', Uuid) pacienteId: string) {
+  listar(@Param('id', Uuid) pacienteId: string): Promise<AdjuntoFichaVista[]> {
     return this.adjuntos.listar(pacienteId);
   }
 
   @Get('adjuntos-ficha/:id')
   @Roles('PROFESIONAL', 'PRACTICANTE')
+  @RespuestaArchivo('application/pdf', 'image/png', 'image/jpeg')
   async descargar(@Param('id', Uuid) id: string) {
     const a = await this.adjuntos.descargar(id);
     return archivo(a.contenido, a.tipoMime, a.nombreArchivo);
@@ -500,33 +549,33 @@ export class PlantillasClinicasController {
 
   @Get()
   @Roles('ADMIN', 'PROFESIONAL', 'PRACTICANTE')
-  listar(@Query() filtro: ListarPlantillasDto) {
+  listar(@Query() filtro: ListarPlantillasDto): Promise<PlantillaClinicaVista[]> {
     return this.plantillas.listar(filtro);
   }
 
   @Get(':id')
   @Roles('ADMIN', 'PROFESIONAL', 'PRACTICANTE')
-  obtener(@Param('id', Uuid) id: string) {
+  obtener(@Param('id', Uuid) id: string): Promise<PlantillaClinicaVista> {
     return this.plantillas.obtener(id);
   }
 
   @Post()
   @Roles('ADMIN', 'PROFESIONAL')
-  proponer(@Body() dto: ProponerPlantillaDto) {
+  proponer(@Body() dto: ProponerPlantillaDto): Promise<PlantillaClinicaVista> {
     return this.plantillas.proponer(dto);
   }
 
   /** Solo un borrador (una version publicada es inmutable: 409). */
   @Patch(':id')
   @Roles('ADMIN', 'PROFESIONAL')
-  editar(@Param('id', Uuid) id: string, @Body() dto: EditarPlantillaClinicaDto) {
+  editar(@Param('id', Uuid) id: string, @Body() dto: EditarPlantillaClinicaDto): Promise<PlantillaClinicaVista> {
     return this.plantillas.editar(id, dto);
   }
 
   /** Editar una plantilla = version nueva en borrador (copia de la indicada). */
   @Post(':id/versiones')
   @Roles('ADMIN', 'PROFESIONAL')
-  nuevaVersion(@Param('id', Uuid) id: string) {
+  nuevaVersion(@Param('id', Uuid) id: string): Promise<PlantillaClinicaVista> {
     return this.plantillas.nuevaVersion(id);
   }
 
@@ -534,14 +583,14 @@ export class PlantillasClinicasController {
   @Post(':id/publicacion')
   @HttpCode(200)
   @Roles('ADMIN')
-  publicar(@Param('id', Uuid) id: string) {
+  publicar(@Param('id', Uuid) id: string): Promise<PlantillaClinicaVista> {
     return this.plantillas.publicar(id);
   }
 
   @Post(':id/desactivacion')
   @HttpCode(200)
   @Roles('ADMIN')
-  desactivar(@Param('id', Uuid) id: string) {
+  desactivar(@Param('id', Uuid) id: string): Promise<PlantillaClinicaVista> {
     return this.plantillas.desactivar(id);
   }
 }
@@ -555,13 +604,13 @@ export class IngresosController {
 
   @Post()
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  crear(@Param('fichaId', Uuid) fichaId: string, @Body() dto: CrearIngresoDto) {
+  crear(@Param('fichaId', Uuid) fichaId: string, @Body() dto: CrearIngresoDto): Promise<IngresoVista> {
     return this.ingresos.crear(fichaId, dto);
   }
 
   @Get()
   @Roles('PROFESIONAL', 'PRACTICANTE')
-  listar(@Param('fichaId', Uuid) fichaId: string) {
+  listar(@Param('fichaId', Uuid) fichaId: string): Promise<IngresoVista[]> {
     return this.ingresos.listar(fichaId);
   }
 }
