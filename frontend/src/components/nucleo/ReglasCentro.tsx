@@ -23,6 +23,8 @@ type Numerico =
   | 'penalizacionCancelacionPorcentaje'
   | 'cobroInasistenciaPorcentaje'
   | 'comisionCentroPorcentaje'
+  | 'horasPlazoPagoEquipo'
+  | 'diasGraciaMorosidad'
   | 'margenTrasladoMin'
   | 'minutosRetencionSolicitud'
   | 'plazoRespuestaDerivacionHoras'
@@ -57,6 +59,22 @@ const GRUPOS: { id: string; titulo: string; bajada: string; campos: Campo[] }[] 
         min: 0,
         max: 100,
         ayuda: 'Se descuenta en la liquidación de cada profesional.',
+      },
+      {
+        k: 'horasPlazoPagoEquipo',
+        etiqueta: 'Pago previo de las horas que agenda el equipo',
+        unidad: 'horas',
+        min: 0,
+        max: 168,
+        ayuda: 'Horas antes de la sesión. Si vence sin pago, la hora se mantiene y se paga en el centro.',
+      },
+      {
+        k: 'diasGraciaMorosidad',
+        etiqueta: 'Días de gracia antes de contar una deuda',
+        unidad: 'días',
+        min: 0,
+        max: 90,
+        ayuda: 'Días después de una sesión impaga. 0 = la deuda cuenta apenas termina la sesión.',
       },
     ],
   },
@@ -143,6 +161,7 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
   );
   const [modelo, setModelo] = useState(c.modeloCobro);
   const [exigeEvolucion, setExigeEvolucion] = useState(c.liquidarExigeEvolucion);
+  const [bloquearMorosos, setBloquearMorosos] = useState(c.bloquearAgendaMorosos);
   const [guardado, setGuardado] = useState(false);
   const guardar = useGuardarConfiguracion(() => setGuardado(true));
   const enviar = () => {
@@ -156,6 +175,7 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
       ...(Object.fromEntries(campos.map((f) => [f.k, Number(valores[f.k])])) as Record<Numerico, number>),
       modeloCobro: modelo,
       liquidarExigeEvolucion: exigeEvolucion,
+      bloquearAgendaMorosos: bloquearMorosos,
     });
   };
   return (
@@ -204,6 +224,18 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
                     onChange={(v) => {
                       setGuardado(false);
                       setExigeEvolucion(v);
+                    }}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Interruptor
+                    tono="team"
+                    etiqueta="No agendar a pacientes con deuda"
+                    descripcion="Con una sesión impaga, ni el paciente ni el profesional pueden agendar la siguiente. Administración o gestión pueden autorizar una hora indicando el motivo."
+                    activo={bloquearMorosos}
+                    onChange={(v) => {
+                      setGuardado(false);
+                      setBloquearMorosos(v);
                     }}
                   />
                 </div>

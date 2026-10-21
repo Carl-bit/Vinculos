@@ -22,6 +22,7 @@ const INICIO = new Date('2026-10-12T00:00:00-03:00');
 describe('programacion de jobs (reloj simulado)', () => {
   const disparos: { job: string; en: Date }[] = [];
 
+  // Un dia de reloj simulado con tres jobs por minuto: mas de los 5 s por defecto en equipos lentos.
   beforeAll(async () => {
     jest.useFakeTimers({ now: INICIO });
     jest.spyOn(JobsService.prototype, 'conLock').mockImplementation(async (job: string) => {
@@ -45,7 +46,7 @@ describe('programacion de jobs (reloj simulado)', () => {
     await modulo.init();
     await jest.advanceTimersByTimeAsync(24 * HORA);
     await modulo.close();
-  });
+  }, 60_000);
 
   afterAll(() => {
     jest.useRealTimers();
@@ -61,20 +62,24 @@ describe('programacion de jobs (reloj simulado)', () => {
       'avisar_consentimientos_por_vencer',
       'enviar_recordatorios',
       'limpiar_solicitudes',
+      'avisar_pagos_pendientes',
     ]) {
       expect(de(job)).toHaveLength(144);
       expect(de(job).every((d) => d.en.getUTCMinutes() % 10 === 0 && d.en.getUTCSeconds() === 0)).toBe(true);
     }
   });
 
-  it('cada hora: procesar bajas', () => {
-    expect(de('procesar_bajas')).toHaveLength(24);
-    expect(de('procesar_bajas').every((d) => d.en.getUTCMinutes() === 0)).toBe(true);
+  it('cada hora: procesar bajas y avisar deudas', () => {
+    for (const job of ['procesar_bajas', 'avisar_deudas']) {
+      expect(de(job)).toHaveLength(24);
+      expect(de(job).every((d) => d.en.getUTCMinutes() === 0)).toBe(true);
+    }
   });
 
-  it('cada minuto: enviar notificaciones y reintentar correos de cuenta', () => {
+  it('cada minuto: enviar notificaciones, reintentar correos de cuenta y liberar reservas vencidas', () => {
     expect(de('enviar_notificaciones')).toHaveLength(24 * 60);
     expect(de('reintentar_correos_cuenta')).toHaveLength(24 * 60);
+    expect(de('liberar_reservas_vencidas')).toHaveLength(24 * 60);
   });
 
   it('una vez al dia a las 03:30 de Chile: purgar mensajes internos', () => {
@@ -100,6 +105,9 @@ describe('programacion de jobs (reloj simulado)', () => {
         'procesar_bajas',
         'enviar_notificaciones',
         'reintentar_correos_cuenta',
+        'liberar_reservas_vencidas',
+        'avisar_pagos_pendientes',
+        'avisar_deudas',
         'purgar_mensajes_internos',
         'verificar_canarios',
       ]),

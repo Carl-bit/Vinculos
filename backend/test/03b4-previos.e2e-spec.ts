@@ -1,7 +1,8 @@
 /**
  * Antes de 03b-4 (pendientes de 03b-3): reserva desde la cuenta del paciente
  * (solo con su tratante; el adolescente no reserva; el adulto responsable por
- * su menor; aprobacion de pacientes nuevos; politica vigente; EXCLUDE) y
+ * su menor; politica vigente; EXCLUDE; 03b-3.2: sin aprobacion aparte, se
+ * confirma con el pago) y
  * descarga del documento desde el portal con sesion.
  */
 import { randomUUID } from 'node:crypto';
@@ -128,21 +129,6 @@ describe('03b-4 previos: reserva y descarga desde el portal', () => {
     const ajeno = await t.datos.paciente(tratante.id, { fechaNacimiento: new Date('2015-01-01') });
     expect((await reservar(responsable, { ...hora(), pacienteId: ajeno.id })).status).toBe(404);
     expect((await reservar(tratante, { ...hora(), pacienteId: ajeno.id })).status).toBe(403);
-  });
-
-  it('profesional que aprueba pacientes nuevos: SOLICITADA si aun no tiene cita confirmada con el', async () => {
-    const aprueba = await t.datos.usuario('PROFESIONAL');
-    await t.datos.disponibleSiempre(aprueba.id);
-    await t
-      .http()
-      .put('/api/profesionales/yo/perfil')
-      .set(await tk(aprueba))
-      .send({ especialidad: 'Psicologia', modalidad: 'MIXTA', requiereAprobacionNuevos: true });
-    const paciente = await t.datos.usuarioPaciente(aprueba.id);
-    const r = await reservar(paciente, hora());
-    expect(r.body.estado).toBe('SOLICITADA');
-    await t.dueno.cita.update({ where: { id: r.body.citaId }, data: { estado: 'CONFIRMADA' } });
-    expect((await reservar(paciente, hora())).body.estado).toBe('CONFIRMADA');
   });
 
   it('descarga desde el portal: el PDF del paciente queda registrado; otro paciente 404 y el equipo 403', async () => {

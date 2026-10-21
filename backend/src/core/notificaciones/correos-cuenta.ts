@@ -29,7 +29,8 @@ const TEXTOS: Record<TipoCorreoCuenta, { ruta: string; asunto: string; cuerpo: s
   VERIFICACION_SOLICITUD: {
     ruta: '/pedir-hora/verificar',
     asunto: 'Confirme su correo para reservar la hora',
-    cuerpo: 'Para confirmar la hora que eligió, abra este enlace antes de que venza la reserva temporal:',
+    cuerpo:
+      'Retuvimos la hora que eligió con pago en el centro. Para reservarla a su nombre, confirme su correo con este enlace antes de que venza la retención; después la hora se libera y el enlace solo sirve si nadie la tomó:',
   },
   VERIFICACION_CORREO: {
     ruta: '/cuenta/correo',

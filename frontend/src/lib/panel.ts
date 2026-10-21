@@ -56,6 +56,10 @@ export function useTiposAtencion() {
 /** id -> "Nombre Apellido" de los pacientes que el rol ve. */
 export const nombresPacientes = (lista: PacienteVista[] | undefined) => new Map((lista ?? []).map((p) => [p.id, `${p.nombre} ${p.apellido}`]));
 
+/** Nombre del paciente de una cita; la hora retenida (03b-3.2: reserva sin cuenta en curso) aun no tiene paciente. */
+export const nombreDeCita = (nombres: Map<string, string>, c: Pick<CitaVista, 'pacienteId'>) =>
+  c.pacienteId ? (nombres.get(c.pacienteId) ?? 'Paciente') : 'Hora retenida';
+
 const ZONA = 'America/Santiago';
 const diaChile = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: ZONA });
 

@@ -104,7 +104,7 @@ cambia). Dominio `@centro-prueba.cl`.
 | `gestion` | GESTION (habilitado) | agenda, pagos, consentimientos con respaldo |
 | `profesional1` | PROFESIONAL | tratante de Paciente Prueba y Diego; origen de derivaciones; perfil publico completo (FONASA, idiomas, cita destacada, formacion verificada, reseña publicada) |
 | `profesional2` | PROFESIONAL | supervisor del practicante; tratante de Sofia; candidato 1 |
-| `profesional3` | PROFESIONAL | candidato 2 de la derivacion en curso; exige aprobacion de pacientes nuevos (Pedir hora termina en "solicitud enviada") |
+| `profesional3` | PROFESIONAL | candidato 2 de la derivacion en curso |
 | `practicante` | PRACTICANTE | tratante de Camila (consentimiento vigente), acceso por 90 dias |
 | `paciente` | PACIENTE | Paciente Prueba (RUT 11.111.111-1) |
 | `paciente2` | PACIENTE | Camila Demo Practicante (RUT 22.222.222-2) |
@@ -117,7 +117,8 @@ cambia). Dominio `@centro-prueba.cl`.
 
 Sitio publico (03b-2): el seed publica el contenido del landing, la politica de
 datos y los terminos de agendamiento (sin politica de datos no se puede pedir
-hora). Los correos de verificacion llegan a Mailpit (http://127.0.0.1:8025).
+hora). Los correos (enlace para pago en el centro, invitacion a la cuenta,
+avisos de pago) llegan a Mailpit (http://127.0.0.1:8025).
 
 `profesional3` existe para que la derivacion en curso tenga dos candidatos
 ademas del origen (con solo dos profesionales no se puede).
@@ -143,6 +144,13 @@ ademas del origen (con solo dos profesionales no se puede).
   del practicante; +4 presencial con pago parcial (15.000 de 35.000); +4
   presencial de Sofia; +5 online de Camila; +6 online; +7 presencial de
   Diego. Las del practicante quedan SIN_COBRO (no tiene tarifa).
+- 03b-3.2 (la hora se confirma con el pago; medios: centro, transferencia y
+  pasarela simulada; 50% para confirmar): +8 presencial de Diego agendada por
+  `gestion` pendiente de pago (hasta 12 h antes); reservas sin cuenta con
+  Profesional Uno: Rita (+13, retenida sin paciente; se libera a los 30 min),
+  Sara (+14, pago en el centro y correo verificado: confirmada), Tamara (+9,
+  transferencia por validar; al validarla nace la paciente), Lina (+11,
+  pagada con la pasarela: confirmada) y Victor (+12, liberada).
 
 ## Flujos
 
@@ -345,6 +353,36 @@ Marcar la casilla con OK o con lo observado.
 | 13.5 | `admin` | Mensajes › Avisos › aviso de una cita › Ir a resolverlo | Abre el detalle de esa cita en la agenda | [ ] |
 | 13.6 | `admin` | Agendar sesión › elegir hora › recargar la página › Agendar sesión | Retoma la hora retenida con la cuenta regresiva | [ ] |
 | 13.7 | `admin` (móvil) | Panel en el teléfono | Barra con el rol y "Menú"; al navegar el menú se cierra | [ ] |
+
+### 14. Pago tardío, deudas y caja (03b-3.3)
+
+Para ver deudas con datos de antes de la migracion: como dueño, `UPDATE configuracion_centro SET morosidad_desde = now() - interval '30 days';`
+(las sesiones anteriores a la migracion no cuentan por defecto).
+
+| # | Cuenta | Paso | Esperado | OK |
+|---|---|---|---|---|
+| 14.1 | `admin` | Configuración › Reglas › Cobros y cancelaciones | Plazo de pago previo del equipo (horas), días de gracia y "No agendar a pacientes con deuda" se guardan | [ ] |
+| 14.2 | `admin` | Hora del equipo pendiente de pago con el plazo vencido (job) | Queda confirmada con pago en el centro; no llega "Su hora se liberó" | [ ] |
+| 14.3 | `profesional1` | Agendar sesión para un paciente con una sesión pasada impaga | Mensaje "sesiones anteriores con pago pendiente"; no hay botón para autorizar | [ ] |
+| 14.4 | `admin` o `gestion` | Mismo paciente › Agendar sesión › motivo › "Autorizar y confirmar" | La cita se crea sin perder la hora retenida | [ ] |
+| 14.5 | `admin` | Cobros › Deudas | Lista al paciente con saldo y "Registrar pago"; al pagar desaparece | [ ] |
+| 14.6 | `admin` | Inicio del panel | "Pacientes con deuda" enlaza a Cobros › Deudas | [ ] |
+| 14.7 | `admin` | Cobros › sesión pasada › No asistió › "Sí: pide reembolso" | Pide motivo; devuelve lo pagado menos la penalización de la cancelación tardía | [ ] |
+| 14.8 | `admin` | Agenda › hora retenida presencial › Cobrar en caja | Crea paciente y ficha, la hora queda confirmada y llega "Active su cuenta" al correo de la reserva | [ ] |
+| 14.9 | `admin` | Agenda › hora retenida › Liberar hora (con motivo) | La hora queda libre; la página de la reserva muestra la hora liberada | [ ] |
+| 14.10 | `gestion` | Agenda › hora retenida online | Solo "Liberar hora" (la online no se cobra en caja) | [ ] |
+
+### 15. Deuda en línea y enlace de pago (03b-3.4)
+
+Medios en línea: Configuración › pago en línea (pasarela simulada) habilitada.
+
+| # | Cuenta | Paso | Esperado | OK |
+|---|---|---|---|---|
+| 15.1 | `paciente` | Portal › Pagos › sesión realizada con saldo › "Pagar en línea" | Paso de pago con el saldo; pago simulado aprobado: "Pago registrado"; ya puede pedir hora | [ ] |
+| 15.2 | sin sesión | Correo "Sesión con pago pendiente" de un paciente sin cuenta (Mailpit) › enlace | `/pagar` muestra la sesión y el paso de pago; al pagar, "Pago registrado" | [ ] |
+| 15.3 | sin sesión | Abrir de nuevo el mismo enlace | Muestra que ya no hay saldo (varios usos) | [ ] |
+| 15.4 | `profesional1` | Agenda › su hora retenida presencial › Cobrar en caja | Crea paciente y ficha; la hora queda confirmada | [ ] |
+| 15.5 | `profesional1` | Cobros › su sesión realizada › Registrar pago | Queda registrado (cobro del centro: el dinero es del centro) | [ ] |
 
 ## Revisar la BD
 

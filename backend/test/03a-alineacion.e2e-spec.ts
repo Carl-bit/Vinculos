@@ -610,33 +610,6 @@ describe('03a alineacion con el diseño', () => {
         .send({ token: tokenDe(inv), password: 'clave-de-ema-1' });
       expect(cuenta.body.rol).toBe('PACIENTE');
     });
-
-    it('profesional que aprueba pacientes nuevos: SOLICITADA, aprobacion del tratante e invitacion', async () => {
-      const publico = await t.datos.usuario('PROFESIONAL');
-      await publicar(publico, { requiereAprobacionNuevos: true });
-      correos().length = 0;
-      const email = `nuevo-${randomUUID().slice(0, 8)}@test.cl`;
-      await t.http().post('/api/publico/solicitudes').send(solicitud(publico.id, email));
-      const v = await t
-        .http()
-        .post('/api/publico/solicitudes/verificacion')
-        .send({ token: tokenDe(ultimoA(email)) });
-      expect(v.body).toEqual(expect.objectContaining({ estado: 'SOLICITADA', invitacionEnviada: false }));
-      expect(
-        (
-          await t
-            .http()
-            .post(`/api/citas/${v.body.citaId}/aprobacion`)
-            .set(await tk(otroProf))
-        ).status,
-      ).toBe(404);
-      const a = await t
-        .http()
-        .post(`/api/citas/${v.body.citaId}/aprobacion`)
-        .set(await tk(publico));
-      expect(a.status).toBe(200);
-      expect(a.body).toEqual(expect.objectContaining({ estado: 'CONFIRMADA', invitacion: expect.objectContaining({ rol: 'PACIENTE' }) }));
-    });
   });
 
   describe('clinica y agenda', () => {

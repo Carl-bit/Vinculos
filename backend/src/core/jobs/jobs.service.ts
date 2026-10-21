@@ -113,6 +113,42 @@ export class JobsService implements OnApplicationBootstrap {
   }
 
   /**
+   * 03b-3.1: el vencimiento lo decide el servidor. Citas pendientes de pago o
+   * retenidas (03b-3.2) con el plazo vencido -> LIBERADA, con aviso al
+   * paciente si ya existe (HORA_LIBERADA). 03b-3.3: la que agendo el equipo
+   * se mantiene con pago en el centro (si ya no cabe en la agenda, se libera).
+   */
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'liberar_reservas_vencidas' })
+  liberarReservasVencidas(): Promise<ResultadoJob> {
+    return this.conLock('liberar_reservas_vencidas', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT liberar_reservas_vencidas() AS n`;
+      return n;
+    });
+  }
+
+  /** 03b-3.2: recordatorios de pago (48 h y 24 h antes) de las horas que agenda el equipo. */
+  @Cron(CronExpression.EVERY_10_MINUTES, { name: 'avisar_pagos_pendientes' })
+  avisarPagosPendientes(): Promise<ResultadoJob> {
+    return this.conLock('avisar_pagos_pendientes', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT avisar_pagos_pendientes() AS n`;
+      return n;
+    });
+  }
+
+  /**
+   * 03b-3.3: sesiones terminadas con saldo: aviso al paciente (bandeja y
+   * correo, tambien sin cuenta si tiene correo) y al profesional, una vez por
+   * cita. La lista del equipo y el bloqueo de agenda salen de la misma regla.
+   */
+  @Cron(CronExpression.EVERY_HOUR, { name: 'avisar_deudas' })
+  avisarDeudas(): Promise<ResultadoJob> {
+    return this.conLock('avisar_deudas', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT avisar_deudas() AS n`;
+      return n;
+    });
+  }
+
+  /**
    * 03a-2: purga mensajes internos mas antiguos que
    * configuracion_centro.retencion_mensajes_dias (default 365) y los hilos
    * que quedan vacios. La mensajeria no es el expediente.

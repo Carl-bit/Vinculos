@@ -50,7 +50,6 @@ export class PerfilProfesionalVista {
   idiomas!: string[];
   @ApiProperty({ type: String, nullable: true })
   citaDestacada!: string | null;
-  requiereAprobacionNuevos!: boolean;
   createdAt!: Date;
   updatedAt!: Date;
 }

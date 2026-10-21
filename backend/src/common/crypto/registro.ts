@@ -98,6 +98,13 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'MensajeInterno', campo: 'contenido', tabla: 'mensajes_internos', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
   { modelo: 'CorreoCuentaPendiente', campo: 'email', tabla: 'correos_cuenta_pendientes', columna: 'email', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'CorreoCuentaPendiente', campo: 'cuerpo', tabla: 'correos_cuenta_pendientes', columna: 'cuerpo', categoria: 'IDENTIFICACION', id: 'id' },
+  // 03b-3.1: cuenta del centro para transferencias y comprobante de la transferencia de una cita.
+  { modelo: 'CuentaBancariaCentro', campo: 'rut', tabla: 'cuenta_bancaria_centro', columna: 'rut', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'CuentaBancariaCentro', campo: 'banco', tabla: 'cuenta_bancaria_centro', columna: 'banco', categoria: 'FINANCIERO', id: 'id' },
+  { modelo: 'CuentaBancariaCentro', campo: 'tipoCuenta', tabla: 'cuenta_bancaria_centro', columna: 'tipo_cuenta', categoria: 'FINANCIERO', id: 'id' },
+  { modelo: 'CuentaBancariaCentro', campo: 'numeroCuenta', tabla: 'cuenta_bancaria_centro', columna: 'numero_cuenta', categoria: 'FINANCIERO', id: 'id' },
+  { modelo: 'CuentaBancariaCentro', campo: 'titular', tabla: 'cuenta_bancaria_centro', columna: 'titular', categoria: 'FINANCIERO', id: 'id' },
+  { modelo: 'Transferencia', campo: 'comprobante', tabla: 'transferencias', columna: 'comprobante', categoria: 'FINANCIERO', id: 'id' },
 ];
 
 /**

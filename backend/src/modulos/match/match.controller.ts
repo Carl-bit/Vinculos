@@ -176,7 +176,7 @@ export class PublicoController {
     return this.match.match(dto);
   }
 
-  /** Pedir hora sin cuenta: retiene la hora y envia el enlace de verificacion al correo. */
+  /** Pedir hora sin cuenta: retiene la hora (cita RETENIDA) y entrega el token de la reserva para pagar; correo solo si se paga en el centro. */
   @Post('solicitudes')
   @HttpCode(202)
   @Modulo('AGENDA')
@@ -184,7 +184,7 @@ export class PublicoController {
     return this.solicitudes.crear(dto);
   }
 
-  /** El enlace del correo confirma la hora (o la deja por aprobar) y, si corresponde, invita a crear la cuenta. */
+  /** El enlace del correo (pago en el centro) confirma la hora y, si corresponde, invita a crear la cuenta. */
   @Post('solicitudes/verificacion')
   @HttpCode(200)
   @Modulo('AGENDA')

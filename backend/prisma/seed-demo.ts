@@ -14,6 +14,7 @@
  * cargar desde cero: npm run demo:reset (recrea la BD local). Se niega con
  * NODE_ENV=production. Usuarios y contraseña: docs/pruebas/guion_manual.md.
  */
+import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -24,7 +25,9 @@ import { PrismaClient } from '@prisma/client';
 
 import { AppModule } from '../src/app.module';
 import { configurarApp } from '../src/configurar-app';
+import { hashToken } from '../src/core/auth/tokens-correo';
 import { codigoTotp } from '../src/core/auth/totp';
+import { JobsService } from '../src/core/jobs/jobs.service';
 import { dvRut } from '../src/core/validacion/validadores';
 
 const logger = new Logger('SeedDemo');
@@ -183,7 +186,6 @@ async function main(): Promise<void> {
 
     // Perfil, tarifas, sala de videollamada y horario habitual (lunes a viernes 09:00-19:00, referencia para apartar box).
     // Perfiles publicos variados (03b-2): secciones condicionales del perfil, filtros y match.
-    // Profesional Tres exige aprobacion de pacientes nuevos ("solicitud enviada" en Pedir hora).
     const perfiles = [
       [
         prof1,
@@ -221,7 +223,6 @@ async function main(): Promise<void> {
         null,
         {
           enfoques: ['Cognitivo-conductual', 'Trabajo', 'Ánimo'],
-          requiereAprobacionNuevos: true,
         },
       ],
     ] as const;
@@ -426,7 +427,12 @@ async function main(): Promise<void> {
       tipo: 'EVOLUCION',
       nombre: 'Evolucion psicoterapia (Demo)',
       definicion: campos([
-        ['foco', 'Foco de la sesion', 'SELECCION_MULTIPLE', { opciones: ['Sintomas', 'Vinculos', 'Trabajo', 'Plan de seguridad'], visible_en_supervision: true }],
+        [
+          'foco',
+          'Foco de la sesion',
+          'SELECCION_MULTIPLE',
+          { opciones: ['Sintomas', 'Vinculos', 'Trabajo', 'Plan de seguridad'], visible_en_supervision: true },
+        ],
         ['animo', 'Animo reportado (1 a 10)', 'NUMERO', { visible_en_supervision: true }],
         ['tareas', 'Tareas acordadas', 'TEXTO'],
       ]),
@@ -530,6 +536,60 @@ async function main(): Promise<void> {
       pacienteId: sofia.id,
       contenido: 'Mensaje demo de la madre: Sofía llegará 10 minutos tarde el martes.',
     });
+
+    // --- 03b-3.1 / 03b-3.2: la hora se confirma con el pago ------------------------
+    // Cuenta del centro, los tres medios (pasarela simulada: modo demostracion) y 50% para confirmar. Las citas
+    // anteriores quedan CONFIRMADAS (se agendaron con solo pago en el centro); abajo, un ejemplo de cada estado.
+    await llamar(admin, 'PUT', '/cobros/cuenta-centro', {
+      rut: rut('76111222'),
+      banco: 'Banco Ficticio (Demo)',
+      tipoCuenta: 'Cuenta corriente',
+      numeroCuenta: '000-111-222',
+      titular: 'Centro de Prueba Vinculos SpA (Demo)',
+    });
+    await llamar(admin, 'PATCH', '/configuracion', {
+      mediosPagoHabilitados: ['PAGO_EN_CENTRO', 'TRANSFERENCIA', 'PASARELA'],
+      plazoValidacionTransferenciaHoras: 24,
+      porcentajePagoConfirmacion: 50,
+    });
+    // Agendada por el equipo: pendiente de pago hasta 12 h antes de la sesion (aviso al paciente; recordatorios 48 h y 24 h).
+    await cita({ pacienteId: diego.id, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(8, '11:00') });
+    const politicaDatos = (await llamar(null, 'GET', '/publico/politicas/POLITICA_DATOS')).id;
+    const terminosAgenda = (await llamar(null, 'GET', '/publico/politicas/TERMINOS_AGENDAMIENTO')).id;
+    // Pedir hora sin cuenta: la reserva (cita RETENIDA, sin paciente) se crea con la funcion de la BD (sin cifrados: sin
+    // telefono ni RUT) para conocer el token de la reserva; el medio y el pago pasan por la API como en el navegador.
+    const pedirSinCuenta = async (nombre: string, dias: number) => {
+      const reserva = randomBytes(32).toString('base64url');
+      const h = horario(dias, '09:00');
+      const [r] = await dueno.$queryRaw<{ cita_id: string }[]>`
+        SELECT cita_id FROM crear_solicitud_hora(${randomUUID()}::uuid, ${prof1Id}::uuid, 'PRESENCIAL', ${new Date(h.inicio)},
+          ${new Date(h.fin)}, ${nombre}, 'Demo Pago', '1990-05-05', ${`${nombre.toLowerCase()}.pago@${DOMINIO}`}, NULL, NULL, NULL,
+          NULL, NULL, NULL, NULL, NULL, ${politicaDatos}::uuid, ${terminosAgenda}::uuid, ${hashToken(randomBytes(32).toString('base64url'))},
+          ${hashToken(reserva)})`;
+      return { reserva, citaId: r.cita_id };
+    };
+    // Retenida: medio sin elegir (vence a los minutos_retencion_solicitud; la libera el job).
+    await pedirSinCuenta('Rita', 13);
+    // Pago en el centro: el gatillo es el correo (aca el enlace se emite como dueño para conocer el token).
+    const centro = await pedirSinCuenta('Sara', 14);
+    const correo = randomBytes(32).toString('base64url');
+    await dueno.$queryRaw`
+      SELECT * FROM elegir_medio_reserva(${hashToken(centro.reserva)}, 'PAGO_EN_CENTRO', ${randomUUID()}::uuid, ${hashToken(correo)})`;
+    await llamar(null, 'POST', '/publico/solicitudes/verificacion', { token: correo });
+    // Transferencia por validar (sin comprobante: es opcional; GESTION la valida en Cobros y ahi nace el paciente). Subir
+    // el comprobante extiende el plazo hasta la validacion; aca se extiende como dueño para que el ejemplo dure.
+    const transferencia = await pedirSinCuenta('Tamara', 9);
+    await llamar(null, 'POST', '/publico/reservas/medio', { reserva: transferencia.reserva, medio: 'TRANSFERENCIA' });
+    await dueno.cita.update({ where: { id: transferencia.citaId }, data: { pagoVenceEn: new Date(Date.now() + 24 * 3_600_000) } });
+    // Pagada en linea con la pasarela simulada (webhook firmado, como en produccion): ahi nace el paciente.
+    const enLinea = await pedirSinCuenta('Lina', 11);
+    await llamar(null, 'POST', '/publico/reservas/medio', { reserva: enLinea.reserva, medio: 'PASARELA' });
+    const cobro = await llamar(null, 'POST', '/publico/reservas/pasarela', { reserva: enLinea.reserva });
+    await llamar(null, 'POST', '/publico/pasarela/simulada', { referencia: cobro.referencia, pagado: true });
+    // Liberada: vencio el plazo de pago (como dueño se adelanta el plazo; el job es el que la libera).
+    const vencida = await pedirSinCuenta('Victor', 12);
+    await dueno.cita.update({ where: { id: vencida.citaId }, data: { pagoVenceEn: new Date(Date.now() - 60_000) } });
+    await app.get(JobsService).liberarReservasVencidas();
   } finally {
     await app.close();
     await dueno.$disconnect();

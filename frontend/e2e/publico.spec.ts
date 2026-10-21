@@ -3,7 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 /**
  * Sitio publico (03b-2) contra la API local, el seed demo y Mailpit
  * (npm run dev en la raiz). Cada prueba usa un correo nuevo: la BD limita a
- * dos solicitudes pendientes por correo.
+ * dos reservas en curso por correo. 03b-3.2: el seed habilita pago en el
+ * centro, transferencia y pasarela simulada: la hora se confirma con el pago
+ * (o con el enlace del correo si se paga en el centro).
  */
 const MAILPIT = 'http://127.0.0.1:8025/api/v1';
 const correoNuevo = (etiqueta: string) => `e2e.${etiqueta}.${Date.now()}@ejemplo.cl`;
@@ -22,7 +24,7 @@ async function enlaceDelCorreo(para: string, ruta = '/pedir-hora/verificar'): Pr
   throw new Error(`Sin correo con ${ruta} para ${para}`);
 }
 
-/** Desde /pedir-hora/<id>: primera hora libre, datos y envio. Devuelve el correo usado. */
+/** Desde /pedir-hora/<id>: primera hora libre, datos y envio; queda la hora retenida en el paso de pago. Devuelve el correo usado. */
 async function pedirHora(page: Page, etiqueta: string, menor = false): Promise<string> {
   const email = correoNuevo(etiqueta);
   await page
@@ -40,13 +42,13 @@ async function pedirHora(page: Page, etiqueta: string, menor = false): Promise<s
     await page.getByLabel('Nombre completo').fill('Adulta Responsable');
     await page.getByLabel('Relación con el paciente').fill('Madre');
   }
-  await page.getByRole('button', { name: 'Retener la hora y enviar el enlace' }).click();
+  await page.getByRole('button', { name: 'Retener la hora y pagar' }).click();
   // Sin aceptar la politica no se envia.
   await expect(page.getByText('Para pedir hora debes aceptar la política de datos.')).toBeVisible();
   await page.getByLabel(/política de datos personales/).check();
   await page.getByLabel(/términos de agendamiento/).check();
-  await page.getByRole('button', { name: 'Retener la hora y enviar el enlace' }).click();
-  await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
+  await page.getByRole('button', { name: 'Retener la hora y pagar' }).click();
+  await expect(page.getByRole('heading', { name: 'Paga para confirmar tu hora' })).toBeVisible();
   await expect(page.getByText('Tu hora está retenida')).toBeVisible();
   await expect(page.getByText(/^(29|30):\d{2}$/)).toBeVisible();
   return email;
@@ -108,11 +110,19 @@ test('match: paso a paso, aviso de riesgo, resultado explicado y lleva a pedir h
   await expect(page.getByRole('heading', { name: 'Elige el horario de tu sesión' })).toBeVisible();
 });
 
-test('pedir hora sin cuenta: retiene, correo y confirmación al verificar', async ({ page }) => {
+/** En el paso de pago: elige un medio y continua. */
+async function elegirMedio(page: Page, medio: RegExp) {
+  await page.getByLabel(medio).check();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+}
+
+test('pedir hora sin cuenta con pago en el centro: retiene, correo y confirmación al verificar', async ({ page }) => {
   await page.goto('/equipo');
   await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
   await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
   const email = await pedirHora(page, 'confirmada');
+  await elegirMedio(page, /^Pago en el centro/);
+  await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
   await page.goto(await enlaceDelCorreo(email));
   await page.getByRole('button', { name: 'Confirmar mi hora' }).click();
   await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible();
@@ -122,14 +132,17 @@ test('pedir hora sin cuenta: retiene, correo y confirmación al verificar', asyn
   await expect(page.getByRole('heading', { name: 'Este enlace ya no sirve' })).toBeVisible();
 });
 
-test('profesional que aprueba pacientes nuevos: termina en solicitud enviada; menor exige adulto responsable', async ({ page }) => {
+test('pago en línea (pasarela simulada): el pago confirma la hora y llega la invitación a la cuenta; menor exige adulto responsable', async ({ page }) => {
   await page.goto('/equipo');
   await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Tres/ }).click();
   await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
   const email = await pedirHora(page, 'menor', true);
-  await page.goto(await enlaceDelCorreo(email));
-  await page.getByRole('button', { name: 'Confirmar mi hora' }).click();
-  await expect(page.getByRole('heading', { name: 'Solicitud enviada' })).toBeVisible();
+  await elegirMedio(page, /^Pago en línea/);
+  await page.getByRole('button', { name: /Pagar .* en línea/ }).click();
+  await page.getByRole('button', { name: 'Simular pago aprobado' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible({ timeout: 15_000 });
+  // El paciente nace con el pago: la invitacion llega al correo de la reserva (adulto responsable).
+  expect(await enlaceDelCorreo(email, '/cuenta/activar')).toContain('token=');
 });
 
 test('ya soy paciente: solo pide el correo y responde siempre igual', async ({ page }) => {

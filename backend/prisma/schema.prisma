@@ -63,43 +63,89 @@ datasource db {
 /// y ADMIN la actualiza. Trigger: no se puede apagar rol_gestion_habilitado con
 /// usuarios GESTION activos.
 model ConfiguracionCentro {
-  id                                Boolean        @id @default(true)
-  rolGestionHabilitado              Boolean        @default(false) @map("rol_gestion_habilitado")
-  plazoRespuestaDerivacionHoras     Int            @default(24) @map("plazo_respuesta_derivacion_horas")
-  modeloCobro                       ModeloCobro    @default(CENTRO) @map("modelo_cobro")
-  plazoConsentimientoHoras          Int            @default(48) @map("plazo_consentimiento_horas")
-  plazoOposicionHoras               Int            @default(48) @map("plazo_oposicion_horas")
-  diasGraciaCierre                  Int            @default(30) @map("dias_gracia_cierre")
+  id                                Boolean             @id @default(true)
+  rolGestionHabilitado              Boolean             @default(false) @map("rol_gestion_habilitado")
+  plazoRespuestaDerivacionHoras     Int                 @default(24) @map("plazo_respuesta_derivacion_horas")
+  modeloCobro                       ModeloCobro         @default(CENTRO) @map("modelo_cobro")
+  plazoConsentimientoHoras          Int                 @default(48) @map("plazo_consentimiento_horas")
+  plazoOposicionHoras               Int                 @default(48) @map("plazo_oposicion_horas")
+  diasGraciaCierre                  Int                 @default(30) @map("dias_gracia_cierre")
   /// Minutos minimos entre citas de distinta modalidad del mismo profesional.
-  margenTrasladoMin                 Int            @default(30) @map("margen_traslado_min")
+  margenTrasladoMin                 Int                 @default(30) @map("margen_traslado_min")
   /// Remitente visible de los correos y emisor de boletas del modelo CENTRO.
-  nombreCentro                      String         @default("Centro") @map("nombre_centro")
-  rutCentro                         String?        @map("rut_centro")
+  nombreCentro                      String              @default("Centro") @map("nombre_centro")
+  rutCentro                         String?             @map("rut_centro")
   /// Cobros (02h). Los porcentajes quedan pendientes de definir con el caso de estudio.
-  plazoAvisoCancelacionHoras        Int            @default(24) @map("plazo_aviso_cancelacion_horas")
-  penalizacionCancelacionPorcentaje Decimal        @default(0) @map("penalizacion_cancelacion_porcentaje") @db.Decimal(5, 2)
-  cobroInasistenciaPorcentaje       Decimal        @default(0) @map("cobro_inasistencia_porcentaje") @db.Decimal(5, 2)
-  comisionCentroPorcentaje          Decimal        @default(0) @map("comision_centro_porcentaje") @db.Decimal(5, 2)
+  plazoAvisoCancelacionHoras        Int                 @default(24) @map("plazo_aviso_cancelacion_horas")
+  penalizacionCancelacionPorcentaje Decimal             @default(0) @map("penalizacion_cancelacion_porcentaje") @db.Decimal(5, 2)
+  cobroInasistenciaPorcentaje       Decimal             @default(0) @map("cobro_inasistencia_porcentaje") @db.Decimal(5, 2)
+  comisionCentroPorcentaje          Decimal             @default(0) @map("comision_centro_porcentaje") @db.Decimal(5, 2)
   /// 02i: horas antes de la cita en que sale el recordatorio (0 = desactivado).
   /// 02j: si esta activo, mayor que plazoAvisoCancelacionHoras (CHECK).
-  recordatorioHorasAntes            Int            @default(48) @map("recordatorio_horas_antes")
+  recordatorioHorasAntes            Int                 @default(48) @map("recordatorio_horas_antes")
   /// 03a: modulos contratados. Solo el operador los cambia (sin GRANT UPDATE a la API).
-  modulosActivos                    ModuloCentro[] @default([PAGINA_PUBLICA, FICHAS, AGENDA, EQUIPO, MATCH, COBROS]) @map("modulos_activos")
+  modulosActivos                    ModuloCentro[]      @default([PAGINA_PUBLICA, FICHAS, AGENDA, EQUIPO, MATCH, COBROS]) @map("modulos_activos")
   /// 03a (C-11): la liquidacion solo cuenta citas realizadas con evolucion registrada.
-  liquidarExigeEvolucion            Boolean        @default(false) @map("liquidar_exige_evolucion")
+  liquidarExigeEvolucion            Boolean             @default(false) @map("liquidar_exige_evolucion")
   /// 03a: el match muestra "prefiero filtrar yo mismo".
-  matchFiltroDirecto                Boolean        @default(true) @map("match_filtro_directo")
+  matchFiltroDirecto                Boolean             @default(true) @map("match_filtro_directo")
   /// 03a (D-6): dias que se guardan las respuestas del match si la solicitud no se concreta.
-  diasRetencionRespuestasMatch      Int            @default(30) @map("dias_retencion_respuestas_match")
+  diasRetencionRespuestasMatch      Int                 @default(30) @map("dias_retencion_respuestas_match")
   /// 03a (C-15): minutos que se retiene el horario mientras se verifica el correo.
-  minutosRetencionSolicitud         Int            @default(30) @map("minutos_retencion_solicitud")
+  minutosRetencionSolicitud         Int                 @default(30) @map("minutos_retencion_solicitud")
   /// 03a-2: dias que se conservan los mensajes internos del equipo (job de purga).
-  retencionMensajesDias             Int            @default(365) @map("retencion_mensajes_dias")
+  retencionMensajesDias             Int                 @default(365) @map("retencion_mensajes_dias")
   /// 03a-2 (D-4): edad minima para la cuenta propia del paciente (antes: el adulto responsable).
-  edadMinimaCuenta                  Int            @default(14) @map("edad_minima_cuenta")
-  updatedAt                         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  edadMinimaCuenta                  Int                 @default(14) @map("edad_minima_cuenta")
+  /// 03b-3.1: medios con que el paciente confirma su hora (CHECK: 1 a 3; sin el
+  /// modulo COBROS solo cuenta PAGO_EN_CENTRO). TRANSFERENCIA exige la cuenta del
+  /// centro salvo modelo DIRECTO (trigger); PASARELA, un adaptador configurado (API).
+  mediosPagoHabilitados             MedioConfirmacion[] @default([PAGO_EN_CENTRO]) @map("medios_pago_habilitados")
+  /// 03b-3.1: horas para pagar o validar la transferencia (siempre antes del inicio).
+  plazoValidacionTransferenciaHoras Int                 @default(24) @map("plazo_validacion_transferencia_horas")
+  /// 03b-3.1: porcentaje del monto que se paga para confirmar.
+  porcentajePagoConfirmacion        Int                 @default(100) @map("porcentaje_pago_confirmacion")
+  /// 03b-3.3: horas antes de la sesion en que vence el pago previo de la hora que
+  /// agenda el equipo (0 a 168). Vencido sin pago: se mantiene con pago en el centro.
+  horasPlazoPagoEquipo              Int                 @default(12) @map("horas_plazo_pago_equipo")
+  /// 03b-3.3: dias tras la sesion antes de contar el saldo como deuda (0 a 90).
+  diasGraciaMorosidad               Int                 @default(0) @map("dias_gracia_morosidad")
+  /// 03b-3.3: un paciente con deuda no agenda (ADMIN/GESTION autorizan con motivo).
+  bloquearAgendaMorosos             Boolean             @default(true) @map("bloquear_agenda_morosos")
+  /// 03b-3.3: solo cuentan como deuda las sesiones terminadas despues de esta fecha
+  /// (la fija la migracion; sin GRANT a la API).
+  morosidadDesde                    DateTime            @default(now()) @map("morosidad_desde") @db.Timestamptz(6)
+  updatedAt                         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("configuracion_centro")
+}
+
+/// 03b-3.1: medio con que el paciente confirma la hora.
+enum MedioConfirmacion {
+  PAGO_EN_CENTRO
+  TRANSFERENCIA
+  PASARELA
+
+  @@map("medio_confirmacion")
+}
+
+/// 03b-3.1 (A): cuenta del centro para transferencias. Una sola fila; datos
+/// cifrados, id generado por la API. Lee ADMIN/GESTION; escribe ADMIN.
+model CuentaBancariaCentro {
+  id           String   @id @db.Uuid
+  /// cifrado (IDENTIFICACION)
+  rut          Bytes
+  /// cifrado (FINANCIERO)
+  banco        Bytes
+  /// cifrado (FINANCIERO)
+  tipoCuenta   Bytes    @map("tipo_cuenta")
+  /// cifrado (FINANCIERO)
+  numeroCuenta Bytes    @map("numero_cuenta")
+  /// cifrado (FINANCIERO)
+  titular      Bytes
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("cuenta_bancaria_centro")
 }
 
 /// ADMIN: configuracion, usuarios, reportes, derivaciones (no crea) y todo lo
@@ -171,7 +217,9 @@ model Usuario {
   evolucionesAutor           Evolucion[]
   derivacionesOrigen         Derivacion[]                 @relation("DerivacionOrigen")
   candidaturasDerivacion     DerivacionCandidato[]
-  citas                      Cita[]
+  citas                      Cita[]                       @relation("CitaProfesional")
+  citasLiberadas             Cita[]                       @relation("CitaLiberadaPor")
+  excepcionesMorosidad       ExcepcionMorosidad[]
   bloqueosTemporales         BloqueoTemporal[]
   historialAccesos           HistorialAccesoPracticante[] @relation("HistorialPracticante")
   accionesAccesos            HistorialAccesoPracticante[] @relation("HistorialActor")
@@ -220,6 +268,7 @@ model Usuario {
   feedCalendario             FeedCalendario?
   pagosRegistrados           Pago[]                       @relation("PagoRegistradoPor")
   pagosAnulados              Pago[]                       @relation("PagoAnuladoPor")
+  transferenciasResueltas    Transferencia[]
   resolucionesCita           ResolucionCita[]
   liquidaciones              Liquidacion[]                @relation("LiquidacionProfesional")
   liquidacionesCreadas       Liquidacion[]                @relation("LiquidacionCreadaPor")
@@ -401,8 +450,8 @@ enum TipoNotificacion {
   PAGO_REGISTRADO
   BOLETA_EMITIDA
   /// 03a: acceso clinico temporal (aviso legal al paciente), solicitud por aprobar
-  /// y cierre requerido (al equipo). HORA_LIBERADA queda sin uso: la lista de espera
-  /// se retiro (implementacion futura) y PostgreSQL no quita valores de un enum.
+  /// y cierre requerido (al equipo). HORA_LIBERADA: desde 03b-3.1, hora liberada
+  /// por vencimiento del plazo de pago (antes, lista de espera, retirada).
   HORA_LIBERADA
   ACCESO_CLINICO_TEMPORAL
   SOLICITUD_HORA
@@ -411,6 +460,15 @@ enum TipoNotificacion {
   MENSAJE_INTERNO
   /// 03a-2: posible paciente duplicado, a ADMIN/GESTION.
   POSIBLE_DUPLICADO
+  /// 03b-3.1: flujo de pago (al paciente; sin contenido clinico).
+  INSTRUCCIONES_TRANSFERENCIA
+  COMPROBANTE_RECIBIDO
+  PAGO_VALIDADO
+  PAGO_RECHAZADO
+  /// 03b-3.2: hora agendada por el equipo pendiente de pago (al agendar y 48 h / 24 h antes).
+  PAGO_PENDIENTE
+  /// 03b-3.3: sesion realizada con saldo pendiente (al paciente y al profesional, una vez por cita).
+  DEUDA_PENDIENTE
 
   @@map("tipo_notificacion")
 }
@@ -641,6 +699,7 @@ model Paciente {
   altas                AltaPaciente[]
   accesosTemporales    AccesoClinicoTemporal[]
   hilosInternos        HiloInterno[]
+  excepcionesMorosidad ExcepcionMorosidad[]
 
   @@index([profesionalId])
   @@map("pacientes")
@@ -1113,8 +1172,15 @@ enum EstadoCita {
   CONFIRMADA
   CANCELADA
   POR_REPROGRAMAR
-  /// 03a (C-15): paciente nuevo de un profesional que aprueba; retiene el horario.
+  /// 03a (C-15), retirado en 03b-3.2 (CHECK citas_sin_solicitada): el pago validado es la aprobacion.
   SOLICITADA
+  /// 03b-3.1: correo verificado, esperando el pago (bloquea la hora hasta pago_vence_en).
+  PENDIENTE_PAGO
+  /// 03b-3.1: vencio el plazo de pago (job); la hora queda libre.
+  LIBERADA
+  /// 03b-3.2: hora retenida de quien pide sin cuenta: SIN paciente hasta el pago
+  /// validado (o el correo verificado si paga en el centro). Bloquea la hora (EXCLUDE).
+  RETENIDA
 
   @@map("estado_cita")
 }
@@ -1163,34 +1229,55 @@ model Espacio {
 /// EXCLUDE por box aplica solo a presenciales, el por profesional a ambas.
 /// Trigger: dentro de la disponibilidad de su modalidad y fuera de bloqueos.
 model Cita {
-  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  espacioId         String?           @map("espacio_id") @db.Uuid
-  modalidad         ModalidadAtencion @default(PRESENCIAL)
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  espacioId         String?            @map("espacio_id") @db.Uuid
+  modalidad         ModalidadAtencion  @default(PRESENCIAL)
   /// Fijado al confirmar (margen vigente del profesional). EXCLUDE
   /// citas_margen_traslado: distinta modalidad necesita ese margen.
-  margenTrasladoMin Int               @default(0) @map("margen_traslado_min") @db.SmallInt
+  margenTrasladoMin Int                @default(0) @map("margen_traslado_min") @db.SmallInt
   /// cifrado (CLINICO). Solo ONLINE (CHECK). Lo genera la API (02) con la cita ya creada.
-  enlaceOnline      Bytes?            @map("enlace_online")
-  profesionalId     String            @map("profesional_id") @db.Uuid
-  pacienteId        String            @map("paciente_id") @db.Uuid
-  inicio            DateTime          @db.Timestamptz(6)
-  fin               DateTime          @db.Timestamptz(6)
-  estado            EstadoCita        @default(CONFIRMADA)
+  enlaceOnline      Bytes?             @map("enlace_online")
+  profesionalId     String             @map("profesional_id") @db.Uuid
+  /// Nulo solo en RETENIDA (o LIBERADA sin concretar): CHECK citas_paciente_segun_estado.
+  pacienteId        String?            @map("paciente_id") @db.Uuid
+  inicio            DateTime           @db.Timestamptz(6)
+  fin               DateTime           @db.Timestamptz(6)
+  estado            EstadoCita         @default(CONFIRMADA)
   /// 02h, CLP. Lo fija la BD al confirmar con la tarifa mas especifica vigente
   /// (trigger citas_monto_fijado). Inmutable. Nulo = cita anterior a Cobros.
   monto             Int?
   /// Lo fija la BD al pasar a CANCELADA (plazo de aviso de la politica de cancelacion).
-  canceladaEn       DateTime?         @map("cancelada_en") @db.Timestamptz(6)
+  canceladaEn       DateTime?          @map("cancelada_en") @db.Timestamptz(6)
   /// 02i: SEQUENCE del evento de calendario (UID fijo por cita). La sube la BD
   /// en cada cambio de horario, modalidad, box o estado.
-  secuencia         Int               @default(0)
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  secuencia         Int                @default(0)
+  /// 03b-3.1: medio elegido para confirmar y plazo de pago (CHECK: PENDIENTE_PAGO
+  /// lo exige). Solo los fija el flujo de confirmacion (trigger citas_estado_pago_protegido).
+  medioConfirmacion MedioConfirmacion? @map("medio_confirmacion")
+  pagoVenceEn       DateTime?          @map("pago_vence_en") @db.Timestamptz(6)
+  /// 03b-3.2: la agendo el equipo (plazo de pago hasta 12 h antes, avisos 48 h / 24 h).
+  /// Lo fija la BD (trigger citas_pago_previo_equipo).
+  agendadaPorEquipo Boolean            @default(false) @map("agendada_por_equipo")
+  /// 03b-3.2: ultimo recordatorio de pago enviado (48 o 24 h antes). Lo fija el job.
+  ultimoAvisoPago   Int?               @map("ultimo_aviso_pago") @db.SmallInt
+  /// 03b-3.3: aviso de deuda enviado (sesion terminada con saldo). Lo fija el job.
+  avisoDeudaEn      DateTime?          @map("aviso_deuda_en") @db.Timestamptz(6)
+  /// 03b-3.3: hora retenida liberada a mano (ADMIN/GESTION, con motivo; liberar_hora_retenida).
+  liberadaPorId     String?            @map("liberada_por_id") @db.Uuid
+  motivoLiberacion  String?            @map("motivo_liberacion")
+  /// 03b-3.4: medio elegido para pagar en linea el saldo de la sesion ya realizada.
+  medioSaldo        MedioConfirmacion? @map("medio_saldo")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  transferencias        Transferencia[]
+  cobrosPasarela        CobroPasarela[]
   espacio               Espacio?            @relation(fields: [espacioId], references: [id], onDelete: Restrict)
-  profesional           Usuario             @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
-  paciente              Paciente            @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profesional           Usuario             @relation("CitaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  liberadaPor           Usuario?            @relation("CitaLiberadaPor", fields: [liberadaPorId], references: [id], onDelete: Restrict)
+  paciente              Paciente?           @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
   pagos                 Pago[]
+  excepcionMorosidad    ExcepcionMorosidad?
   boleta                Boleta?
   resolucion            ResolucionCita?     @relation("ResolucionCita")
   resolucionesComoNueva ResolucionCita[]    @relation("ResolucionCitaNueva")
@@ -1338,8 +1425,6 @@ model Profesional {
   convenios                 String[]  @default([])
   idiomas                   String[]  @default([])
   citaDestacada             String?   @map("cita_destacada")
-  /// 03a (C-15): las solicitudes de pacientes nuevos quedan SOLICITADA hasta aprobarlas.
-  requiereAprobacionNuevos  Boolean   @default(false) @map("requiere_aprobacion_nuevos")
   createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -1470,6 +1555,8 @@ enum MedioPago {
   TARJETA_CREDITO
   /// 03a (D-7): bono FONASA o convenio.
   CONVENIO
+  /// 03b-3.1: pago en linea confirmado por el webhook de la pasarela.
+  PASARELA
 
   @@map("medio_pago")
 }
@@ -1482,10 +1569,12 @@ enum EstadoPago {
 }
 
 /// MANUAL: lo registra el equipo. TRASLADO: viene de un pago anulado de otra
-/// cita (cancelacion con traslado a una cita nueva).
+/// cita (cancelacion con traslado a una cita nueva). PASARELA (03b-3.1): lo
+/// registra el webhook, sin usuario.
 enum OrigenPago {
   MANUAL
   TRASLADO
+  PASARELA
 
   @@map("origen_pago")
 }
@@ -1554,14 +1643,105 @@ model Pago {
   motivoAnulacion String?    @map("motivo_anulacion")
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  cita          Cita     @relation(fields: [citaId], references: [id], onDelete: Restrict)
-  trasladoDe    Pago?    @relation("PagoTraslado", fields: [trasladoDeId], references: [id], onDelete: Restrict)
-  trasladadoA   Pago?    @relation("PagoTraslado")
-  registradoPor Usuario? @relation("PagoRegistradoPor", fields: [registradoPorId], references: [id], onDelete: Restrict)
-  anuladoPor    Usuario? @relation("PagoAnuladoPor", fields: [anuladoPorId], references: [id], onDelete: Restrict)
+  cita          Cita           @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  trasladoDe    Pago?          @relation("PagoTraslado", fields: [trasladoDeId], references: [id], onDelete: Restrict)
+  trasladadoA   Pago?          @relation("PagoTraslado")
+  registradoPor Usuario?       @relation("PagoRegistradoPor", fields: [registradoPorId], references: [id], onDelete: Restrict)
+  anuladoPor    Usuario?       @relation("PagoAnuladoPor", fields: [anuladoPorId], references: [id], onDelete: Restrict)
+  transferencia Transferencia?
+  cobroPasarela CobroPasarela?
 
   @@index([citaId])
   @@map("pagos")
+}
+
+enum EstadoTransferencia {
+  POR_VALIDAR
+  VALIDADA
+  RECHAZADA
+
+  @@map("estado_transferencia")
+}
+
+/// 03b-3.1 (A): transferencia de una cita PENDIENTE_PAGO. Comprobante opcional
+/// (PDF, PNG o JPEG validado por contenido; cifrado, id generado por la API).
+/// 03b-3.3 (A): autorizacion de ADMIN/GESTION para agendar a un paciente con
+/// deuda (motivo, saldo del momento). Solo via autorizar_cita_con_deuda; el
+/// trigger citas_paciente_moroso la usa una vez (cita_id) en la misma
+/// transaccion. Append-only incluso dueño.
+model ExcepcionMorosidad {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId    String   @map("paciente_id") @db.Uuid
+  citaId        String?  @unique @map("cita_id") @db.Uuid
+  saldo         Int
+  motivo        String
+  otorgadaPorId String   @map("otorgada_por_id") @db.Uuid
+  otorgadaEn    DateTime @default(now()) @map("otorgada_en") @db.Timestamptz(6)
+  transaccion   BigInt   @default(dbgenerated("txid_current()"))
+
+  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  cita        Cita?    @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  otorgadaPor Usuario  @relation(fields: [otorgadaPorId], references: [id], onDelete: Restrict)
+
+  @@index([pacienteId])
+  @@map("excepciones_morosidad")
+}
+
+/// Valida GESTION/ADMIN (cobro del centro) o el profesional (cobro directo):
+/// registra el pago (pago_id) y confirma. Sin GRANT de escritura: solo funciones.
+model Transferencia {
+  id                  String              @id @db.Uuid
+  /// 03b-3.4: a lo mas una abierta (no VALIDADA) por cita (indice unico parcial
+  /// transferencias_una_abierta); la validada queda como historial.
+  citaId              String              @map("cita_id") @db.Uuid
+  estado              EstadoTransferencia @default(POR_VALIDAR)
+  /// 03b-3.4: transferencia del saldo de una sesion ya realizada (deuda).
+  deSaldo             Boolean             @default(false) @map("de_saldo")
+  /// cifrado (FINANCIERO)
+  comprobante         Bytes?
+  comprobanteTipo     String?             @map("comprobante_tipo")
+  comprobanteNombre   String?             @map("comprobante_nombre")
+  comprobanteSubidoEn DateTime?           @map("comprobante_subido_en") @db.Timestamptz(6)
+  motivoRechazo       String?             @map("motivo_rechazo")
+  resueltaPorId       String?             @map("resuelta_por_id") @db.Uuid
+  resueltaEn          DateTime?           @map("resuelta_en") @db.Timestamptz(6)
+  pagoId              String?             @unique @map("pago_id") @db.Uuid
+  creadaEn            DateTime            @default(now()) @map("creada_en") @db.Timestamptz(6)
+
+  cita        Cita     @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  resueltaPor Usuario? @relation(fields: [resueltaPorId], references: [id], onDelete: Restrict)
+  pago        Pago?    @relation(fields: [pagoId], references: [id], onDelete: Restrict)
+
+  @@index([citaId])
+  @@index([estado])
+  @@map("transferencias")
+}
+
+enum EstadoCobroPasarela {
+  PENDIENTE
+  PAGADO
+  FALLIDO
+
+  @@map("estado_cobro_pasarela")
+}
+
+/// 03b-3.1 (A): intento de cobro en linea. El id es la referencia que viaja a
+/// la pasarela; evento_id hace idempotente el webhook. Lee ADMIN/GESTION.
+model CobroPasarela {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  citaId      String              @map("cita_id") @db.Uuid
+  monto       Int
+  estado      EstadoCobroPasarela @default(PENDIENTE)
+  eventoId    String?             @unique @map("evento_id")
+  pagoId      String?             @unique @map("pago_id") @db.Uuid
+  creadoEn    DateTime            @default(now()) @map("creado_en") @db.Timestamptz(6)
+  procesadoEn DateTime?           @map("procesado_en") @db.Timestamptz(6)
+
+  cita Cita  @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  pago Pago? @relation(fields: [pagoId], references: [id], onDelete: Restrict)
+
+  @@index([citaId])
+  @@map("cobros_pasarela")
 }
 
 /// Una boleta por cita, emitida al quedar PAGADA (emitir_boleta). Copia del
@@ -1588,18 +1768,21 @@ model Boleta {
 /// append-only, una por cita). Solo via resolver_cita(), que copia el
 /// porcentaje vigente de configuracion_centro.
 model ResolucionCita {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  citaId          String       @unique @map("cita_id") @db.Uuid
-  decision        DecisionCita
+  id                      String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  citaId                  String       @unique @map("cita_id") @db.Uuid
+  decision                DecisionCita
   /// Cancelacion con aviso dentro del plazo (nulo en INASISTENCIA).
-  aTiempo         Boolean?     @map("a_tiempo")
-  porcentaje      Decimal      @db.Decimal(5, 2)
-  montoExigible   Int          @map("monto_exigible")
-  montoDevolucion Int          @map("monto_devolucion")
-  citaNuevaId     String?      @map("cita_nueva_id") @db.Uuid
-  motivo          String?
-  decididoPorId   String       @map("decidido_por_id") @db.Uuid
-  decididoEn      DateTime     @default(now()) @map("decidido_en") @db.Timestamptz(6)
+  aTiempo                 Boolean?     @map("a_tiempo")
+  porcentaje              Decimal      @db.Decimal(5, 2)
+  montoExigible           Int          @map("monto_exigible")
+  montoDevolucion         Int          @map("monto_devolucion")
+  citaNuevaId             String?      @map("cita_nueva_id") @db.Uuid
+  motivo                  String?
+  decididoPorId           String       @map("decidido_por_id") @db.Uuid
+  decididoEn              DateTime     @default(now()) @map("decidido_en") @db.Timestamptz(6)
+  /// 03b-3.3: TRASLADO o DEVOLUCION de una cita confirmada ya terminada
+  /// (inasistencia justificada, con motivo; se trata como cancelacion tardia).
+  inasistenciaJustificada Boolean      @default(false) @map("inasistencia_justificada")
 
   cita        Cita    @relation("ResolucionCita", fields: [citaId], references: [id], onDelete: Restrict)
   citaNueva   Cita?   @relation("ResolucionCitaNueva", fields: [citaNuevaId], references: [id], onDelete: Restrict)
@@ -1867,6 +2050,8 @@ enum TipoTokenCorreo {
   /// Sin uso: lista de espera publica retirada (implementacion futura).
   VERIFICACION_LISTA_ESPERA
   BAJA_LISTA_ESPERA
+  /// 03b-3.4: enlace de pago de una cita (sin cuenta); varios usos hasta vencer.
+  PAGO_CITA
 
   @@map("tipo_token_correo")
 }
@@ -2006,6 +2191,8 @@ model SolicitudHora {
   citaId           String?             @unique @map("cita_id") @db.Uuid
   creadaEn         DateTime            @default(now()) @map("creada_en") @db.Timestamptz(6)
   concretadaEn     DateTime?           @map("concretada_en") @db.Timestamptz(6)
+  /// 03b-3.1: SHA-256 del token opaco de la reserva (estado consultable sin datos personales).
+  reservaHash      Bytes?              @unique @map("reserva_hash")
 
   profesional  Usuario              @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
   espacio      Espacio?             @relation(fields: [espacioId], references: [id], onDelete: Restrict)

@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -20,12 +22,14 @@ import { CryptoModule } from './crypto/crypto.module';
 import { FiltroErrores } from './errores/filtro-errores';
 import { JobsService } from './jobs/jobs.service';
 import { CalendarioIcs, ProveedorCalendario } from './integraciones/calendario';
+import { PasarelaNoConfigurada, PasarelaSimulada, ProveedorPasarela } from './integraciones/pasarela';
 import { ProveedorVideollamada, ProveedorVideollamadaPorProfesional, ProveedorVideollamadaSimulado } from './integraciones/videollamada';
 import { ProveedorCorreo, ProveedorCorreoSimulado, ProveedorCorreoSmtp } from './notificaciones/correo';
 import { NotificacionesController, PlantillasMensajeController } from './notificaciones/notificaciones.controller';
 import { NotificacionesService } from './notificaciones/notificaciones.service';
 import { idSolicitud, opcionesLogger } from './logs/logs';
 import { PrismaModule } from './prisma/prisma.module';
+import { ConcrecionReserva } from './reservas/concrecion-reserva';
 import { RlsInterceptor } from './rls/rls.interceptor';
 import { SaludController } from './salud/salud.controller';
 
@@ -86,6 +90,7 @@ export class CoreModule {
         AuthService,
         JobsService,
         CorreosCuenta,
+        ConcrecionReserva,
         ModulosGuard,
         NotificacionesService,
         // Integraciones: los modulos dependen solo de las interfaces; la
@@ -107,13 +112,34 @@ export class CoreModule {
               : new ProveedorVideollamadaPorProfesional(config.get<boolean>('JITSI_HABILITADO') ?? false, config.getOrThrow<string>('JITSI_URL_BASE')),
         },
         { provide: ProveedorCalendario, useClass: CalendarioIcs },
+        {
+          provide: ProveedorPasarela,
+          inject: [ConfigService],
+          useFactory: (config: ConfigService) =>
+            config.get<string>('PASARELA_PROVEEDOR') === 'simulada'
+              ? new PasarelaSimulada(
+                  config.get<string>('PASARELA_SECRETO_WEBHOOK') ?? randomBytes(32).toString('hex'),
+                  config.getOrThrow<string>('FRONTEND_URL'),
+                )
+              : new PasarelaNoConfigurada(),
+        },
         { provide: APP_GUARD, useClass: JwtGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
         { provide: APP_GUARD, useExisting: ModulosGuard },
         { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
         { provide: APP_FILTER, useClass: FiltroErrores },
       ],
-      exports: [JobsService, NotificacionesService, ProveedorCorreo, ProveedorVideollamada, ProveedorCalendario, CorreosCuenta, ModulosGuard],
+      exports: [
+        JobsService,
+        NotificacionesService,
+        ProveedorCorreo,
+        ProveedorVideollamada,
+        ProveedorCalendario,
+        ProveedorPasarela,
+        CorreosCuenta,
+        ConcrecionReserva,
+        ModulosGuard,
+      ],
     };
   }
 }

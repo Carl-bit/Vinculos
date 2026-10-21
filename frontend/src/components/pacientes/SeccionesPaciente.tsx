@@ -168,6 +168,10 @@ const ESTADO_CITA: Record<CitaVista['estado'], { texto: string; tono: TonoBadge 
   SOLICITADA: { texto: 'Por aprobar', tono: 'atencion' },
   POR_REPROGRAMAR: { texto: 'Por reprogramar', tono: 'atencion' },
   CANCELADA: { texto: 'Cancelada', tono: 'neutro' },
+  PENDIENTE_PAGO: { texto: 'Pago pendiente', tono: 'atencion' },
+  LIBERADA: { texto: 'Liberada (pago vencido)', tono: 'neutro' },
+  // Sin paciente: nunca aparece en el historial de un paciente.
+  RETENIDA: { texto: 'Hora retenida', tono: 'atencion' },
 };
 
 /** Historial de sesiones (metadata). El tratante ve que sesiones ya tienen evolucion y registra las pendientes. */

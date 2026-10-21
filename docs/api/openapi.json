@@ -13392,7 +13392,10 @@
                 "CANCELADA",
                 "CONFIRMADA",
                 "POR_REPROGRAMAR",
-                "SOLICITADA"
+                "SOLICITADA",
+                "PENDIENTE_PAGO",
+                "LIBERADA",
+                "RETENIDA"
               ]
             }
           }
@@ -13573,7 +13576,7 @@
             "jwt": []
           }
         ],
-        "summary": "",
+        "summary": "Paciente con deuda: 422 citas_paciente_moroso, salvo `motivoAutorizacionDeuda` de ADMIN/GESTION (03b-3.3).",
         "tags": [
           "Agenda y espacios"
         ]
@@ -13962,6 +13965,113 @@
         ]
       }
     },
+    "/api/citas/{id}/liberacion": {
+      "patch": {
+        "description": "Roles: ADMIN, GESTION",
+        "operationId": "CitasController_liberar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiberarHoraDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CitaVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b-3.3: libera a mano una hora retenida (reserva sin cuenta). Con comprobante por validar: 409.",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
     "/api/citas/{id}/reprogramacion": {
       "patch": {
         "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
@@ -14161,103 +14271,6 @@
           }
         ],
         "summary": "",
-        "tags": [
-          "Agenda y espacios"
-        ]
-      }
-    },
-    "/api/citas/{id}/aprobacion": {
-      "post": {
-        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
-        "operationId": "CitasController_aprobar",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CitaAprobada"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "DTO invalido (class-validator) o campo no declarado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sin token, token vencido o cuenta inactiva/expirada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No existe o no es visible para el usuario (RLS)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Regla de negocio de la BD (23514, 23503)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "jwt": []
-          }
-        ],
-        "summary": "Aprobar una cita SOLICITADA (paciente nuevo de un profesional que aprueba).",
         "tags": [
           "Agenda y espacios"
         ]
@@ -21629,7 +21642,7 @@
             }
           }
         },
-        "summary": "Pedir hora sin cuenta: retiene la hora y envia el enlace de verificacion al correo.",
+        "summary": "Pedir hora sin cuenta: retiene la hora (cita RETENIDA) y entrega el token de la reserva para pagar; correo solo si se paga en el centro.",
         "tags": [
           "Match publico"
         ]
@@ -21681,7 +21694,7 @@
             }
           }
         },
-        "summary": "El enlace del correo confirma la hora (o la deja por aprobar) y, si corresponde, invita a crear la cuenta.",
+        "summary": "El enlace del correo (pago en el centro) confirma la hora y, si corresponde, invita a crear la cuenta.",
         "tags": [
           "Match publico"
         ]
@@ -24775,6 +24788,97 @@
         ]
       }
     },
+    "/api/cobros/deudas": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "CobrosController_deudas",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeudaPaciente"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b-3.3: pacientes con sesiones terminadas impagas (bloquean agendar si el centro lo activa).",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
     "/api/cobros/citas/{id}": {
       "get": {
         "description": "Roles: ADMIN, GESTION, PROFESIONAL, PACIENTE, RESPONSABLE",
@@ -25187,7 +25291,7 @@
             "jwt": []
           }
         ],
-        "summary": "Cancelacion (a tiempo o tardia) e inasistencia: decision registrada y auditada.",
+        "summary": "Cancelacion (a tiempo o tardia) e inasistencia (03b-3.3: tambien justificada): decision registrada y auditada.",
         "tags": [
           "Cobros"
         ]
@@ -26091,6 +26195,2016 @@
           "Cobros"
         ]
       }
+    },
+    "/api/publico/reservas/estado": {
+      "post": {
+        "operationId": "ReservasPublicoController_estado",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Solo estado, vencimiento y siguiente paso (sin datos personales). La pestaña lo consulta cada pocos segundos.",
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/reservas/medio": {
+      "post": {
+        "operationId": "ReservasPublicoController_medio",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedioReservaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/reservas/transferencia": {
+      "post": {
+        "operationId": "ReservasPublicoController_transferencia",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosTransferencia"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/reservas/comprobante": {
+      "post": {
+        "operationId": "ReservasPublicoController_comprobante",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reserva",
+                  "archivo"
+                ],
+                "properties": {
+                  "reserva": {
+                    "type": "string"
+                  },
+                  "archivo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "PDF, PNG o JPEG (validado por contenido)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Cuerpo mayor al limite (JSON 1 MB; adjuntos ADJUNTO_MAX_MB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Comprobante opcional (multipart: campos \"reserva\" y \"archivo\").",
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/reservas/pasarela": {
+      "post": {
+        "operationId": "ReservasPublicoController_pasarela",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CobroIniciado"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/pagos/resumen": {
+      "post": {
+        "operationId": "PagosEnlaceController_resumen",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnlacePagoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumenEnlacePago"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Fecha, hora, modalidad y profesional de la sesion (sin datos del paciente). Vencido: 409; inexistente: 404.",
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/pagos/estado": {
+      "post": {
+        "operationId": "PagosEnlaceController_estado",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnlacePagoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/pagos/medio": {
+      "post": {
+        "operationId": "PagosEnlaceController_medio",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedioEnlaceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/pagos/transferencia": {
+      "post": {
+        "operationId": "PagosEnlaceController_transferencia",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnlacePagoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosTransferencia"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/pagos/comprobante": {
+      "post": {
+        "operationId": "PagosEnlaceController_comprobante",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "enlace",
+                  "archivo"
+                ],
+                "properties": {
+                  "enlace": {
+                    "type": "string"
+                  },
+                  "archivo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "PDF, PNG o JPEG (validado por contenido)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Cuerpo mayor al limite (JSON 1 MB; adjuntos ADJUNTO_MAX_MB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Comprobante (multipart: campos \"enlace\" y \"archivo\").",
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/publico/pagos/pasarela": {
+      "post": {
+        "operationId": "PagosEnlaceController_pasarela",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnlacePagoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CobroIniciado"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Match publico"
+        ]
+      }
+    },
+    "/api/portal/citas/{id}/pago": {
+      "get": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "PagoPortalController_estado",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Portal del paciente"
+        ]
+      }
+    },
+    "/api/portal/citas/{id}/medio": {
+      "post": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "PagoPortalController_medio",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Portal del paciente"
+        ]
+      }
+    },
+    "/api/portal/citas/{id}/transferencia": {
+      "get": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "PagoPortalController_transferencia",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatosTransferencia"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Queda en accesos_ficha (DATOS_PAGO).",
+        "tags": [
+          "Portal del paciente"
+        ]
+      }
+    },
+    "/api/portal/citas/{id}/comprobante": {
+      "post": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "PagoPortalController_comprobante",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "archivo"
+                ],
+                "properties": {
+                  "archivo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "PDF, PNG o JPEG (validado por contenido)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConfirmacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Cuerpo mayor al limite (JSON 1 MB; adjuntos ADJUNTO_MAX_MB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Portal del paciente"
+        ]
+      }
+    },
+    "/api/portal/citas/{id}/pasarela": {
+      "post": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "PagoPortalController_pasarela",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CobroIniciado"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Portal del paciente"
+        ]
+      }
+    },
+    "/api/cobros/transferencias": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "TransferenciasController_listar",
+        "parameters": [
+          {
+            "name": "estado",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RECHAZADA",
+                "POR_VALIDAR",
+                "VALIDADA"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransferenciaVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
+    "/api/cobros/transferencias/{id}/comprobante": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "TransferenciasController_comprobante",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
+    "/api/cobros/citas/{id}/transferencia/validacion": {
+      "post": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "TransferenciasController_validar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferenciaVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Registra el pago (monto de confirmacion) y confirma la cita.",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
+    "/api/cobros/citas/{id}/caja": {
+      "post": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "TransferenciasController_cobrarEnCaja",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrarPagoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CajaReserva"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b-3.3: pago en caja de una hora retenida presencial (reserva sin cuenta):\ncubre al menos lo exigido para confirmar y crea paciente, ficha y cita\nCONFIRMADA. Online: 422 citas_caja_solo_presencial.",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
+    "/api/cobros/citas/{id}/transferencia/rechazo": {
+      "post": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "TransferenciasController_rechazar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazoTransferenciaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferenciaVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Motivo obligatorio; se avisa al paciente y la cita sigue pendiente hasta su plazo.",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
+    "/api/cobros/cuenta-centro": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION",
+        "operationId": "TransferenciasController_cuenta",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "null = sin cuenta registrada.",
+        "tags": [
+          "Cobros"
+        ]
+      },
+      "put": {
+        "description": "Roles: ADMIN",
+        "operationId": "TransferenciasController_guardarCuenta",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CuentaCentroDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuentaCentroVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
+    "/api/publico/pasarela/webhook": {
+      "post": {
+        "operationId": "PasarelaController_webhook",
+        "parameters": [
+          {
+            "name": "x-pasarela-firma",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoPasarela"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
+    "/api/publico/pasarela/simulada": {
+      "post": {
+        "operationId": "PasarelaController_simulada",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagoSimuladoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoPasarela"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Modo demostracion: no se realiza ningun cobro. 404 si la pasarela no es la simulada.",
+        "tags": [
+          "Cobros"
+        ]
+      }
     }
   },
   "info": {
@@ -26464,7 +28578,13 @@
           "SOLICITUD_HORA",
           "CIERRE_REQUERIDO",
           "MENSAJE_INTERNO",
-          "POSIBLE_DUPLICADO"
+          "POSIBLE_DUPLICADO",
+          "INSTRUCCIONES_TRANSFERENCIA",
+          "COMPROBANTE_RECIBIDO",
+          "PAGO_VALIDADO",
+          "PAGO_RECHAZADO",
+          "PAGO_PENDIENTE",
+          "DEUDA_PENDIENTE"
         ]
       },
       "CanalMensaje": {
@@ -27029,6 +29149,14 @@
           "COBROS"
         ]
       },
+      "MedioConfirmacion": {
+        "type": "string",
+        "enum": [
+          "PAGO_EN_CENTRO",
+          "TRANSFERENCIA",
+          "PASARELA"
+        ]
+      },
       "ConfiguracionCentroVista": {
         "type": "object",
         "properties": {
@@ -27059,6 +29187,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ModuloCentro"
+            }
+          },
+          "mediosPagoHabilitados": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MedioConfirmacion"
             }
           },
           "rolGestionHabilitado": {
@@ -27106,6 +29240,26 @@
           "edadMinimaCuenta": {
             "type": "number"
           },
+          "plazoValidacionTransferenciaHoras": {
+            "type": "number"
+          },
+          "porcentajePagoConfirmacion": {
+            "type": "number"
+          },
+          "horasPlazoPagoEquipo": {
+            "type": "number"
+          },
+          "diasGraciaMorosidad": {
+            "type": "number"
+          },
+          "bloquearAgendaMorosos": {
+            "type": "boolean"
+          },
+          "morosidadDesde": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Solo cuentan como deuda las sesiones terminadas despues de esta fecha (la fija la migracion)."
+          },
           "updatedAt": {
             "format": "date-time",
             "type": "string"
@@ -27118,6 +29272,7 @@
           "cobroInasistenciaPorcentaje",
           "comisionCentroPorcentaje",
           "modulosActivos",
+          "mediosPagoHabilitados",
           "rolGestionHabilitado",
           "plazoRespuestaDerivacionHoras",
           "plazoConsentimientoHoras",
@@ -27133,6 +29288,12 @@
           "minutosRetencionSolicitud",
           "retencionMensajesDias",
           "edadMinimaCuenta",
+          "plazoValidacionTransferenciaHoras",
+          "porcentajePagoConfirmacion",
+          "horasPlazoPagoEquipo",
+          "diasGraciaMorosidad",
+          "bloquearAgendaMorosos",
+          "morosidadDesde",
           "updatedAt"
         ]
       },
@@ -27242,6 +29403,48 @@
             "description": "03a-2: dias que se conservan los mensajes internos del equipo (30 a 3650).",
             "minimum": 30,
             "maximum": 3650
+          },
+          "mediosPagoHabilitados": {
+            "type": "array",
+            "description": "03b-3.1: medios con que el paciente confirma su hora (PASARELA exige un adaptador configurado).",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "PAGO_EN_CENTRO",
+                "TRANSFERENCIA",
+                "PASARELA"
+              ]
+            }
+          },
+          "plazoValidacionTransferenciaHoras": {
+            "type": "number",
+            "description": "03b-3.1: horas para pagar o validar la transferencia (siempre antes del inicio).",
+            "minimum": 1,
+            "maximum": 168
+          },
+          "porcentajePagoConfirmacion": {
+            "type": "number",
+            "description": "03b-3.1: porcentaje del monto que se paga para confirmar.",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "horasPlazoPagoEquipo": {
+            "type": "number",
+            "description": "03b-3.3: horas antes de la sesion en que vence el pago previo de la hora que agenda el equipo (0 a 168).",
+            "minimum": 0,
+            "maximum": 168
+          },
+          "diasGraciaMorosidad": {
+            "type": "number",
+            "description": "03b-3.3: dias tras la sesion antes de contar el saldo como deuda (0 a 90).",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "bloquearAgendaMorosos": {
+            "type": "boolean",
+            "description": "03b-3.3: un paciente con deuda no agenda (ADMIN/GESTION autorizan con motivo)."
           }
         }
       },
@@ -27607,7 +29810,15 @@
             "nullable": true,
             "description": "Solo ADMIN"
           },
-          "solicitudes_por_aprobar": {
+          "pagos_pendientes": {
+            "type": "number",
+            "description": "03b-3.2: citas pendientes de pago (el pago validado las confirma)."
+          },
+          "pacientes_con_deuda": {
+            "type": "number",
+            "description": "03b-3.3: pacientes con sesiones terminadas impagas."
+          },
+          "transferencias_por_validar": {
             "type": "number"
           },
           "ruts_faltantes": {
@@ -27629,7 +29840,9 @@
         "required": [
           "resenas_por_moderar",
           "alertas_abiertas",
-          "solicitudes_por_aprobar",
+          "pagos_pendientes",
+          "pacientes_con_deuda",
+          "transferencias_por_validar",
           "ruts_faltantes",
           "posibles_duplicados",
           "consentimientos_pendientes",
@@ -27682,7 +29895,7 @@
           },
           "por_confirmar": {
             "type": "number",
-            "description": "ADMIN/GESTION: solicitudes y recordatorios sin respuesta en 48 h"
+            "description": "ADMIN/GESTION: pagos pendientes y recordatorios sin respuesta en 48 h"
           },
           "ocupacion_boxes_hoy": {
             "type": "number",
@@ -27708,8 +29921,14 @@
           "borradores": {
             "type": "number"
           },
-          "solicitudes_por_aprobar": {
-            "type": "number"
+          "pagos_pendientes": {
+            "type": "number",
+            "description": "PROFESIONAL/PRACTICANTE: sus citas pendientes de pago"
+          },
+          "pacientes_con_deuda": {
+            "type": "number",
+            "nullable": true,
+            "description": "PROFESIONAL: pacientes con deuda en sus citas (PRACTICANTE: null)"
           },
           "mensajes_sin_leer": {
             "type": "number"
@@ -30655,7 +32874,10 @@
           "CONFIRMADA",
           "CANCELADA",
           "POR_REPROGRAMAR",
-          "SOLICITADA"
+          "SOLICITADA",
+          "PENDIENTE_PAGO",
+          "LIBERADA",
+          "RETENIDA"
         ]
       },
       "CitaVista": {
@@ -30671,6 +32893,11 @@
                 "$ref": "#/components/schemas/ModalidadAtencion"
               }
             ]
+          },
+          "pacienteId": {
+            "type": "string",
+            "nullable": true,
+            "description": "03b-3.2: nulo solo en RETENIDA (reserva sin cuenta en curso: el paciente nace con el pago)."
           },
           "estado": {
             "allOf": [
@@ -30689,6 +32916,26 @@
             "nullable": true,
             "format": "date-time"
           },
+          "pagoVenceEn": {
+            "type": "string",
+            "nullable": true,
+            "description": "03b-3.2: plazo de pago (PENDIENTE_PAGO o RETENIDA); la agendada por el equipo, hasta las horas configuradas antes (12 por defecto).",
+            "format": "date-time"
+          },
+          "medioConfirmacion": {
+            "nullable": true,
+            "description": "PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3).",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedioConfirmacion"
+              }
+            ]
+          },
+          "motivoLiberacion": {
+            "type": "string",
+            "nullable": true,
+            "description": "03b-3.3: hora retenida liberada a mano por ADMIN/GESTION (LIBERADA)."
+          },
           "id": {
             "type": "string"
           },
@@ -30696,9 +32943,6 @@
             "type": "number"
           },
           "profesionalId": {
-            "type": "string"
-          },
-          "pacienteId": {
             "type": "string"
           },
           "inicio": {
@@ -30721,13 +32965,16 @@
         "required": [
           "espacioId",
           "modalidad",
+          "pacienteId",
           "estado",
           "monto",
           "canceladaEn",
+          "pagoVenceEn",
+          "medioConfirmacion",
+          "motivoLiberacion",
           "id",
           "margenTrasladoMin",
           "profesionalId",
-          "pacienteId",
           "inicio",
           "fin",
           "createdAt",
@@ -30803,6 +33050,12 @@
           "pacienteId": {
             "type": "string",
             "format": "uuid"
+          },
+          "motivoAutorizacionDeuda": {
+            "type": "string",
+            "description": "03b-3.3: paciente con deuda (sesiones anteriores con saldo). ADMIN/GESTION\nautorizan esta cita con un motivo (queda en excepciones_morosidad); sin\nmotivo, o con otro rol, la BD responde 422 citas_paciente_moroso / 403.",
+            "minLength": 3,
+            "maxLength": 500
           }
         },
         "required": [
@@ -30811,6 +33064,19 @@
           "inicio",
           "fin",
           "pacienteId"
+        ]
+      },
+      "LiberarHoraDto": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "motivo"
         ]
       },
       "ReprogramarCitaDto": {
@@ -30851,108 +33117,6 @@
         "required": [
           "expiraEn",
           "url"
-        ]
-      },
-      "InvitacionTrasAprobar": {
-        "type": "object",
-        "properties": {
-          "rol": {
-            "type": "string"
-          },
-          "vence": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "rol",
-          "vence"
-        ]
-      },
-      "CitaAprobada": {
-        "type": "object",
-        "properties": {
-          "espacioId": {
-            "type": "string",
-            "nullable": true
-          },
-          "modalidad": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ModalidadAtencion"
-              }
-            ]
-          },
-          "estado": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EstadoCita"
-              }
-            ]
-          },
-          "monto": {
-            "type": "number",
-            "nullable": true,
-            "description": "Fijado por la BD al confirmar"
-          },
-          "canceladaEn": {
-            "type": "string",
-            "nullable": true,
-            "format": "date-time"
-          },
-          "invitacion": {
-            "nullable": true,
-            "type": "object",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/InvitacionTrasAprobar"
-              }
-            ]
-          },
-          "id": {
-            "type": "string"
-          },
-          "margenTrasladoMin": {
-            "type": "number"
-          },
-          "profesionalId": {
-            "type": "string"
-          },
-          "pacienteId": {
-            "type": "string"
-          },
-          "inicio": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "fin": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "espacioId",
-          "modalidad",
-          "estado",
-          "monto",
-          "canceladaEn",
-          "invitacion",
-          "id",
-          "margenTrasladoMin",
-          "profesionalId",
-          "pacienteId",
-          "inicio",
-          "fin",
-          "createdAt",
-          "updatedAt"
         ]
       },
       "CubrirCitaDto": {
@@ -31206,10 +33370,6 @@
             "type": "string",
             "description": "Frase destacada del perfil publico.",
             "maxLength": 300
-          },
-          "requiereAprobacionNuevos": {
-            "type": "boolean",
-            "description": "C-15: las solicitudes de pacientes nuevos quedan por aprobar (SOLICITADA)."
           }
         },
         "required": [
@@ -31294,9 +33454,6 @@
               "type": "string"
             }
           },
-          "requiereAprobacionNuevos": {
-            "type": "boolean"
-          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -31322,7 +33479,6 @@
           "boletaReembolsable",
           "convenios",
           "idiomas",
-          "requiereAprobacionNuevos",
           "createdAt",
           "updatedAt"
         ]
@@ -31478,10 +33634,6 @@
             "type": "string",
             "description": "Frase destacada del perfil publico.",
             "maxLength": 300
-          },
-          "requiereAprobacionNuevos": {
-            "type": "boolean",
-            "description": "C-15: las solicitudes de pacientes nuevos quedan por aprobar (SOLICITADA)."
           }
         }
       },
@@ -33988,15 +36140,21 @@
           "expiraEn": {
             "format": "date-time",
             "type": "string",
-            "description": "Fin de la retencion de la hora (bloqueo temporal)."
+            "description": "Fin de la retencion de la hora (03b-3.2: cita RETENIDA, plazo para pagar)."
           },
           "verificacionEnviada": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "03b-3.2: true solo si el gatillo es el correo (unico medio: pago en el centro, o nada que cobrar)."
+          },
+          "reserva": {
+            "type": "string",
+            "description": "03b-3.1: token opaco de la reserva (sin datos personales). La pestaña lo\nguarda solo en memoria y consulta POST /publico/reservas/estado; tambien\nelige el medio de pago con el."
           }
         },
         "required": [
           "expiraEn",
-          "verificacionEnviada"
+          "verificacionEnviada",
+          "reserva"
         ]
       },
       "TokenPublicoDto": {
@@ -34016,7 +36174,7 @@
         "type": "object",
         "properties": {
           "estado": {
-            "description": "CONFIRMADA, o SOLICITADA si el profesional aprueba a los pacientes nuevos.",
+            "description": "CONFIRMADA (03b-3.2: el enlace del correo solo concreta reservas con pago en el centro).",
             "allOf": [
               {
                 "$ref": "#/components/schemas/EstadoCita"
@@ -34239,6 +36397,20 @@
               }
             ]
           },
+          "medioConfirmacion": {
+            "nullable": true,
+            "description": "03b-3.1: medio elegido para confirmar y plazo de pago (PENDIENTE_PAGO).",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedioConfirmacion"
+              }
+            ]
+          },
+          "pagoVenceEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
           "id": {
             "type": "string"
           },
@@ -34259,6 +36431,10 @@
           "realizada": {
             "type": "boolean",
             "description": "CONFIRMADA y ya terminada (la inasistencia se resuelve en Cobros)."
+          },
+          "agendadaPorEquipo": {
+            "type": "boolean",
+            "description": "03b-3.3: la agendo el equipo: si vence el plazo sin pago, la hora se mantiene y se paga en el centro (la propia se libera)."
           }
         },
         "required": [
@@ -34266,12 +36442,15 @@
           "espacioId",
           "espacioNombre",
           "estado",
+          "medioConfirmacion",
+          "pagoVenceEn",
           "id",
           "pacienteId",
           "profesionalId",
           "inicio",
           "fin",
-          "realizada"
+          "realizada",
+          "agendadaPorEquipo"
         ]
       },
       "ReservaPortalDto": {
@@ -35433,6 +37612,39 @@
           "saldo"
         ]
       },
+      "DeudaPaciente": {
+        "type": "object",
+        "properties": {
+          "citas": {
+            "description": "Citas con saldo, de la mas antigua a la mas reciente",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paciente_id": {
+            "type": "string"
+          },
+          "sesiones": {
+            "type": "number"
+          },
+          "saldo": {
+            "type": "number"
+          },
+          "desde": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Fin de la sesion impaga mas antigua."
+          }
+        },
+        "required": [
+          "citas",
+          "paciente_id",
+          "sesiones",
+          "saldo",
+          "desde"
+        ]
+      },
       "DecisionCita": {
         "type": "string",
         "enum": [
@@ -35473,6 +37685,10 @@
           "montoDevolucion": {
             "type": "number"
           },
+          "inasistenciaJustificada": {
+            "type": "boolean",
+            "description": "03b-3.3: TRASLADO o DEVOLUCION de una cita confirmada ya terminada (se trata como cancelacion tardia)."
+          },
           "decididoEn": {
             "format": "date-time",
             "type": "string"
@@ -35486,6 +37702,7 @@
           "motivo",
           "montoExigible",
           "montoDevolucion",
+          "inasistenciaJustificada",
           "decididoEn"
         ]
       },
@@ -35535,7 +37752,8 @@
           "TRANSFERENCIA",
           "TARJETA_DEBITO",
           "TARJETA_CREDITO",
-          "CONVENIO"
+          "CONVENIO",
+          "PASARELA"
         ]
       },
       "EstadoPago": {
@@ -35549,7 +37767,8 @@
         "type": "string",
         "enum": [
           "MANUAL",
-          "TRASLADO"
+          "TRASLADO",
+          "PASARELA"
         ]
       },
       "CobradoPor": {
@@ -35725,14 +37944,15 @@
             "maximum": 100000000
           },
           "medioPago": {
-            "type": "string",
             "enum": [
-              "EFECTIVO",
               "TRANSFERENCIA",
+              "PASARELA",
+              "EFECTIVO",
               "TARJETA_DEBITO",
               "TARJETA_CREDITO",
               "CONVENIO"
-            ]
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -36042,6 +38262,501 @@
           "desde",
           "hasta",
           "profesionalId"
+        ]
+      },
+      "ReservaDto": {
+        "type": "object",
+        "properties": {
+          "reserva": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "reserva"
+        ]
+      },
+      "EstadoReserva": {
+        "type": "string",
+        "enum": [
+          "RETENIDA",
+          "PENDIENTE_PAGO",
+          "CONFIRMADA",
+          "LIBERADA",
+          "CANCELADA",
+          "POR_REPROGRAMAR",
+          "SALDO_PENDIENTE"
+        ]
+      },
+      "SiguientePasoPago": {
+        "type": "string",
+        "enum": [
+          "VERIFICAR_CORREO",
+          "ELEGIR_MEDIO",
+          "ESPERAR_VALIDACION",
+          "TRANSFERENCIA_RECHAZADA",
+          "PAGAR_EN_LINEA",
+          "NINGUNO",
+          "ELEGIR_OTRA_HORA",
+          "CONTACTAR_CENTRO",
+          "PAGAR_EN_CENTRO"
+        ]
+      },
+      "EstadoConfirmacion": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoReserva"
+              }
+            ]
+          },
+          "venceEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Fin de la retencion o plazo de pago"
+          },
+          "siguiente": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SiguientePasoPago"
+              }
+            ]
+          },
+          "medios": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MedioConfirmacion"
+            },
+            "description": "Mientras la hora espera el pago"
+          },
+          "medio": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedioConfirmacion"
+              }
+            ]
+          },
+          "monto": {
+            "type": "number",
+            "nullable": true,
+            "description": "CLP a pagar: para confirmar (porcentaje configurado) o el saldo (SALDO_PENDIENTE)"
+          },
+          "motivoRechazo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Solo con TRANSFERENCIA_RECHAZADA"
+          },
+          "comprobanteRecibido": {
+            "type": "boolean"
+          },
+          "pasarelaSimulada": {
+            "type": "boolean",
+            "description": "true = la pasarela del centro es la simulada (la UI muestra \"modo demostracion\")."
+          }
+        },
+        "required": [
+          "estado",
+          "venceEn",
+          "siguiente",
+          "medios",
+          "medio",
+          "monto",
+          "motivoRechazo",
+          "comprobanteRecibido",
+          "pasarelaSimulada"
+        ]
+      },
+      "MedioReservaDto": {
+        "type": "object",
+        "properties": {
+          "reserva": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 100
+          },
+          "medio": {
+            "type": "string",
+            "enum": [
+              "PAGO_EN_CENTRO",
+              "TRANSFERENCIA",
+              "PASARELA"
+            ]
+          }
+        },
+        "required": [
+          "reserva",
+          "medio"
+        ]
+      },
+      "DatosTransferencia": {
+        "type": "object",
+        "properties": {
+          "origen": {
+            "enum": [
+              "CENTRO",
+              "PROFESIONAL"
+            ],
+            "type": "string"
+          },
+          "venceEn": {
+            "type": "string",
+            "nullable": true,
+            "description": "Nulo en el pago del saldo (sin plazo).",
+            "format": "date-time"
+          },
+          "rut": {
+            "type": "string"
+          },
+          "banco": {
+            "type": "string"
+          },
+          "tipoCuenta": {
+            "type": "string"
+          },
+          "numeroCuenta": {
+            "type": "string"
+          },
+          "titular": {
+            "type": "string"
+          },
+          "monto": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "origen",
+          "venceEn",
+          "rut",
+          "banco",
+          "tipoCuenta",
+          "numeroCuenta",
+          "titular",
+          "monto"
+        ]
+      },
+      "CobroIniciado": {
+        "type": "object",
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "description": "Referencia del intento (la usa la pantalla de la pasarela simulada)."
+          },
+          "urlPago": {
+            "type": "string"
+          },
+          "simulada": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "referencia",
+          "urlPago",
+          "simulada"
+        ]
+      },
+      "EnlacePagoDto": {
+        "type": "object",
+        "properties": {
+          "enlace": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "enlace"
+        ]
+      },
+      "ResumenEnlacePago": {
+        "type": "object",
+        "properties": {
+          "modalidad": {
+            "enum": [
+              "PRESENCIAL",
+              "ONLINE"
+            ],
+            "type": "string"
+          },
+          "profesional": {
+            "type": "string",
+            "nullable": true
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "modalidad",
+          "profesional",
+          "inicio",
+          "fin"
+        ]
+      },
+      "MedioEnlaceDto": {
+        "type": "object",
+        "properties": {
+          "enlace": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 100
+          },
+          "medio": {
+            "type": "string",
+            "enum": [
+              "PAGO_EN_CENTRO",
+              "TRANSFERENCIA",
+              "PASARELA"
+            ]
+          }
+        },
+        "required": [
+          "enlace",
+          "medio"
+        ]
+      },
+      "MedioDto": {
+        "type": "object",
+        "properties": {
+          "medio": {
+            "type": "string",
+            "enum": [
+              "PAGO_EN_CENTRO",
+              "TRANSFERENCIA",
+              "PASARELA"
+            ]
+          }
+        },
+        "required": [
+          "medio"
+        ]
+      },
+      "EstadoTransferencia": {
+        "type": "string",
+        "enum": [
+          "POR_VALIDAR",
+          "VALIDADA",
+          "RECHAZADA"
+        ]
+      },
+      "TransferenciaVista": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoTransferencia"
+              }
+            ]
+          },
+          "comprobanteSubidoEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "motivoRechazo": {
+            "type": "string",
+            "nullable": true
+          },
+          "resueltaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "pacienteId": {
+            "type": "string",
+            "nullable": true,
+            "description": "03b-3.2: nulo = reserva sin cuenta (el paciente se crea al validar)."
+          },
+          "pagoVenceEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "monto": {
+            "type": "number",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "citaId": {
+            "type": "string"
+          },
+          "comprobanteRecibido": {
+            "type": "boolean"
+          },
+          "creadaEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "profesionalId": {
+            "type": "string"
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado",
+          "comprobanteSubidoEn",
+          "motivoRechazo",
+          "resueltaEn",
+          "pacienteId",
+          "pagoVenceEn",
+          "monto",
+          "id",
+          "citaId",
+          "comprobanteRecibido",
+          "creadaEn",
+          "profesionalId",
+          "inicio"
+        ]
+      },
+      "CajaReserva": {
+        "type": "object",
+        "properties": {
+          "pacienteId": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "enum": [
+              "CONFIRMADA",
+              "LIBERADA"
+            ],
+            "type": "string"
+          },
+          "citaId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pacienteId",
+          "estado",
+          "citaId"
+        ]
+      },
+      "RechazoTransferenciaDto": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "motivo"
+        ]
+      },
+      "CuentaCentroDto": {
+        "type": "object",
+        "properties": {
+          "rut": {
+            "type": "string"
+          },
+          "banco": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "tipoCuenta": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40
+          },
+          "numeroCuenta": {
+            "type": "string",
+            "pattern": "^[0-9-]{4,30}$"
+          },
+          "titular": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "rut",
+          "banco",
+          "tipoCuenta",
+          "numeroCuenta",
+          "titular"
+        ]
+      },
+      "CuentaCentroVista": {
+        "type": "object",
+        "properties": {
+          "rut": {
+            "type": "string"
+          },
+          "banco": {
+            "type": "string"
+          },
+          "tipoCuenta": {
+            "type": "string"
+          },
+          "numeroCuenta": {
+            "type": "string"
+          },
+          "titular": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rut",
+          "banco",
+          "tipoCuenta",
+          "numeroCuenta",
+          "titular",
+          "updatedAt"
+        ]
+      },
+      "ResultadoPasarela": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "enum": [
+              "PENDIENTE",
+              "PAGADO",
+              "FALLIDO"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado"
+        ]
+      },
+      "PagoSimuladoDto": {
+        "type": "object",
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pagado": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "referencia",
+          "pagado"
         ]
       }
     }

@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { HORA, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
+import { ProveedorPasarela } from '../../core/integraciones/pasarela';
 import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
 import type { CambiarPasswordDto, CrearUsuarioDto, EditarConfiguracionDto, EditarMiCuentaDto, EditarUsuarioDto } from './dto/nucleo.dto';
 
@@ -44,6 +45,7 @@ export class UsuariosService {
   constructor(
     private readonly bd: ContextoBd,
     private readonly correos: CorreosCuenta,
+    private readonly pasarela: ProveedorPasarela,
   ) {}
 
   /**
@@ -172,6 +174,10 @@ export class UsuariosService {
   }
 
   editarConfiguracion(dto: EditarConfiguracionDto) {
+    // 03b-3.1: la pasarela necesita un adaptador con convenio (la simulada solo fuera de produccion).
+    if (dto.mediosPagoHabilitados?.includes('PASARELA') && !this.pasarela.disponible) {
+      throw new UnprocessableEntityException({ message: 'El centro no tiene una pasarela de pago configurada', restriccion: 'pasarela_sin_convenio' });
+    }
     return this.bd.tx().configuracionCentro.update({ where: { id: true }, data: dto });
   }
 }

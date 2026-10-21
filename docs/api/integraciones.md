@@ -12,6 +12,7 @@ si otro archivo de `core` que no sea `core.module.ts` la elige.
 | `ProveedorCorreo` | `core/notificaciones/correo.ts` | `ProveedorCorreoSmtp` (generico), `ProveedorCorreoSimulado` | `SMTP_URL` presente -> SMTP; vacio -> simulado |
 | `ProveedorVideollamada` | `core/integraciones/videollamada.ts` | `ProveedorVideollamadaPorProfesional`, `ProveedorVideollamadaSimulado` | `VIDEOLLAMADA_SIMULADA=true` -> simulado (default de los tests) |
 | `ProveedorCalendario` | `core/integraciones/calendario.ts` | `CalendarioIcs` | unica (iCalendar RFC 5545) |
+| `ProveedorPasarela` (03b-3.1) | `core/integraciones/pasarela.ts` | `PasarelaSimulada`, `PasarelaNoConfigurada` | `PASARELA_PROVEEDOR=simulada` (default fuera de produccion) o vacio (sin pasarela); en produccion la simulada no arranca |
 
 En los tests de integracion (`test/apoyo.ts`) las simuladas siguen siendo
 el default (`VIDEOLLAMADA_SIMULADA=true`, `SMTP_URL` vacio).
@@ -42,6 +43,12 @@ crea los que origina ella (triggers y jobs). La categoria
 | `PAGO_REGISTRADO` | paciente | API (Cobros) | operativo |
 | `BOLETA_EMITIDA` | paciente | API (Cobros) | operativo |
 | `MENSAJE_PACIENTE` | profesional destinatario | API (Portal) | operativo (equipo) |
+| `INSTRUCCIONES_TRANSFERENCIA` (03b-3.1) | paciente (solo si ya existe: la reserva sin cuenta ve los datos en pantalla) | BD (`elegir_medio_*`) | operativo |
+| `COMPROBANTE_RECIBIDO` (03b-3.1) | paciente (solo si ya existe) | BD (`subir_comprobante_*`) | operativo |
+| `PAGO_VALIDADO` (03b-3.1) | paciente (ademas `CITA_CONFIRMADA` con el `.ics`) | BD (`validar_transferencia`, `confirmar_cobro_pasarela`; 03b-3.2: `concretar_reserva` al crear al paciente de la reserva pagada) | operativo |
+| `PAGO_RECHAZADO` (03b-3.1) | paciente si ya existe (el motivo se ve en la pantalla de pago, no en el correo) | BD (`rechazar_transferencia`) | operativo |
+| `HORA_LIBERADA` (03b-3.1) | paciente: hora liberada porque vencio el plazo de pago (la hora retenida sin paciente no avisa) | BD (job `liberar_reservas_vencidas`) | operativo |
+| `PAGO_PENDIENTE` (03b-3.2) | paciente: hora agendada por el equipo pendiente de pago (paga hasta 12 h antes) | API (Agenda, al agendar) y BD (job `avisar_pagos_pendientes`, 48 h y 24 h antes) | operativo |
 
 `ENLACE_ONLINE` (02f-02h) queda solo para filas historicas: el enlace de la
 videollamada va ahora en la variable `{{enlace}}` de la confirmacion y la
@@ -249,3 +256,66 @@ de consentimiento salen directo por `ProveedorCorreo`
 (`core/notificaciones/correos-cuenta.ts`), no por la cola de
 `notificaciones`: llevan un token de un solo uso que no debe quedar guardado
 en el mensaje cifrado. Sin reintento: si el envio falla se pide de nuevo.
+La **hora retenida** no es un evento de la cola: quien pide hora sin cuenta
+aun no es paciente. 03b-3.2: la retencion se ve en la pantalla de la reserva
+(cuenta regresiva y pago); el paciente nace con el pago validado y entonces
+llegan `PAGO_VALIDADO`, `CITA_CONFIRMADA` y la invitacion a la cuenta. El
+correo `VERIFICACION_SOLICITUD` ("Confirme su correo para reservar la hora",
+enlace de un solo uso) sale solo cuando se paga en el centro (unico medio o
+elegido en la reserva).
+
+## Pasarela de pago (03b-3.1)
+
+**Marco:** el centro de demostracion muestra el flujo completo sin cobrar.
+Pago en el centro y transferencia funcionan de verdad (no dependen de
+terceros); la pasarela es **solo visual y simulada**.
+
+- **Simulada** (`PasarelaSimulada`): la interfaz indica "Modo demostracion:
+  no se realiza ningun cobro". `crearCobro` devuelve una URL de pantalla del
+  front; en la practica el front abre su pantalla de demostracion y llama a
+  `POST /api/publico/pasarela/simulada` con el resultado que elige quien
+  prueba. La API arma el mismo evento firmado (HMAC-SHA256 con
+  `PASARELA_SECRETO_WEBHOOK`, o uno al azar por arranque) que mandaria una
+  pasarela real y lo procesa por el camino del webhook.
+- **Webhook** (`POST /api/publico/pasarela/webhook`): la API verifica la firma
+  (`x-pasarela-firma`, 401 si no calza) y llama a `confirmar_cobro_pasarela`,
+  idempotente por el estado del intento y por `evento_id` unico. Pagado:
+  pago PASARELA (sin usuario) y la cita queda CONFIRMADA si seguia pendiente;
+  si el plazo ya habia vencido, el pago queda registrado para devolucion
+  manual.
+- **Produccion:** con `NODE_ENV=production` la API **no arranca** con
+  `PASARELA_PROVEEDOR=simulada`. Sin adaptador (`PASARELA_PROVEEDOR` vacio) el
+  centro no puede habilitar el medio PASARELA (422 `pasarela_sin_convenio`).
+- **Adaptador real, por centro:** cada centro negocia su propio convenio
+  (proveedor y comisiones, p. ej. Webpay Plus de Transbank, Flow, Mercado
+  Pago o Khipu). Para habilitarlo en un silo:
+  1. Implementar `ProveedorPasarela` para ese proveedor: `crearCobro`
+     (orden de compra con `referencia` = id del intento en `cobros_pasarela`,
+     monto y URL de retorno) y `verificarWebhook` (firma o consulta al
+     proveedor segun su API; con el cuerpo crudo: `rawBody` de Nest).
+  2. Credenciales del convenio como secretos del silo (Docker secret, nunca
+     en el repo ni en la BD en claro), una variable que elija el adaptador en
+     `CoreModule` (sin tocar los modulos de negocio).
+  3. Registrar la URL del webhook en el panel del proveedor y probar en su
+     ambiente de integracion antes de producir.
+  4. Ningun dato de tarjeta pasa por la API: el pago ocurre en la pagina del
+     proveedor; la BD guarda solo el intento, el monto y el id del evento.
+- Las comisiones del convenio no se modelan: el pago registrado es el monto
+  que paga el paciente (la liquidacion sigue usando `comision_centro_porcentaje`).
+
+## Confirmacion por medio de pago (03b-3.1, 03b-3.2)
+
+03b-3.2: la hora se confirma con el pago. Reserva sin cuenta = cita RETENIDA
+sin paciente por `minutos_retencion_solicitud`; el pago registrado crea al
+paciente (misma transaccion). Comprobante subido a tiempo: la hora espera la
+validacion hasta `plazo_validacion_transferencia_horas` (nunca despues del
+inicio). Hora que agenda el equipo: pendiente de pago hasta 12 h antes de la
+sesion (avisos al agendar, 48 h y 24 h antes). Sin aprobacion aparte de
+pacientes nuevos.
+
+`configuracion_centro.medios_pago_habilitados` (sin el modulo COBROS solo
+cuenta PAGO_EN_CENTRO), `plazo_validacion_transferencia_horas` (24; siempre
+antes del inicio) y `porcentaje_pago_confirmacion` (100). Transferencia: la
+cuenta del centro (`cuenta_bancaria_centro`) o la del profesional con cobro
+directo; comprobante opcional; valida GESTION/ADMIN o el profesional segun el
+modelo de cobro. Sin lectura de correos bancarios.

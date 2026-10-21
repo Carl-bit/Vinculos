@@ -70,6 +70,7 @@ El punto de la marca y los bordes siguen con `-600` (son decorativos, no son tex
 | Tarjeta de profesional, perfil completo, reseñas | Equipo Publico | `TarjetaPerfil`, `PerfilCompleto`, `EquipoPublico` | `equipo/` |
 | Cuestionario paso a paso y resultado | Match Publico | `AsistenteMatch`, `PreguntaMatch` | `match/` |
 | Bifurcacion, horario, datos, retencion, verificacion | Paciente - Pedir Hora | `InicioPedirHora`, `SelectorHorario`, `SolicitudHora`, `CuentaRegresiva`, `VerificarSolicitud`, `ResultadoEnlace` | `agenda/` |
+| Paso de pago (medios del centro, datos para transferir, comprobante, pasarela simulada) y pago desde la cuenta; 03b-3.2: con la hora retenida, antes del correo | (nuevo, 03b-3.1) | `PasoPago`, `PagoCitaPortal` (sondeo del estado en `lib/pagos.ts`) | `agenda/` |
 | Casilla obligatoria con forma de tarjeta (aceptar politicas) | Pedir Hora | `Casilla` | `ui/` |
 | Ruta del panel o del portal sin pagina (404 dentro del layout) | (nuevo, 03b) | `not-found` de `/admin` y `/portal` con `EstadoVista` | `app/` |
 | Modal (overlay fijo) | 7 (9) | `Modal` (sobre `<dialog>` nativo, 03b-3) | `ui/` |

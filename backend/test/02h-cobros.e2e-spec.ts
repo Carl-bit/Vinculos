@@ -196,9 +196,9 @@ describe('02h cobros', () => {
       ).status,
     ).toBe(409);
 
-    // Por rol: el profesional sin cobro directo no registra; el paciente ve lo suyo; practicante nada.
+    // Por rol (03b-3.4): otro profesional no registra (el de la cita si, en cualquier modelo); el paciente ve lo suyo; practicante nada.
     const otra = await cita(prof, paciente.pacienteId, 52);
-    expect((await pagar(otra.id, 1000, prof)).status).toBe(403);
+    expect((await pagar(otra.id, 1000, await t.datos.usuario('PROFESIONAL'))).status).toBe(403);
     expect((await pagar(otra.id, 1000, paciente)).status).toBe(403);
     expect((await estado(c.id, paciente)).boleta.numero).toBe(completo.body.boleta.numero);
     expect((await estado(c.id, prof)).estado_pago).toBe('PAGADO');

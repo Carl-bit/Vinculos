@@ -59,7 +59,24 @@ export class ResolucionCitaVista {
   citaNuevaId!: string | null;
   @ApiProperty({ type: String, nullable: true })
   motivo!: string | null;
+  /** 03b-3.3: TRASLADO o DEVOLUCION de una cita confirmada ya terminada (se trata como cancelacion tardia). */
+  inasistenciaJustificada!: boolean;
   decididoEn!: Date;
+}
+
+/**
+ * 03b-3.3: deuda por paciente (sesiones terminadas con saldo, pasados los
+ * dias de gracia). Con el bloqueo del centro activo, el paciente no agenda
+ * hasta regularizar. Sin nombres: el panel los pone con lo que ya ve.
+ */
+export class DeudaPaciente {
+  paciente_id!: string;
+  sesiones!: number;
+  saldo!: number;
+  /** Fin de la sesion impaga mas antigua. */
+  desde!: Date;
+  @ApiProperty({ type: String, isArray: true, description: 'Citas con saldo, de la mas antigua a la mas reciente' })
+  citas!: string[];
 }
 
 export class BoletaVista {

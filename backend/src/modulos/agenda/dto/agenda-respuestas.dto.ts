@@ -4,7 +4,7 @@
  * front lo tome del esquema generado.
  */
 import { ApiProperty } from '@nestjs/swagger';
-import { EstadoCita, ModalidadAtencion, MotivoBloqueoAgenda, RespuestaRecordatorio } from '@prisma/client';
+import { EstadoCita, MedioConfirmacion, ModalidadAtencion, MotivoBloqueoAgenda, RespuestaRecordatorio } from '@prisma/client';
 
 /** Horas de box apartadas por un profesional (su agenda). */
 export class BloqueAtencionVista {
@@ -73,7 +73,9 @@ export class CitaVista {
   modalidad!: ModalidadAtencion;
   margenTrasladoMin!: number;
   profesionalId!: string;
-  pacienteId!: string;
+  /** 03b-3.2: nulo solo en RETENIDA (reserva sin cuenta en curso: el paciente nace con el pago). */
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
   inicio!: Date;
   fin!: Date;
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
@@ -82,18 +84,17 @@ export class CitaVista {
   monto!: number | null;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   canceladaEn!: Date | null;
+  /** 03b-3.2: plazo de pago (PENDIENTE_PAGO o RETENIDA); la agendada por el equipo, hasta las horas configuradas antes (12 por defecto). */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  pagoVenceEn!: Date | null;
+  /** PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3). */
+  @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', nullable: true })
+  medioConfirmacion!: MedioConfirmacion | null;
+  /** 03b-3.3: hora retenida liberada a mano por ADMIN/GESTION (LIBERADA). */
+  @ApiProperty({ type: String, nullable: true })
+  motivoLiberacion!: string | null;
   createdAt!: Date;
   updatedAt!: Date;
-}
-
-export class InvitacionTrasAprobar {
-  rol!: string;
-  vence!: Date;
-}
-
-export class CitaAprobada extends CitaVista {
-  @ApiProperty({ type: InvitacionTrasAprobar, nullable: true })
-  invitacion!: InvitacionTrasAprobar | null;
 }
 
 /** Box del centro (catalogo; nunca se borra: se desactiva). */

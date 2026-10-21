@@ -15,10 +15,8 @@ import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { MENSAJE_POR_RESTRICCION } from '../../core/errores/sqlstate';
 import { EVENTOS, type CitaCancelada, type CitaConfirmada, type NotificacionSolicitada } from '../../core/eventos/eventos';
-import { HORA, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
-import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
 import { AgendaService } from './agenda.service';
-import type { CrearCitaDto, CubrirCitaDto, FiltroCitasDto, HorarioDto, ReprogramarCitaDto } from './dto/agenda.dto';
+import type { CrearCitaDto, CubrirCitaDto, FiltroCitasDto, HorarioDto, LiberarHoraDto, ReprogramarCitaDto } from './dto/agenda.dto';
 import { ProveedorVideollamada } from '../../core/integraciones/videollamada';
 
 /** Sin enlace (cifrado) en las listas: se pide aparte en /citas/:id/enlace. */
@@ -34,6 +32,9 @@ const VISTA = {
   estado: true,
   monto: true,
   canceladaEn: true,
+  pagoVenceEn: true,
+  medioConfirmacion: true,
+  motivoLiberacion: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.CitaSelect;
@@ -50,8 +51,19 @@ const DIA = 86_400_000;
 const MAX_ALTERNATIVAS = 3;
 
 /**
- * Citas: crear (CONFIRMADA), cancelar y reprogramar (UPDATE de estado, nunca
- * DELETE). Fuente de verdad anti-choque = EXCLUDE de la BD (23P01 -> 409).
+ * Citas: crear, cancelar y reprogramar (UPDATE de estado, nunca DELETE).
+ * Fuente de verdad anti-choque = EXCLUDE de la BD (23P01 -> 409).
+ *
+ * 03b-3.2: la cita que agenda el equipo queda PENDIENTE_PAGO hasta 12 h antes
+ * de la sesion (lo decide la BD: trigger citas_pago_previo_equipo) y se avisa
+ * al paciente (PAGO_PENDIENTE; recordatorios 48 h / 24 h los manda el job).
+ * Confirma directo si solo se paga en el centro, si no hay nada que cobrar o
+ * si ya no queda plazo (pago en el centro).
+ *
+ * 03b-3.3: el plazo son las horas que configura el centro y, vencido sin pago,
+ * la cita se mantiene con pago en el centro (el job). Un paciente con deuda no
+ * agenda (trigger citas_paciente_moroso, 422) salvo que ADMIN/GESTION lo
+ * autoricen con motivo en la misma transaccion.
  *
  * Opcion C (requisitos_02_apis.md 7): antes de confirmar se verifica con
  * disponibilidad_publica() (bloques de box del profesional menos citas,
@@ -68,7 +80,6 @@ export class CitasService {
     private readonly video: ProveedorVideollamada,
     private readonly eventos: EventEmitter2,
     private readonly config: ConfigService,
-    private readonly correos: CorreosCuenta,
   ) {}
 
   async listar(filtro: FiltroCitasDto) {
@@ -101,6 +112,9 @@ export class CitasService {
     await this.exigirAdultoSiEsMenor(dto.pacienteId);
     await this.soltarHorariosPropios(dto);
     await this.exigirDisponible(dto);
+    if (dto.motivoAutorizacionDeuda) {
+      await tx.$queryRaw`SELECT autorizar_cita_con_deuda(${dto.pacienteId}::uuid, ${dto.motivoAutorizacionDeuda})`;
+    }
     const cita = await tx.cita.create({
       data: {
         pacienteId: dto.pacienteId,
@@ -115,7 +129,17 @@ export class CitasService {
       select: VISTA,
     });
     const conEnlace = await this.generarEnlace(cita);
-    this.emitirConfirmada(EVENTOS.CITA_CONFIRMADA, cita, conEnlace);
+    if (cita.estado === 'PENDIENTE_PAGO') {
+      const evento: NotificacionSolicitada = {
+        actor: this.bd.usuario(),
+        tipo: 'PAGO_PENDIENTE',
+        destino: { pacienteId: dto.pacienteId },
+        referenciaId: cita.id,
+      };
+      this.bd.alConfirmar(() => this.eventos.emitAsync(EVENTOS.NOTIFICACION_SOLICITADA, evento));
+    } else {
+      this.emitirConfirmada(EVENTOS.CITA_CONFIRMADA, cita, conEnlace);
+    }
     return cita;
   }
 
@@ -125,11 +149,23 @@ export class CitasService {
     if (actual.estado === 'CANCELADA') {
       throw new ConflictException('La cita ya esta cancelada');
     }
+    if (actual.estado === 'LIBERADA') {
+      throw new ConflictException('La cita ya se libero por vencimiento del pago');
+    }
+    if (!actual.pacienteId) {
+      throw new ConflictException('La hora esta retenida por una reserva en curso: se libera sola si no se paga a tiempo, o se libera con motivo');
+    }
     const cita = await tx.cita.update({ where: { id }, data: { estado: 'CANCELADA', enlaceOnline: null }, select: VISTA });
     const actor = this.bd.usuario();
-    const evento: CitaCancelada = { actor, citaId: id, pacienteId: cita.pacienteId, profesionalId: cita.profesionalId };
+    const evento: CitaCancelada = { actor, citaId: id, pacienteId: actual.pacienteId, profesionalId: cita.profesionalId };
     this.bd.alConfirmar(() => this.eventos.emitAsync(EVENTOS.CITA_CANCELADA, evento));
     return cita;
+  }
+
+  /** 03b-3.3: liberar a mano la hora retenida (ADMIN/GESTION, con motivo; la reserva ya no se concreta). */
+  async liberar(id: string, { motivo }: LiberarHoraDto) {
+    await this.bd.tx().$executeRaw`SELECT liberar_hora_retenida(${id}::uuid, ${motivo})`;
+    return this.obtener(id);
   }
 
   /**
@@ -145,8 +181,9 @@ export class CitasService {
     if (actual.estado === 'CANCELADA') {
       throw new ConflictException('Una cita cancelada no se reprograma');
     }
-    if (actual.estado === 'SOLICITADA') {
-      throw new ConflictException('La cita esta por aprobar: apruebela o cancelela antes de moverla');
+    // 03b-3.1: la hora pendiente de pago (o retenida) se confirma o se libera; la liberada ya no existe.
+    if (actual.estado === 'PENDIENTE_PAGO' || actual.estado === 'RETENIDA' || actual.estado === 'LIBERADA') {
+      throw new ConflictException('La cita no esta confirmada (pago pendiente o vencido): no se reprograma');
     }
     const modalidad = dto.modalidad ?? actual.modalidad;
     const horario: HorarioDto = { profesionalId: actual.profesionalId, modalidad, inicio: dto.inicio, fin: dto.fin };
@@ -161,26 +198,6 @@ export class CitasService {
     const conEnlace = await this.generarEnlace(cita);
     this.emitirConfirmada(EVENTOS.CITA_REPROGRAMADA, cita, conEnlace);
     return cita;
-  }
-
-  /**
-   * Aprobar una cita SOLICITADA (C-15): el tratante, ADMIN o GESTION. Queda
-   * CONFIRMADA (la BD fija el monto) y, si el paciente llego por el portal y
-   * aun no tiene cuenta, se le invita (o a su adulto responsable).
-   */
-  async aprobar(id: string) {
-    const tx = this.bd.tx();
-    await tx.$queryRaw`SELECT aprobar_cita_solicitada(${id}::uuid)`;
-    const cita = await this.obtener(id);
-    const conEnlace = await this.generarEnlace(cita);
-    this.emitirConfirmada(EVENTOS.CITA_CONFIRMADA, cita, conEnlace);
-    const { token, hash } = nuevoTokenCorreo();
-    const vence = new Date(Date.now() + 72 * HORA);
-    const [inv] = await tx.$queryRaw<{ email: string; rol: string }[]>`SELECT email, rol::text FROM invitar_tras_aprobar(${id}::uuid, ${hash}, ${vence})`;
-    if (inv) {
-      this.bd.alConfirmar(() => this.correos.enviar('INVITACION', inv.email, token, vence));
-    }
-    return { ...cita, invitacion: inv ? { rol: inv.rol, vence } : null };
   }
 
   /**
@@ -348,9 +365,13 @@ export class CitasService {
 
   private emitirConfirmada(
     nombre: string,
-    cita: { id: string; pacienteId: string; profesionalId: string; modalidad: ModalidadAtencion; inicio: Date; fin: Date },
+    cita: { id: string; pacienteId: string | null; profesionalId: string; modalidad: ModalidadAtencion; inicio: Date; fin: Date },
     conEnlace: boolean,
   ) {
+    // Solo la hora retenida (reserva sin cuenta) no tiene paciente, y esa no pasa por aqui.
+    if (!cita.pacienteId) {
+      return;
+    }
     const evento: CitaConfirmada = {
       actor: this.bd.usuario(),
       citaId: cita.id,

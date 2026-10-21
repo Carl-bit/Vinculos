@@ -51,7 +51,7 @@ export class PortalService {
     const filas = await this.bd.tx().cita.findMany({
       where: {
         pacienteId,
-        ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'SOLICITADA'] }, fin: { gt: new Date() } }),
+        ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'PENDIENTE_PAGO'] }, fin: { gt: new Date() } }),
       },
       select: {
         id: true,
@@ -63,12 +63,21 @@ export class PortalService {
         inicio: true,
         fin: true,
         estado: true,
+        medioConfirmacion: true,
+        pagoVenceEn: true,
+        agendadaPorEquipo: true,
       },
       orderBy: { inicio: todas ? 'desc' : 'asc' },
     });
     const ahora = new Date();
     // 03b-3: el nombre del box (catalogo, no un dato de otro usuario) para "Presencial, Box 2".
-    return filas.map(({ espacio, ...c }) => ({ ...c, espacioNombre: espacio?.nombre ?? null, realizada: c.estado === 'CONFIRMADA' && c.fin <= ahora }));
+    // La RLS solo deja ver citas de sus pacientes: nunca una hora retenida sin paciente.
+    return filas.map(({ espacio, ...c }) => ({
+      ...c,
+      pacienteId: c.pacienteId!,
+      espacioNombre: espacio?.nombre ?? null,
+      realizada: c.estado === 'CONFIRMADA' && c.fin <= ahora,
+    }));
   }
 
   /**

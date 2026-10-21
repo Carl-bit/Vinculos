@@ -20,6 +20,10 @@ Integraciones y mensajeria: `docs/api/integraciones.md`.
 | `20261019000000_03a2_enums` | 03a-2 | valores de enum: alerta y aviso POSIBLE_DUPLICADO, aviso MENSAJE_INTERNO |
 | `20261019000100_03a2_plantillas_mensajeria` | 03a-2 | `especialidades`, `profesional_especialidades`, `plantillas_clinicas` (versionadas, con ejemplos), `ingresos_ficha`, plantilla y valores en `evoluciones` y `borradores_evolucion`; `hilos_internos`, `participantes_hilo`, `mensajes_internos`, `lecturas_hilo`; `correos_cuenta_pendientes`; `configuracion_centro.retencion_mensajes_dias` y `edad_minima_cuenta`; duplicados solo via funcion (alerta y aviso); RUT antes de la primera evolucion para todo paciente |
 | `20261024000000_quitar_lista_espera` | rollback | retira la lista de espera (con cuenta 03a, publica 03b y "avisarme si se libera una hora"): tablas, triggers de aviso, funciones, job y columnas. Implementacion futura; ver la seccion final |
+| `20261025000000_03b31_enums` | 03b-3.1 | valores de enum: cita PENDIENTE_PAGO y LIBERADA, avisos del pago (INSTRUCCIONES_TRANSFERENCIA, COMPROBANTE_RECIBIDO, PAGO_VALIDADO, PAGO_RECHAZADO), medio y origen de pago PASARELA |
+| `20261025000100_03b31_confirmacion_pago` | 03b-3.1 | confirmacion por medio de pago: medios, plazo y porcentaje en `configuracion_centro`; `cuenta_bancaria_centro`, `transferencias` y `cobros_pasarela` (A); estado de pago de `citas` protegido (trigger) y PENDIENTE_PAGO en los EXCLUDE; reserva con token opaco y verificacion tardia; funciones del flujo, webhook idempotente y job `liberar_reservas_vencidas` |
+| `20261026000000_03b32_enums` | 03b-3.2 | valores de enum: cita RETENIDA (hora retenida sin paciente), aviso PAGO_PENDIENTE |
+| `20261026000100_03b32_pago_previo` | 03b-3.2 | la hora se confirma con el pago: la reserva sin cuenta es una cita RETENIDA sin paciente (EXCLUDE) y el pago registrado la concreta (`concretar_reserva`); pago en el centro: enlace del correo; aprobacion de pacientes nuevos retirada (SOLICITADA migrada, CHECK, columna y funciones eliminadas); cobro previo de la hora que agenda el equipo (trigger, plazo 12 h antes, avisos 48/24 h); `registrar_pago` confirma; comprobante mantiene la hora hasta validar |
 
 Todas siguen el checklist de tabla nueva: categoria A (salvo
 `tipos_documento_clinico` y `plantillas_mensaje`, B), ENABLE + FORCE RLS, politicas por rol +
@@ -310,3 +314,97 @@ sin editar las aplicadas:
   quedan sin la lista.
 - Para retomarla: el diseño anterior queda en el historial de git (commits de
   03a-1 y 03b) y en `design-system/vinculos/MASTER.md`.
+
+## 03b-3.1 (confirmacion por medio de pago)
+
+- Migraciones `20261025000000_03b31_enums` y `20261025000100_03b31_confirmacion_pago`
+  (detalle en `docs/seguridad/requisitos_02_apis.md`, seccion 03b-3.1, y en la
+  matriz). Las citas existentes quedan como estaban (CONFIRMADA): con la
+  configuracion por defecto (solo pago en el centro) todo se confirma al
+  verificar, como antes.
+- Endpoints nuevos: `publico/reservas/*`, `portal/citas/:id/{pago,medio,transferencia,comprobante,pasarela}`,
+  `cobros/transferencias*`, `cobros/citas/:id/transferencia/*`,
+  `cobros/cuenta-centro`, `publico/pasarela/{webhook,simulada}`; job
+  `liberar_reservas_vencidas` (cada minuto).
+- Tests: `seguridad_bd.sql` casos 127 (flujo y permisos) y 128 (vencimientos y
+  verificacion tardia, como dueño); integracion `test/03b31-confirmacion-pago.e2e-spec.ts`.
+
+## 03b-3.2 (la hora se confirma con el pago)
+
+- Migraciones `20261026000000_03b32_enums` y `20261026000100_03b32_pago_previo`
+  (detalle en `docs/seguridad/requisitos_02_apis.md`, seccion 03b-3.2, y en la
+  matriz). Con la configuracion por defecto (solo pago en el centro) el flujo
+  visible es el de antes: correo y confirmacion.
+- API: `ConcrecionReserva` (core) concreta la reserva tras el pago
+  (transferencia validada o webhook, misma transaccion) o con el enlace del
+  correo; `SolicitudesService` y `ConfirmacionPagoService` la usan. Se retira
+  `POST citas/:id/aprobacion` y `requiereAprobacionNuevos` del perfil.
+  `CitaVista` suma `pagoVenceEn` y `medioConfirmacion`; `EstadoConfirmacion`
+  suma `CONTACTAR_CENTRO` y pierde `SOLICITADA`/`ESPERAR_APROBACION`;
+  dashboard: `pagos_pendientes` y `transferencias_por_validar`. Job nuevo
+  `avisar_pagos_pendientes` (cada 10 min).
+- Front: pedir hora (Horario, Datos, Pago, Confirmada; "revisa tu correo" solo
+  con pago en el centro), enlace del correo, detalle de cita (hora retenida y
+  pago pendiente), "Agendar sesion" (resultado con plazo), pestaña Pendientes
+  ("Pago pendiente" en vez de "Por aprobar"), inicio del panel y perfil sin
+  la opcion de aprobar.
+- Tests: `seguridad_bd.sql` casos 105, 106, 115, 127, 128 reescritos y 129
+  nuevo (hora del equipo); integracion `test/03b31-confirmacion-pago.e2e-spec.ts`
+  reescrito (retenida, transferencia, cobro directo, pasarela, pago en el
+  centro, vencimientos, hora del equipo con avisos, portal); se retiran los
+  casos de aprobacion de `03a-alineacion` y `03b4-previos`.
+
+## 03b-3.3 (pago tardio, morosidad y caja de la hora retenida)
+
+- Migraciones `20261027000000_03b33_enums` y `20261027000100_03b33_morosidad_caja`
+  (detalle en `docs/seguridad/requisitos_02_apis.md`, seccion 03b-3.3, y en la
+  matriz). Decisiones del usuario (2026-10-20): la hora que agenda el equipo
+  sin pago al vencer el plazo se mantiene (la sesion ocurre y queda deuda);
+  el plazo es configurable (`horas_plazo_pago_equipo`, 12 por defecto); un
+  paciente con deuda no agenda (equipo ni portal) salvo autorizacion de
+  ADMIN/GESTION con motivo; 0 dias de gracia por defecto; inasistencia
+  justificada = reagendar sin penalizacion o devolucion con penalizacion; la
+  hora retenida presencial se cobra en caja y se libera a mano con motivo.
+- API: `POST citas` acepta `motivoAutorizacionDeuda` (422
+  `citas_paciente_moroso` sin el; 403 si no es ADMIN/GESTION);
+  `PATCH citas/:id/liberacion` (ADMIN/GESTION); `POST cobros/citas/:id/caja`
+  (quien cobra segun el modelo; concreta la reserva en la misma transaccion e
+  invita despues del COMMIT); `GET cobros/deudas` (ADMIN/GESTION todas,
+  PROFESIONAL las de sus citas). `resolver_cita` trata TRASLADO/DEVOLUCION de
+  una cita confirmada ya terminada como inasistencia justificada
+  (`ResolucionCitaVista.inasistenciaJustificada`). Configuracion:
+  `horasPlazoPagoEquipo`, `diasGraciaMorosidad`, `bloquearAgendaMorosos`
+  (ADMIN). `CitaVista.motivoLiberacion`, `CitaPortal.agendadaPorEquipo`,
+  dashboard `pacientes_con_deuda`. Job nuevo `avisar_deudas` (cada hora).
+- Front: "Agendar sesion" (422 por deuda; ADMIN/GESTION autorizan con motivo
+  sin perder la hora retenida), detalle de cita (hora retenida: "Cobrar en
+  caja" si es presencial y "Liberar hora"), Cobros pestaña "Deudas",
+  "Registrar asistencia y pago" (inasistencia justificada), Reglas del centro
+  (plazo, gracia y bloqueo), inicio del panel ("pacientes con deuda") y
+  textos del pago pendiente en el portal y el panel.
+- Tests: `seguridad_bd.sql` caso 128 ajustado (la hora del equipo vencida se
+  mantiene; si ya no cabe, se libera) y casos 130 (app_user), 131 (morosidad,
+  autorizacion, deudas, avisos, inasistencia justificada) y 132 (caja y
+  liberacion); integracion `test/03b33-morosidad-caja.e2e-spec.ts` (por rol) y
+  `03b31` ajustado; Vitest `PasoPago` (texto de la hora del equipo).
+
+## 03b-3.4 (deuda en linea, enlace de pago y cobro del profesional)
+
+- Migraciones `20261028000000_03b34_enums` y `20261028000100_03b34_deuda_en_linea`
+  (detalle en `docs/seguridad/requisitos_02_apis.md`, seccion 03b-3.4, y en la
+  matriz).
+- API: el estado de pago de una cita devuelve `SALDO_PENDIENTE` (siguiente
+  `PAGAR_EN_CENTRO` si no hay medios en linea) para la sesion realizada con
+  saldo; medio, transferencia, comprobante y pasarela del portal sirven igual
+  para el saldo. Rutas nuevas `publico/pagos/{resumen,estado,medio,transferencia,comprobante,pasarela}`
+  (token del enlace en el cuerpo). El job de mensajes emite el enlace en los
+  correos de pago a pacientes sin cuenta. `registrar_pago` y
+  `cobrar_reserva_en_caja`: tambien el profesional de la cita.
+  `DatosTransferencia.venceEn` nulo en el saldo.
+- Front: pagina `/pagar`, "Pagar en línea" en Pagos del portal, paso de pago
+  con textos del saldo, "Cobrar en caja" para el profesional de la hora
+  retenida; `PasoPago`/`PagoCitaPortal` a `components/shared/`.
+- Tests: `seguridad_bd.sql` caso 133 (saldo por pasarela y transferencia,
+  segunda transferencia, sin medios en linea, enlace, cobro del profesional) y
+  ajustes en 93 y 127; integracion `test/03b34-deuda-enlace.e2e-spec.ts` y
+  `03b33` ajustado; Vitest `PasoPago` (saldo).

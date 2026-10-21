@@ -13,7 +13,6 @@ import {
   BloqueAtencionVista,
   BloqueoAgendaVista,
   BloquesLiberados,
-  CitaAprobada,
   CitaVista,
   ConflictoMargen,
   DisponibilidadHabitual,
@@ -43,6 +42,7 @@ import {
   EditarEspacioDto,
   FiltroCitasDto,
   HorarioDto,
+  LiberarHoraDto,
   RangoDto,
   ReprogramarCitaDto,
   SalaDto,
@@ -239,6 +239,7 @@ export class CitasController {
     return this.citas.verificar(dto);
   }
 
+  /** Paciente con deuda: 422 citas_paciente_moroso, salvo `motivoAutorizacionDeuda` de ADMIN/GESTION (03b-3.3). */
   @Post()
   @Roles(...EQUIPO_AGENDA)
   crear(@Body() dto: CrearCitaDto): Promise<CitaVista> {
@@ -257,6 +258,13 @@ export class CitasController {
     return this.citas.cancelar(id);
   }
 
+  /** 03b-3.3: libera a mano una hora retenida (reserva sin cuenta). Con comprobante por validar: 409. */
+  @Patch(':id/liberacion')
+  @Roles('ADMIN', 'GESTION')
+  liberar(@Param('id', Uuid) id: string, @Body() dto: LiberarHoraDto): Promise<CitaVista> {
+    return this.citas.liberar(id, dto);
+  }
+
   @Patch(':id/reprogramacion')
   @Roles(...EQUIPO_AGENDA)
   reprogramar(@Param('id', Uuid) id: string, @Body() dto: ReprogramarCitaDto): Promise<CitaVista> {
@@ -267,14 +275,6 @@ export class CitasController {
   @Roles(...TODOS)
   enlace(@Param('id', Uuid) id: string): Promise<EnlaceCita> {
     return this.citas.enlace(id);
-  }
-
-  /** Aprobar una cita SOLICITADA (paciente nuevo de un profesional que aprueba). */
-  @Post(':id/aprobacion')
-  @HttpCode(200)
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  aprobar(@Param('id', Uuid) id: string): Promise<CitaAprobada> {
-    return this.citas.aprobar(id);
   }
 
   /**

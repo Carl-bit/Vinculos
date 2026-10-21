@@ -22,8 +22,15 @@ Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.m
   `disponibilidad_publica(...)` (portal publico), `feed_calendario(token_hash)`
   (feed iCal, 02h: el token de la URL autoriza), `consultar_recordatorio` y
   `responder_recordatorio` (02i: el token del recordatorio autoriza, un solo
-  uso), `llaves_vigentes()` y `registrar_evento_llaves(...)` (CryptoModule) y
-  los jobs (seccion 8). Las funciones de job de 02i rechazan una llamada con
+  uso), `llaves_vigentes()` y `registrar_evento_llaves(...)` (CryptoModule),
+  las funciones de la reserva sin cuenta (03b-3.1: `estado_reserva`,
+  `elegir_medio_reserva`, `datos_transferencia_reserva`,
+  `transferencia_de_reserva`, `subir_comprobante_reserva`,
+  `iniciar_cobro_reserva`: el SHA-256 del token opaco autoriza solo esa cita),
+  `confirmar_cobro_pasarela` (webhook con la firma ya verificada), 03b-3.2:
+  `concretar_reserva` y `reserva_por_concretar` (enlace del correo o pago
+  registrado en la misma transaccion) y los jobs
+  (seccion 8). Las funciones de job de 02i rechazan una llamada con
   contexto de usuario (42501).
 - Mensajes (02i): la API nunca inserta en `notificaciones`; llama a
   `notificar(tipo, paciente, usuario, referencia)` con el contexto del actor
@@ -286,6 +293,9 @@ DTOs (`class-validator`), antes de cifrar:
 | `notificaciones_por_enviar` + `guardar_contenido_notificacion` + `marcar_notificacion` (02i) | cada minuto | mensajes armados y cerrados; correo con backoff 1, 2, 4, 8 min, FALLIDO al quinto intento |
 | `avisar_consentimientos_por_vencer()` (02i) | cada 10 min | avisos legales (una vez por solicitud) |
 | `citas_por_recordar` + `registrar_recordatorio` (02i, Agenda) | cada 10 min | recordatorios registrados (uno por cita y horario) |
+| `liberar_reservas_vencidas()` (03b-3.1) | cada minuto | citas PENDIENTE_PAGO o RETENIDA (03b-3.2) liberadas; aviso HORA_LIBERADA si hay paciente. 03b-3.3: la del equipo se mantiene con pago en el centro |
+| `avisar_pagos_pendientes()` (03b-3.2) | cada 10 min | avisos PAGO_PENDIENTE 48 h y 24 h antes de las horas del equipo pendientes de pago |
+| `avisar_deudas()` (03b-3.3) | cada hora | aviso DEUDA_PENDIENTE (paciente y profesional) una vez por sesion terminada con saldo |
 
 Idempotentes y con `SKIP LOCKED`: correr dos instancias a la vez no duplica
 efectos. Loguear el numero devuelto con el logger de Nest. Ademas el envio de
@@ -619,3 +629,167 @@ del RlsInterceptor:
   comentarios), hilos internos, registro de notificaciones, leido de
   mensajes, requerir cierre, match directo, imagen publica y mi equipo
   tratante. Solo `GET salud` queda sin schema (justificado).
+
+## 03b-3.1 (confirmacion por medio de pago)
+
+- La cita se confirma segun el medio de pago. RETENIDA es estado de la
+  **reserva** (solicitud + retencion), no de la cita: asi no se crean paciente
+  ni ficha (que nunca se borran) para un correo sin verificar. Decision del
+  usuario: la cita nace al verificar en PENDIENTE_PAGO (o CONFIRMADA de
+  inmediato si solo se paga en el centro o no hay monto; SOLICITADA si el
+  profesional aprueba pacientes nuevos). LIBERADA = plazo de pago vencido.
+  El vencimiento lo decide el job `liberar_reservas_vencidas` (cada minuto).
+- Token opaco de la reserva (`SolicitudCreada.reserva`, 256 bits; la BD
+  guarda solo su SHA-256): viaja en el **cuerpo** de POST
+  `publico/reservas/{estado,medio,transferencia,pasarela}` y como campo del
+  multipart de `publico/reservas/comprobante` (nunca en la URL: no queda en
+  logs). Estado: solo estado, vencimiento, siguiente paso, medios, monto,
+  comprobante recibido y motivo de rechazo. Rate limit publico por IP.
+- Verificacion tardia: el enlace dura hasta 24 h; con la retencion vencida
+  `concretar_solicitud_hora` concreta si la hora sigue libre y, si no, 23P01
+  `solicitudes_hora_tomada`; la API responde 409 con `alternativas` (huecos de
+  `disponibilidad_publica` de la misma duracion y modalidad).
+- Portal: `portal/citas/:id/{pago,medio,transferencia,comprobante,pasarela}`
+  (PACIENTE/RESPONSABLE, cuenta plena). `datos_transferencia_portal` registra
+  DATOS_PAGO en `accesos_ficha`; por token no hay usuario que registrar.
+- Validacion: `cobros/citas/:id/transferencia/{validacion,rechazo}` (la BD
+  impone GESTION/ADMIN con cobro del centro o el profesional con cobro
+  directo); `cobros/transferencias` (bandeja, RLS) y su comprobante
+  (LECTURA en `accesos_ficha`). Cuenta del centro: `cobros/cuenta-centro`.
+- Pasarela (interfaz `ProveedorPasarela` de core): `publico/pasarela/webhook`
+  (firma `x-pasarela-firma`, 401 si no calza; idempotente en la BD) y, solo
+  con la simulada, `publico/pasarela/simulada`. `PASARELA_PROVEEDOR` vacio o
+  `simulada` (default fuera de produccion); con `NODE_ENV=production` la API
+  no arranca con la simulada. Habilitar el medio PASARELA sin adaptador: 422
+  `pasarela_sin_convenio`.
+- Comprobante: PDF, PNG o JPEG validado por contenido
+  (`core/validacion/archivos.ts`, compartido con los adjuntos de la ficha),
+  limite `ADJUNTO_MAX_MB` (413), cifrado FINANCIERO con el id de la
+  transferencia (id generado por la API).
+- Funciones que devuelven `void` se llaman con `$executeRaw` (Prisma no
+  deserializa `void` en `$queryRaw`).
+
+## 03b-3.2 (la hora se confirma con el pago)
+
+Decisiones del usuario (2026-10-20). Reemplazan el flujo de 03b-3.1 en la
+reserva sin cuenta:
+
+- Pedir hora sin cuenta crea la cita **RETENIDA sin paciente**
+  (`citas.paciente_id` nulo, CHECK `citas_paciente_segun_estado`), protegida
+  por el EXCLUDE durante todo el plazo (el soft-lock ya no se usa aqui).
+  Plazo = `minutos_retencion_solicitud`. El siguiente paso es pagar; no sale
+  correo, salvo que el gatillo sea la verificacion (unico medio pago en el
+  centro, o nada que cobrar).
+- **El pago validado es la aprobacion**: transferencia validada (GESTION/ADMIN
+  o el profesional con cobro directo) o webhook de la pasarela registran el
+  pago y, en la misma transaccion, `ConcrecionReserva` (core) llama
+  `concretar_reserva`: paciente, ficha, adulto responsable, aceptaciones, cita
+  CONFIRMADA e invitacion a la cuenta (sale despues del COMMIT; la invitacion
+  verifica el correo al usarse). Los datos de la solicitud se descifran con
+  su AAD y se vuelven a cifrar con el del paciente (ids generados por la API).
+  Vive en el nucleo porque la usan Match (enlace del correo) y Cobros (pago)
+  sin importarse entre si.
+- Pago en el centro (elegido en la reserva o unico medio): el gatillo es el
+  enlace del correo (`VERIFICACION_SOLICITUD`, ahora "Confirme su correo para
+  reservar la hora"). Si despues se elige otro medio, el enlace responde 409.
+- Comprobante subido a tiempo: la hora se mantiene hasta que el centro valide
+  o rechace (`plazo_validacion_transferencia_horas`, nunca despues del
+  inicio). Rechazo: vuelve a correr el plazo corto (o el del equipo).
+- Pago que llega cuando la hora ya no se puede mantener (vencio y la tomo
+  otra persona): el pago queda registrado para devolucion, no se crea
+  paciente; la reserva informa `CONTACTAR_CENTRO`.
+- Aprobacion de pacientes nuevos (SOLICITADA, `requiere_aprobacion_nuevos`,
+  `POST citas/:id/aprobacion`): retirada. CHECK `citas_sin_solicitada`; las
+  SOLICITADA existentes se migraron (futuras: pago pendiente con el plazo del
+  equipo; pasadas: CANCELADA).
+- Portal: misma regla (PENDIENTE_PAGO con el plazo corto; confirma directo si
+  solo se paga en el centro o no hay monto).
+- Hora que agenda el equipo (`POST citas`): la BD (trigger
+  `citas_pago_previo_equipo`) la deja PENDIENTE_PAGO hasta 12 h antes de la
+  sesion; aviso PAGO_PENDIENTE al paciente (API) y recordatorios 48 h / 24 h
+  (job `avisar_pagos_pendientes`; el hito que ya habia pasado al agendar se
+  omite). A menos de 12 h: CONFIRMADA con pago en el centro. Solo pago en el
+  centro o sin monto: CONFIRMADA como antes. `registrar_pago` que cubre lo
+  exigido confirma la cita (pacientes sin cuenta en el portal).
+- `CitaVista` agrega `pagoVenceEn` y `medioConfirmacion`; `pacienteId` es
+  nulo solo en la hora retenida. Cancelar una hora retenida: 409 (se libera
+  sola). Reprogramar una pendiente o retenida: 409 (como antes).
+
+## 03b-3.3 (pago tardio, morosidad y caja de la hora retenida)
+
+Decisiones del usuario (2026-10-20):
+
+- **Plazo de pago del equipo** configurable (`configuracion_centro.horas_plazo_pago_equipo`,
+  0 a 168, 12 por defecto). Vencido sin pago, `liberar_reservas_vencidas` ya
+  no libera la hora del equipo: queda CONFIRMADA con `medio_confirmacion`
+  PAGO_EN_CENTRO (TRANSFERENCIA si hay un comprobante por validar, que se
+  sigue validando o rechazando). Si la agenda cambio y la hora ya no cabe
+  (bloqueo, box), se libera con aviso como antes. La reserva sin cuenta y la
+  del portal se siguen liberando.
+- **Morosidad** (regla de la BD, `deudas_vencidas`, interna): sesion
+  CONFIRMADA o CANCELADA con saldo > 0, terminada hace mas de
+  `dias_gracia_morosidad` (0 por defecto) y despues de `morosidad_desde`
+  (la fija la migracion: no se cuentan sesiones anteriores a esta regla).
+  Solo con el modulo COBROS activo. Mismo saldo que `estado_pago_citas`.
+- **Bloqueo** (`bloquear_agenda_morosos`, por defecto activo): trigger
+  `citas_paciente_moroso` en todo INSERT con usuario (equipo y portal) ->
+  23514 -> 422. ADMIN/GESTION autorizan con `POST citas` +
+  `motivoAutorizacionDeuda` (la API llama `autorizar_cita_con_deuda` en la
+  misma transaccion; `excepciones_morosidad` guarda motivo, saldo y quien, y
+  se usa una sola vez). Otro rol con motivo: 403. Reprogramar no crea cita:
+  no se bloquea.
+- **Avisos** (job `avisar_deudas`, cada hora, idempotente por
+  `citas.aviso_deuda_en`): DEUDA_PENDIENTE al paciente (bandeja y correo,
+  tambien sin cuenta si tiene correo) y al profesional de la cita.
+- **Lista**: `GET cobros/deudas` (`deudas_pacientes()`): ADMIN/GESTION todas,
+  PROFESIONAL las de sus citas; solo ids y montos (el panel pone los nombres).
+  Dashboard: `pacientes_con_deuda`.
+- **Inasistencia justificada**: `resolver_cita` con TRASLADO o DEVOLUCION
+  sobre una cita CONFIRMADA ya terminada (motivo obligatorio, 23514
+  `resoluciones_cita_justificada`): TRASLADO sin penalizacion (la cita nueva
+  puede estar PENDIENTE_PAGO; si lo trasladado cubre lo exigido, se
+  confirma); DEVOLUCION con `penalizacion_cancelacion_porcentaje`.
+  `resoluciones_cita.inasistencia_justificada`.
+- **Caja de la hora retenida**: `POST cobros/citas/:id/caja`
+  (`cobrar_reserva_en_caja`): cobra quien valida transferencias de esa cita
+  (GESTION/ADMIN con cobro del centro, el profesional con cobro directo;
+  42501 -> 403); solo PRESENCIAL (23514 `citas_caja_solo_presencial`); cubre
+  lo exigido para confirmar sin superar el monto (23514 `pagos_caja_monto`);
+  la API concreta la reserva en la misma transaccion (`ConcrecionReserva`) e
+  invita despues del COMMIT. Sin nada que cobrar: 409 (se confirma con el
+  correo).
+- **Liberar la hora retenida**: `PATCH citas/:id/liberacion`
+  (`liberar_hora_retenida`, ADMIN/GESTION, motivo 3 a 500): LIBERADA con
+  `liberada_por_id` y `motivo_liberacion`; con un comprobante por validar:
+  409. La reserva liberada a mano ya no se concreta (ni por el enlace del
+  correo ni por un pago tardio, que queda para devolucion).
+
+## 03b-3.4 (deuda en linea, enlace de pago y cobro del profesional)
+
+Decisiones del usuario (2026-10-20):
+
+- **Deuda pagable** (`deuda_pagable`): sesion CONFIRMADA o CANCELADA con
+  paciente, ya terminada, saldo > 0 y COBROS activo. `estado_pago_cita`
+  devuelve `SALDO_PENDIENTE` con monto = saldo y solo los medios en linea
+  (`medios_en_linea`); sin ninguno, siguiente `PAGAR_EN_CENTRO`. El medio va
+  en `citas.medio_saldo` (la API no lo fija). Las mismas funciones del pago
+  para confirmar resuelven el saldo; el pago registrado (transferencia
+  validada o webhook) avisa PAGO_REGISTRADO. La hora futura confirmada no se
+  cobra en linea (se paga en el centro).
+- **Transferencias**: varias por cita; indice unico parcial
+  `transferencias_una_abierta` (a lo mas una no VALIDADA). `de_saldo` marca la
+  del saldo, que al validarse registra el saldo del momento (55000 si ya no
+  hay). La API lista la mas reciente.
+- **Enlace de pago sin cuenta** (`tokens_correo` tipo PAGO_CITA): lo emite el
+  job de mensajes (`emitir_enlace_pago`, sin contexto) al armar un correo de
+  PAGO_PENDIENTE, DEUDA_PENDIENTE, PAGO_RECHAZADO o
+  INSTRUCCIONES_TRANSFERENCIA a un paciente sin cuenta activa (ni la de su
+  adulto responsable); con cuenta, el enlace es el portal. 30 dias, varios
+  usos, no se consume; solo autoriza estado, resumen (fecha, hora, modalidad,
+  profesional) y pago de ESA cita. Rutas `publico/pagos/*` con el token en el
+  cuerpo y rate limit (404 inexistente, 409 vencido).
+- **Cobro presencial** (`puede_cobrar_presencial`): ADMIN/GESTION o el
+  profesional de la cita registran pagos (`registrar_pago`) y cobran en caja
+  la hora retenida, en cualquier modelo de cobro; `cobrado_por` sigue el
+  modelo. La boleta automatica tambien sale cuando paga el profesional.
+  Anular, solo ADMIN/GESTION.

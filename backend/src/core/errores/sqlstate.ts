@@ -141,6 +141,23 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   // Antes de 03b-4: reserva desde la cuenta del paciente.
   citas_portal_cuenta_restringida: 'Las horas de un menor las pide su adulto responsable desde su cuenta',
   citas_portal_tratante: 'No tienes un profesional tratante que agende por el portal: escribe al centro',
+  // 03b-3.1: confirmacion por medio de pago
+  configuracion_centro_medios_pago: 'Medios de pago: al menos uno; plazo de validacion entre 1 y 168 horas; porcentaje entre 1 y 100',
+  configuracion_centro_transferencia_sin_cuenta: 'Para habilitar transferencia, registre primero la cuenta bancaria del centro',
+  citas_medio_no_habilitado: 'Ese medio de pago no esta habilitado en el centro',
+  citas_transferencia_sin_cuenta: 'No hay una cuenta registrada para transferir: elija otro medio de pago',
+  citas_pago_coherente: 'Una cita pendiente de pago necesita su plazo de pago',
+  solicitudes_hora_tomada: 'La hora ya no esta disponible: elija otra',
+  transferencias_coherente: 'Transferencia invalida (comprobante PDF, PNG o JPEG; motivo de rechazo de 3 a 300 caracteres)',
+  cobros_pasarela_coherente: 'Cobro en linea invalido',
+  // 03b-3.3: morosidad y caja de la hora retenida
+  citas_paciente_moroso: 'El paciente tiene sesiones anteriores con pago pendiente: regularice en el centro antes de agendar',
+  excepciones_morosidad_coherente: 'Autorizar una cita con deuda exige un motivo (3 a 500 caracteres)',
+  configuracion_centro_morosidad_valida: 'Plazo de pago del equipo entre 0 y 168 horas; dias de gracia entre 0 y 90',
+  citas_caja_solo_presencial: 'La hora online se paga en linea o por transferencia, no en caja',
+  pagos_caja_monto: 'El pago en caja debe cubrir lo exigido para confirmar sin superar el monto de la sesion',
+  citas_liberacion_coherente: 'Liberar la hora exige un motivo (3 a 500 caracteres)',
+  resoluciones_cita_justificada: 'La inasistencia justificada exige motivo',
 };
 
 /**
@@ -158,6 +175,17 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/El bloque tiene citas o reservas en curso/, 'bloques_atencion_con_citas'],
   [/Las horas de un menor las pide su adulto responsable/, 'citas_portal_cuenta_restringida'],
   [/No tienes un profesional tratante que agende/, 'citas_portal_tratante'],
+  // 03b-3.1
+  [/Ese medio de pago no esta habilitado/, 'citas_medio_no_habilitado'],
+  [/No hay una cuenta registrada para transferir/, 'citas_transferencia_sin_cuenta'],
+  [/registre primero la cuenta bancaria del centro/, 'configuracion_centro_transferencia_sin_cuenta'],
+  // 03b-3.3
+  [/sesiones anteriores con pago pendiente/, 'citas_paciente_moroso'],
+  [/Autorizar con deuda exige motivo/, 'excepciones_morosidad_coherente'],
+  [/La hora online se paga en linea o por transferencia/, 'citas_caja_solo_presencial'],
+  [/El pago en caja debe cubrir lo exigido/, 'pagos_caja_monto'],
+  [/Liberar exige motivo/, 'citas_liberacion_coherente'],
+  [/La inasistencia justificada exige motivo/, 'resoluciones_cita_justificada'],
   [/agenda bloqueada/, 'citas_fuera_de_bloqueos'],
   [/menor de 18 sin adulto responsable/, 'citas_menor_requiere_adulto_responsable'],
   [/menor de 18: (responde|el consentimiento lo otorga) un adulto/, 'consentimientos_menor_requiere_adulto_responsable'],

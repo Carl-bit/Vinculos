@@ -7,11 +7,14 @@
 import { ApiError, type ErrorRespuesta } from './api/errores';
 import { accessToken, renovarSesion } from './sesion';
 
-export async function subirArchivo<T>(ruta: string, campo: string, archivo: File): Promise<T> {
+export async function subirArchivo<T>(ruta: string, campo: string, archivo: File, campos: Record<string, string> = {}): Promise<T> {
   const pedir = () => {
     const cuerpo = new FormData();
+    // Campos de texto antes del archivo: multer los lee en orden.
+    for (const [k, v] of Object.entries(campos)) cuerpo.append(k, v);
     cuerpo.append(campo, archivo);
-    return fetch(ruta, { method: 'POST', headers: { Authorization: `Bearer ${accessToken() ?? ''}` }, body: cuerpo, cache: 'no-store' });
+    const token = accessToken();
+    return fetch(ruta, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: cuerpo, cache: 'no-store' });
   };
   let r = await pedir();
   if (r.status === 401 && (await renovarSesion())) r = await pedir();

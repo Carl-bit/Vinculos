@@ -10,7 +10,7 @@
 -- aprovisionamiento de llaves (infra/scripts/llaves/aprovisionar.sh).
 --
 -- Casos 1-17: los 17 del prompt 01. 18-27: prompt 01b. 28-44: prompt 01c.
--- 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 101-115: prompt 03a-1 (roles por cuenta, cuentas y tokens, politicas, menores, agenda, solicitudes sin cuenta, acceso temporal (lista de espera retirada en 107 y 124), borradores, alta, reseñas, reportes, contenido publico, liquidacion por cita realizada); 03a agrega a 67 las tablas append-only nuevas y a 78 excluye imagenes_publicas (publicas, sin cifrar). 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
+-- 127-128: prompt 03b-3.1 (confirmacion por medio de pago; 128 como dueño). 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 101-115: prompt 03a-1 (roles por cuenta, cuentas y tokens, politicas, menores, agenda, solicitudes sin cuenta, acceso temporal (lista de espera retirada en 107 y 124), borradores, alta, reseñas, reportes, contenido publico, liquidacion por cita realizada); 03a agrega a 67 las tablas append-only nuevas y a 78 excluye imagenes_publicas (publicas, sin cifrar). 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
 -- derivacion traspasa el paciente); 01d redefinio 36, 37 y 42 (tipo de
 -- atencion por catalogo, oferta con citas en conflicto, el origen cancela en
 -- SIN_ASIGNAR); 01e redefinio 19 (tablas sin GRANT), 50 (perfil
@@ -2651,9 +2651,11 @@ DO $$ DECLARE v_cita uuid; v_cita2 uuid; v_pago uuid; BEGIN
 
   PERFORM test.ctx('b1', 'PROFESIONAL');
   ASSERT (SELECT count(*) FROM estado_pago_citas WHERE cita_id = v_cita) = 1, 'caso 93: el profesional ve el estado de su cita';
+  -- 03b-3.4: el profesional registra el pago presencial de SUS citas (caso 133); de otra, no.
+  PERFORM test.ctx('b2', 'PROFESIONAL');
   BEGIN
     PERFORM registrar_pago(v_cita2, 1000, 'EFECTIVO');
-    RAISE EXCEPTION 'caso 93: profesional sin cobro directo debio fallar';
+    RAISE EXCEPTION 'caso 93: profesional de otra cita debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   PERFORM test.ctx('c1', 'PRACTICANTE');
   ASSERT (SELECT count(*) FROM estado_pago_citas) = 0, 'caso 93: el practicante no ve cobros';
@@ -3266,31 +3268,18 @@ DO $$ DECLARE v_cita uuid; BEGIN
   ASSERT (SELECT count(*) FROM mensajes_paciente WHERE paciente_id = test.u('14')) = 2, 'caso 104: el profesional recibe ambos';
 END $$;
 
-\echo 105 Cita SOLICITADA (C-15): retiene el horario y la aprueba el tratante, ADMIN o GESTION; horario del centro y del box
+\echo 105 SOLICITADA retirada (03b-3.2: el pago validado es la aprobacion): la BD la rechaza; con solo pago en el centro lo que agenda el equipo queda CONFIRMADA; horario del centro y del box
 DO $$ DECLARE v uuid; BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
-  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin, estado)
-  VALUES (test.u('e1'), test.u('b1'), test.u('15'), test.dia(41, 10), test.dia(41, 11), 'SOLICITADA') RETURNING id INTO v;
-  ASSERT (SELECT monto FROM citas WHERE id = v) IS NULL, 'caso 105: sin monto hasta confirmar';
   BEGIN
-    INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
-    VALUES (test.u('e2'), test.u('b1'), test.u('0a'), test.dia(41, 10), test.dia(41, 11));
-    RAISE EXCEPTION 'caso 105: la SOLICITADA retiene el horario';
-  EXCEPTION WHEN exclusion_violation THEN NULL; END;
-  ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b1'), test.dia(41, 9), test.dia(41, 12)) d
-                     WHERE d.inicio <= test.dia(41, 10) AND d.fin >= test.dia(41, 11)), 'caso 105: no se ofrece';
-  PERFORM test.ctx('b2', 'PROFESIONAL');
-  BEGIN
-    PERFORM aprobar_cita_solicitada(v);
-    RAISE EXCEPTION 'caso 105: otro profesional no aprueba';
-  EXCEPTION WHEN no_data_found THEN NULL; END;
-  PERFORM test.ctx('b1', 'PROFESIONAL');
-  PERFORM aprobar_cita_solicitada(v);
-  ASSERT (SELECT estado = 'CONFIRMADA' AND monto IS NOT NULL FROM citas WHERE id = v), 'caso 105: confirmada con monto';
-  BEGIN
-    PERFORM aprobar_cita_solicitada(v);
-    RAISE EXCEPTION 'caso 105: ya aprobada';
-  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+    INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin, estado)
+    VALUES (test.u('e1'), test.u('b1'), test.u('15'), test.dia(41, 10), test.dia(41, 11), 'SOLICITADA');
+    RAISE EXCEPTION 'caso 105: SOLICITADA retirada';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e1'), test.u('b1'), test.u('15'), test.dia(41, 10), test.dia(41, 11)) RETURNING id INTO v;
+  ASSERT (SELECT estado = 'CONFIRMADA' AND monto IS NOT NULL AND agendada_por_equipo AND pago_vence_en IS NULL
+          AND medio_confirmacion IS NULL FROM citas WHERE id = v), 'caso 105: solo pago en el centro: confirmada con monto';
   PERFORM test.ctx('a3', 'GESTION');
   BEGIN
     INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) VALUES (1, 540, 600);
@@ -3322,75 +3311,84 @@ DO $$ DECLARE v uuid; BEGIN
   DELETE FROM horario_centro;
 END $$;
 
-\echo 106 Solicitud de hora sin cuenta (D-2, C-15): retiene la hora, verifica el correo (un solo uso) y concreta paciente, ficha, cita y aceptaciones; limites, menor, respuestas del match y RUT antes de la primera evolucion
+\echo 106 Solicitud de hora sin cuenta (D-2, 03b-3.2): retiene la hora (cita RETENIDA sin paciente, EXCLUDE); con solo pago en el centro el enlace del correo (un solo uso) concreta paciente, ficha, cita y aceptaciones; la API no toca la hora retenida; limites, menor, respuestas del match y RUT antes de la primera evolucion
 DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
               v_ter uuid := (SELECT id FROM politica_vigente('TERMINOS_AGENDAMIENTO')); r record; BEGIN
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
   BEGIN
     PERFORM crear_solicitud_hora(test.u('3a'), test.u('b9'), 'PRESENCIAL', test.dia(20, 10), test.dia(20, 11), 'Ema', 'Nueva',
                                  '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, gen_random_uuid(),
-                                 v_ter, sha256('s106a'));
+                                 v_ter, sha256('s106a'), NULL);
     RAISE EXCEPTION 'caso 106: version vieja de la politica';
   EXCEPTION WHEN check_violation THEN NULL; END;
-  PERFORM crear_solicitud_hora(test.u('3b'), test.u('b9'), 'PRESENCIAL', test.dia(20, 10), test.dia(20, 11), 'Ema', 'Nueva',
+  SELECT * INTO r FROM crear_solicitud_hora(test.u('3b'), test.u('b9'), 'PRESENCIAL', test.dia(20, 10), test.dia(20, 11), 'Ema', 'Nueva',
                                '1990-01-01', 'Ema@X', test.cif('+56900000001'), NULL, NULL, NULL, NULL, NULL,
-                               test.cif('{"motivos":["ansiedad"]}'), test.u('b9'), v_pol, v_ter, sha256('s106b'));
+                               test.cif('{"motivos":["ansiedad"]}'), test.u('b9'), v_pol, v_ter, sha256('s106b'), NULL);
+  ASSERT r.verificar_correo AND r.expira > now(), 'caso 106: solo pago en el centro: el gatillo es el correo';
   ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b9'), test.dia(20, 9), test.dia(20, 12)) d
                      WHERE d.modalidad = 'PRESENCIAL' AND d.inicio <= test.dia(20, 10) AND d.fin >= test.dia(20, 11)),
     'caso 106: la hora queda retenida';
   BEGIN
     PERFORM crear_solicitud_hora(test.u('3c'), test.u('b9'), 'PRESENCIAL', test.dia(20, 10), test.dia(20, 11), 'Otro', 'Mas',
                                  '1990-01-01', 'otro@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
-                                 sha256('s106c'));
+                                 sha256('s106c'), NULL);
     RAISE EXCEPTION 'caso 106: hora ya retenida';
   EXCEPTION WHEN exclusion_violation THEN NULL; END;
   BEGIN
     PERFORM crear_solicitud_hora(test.u('3d'), test.u('b9'), 'PRESENCIAL', test.dia(21, 10), test.dia(21, 11), 'Nino', 'Chico',
                                  '2016-01-01', 'mama@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
-                                 sha256('s106d'));
+                                 sha256('s106d'), NULL);
     RAISE EXCEPTION 'caso 106: menor sin adulto responsable';
   EXCEPTION WHEN check_violation THEN NULL; END;
   PERFORM crear_solicitud_hora(test.u('3e'), test.u('b9'), 'PRESENCIAL', test.dia(22, 10), test.dia(22, 11), 'Ema', 'Nueva',
                                '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
-                               sha256('s106e'));
+                               sha256('s106e'), NULL);
   BEGIN
     PERFORM crear_solicitud_hora(test.u('3f'), test.u('b9'), 'PRESENCIAL', test.dia(23, 10), test.dia(23, 11), 'Ema', 'Nueva',
                                  '1990-01-01', 'ema@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
-                                 sha256('s106f'));
-    RAISE EXCEPTION 'caso 106: maximo de pendientes por correo';
+                                 sha256('s106f'), NULL);
+    RAISE EXCEPTION 'caso 106: maximo de reservas en curso por correo';
   EXCEPTION WHEN check_violation THEN NULL; END;
   PERFORM test.ctx('a1', 'ADMIN');
   BEGIN
     PERFORM 1 FROM solicitudes_hora;
     RAISE EXCEPTION 'caso 106: sin SELECT directo';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT estado = 'RETENIDA' AND paciente_id IS NULL AND monto IS NOT NULL FROM citas
+          WHERE profesional_id = test.u('b9') AND inicio = test.dia(20, 10)), 'caso 106: hora retenida sin paciente';
+  BEGIN
+    UPDATE citas SET estado = 'CANCELADA' WHERE profesional_id = test.u('b9') AND inicio = test.dia(20, 10);
+    RAISE EXCEPTION 'caso 106: la API no toca la hora retenida';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, inicio, fin, estado, pago_vence_en)
+    VALUES ('ONLINE', test.u('b9'), test.dia(25, 10), test.dia(25, 11), 'RETENIDA', now() + interval '1 hour');
+    RAISE EXCEPTION 'caso 106: la API no crea horas retenidas';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
   ASSERT (SELECT nombre FROM datos_solicitud_hora(sha256('s106b'))) = 'Ema', 'caso 106: datos para la API (sin consumir)';
-  SELECT * INTO r FROM concretar_solicitud_hora(sha256('s106b'), test.u('16'), test.u('d6'), test.cif('+56900000001'), NULL, NULL,
-                                                NULL, sha256('inv106b'), now() + interval '3 days');
+  SELECT * INTO r FROM concretar_reserva(NULL, sha256('s106b'), test.u('16'), test.u('d6'), test.cif('+56900000001'), NULL, NULL,
+                                         NULL, sha256('inv106b'), now() + interval '3 days');
   ASSERT r.estado = 'CONFIRMADA' AND r.invitacion_email = 'ema@x' AND r.invitacion_rol = 'PACIENTE',
     'caso 106: cita confirmada e invitacion al correo verificado';
   BEGIN
-    PERFORM concretar_solicitud_hora(sha256('s106b'), gen_random_uuid(), gen_random_uuid(), NULL, NULL, NULL, NULL, NULL, NULL);
+    PERFORM concretar_reserva(NULL, sha256('s106b'), gen_random_uuid(), gen_random_uuid(), NULL, NULL, NULL, NULL, NULL, NULL);
     RAISE EXCEPTION 'caso 106: el enlace es de un solo uso';
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
   PERFORM test.ctx('a1', 'ADMIN');
   ASSERT (SELECT creado_por_solicitud AND NOT posible_duplicado AND profesional_id = test.u('b9') FROM pacientes WHERE id = test.u('16')),
     'caso 106: paciente del portal con su tratante';
+  ASSERT (SELECT estado = 'CONFIRMADA' AND paciente_id = test.u('16') AND medio_confirmacion = 'PAGO_EN_CENTRO' FROM citas
+          WHERE profesional_id = test.u('b9') AND inicio = test.dia(20, 10)), 'caso 106: la hora retenida pasa a ser su cita';
   ASSERT EXISTS (SELECT 1 FROM fichas_clinicas WHERE paciente_id = test.u('16')), 'caso 106: con ficha';
   ASSERT (SELECT count(*) FROM aceptaciones_politica WHERE paciente_id = test.u('16') AND canal = 'SOLICITUD') = 2,
     'caso 106: politica y terminos aceptados';
   ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'CITA_CONFIRMADA' AND paciente_id = test.u('16')), 'caso 106: aviso de cita';
-  -- Profesional que aprueba pacientes nuevos: SOLICITADA y aviso al profesional; mismo correo = posible duplicado.
-  PERFORM test.ctx('b9', 'PROFESIONAL');
-  UPDATE profesionales SET requiere_aprobacion_nuevos = true WHERE usuario_id = test.u('b9');
+  -- Mismo correo = posible duplicado (nunca por nombre: GESTION concilia).
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
-  SELECT * INTO r FROM concretar_solicitud_hora(sha256('s106e'), test.u('17'), test.u('d7'), NULL, NULL, NULL, NULL,
-                                                sha256('inv106e'), now() + interval '3 days');
-  ASSERT r.estado = 'SOLICITADA' AND r.invitacion_email IS NULL, 'caso 106: por aprobar, sin invitacion aun';
+  PERFORM concretar_reserva(NULL, sha256('s106e'), test.u('17'), test.u('d7'), NULL, NULL, NULL, NULL, sha256('inv106e'),
+                            now() + interval '3 days');
   PERFORM test.ctx('a1', 'ADMIN');
-  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'SOLICITUD_HORA' AND usuario_id = test.u('b9') AND referencia_id = r.cita_id),
-    'caso 106: aviso al profesional';
   ASSERT (SELECT posible_duplicado FROM pacientes WHERE id = test.u('17')), 'caso 106: GESTION concilia (nunca por nombre)';
   -- Respuestas del match: solo el tratante; auditado.
   PERFORM test.ctx('b9', 'PROFESIONAL');
@@ -3414,12 +3412,11 @@ DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
   EXCEPTION WHEN check_violation THEN NULL; END;
   UPDATE pacientes SET rut = test.cif('rut 16'), rut_hmac = sha256('rut 16') WHERE id = test.u('16');
   PERFORM test.evo((SELECT id FROM fichas_clinicas WHERE paciente_id = test.u('16')), test.u('b9'), 'primera');
-  UPDATE profesionales SET requiere_aprobacion_nuevos = false WHERE usuario_id = test.u('b9');
   -- Una solicitud mas que el job vencera (caso 115).
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
   PERFORM crear_solicitud_hora(test.u('3c'), test.u('b9'), 'PRESENCIAL', test.dia(24, 10), test.dia(24, 11), 'Vence', 'Pronto',
                                '1990-01-01', 'vence@x', NULL, NULL, NULL, NULL, NULL, NULL, test.cif('{"a":1}'), NULL, v_pol,
-                               v_ter, sha256('s106g'));
+                               v_ter, sha256('s106g'), NULL);
 END $$;
 
 \echo 107 Lista de espera retirada (implementacion futura): cancelar una cita futura no genera avisos de hora liberada
@@ -3427,7 +3424,6 @@ DO $$ BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
   UPDATE citas SET estado = 'CANCELADA' WHERE paciente_id = test.u('16') AND estado = 'CONFIRMADA' AND inicio > now();
   ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'HORA_LIBERADA'), 'caso 107: sin aviso de hora liberada';
-  ASSERT NOT EXISTS (SELECT 1 FROM plantillas_mensaje WHERE evento = 'HORA_LIBERADA'), 'caso 107: sin plantillas del aviso';
 END $$;
 
 \echo 108 Acceso clinico temporal (C-4, C-5): ADMIN o el tratante; lectura o escritura hasta el termino; aviso y auditoria; mover una cita solo a quien tiene acceso
@@ -4198,15 +4194,627 @@ DO $$ DECLARE v_ctx text[]; BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 
+\echo 127 Confirmacion por medio de pago (03b-3.1/3.2): la reserva sin cuenta es una cita RETENIDA sin paciente consultable por token opaco; el pago registrado (transferencia que valida GESTION con cobro del centro, o webhook idempotente) la concreta; pago en el centro elegido: el gatillo es el correo; la API no mueve el estado de pago
+DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
+              v_ter uuid := (SELECT id FROM politica_vigente('TERMINOS_AGENDAMIENTO')); r record; v_cita uuid; v_cobro uuid; BEGIN
+  -- Migracion: ninguna cita existente quedo en los estados de pago.
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT NOT EXISTS (SELECT 1 FROM citas WHERE estado IN ('PENDIENTE_PAGO', 'LIBERADA')), 'caso 127: citas existentes intactas';
+  -- Transferencia exige la cuenta del centro (modelo CENTRO).
+  BEGIN
+    UPDATE configuracion_centro SET medios_pago_habilitados = '{PAGO_EN_CENTRO,TRANSFERENCIA}';
+    RAISE EXCEPTION 'caso 127: transferencia sin cuenta del centro';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    INSERT INTO cuenta_bancaria_centro (id, rut, banco, tipo_cuenta, numero_cuenta, titular)
+    VALUES (test.u('7f'), test.cif('r'), test.cif('b'), test.cif('t'), test.cif('n'), test.cif('ti'));
+    RAISE EXCEPTION 'caso 127: GESTION no registra la cuenta del centro';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  INSERT INTO cuenta_bancaria_centro (id, rut, banco, tipo_cuenta, numero_cuenta, titular)
+  VALUES (test.u('7f'), test.cif('r'), test.cif('b'), test.cif('t'), test.cif('n'), test.cif('ti'));
+  UPDATE configuracion_centro SET medios_pago_habilitados = '{PAGO_EN_CENTRO,TRANSFERENCIA,PASARELA}', porcentaje_pago_confirmacion = 50;
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM cuenta_bancaria_centro) = 1, 'caso 127: GESTION lee la cuenta';
+  PERFORM test.ctx('b9', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM cuenta_bancaria_centro) = 0, 'caso 127: el profesional no la ve';
+
+  -- Reserva sin cuenta: cita RETENIDA sin paciente; el siguiente paso es pagar (sin enlace al correo).
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT * INTO r FROM crear_solicitud_hora(test.u('7a'), test.u('b9'), 'PRESENCIAL', test.dia(40, 10), test.dia(40, 11), 'Pia', 'Pago',
+                               '1990-01-01', 'pia@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t127a'), sha256('r127a'));
+  ASSERT NOT r.verificar_correo, 'caso 127: con pago previo no sale el enlace del correo';
+  v_cita := r.cita_id;
+  SELECT * INTO r FROM estado_reserva(sha256('r127a'));
+  ASSERT r.estado = 'RETENIDA' AND r.siguiente = 'ELEGIR_MEDIO' AND cardinality(r.medios) = 3 AND r.monto = 15000
+         AND r.vence_en > now() AND r.vence_en <= now() + interval '30 minutes', format('caso 127: retenida %s', r);
+  BEGIN
+    PERFORM estado_reserva(sha256('otra'));
+    RAISE EXCEPTION 'caso 127: reserva inexistente';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b9'), test.dia(40, 9), test.dia(40, 12)) d
+                     WHERE d.modalidad = 'PRESENCIAL' AND d.inicio <= test.dia(40, 10) AND d.fin >= test.dia(40, 11)),
+    'caso 127: la hora retenida esta ocupada';
+  ASSERT NOT EXISTS (SELECT 1 FROM reserva_por_concretar(v_cita)), 'caso 127: sin pago no hay nada que concretar';
+  BEGIN
+    PERFORM concretar_reserva(v_cita, NULL, gen_random_uuid(), gen_random_uuid(), NULL, NULL, NULL, NULL, NULL, NULL);
+    RAISE EXCEPTION 'caso 127: sin pago no nace el paciente';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  -- La API (app_user) no mueve el estado de pago: solo las funciones del flujo; la hora retenida no se paga en caja.
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    UPDATE citas SET estado = 'CONFIRMADA' WHERE id = v_cita;
+    RAISE EXCEPTION 'caso 127: estado de pago a mano';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM registrar_pago(v_cita, 15000, 'EFECTIVO');
+    RAISE EXCEPTION 'caso 127: la hora retenida se paga por la reserva';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+
+  -- Transferencia: datos del centro, comprobante (mantiene la hora hasta validar), rechazo y validacion (concreta).
+  ASSERT (SELECT estado FROM elegir_medio_reserva(sha256('r127a'), 'TRANSFERENCIA', test.u('7b'), NULL)) = 'RETENIDA',
+    'caso 127: transferencia elegida';
+  ASSERT (SELECT siguiente FROM estado_reserva(sha256('r127a'))) = 'ESPERAR_VALIDACION', 'caso 127: esperando validacion';
+  ASSERT (SELECT origen = 'CENTRO' AND cuenta_id = test.u('7f') AND monto = 15000 FROM datos_transferencia_reserva(sha256('r127a'))),
+    'caso 127: datos de la cuenta del centro';
+  PERFORM subir_comprobante_reserva(sha256('r127a'), test.cif('comprobante'), 'application/pdf', 'c.pdf');
+  SELECT * INTO r FROM estado_reserva(sha256('r127a'));
+  ASSERT r.comprobante_recibido AND r.vence_en > now() + interval '23 hours', format('caso 127: con comprobante espera la validacion %s', r);
+  PERFORM test.ctx('b9', 'PROFESIONAL');
+  BEGIN
+    PERFORM validar_transferencia(v_cita);
+    RAISE EXCEPTION 'caso 127: con cobro del centro no valida el profesional';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO transferencias (id, cita_id) VALUES (gen_random_uuid(), v_cita);
+    RAISE EXCEPTION 'caso 127: sin escritura directa';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- 03b-3.4: el profesional de la cita puede cobrarla en caja, asi que puede concretarla; sin pago no hay datos.
+  ASSERT (SELECT count(*) FROM reserva_por_concretar(v_cita)) = 0, 'caso 127: sin pago no hay datos de la reserva';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM reserva_por_concretar(v_cita);
+    RAISE EXCEPTION 'caso 127: los datos de la reserva solo para quien cobra o valida';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM rechazar_transferencia(v_cita, 'no');
+    RAISE EXCEPTION 'caso 127: motivo muy corto';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM rechazar_transferencia(v_cita, 'El monto no coincide');
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT * INTO r FROM estado_reserva(sha256('r127a'));
+  ASSERT r.siguiente = 'TRANSFERENCIA_RECHAZADA' AND r.vence_en <= now() + interval '30 minutes',
+    format('caso 127: rechazada, vuelve el plazo corto %s', r);
+  PERFORM subir_comprobante_reserva(sha256('r127a'), test.cif('otro comprobante'), 'image/png', 'c.png');
+  PERFORM test.ctx('a3', 'GESTION');
+  PERFORM validar_transferencia(v_cita);
+  ASSERT (SELECT estado = 'RETENIDA' AND paciente_id IS NULL FROM citas WHERE id = v_cita), 'caso 127: pagada, aun sin paciente';
+  ASSERT (SELECT count(*) FROM reserva_por_concretar(v_cita)) = 1, 'caso 127: lista para concretar';
+  SELECT * INTO r FROM concretar_reserva(v_cita, NULL, test.u('1a'), test.u('d1'), NULL, NULL, NULL, NULL, sha256('inv127a'),
+                                         now() + interval '3 days');
+  ASSERT r.estado = 'CONFIRMADA' AND r.paciente_id = test.u('1a') AND r.invitacion_email = 'pia@x',
+    format('caso 127: el pago validado crea al paciente %s', r);
+  ASSERT (SELECT estado = 'CONFIRMADA' AND paciente_id = test.u('1a') FROM citas WHERE id = v_cita), 'caso 127: confirmada al validar';
+  ASSERT (SELECT monto = 15000 AND medio_pago = 'TRANSFERENCIA' AND cobrado_por = 'CENTRO' FROM pagos WHERE cita_id = v_cita),
+    'caso 127: pago registrado por el monto de confirmacion';
+  BEGIN
+    PERFORM validar_transferencia(v_cita);
+    RAISE EXCEPTION 'caso 127: ya validada';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    PERFORM concretar_reserva(v_cita, NULL, gen_random_uuid(), gen_random_uuid(), NULL, NULL, NULL, NULL, NULL, NULL);
+    RAISE EXCEPTION 'caso 127: ya concretada';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM transferencias WHERE cita_id = v_cita) = 0, 'caso 127: otro paciente no ve la transferencia';
+  BEGIN
+    PERFORM estado_pago_portal(v_cita);
+    RAISE EXCEPTION 'caso 127: cita ajena en el portal';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+
+  -- Pasarela: el webhook registra el pago una sola vez (idempotente, solo sin usuario) y concreta la reserva.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT cita_id INTO v_cita FROM crear_solicitud_hora(test.u('7c'), test.u('b9'), 'PRESENCIAL', test.dia(41, 10), test.dia(41, 11),
+                               'Leo', 'Linea', '1990-01-01', 'leo@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t127c'), sha256('r127c'));
+  BEGIN
+    PERFORM iniciar_cobro_reserva(sha256('r127c'));
+    RAISE EXCEPTION 'caso 127: sin elegir pasarela';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM elegir_medio_reserva(sha256('r127c'), 'PASARELA', NULL, NULL);
+  SELECT cobro_id INTO v_cobro FROM iniciar_cobro_reserva(sha256('r127c'));
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM confirmar_cobro_pasarela(v_cobro, 'ev-127', true);
+    RAISE EXCEPTION 'caso 127: el webhook no tiene usuario';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT (SELECT estado = 'PAGADO' AND cita_id = v_cita FROM confirmar_cobro_pasarela(v_cobro, 'ev-127', true)), 'caso 127: pagado';
+  SELECT * INTO r FROM concretar_reserva(v_cita, NULL, test.u('1b'), test.u('d2'), NULL, NULL, NULL, NULL, NULL, NULL);
+  ASSERT r.estado = 'CONFIRMADA' AND r.paciente_id = test.u('1b'), format('caso 127: el pago en linea crea al paciente %s', r);
+  ASSERT (SELECT estado FROM confirmar_cobro_pasarela(v_cobro, 'ev-127', true)) = 'PAGADO', 'caso 127: webhook repetido';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT estado FROM citas WHERE id = v_cita) = 'CONFIRMADA', 'caso 127: confirmada por la pasarela';
+  ASSERT (SELECT count(*) FROM pagos WHERE cita_id = v_cita AND medio_pago = 'PASARELA' AND origen = 'PASARELA') = 1,
+    'caso 127: un solo pago aunque el webhook se repita';
+
+  -- Pago en el centro elegido en la reserva: el gatillo es el correo.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  PERFORM crear_solicitud_hora(test.u('7d'), test.u('b9'), 'PRESENCIAL', test.dia(42, 10), test.dia(42, 11), 'Ana', 'Centro',
+                               '1990-01-01', 'anac@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t127x'), sha256('r127d'));
+  SELECT * INTO r FROM elegir_medio_reserva(sha256('r127d'), 'PAGO_EN_CENTRO', NULL, sha256('t127d'));
+  ASSERT r.estado = 'RETENIDA' AND r.verificacion_email = 'anac@x' AND r.retencion_vence > now(),
+    format('caso 127: pago en el centro: enlace al correo %s', r);
+  ASSERT (SELECT siguiente FROM estado_reserva(sha256('r127d'))) = 'VERIFICAR_CORREO', 'caso 127: verificar el correo';
+  SELECT * INTO r FROM concretar_reserva(NULL, sha256('t127d'), test.u('1c'), test.u('d3'), NULL, NULL, NULL, NULL, NULL, NULL);
+  ASSERT r.estado = 'CONFIRMADA', 'caso 127: el correo verificado confirma';
+  ASSERT (SELECT siguiente = 'NINGUNO' AND medio = 'PAGO_EN_CENTRO' FROM estado_reserva(sha256('r127d'))), 'caso 127: nada pendiente';
+  -- Enlace del correo despues de cambiar a un medio con pago previo: no concreta.
+  PERFORM crear_solicitud_hora(test.u('8b'), test.u('b9'), 'PRESENCIAL', test.dia(46, 10), test.dia(46, 11), 'Eli', 'Cambio',
+                               '1990-01-01', 'eli@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t127y'), sha256('r127e'));
+  PERFORM elegir_medio_reserva(sha256('r127e'), 'PAGO_EN_CENTRO', NULL, sha256('t127e'));
+  PERFORM elegir_medio_reserva(sha256('r127e'), 'PASARELA', NULL, NULL);
+  BEGIN
+    PERFORM concretar_reserva(NULL, sha256('t127e'), gen_random_uuid(), gen_random_uuid(), NULL, NULL, NULL, NULL, NULL, NULL);
+    RAISE EXCEPTION 'caso 127: eligio pagar antes';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
+
+\echo 129 Hora que agenda el equipo (03b-3.2): pendiente de pago hasta 12 h antes (la API no lo cambia); el pago en caja que cubre lo exigido la confirma; a menos de 12 h, pago en el centro
+DO $$ DECLARE v uuid; c citas%ROWTYPE; v_inicio timestamptz := test.sin_cruzar(date_trunc('hour', now()) + interval '6 hours'); BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('16'), test.dia(45, 10), test.dia(45, 11)) RETURNING id INTO v;
+  SELECT * INTO c FROM citas WHERE id = v;
+  ASSERT c.estado = 'PENDIENTE_PAGO' AND c.agendada_por_equipo AND c.pago_vence_en = test.dia(45, 10) - interval '12 hours'
+         AND c.medio_confirmacion IS NULL AND c.monto = 30000, format('caso 129: pendiente de pago %s', c);
+  BEGIN
+    UPDATE citas SET estado = 'CONFIRMADA' WHERE id = v;
+    RAISE EXCEPTION 'caso 129: la API no confirma sin pago';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE citas SET agendada_por_equipo = false WHERE id = v;
+    RAISE EXCEPTION 'caso 129: el origen lo fija la BD';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM registrar_pago(v, 10000, 'EFECTIVO');
+  ASSERT (SELECT estado FROM citas WHERE id = v) = 'PENDIENTE_PAGO', 'caso 129: un abono menor no confirma';
+  PERFORM registrar_pago(v, 5000, 'EFECTIVO');
+  ASSERT (SELECT estado FROM citas WHERE id = v) = 'CONFIRMADA', 'caso 129: cubre el porcentaje exigido: confirmada';
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'CITA_CONFIRMADA' AND referencia_id = v), 'caso 129: aviso de cita confirmada';
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('16'), v_inicio, v_inicio + interval '1 hour') RETURNING id INTO v;
+  ASSERT (SELECT estado = 'CONFIRMADA' AND medio_confirmacion = 'PAGO_EN_CENTRO' FROM citas WHERE id = v),
+    'caso 129: a menos de 12 h no hay plazo: pago en el centro';
+END $$;
+
+\echo 130 Morosidad y caja (03b-3.3) como app_user: excepciones_morosidad solo via funcion (GESTION la ve, el profesional no); la API no fija aviso de deuda ni liberacion; ADMIN ajusta plazo, gracia y bloqueo (no morosidad_desde) y el plazo del equipo lo sigue; deudas y liberar segun rol
+DO $$ DECLARE v uuid; BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    INSERT INTO excepciones_morosidad (paciente_id, saldo, motivo, otorgada_por_id) VALUES (test.u('16'), 1, 'xxx', test.u('a3'));
+    RAISE EXCEPTION 'caso 130: la excepcion solo via autorizar_cita_con_deuda';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM count(*) FROM excepciones_morosidad;
+  ASSERT autorizar_cita_con_deuda(test.u('16'), 'sin deuda') IS NULL, 'caso 130: sin deuda no hace falta autorizar';
+  BEGIN
+    UPDATE citas SET aviso_deuda_en = now() WHERE paciente_id = test.u('16');
+    RAISE EXCEPTION 'caso 130: el aviso de deuda lo fija el job';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE citas SET estado = 'LIBERADA', liberada_por_id = test.u('a3'), motivo_liberacion = 'xxx' WHERE paciente_id = test.u('16');
+    RAISE EXCEPTION 'caso 130: la liberacion solo via liberar_hora_retenida';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM * FROM deudas_pacientes();
+  PERFORM test.ctx('c1', 'PRACTICANTE');
+  BEGIN
+    PERFORM * FROM deudas_pacientes();
+    RAISE EXCEPTION 'caso 130: el practicante no ve deudas';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM excepciones_morosidad) = 0, 'caso 130: el profesional no ve excepciones';
+  BEGIN
+    PERFORM autorizar_cita_con_deuda(test.u('16'), 'urgencia');
+    RAISE EXCEPTION 'caso 130: el profesional no autoriza';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM liberar_hora_retenida(gen_random_uuid(), 'motivo');
+    RAISE EXCEPTION 'caso 130: el profesional no libera horas retenidas';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET horas_plazo_pago_equipo = 24, dias_gracia_morosidad = 1, bloquear_agenda_morosos = true;
+  BEGIN
+    UPDATE configuracion_centro SET horas_plazo_pago_equipo = 500;
+    RAISE EXCEPTION 'caso 130: plazo fuera de rango';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE configuracion_centro SET morosidad_desde = now();
+    RAISE EXCEPTION 'caso 130: morosidad_desde no se cambia desde la API';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('16'), test.dia(55, 10), test.dia(55, 11)) RETURNING id INTO v;
+  ASSERT (SELECT pago_vence_en FROM citas WHERE id = v) = test.dia(55, 10) - interval '24 hours',
+    'caso 130: el plazo del equipo sigue la configuracion';
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET horas_plazo_pago_equipo = 12, dias_gracia_morosidad = 0;
+END $$;
 \connect :owner_url
 \set ON_ERROR_STOP 1
 
-\echo 115 Job de solicitudes: vence la retencion (libera la hora) y elimina solicitudes vencidas antiguas (minimizacion)
+\echo 128 Vencimientos (03b-3.1/3.2, job): la retencion vencida figura liberada y el job la libera (sin paciente, sin aviso); verificacion tardia (pago en el centro) con la hora libre continua y tomada da 23P01; el pago que llega con la hora tomada queda para devolucion sin crear paciente; PENDIENTE_PAGO del equipo vencida -> se mantiene CONFIRMADA con pago en el centro y saldo (03b-3.3; si ya no cabe en la agenda, LIBERADA con aviso); recordatorios de pago 48 h / 24 h
+DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
+              v_ter uuid := (SELECT id FROM politica_vigente('TERMINOS_AGENDAMIENTO')); r record; v_cobro uuid;
+              v_tea uuid; v_tom uuid; v_val uuid; v uuid; v2 uuid; n int; BEGIN
+  -- Avisos de la reserva pagada por transferencia (caso 127): nacen con el paciente; antes no habia a quien avisar.
+  ASSERT (SELECT array_agg(DISTINCT tipo::text ORDER BY tipo::text) FROM notificaciones WHERE paciente_id = test.u('1a'))
+         = ARRAY['CITA_CONFIRMADA', 'PAGO_VALIDADO'], 'caso 128: avisos al concretar';
+  SELECT cita_id INTO v_tea FROM crear_solicitud_hora(test.u('7e'), test.u('b9'), 'PRESENCIAL', test.dia(43, 10), test.dia(43, 11),
+                               'Tea', 'Tarde', '1990-01-01', 'tea@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t128x'), sha256('r128a'));
+  PERFORM elegir_medio_reserva(sha256('r128a'), 'PAGO_EN_CENTRO', NULL, sha256('t128a'));
+  SELECT cita_id INTO v_tom FROM crear_solicitud_hora(test.u('8a'), test.u('b9'), 'PRESENCIAL', test.dia(44, 10), test.dia(44, 11),
+                               'Tom', 'Tomada', '1990-01-01', 'tom@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t128y'), sha256('r128b'));
+  PERFORM elegir_medio_reserva(sha256('r128b'), 'PAGO_EN_CENTRO', NULL, sha256('t128b'));
+  SELECT cita_id INTO v_val FROM crear_solicitud_hora(test.u('8c'), test.u('b9'), 'PRESENCIAL', test.dia(47, 10), test.dia(47, 11),
+                               'Val', 'Vuelta', '1990-01-01', 'val@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t128z'), sha256('r128c'));
+  PERFORM elegir_medio_reserva(sha256('r128c'), 'PASARELA', NULL, NULL);
+  SELECT cobro_id INTO v_cobro FROM iniciar_cobro_reserva(sha256('r128c'));
+  UPDATE citas SET pago_vence_en = now() - interval '1 minute' WHERE id IN (v_tea, v_tom, v_val);
+  ASSERT (SELECT estado = 'LIBERADA' AND siguiente = 'ELEGIR_OTRA_HORA' FROM estado_reserva(sha256('r128a'))),
+    'caso 128: vencida por hora del servidor aunque el job aun no corra';
+  ASSERT liberar_reservas_vencidas() = 3, 'caso 128: tres retenciones liberadas';
+  ASSERT liberar_reservas_vencidas() = 0, 'caso 128: idempotente';
+  ASSERT (SELECT count(*) FROM solicitudes_hora WHERE id IN (test.u('7e'), test.u('8a'), test.u('8c')) AND estado = 'EXPIRADA') = 3,
+    'caso 128: reservas vencidas';
+  ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE referencia_id IN (v_tea, v_tom, v_val)), 'caso 128: sin paciente no hay a quien avisar';
+  -- Verificacion tardia (pago en el centro) con la hora libre: continua.
+  SELECT * INTO r FROM concretar_reserva(NULL, sha256('t128a'), test.u('1d'), test.u('d4'), NULL, NULL, NULL, NULL, NULL, NULL);
+  ASSERT r.estado = 'CONFIRMADA' AND r.paciente_id = test.u('1d'), 'caso 128: verificacion tardia con la hora libre';
+  -- Verificacion tardia con la hora tomada: 23P01 (la API responde con alternativas).
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('16'), test.dia(44, 10), test.dia(44, 11));
+  BEGIN
+    PERFORM concretar_reserva(NULL, sha256('t128b'), test.u('1e'), test.u('d5'), NULL, NULL, NULL, NULL, NULL, NULL);
+    RAISE EXCEPTION 'caso 128: la hora ya estaba tomada';
+  EXCEPTION WHEN exclusion_violation THEN NULL; END;
+  -- Pago que llega cuando la hora ya se tomo: queda para devolucion, sin crear paciente.
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('16'), test.dia(47, 10), test.dia(47, 11));
+  ASSERT (SELECT estado FROM confirmar_cobro_pasarela(v_cobro, 'ev-128', true)) = 'PAGADO', 'caso 128: pago tardio registrado';
+  ASSERT (SELECT count(*) FROM reserva_por_concretar(v_val)) = 1, 'caso 128: pagada, por concretar';
+  SELECT * INTO r FROM concretar_reserva(v_val, NULL, test.u('1f'), test.u('d8'), NULL, NULL, NULL, NULL, NULL, NULL);
+  ASSERT r.estado = 'LIBERADA' AND r.paciente_id IS NULL AND NOT EXISTS (SELECT 1 FROM pacientes WHERE id = test.u('1f')),
+    format('caso 128: pago para devolucion, sin paciente %s', r);
+  ASSERT (SELECT siguiente FROM estado_reserva(sha256('r128c'))) = 'CONTACTAR_CENTRO', 'caso 128: la reserva pide contactar al centro';
+  -- PENDIENTE_PAGO vencida (la agenda el equipo, 03b-3.3): la hora se mantiene con pago en el centro; queda el saldo.
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('PRESENCIAL', test.u('b9'), test.u('1d'), test.dia(48, 10), test.dia(48, 11)) RETURNING id INTO v;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT (SELECT estado FROM citas WHERE id = v) = 'PENDIENTE_PAGO', 'caso 128: agendada por el equipo, pendiente de pago';
+  UPDATE citas SET pago_vence_en = now() - interval '1 minute' WHERE id = v;
+  ASSERT liberar_reservas_vencidas() = 1, 'caso 128: una cita vencida';
+  ASSERT (SELECT estado = 'CONFIRMADA' AND medio_confirmacion = 'PAGO_EN_CENTRO' FROM citas WHERE id = v),
+    'caso 128: se mantiene con pago en el centro';
+  ASSERT NOT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'HORA_LIBERADA' AND referencia_id = v), 'caso 128: no se libera';
+  ASSERT (SELECT saldo > 0 FROM estado_pago_citas WHERE cita_id = v), 'caso 128: queda el saldo';
+  ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b9'), test.dia(48, 9), test.dia(48, 12)) d
+                     WHERE d.modalidad = 'PRESENCIAL' AND d.inicio <= test.dia(48, 10) AND d.fin >= test.dia(48, 11)),
+    'caso 128: la hora sigue ocupada';
+  -- Si la agenda cambio y ya no cabe (bloqueo), se libera con aviso como antes.
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(56, 10), test.dia(56, 11)) RETURNING id INTO v2;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  INSERT INTO bloqueos_agenda (profesional_id, inicio, fin, motivo) VALUES (test.u('b9'), test.dia(56, 9), test.dia(56, 12), 'PERSONAL');
+  UPDATE citas SET pago_vence_en = now() - interval '1 minute' WHERE id = v2;
+  n := liberar_reservas_vencidas();
+  ASSERT n = 1 AND (SELECT estado FROM citas WHERE id = v2) = 'LIBERADA',
+    format('caso 128: ya no cabe: LIBERADA (%s, %s)', n, (SELECT estado FROM citas WHERE id = v2));
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'HORA_LIBERADA' AND paciente_id = test.u('1d') AND referencia_id = v2),
+    'caso 128: aviso al paciente';
+  ASSERT (SELECT exigible = 0 AND saldo = 0 FROM estado_pago_citas WHERE cita_id = v2), 'caso 128: la liberada no se cobra';
+  DELETE FROM bloqueos_agenda WHERE profesional_id = test.u('b9') AND inicio = test.dia(56, 9);
+  -- Recordatorios de pago (48 h y 24 h antes); el hito que ya habia pasado al agendar se omite (lo cubre el aviso inicial).
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.sin_cruzar(date_trunc('hour', now()) + interval '40 hours'),
+          test.sin_cruzar(date_trunc('hour', now()) + interval '40 hours') + interval '1 hour') RETURNING id INTO v;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT avisar_pagos_pendientes() = 0, 'caso 128: agendada dentro de las 48 h: sin recordatorio de 48 h';
+  ASSERT (SELECT ultimo_aviso_pago FROM citas WHERE id = v) = 48, 'caso 128: hito de 48 h cubierto';
+  UPDATE citas SET created_at = now() - interval '3 days' WHERE id = v;
+  ASSERT avisar_pagos_pendientes() = 0, 'caso 128: aun no llega el hito de 24 h';
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.sin_cruzar(date_trunc('hour', now()) + interval '45 hours'),
+          test.sin_cruzar(date_trunc('hour', now()) + interval '45 hours') + interval '1 hour') RETURNING id INTO v2;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  UPDATE citas SET created_at = now() - interval '3 days' WHERE id = v2;
+  ASSERT avisar_pagos_pendientes() = 1, 'caso 128: recordatorio de 48 h';
+  UPDATE citas SET inicio = test.sin_cruzar(date_trunc('hour', now()) + interval '20 hours'),
+                   fin = test.sin_cruzar(date_trunc('hour', now()) + interval '20 hours') + interval '1 hour' WHERE id = v;
+  ASSERT avisar_pagos_pendientes() = 1, 'caso 128: recordatorio de 24 h';
+  ASSERT avisar_pagos_pendientes() = 0, 'caso 128: un aviso por hito';
+  ASSERT (SELECT count(*) FROM notificaciones WHERE tipo = 'PAGO_PENDIENTE' AND canal = 'BANDEJA' AND referencia_id IN (v, v2)) = 2,
+    'caso 128: avisos en la bandeja del paciente';
+  UPDATE configuracion_centro SET medios_pago_habilitados = '{PAGO_EN_CENTRO}', porcentaje_pago_confirmacion = 100;
+END $$;
+\echo 131 Morosidad (03b-3.3): sesion terminada con saldo bloquea agendar salvo autorizacion de ADMIN/GESTION con motivo, de un solo uso; sin bloqueo del centro, sin COBROS, antes de morosidad_desde o en dias de gracia no cuenta; deudas por rol; aviso de deuda una vez por cita; el pago regulariza; inasistencia justificada (devolucion con penalizacion, traslado sin)
+DO $$ DECLARE v uuid; v2 uuid; v3 uuid; w uuid; v_exc uuid; v_monto int; v_restr text;
+              v_conf configuracion_centro%ROWTYPE; BEGIN
+  SELECT * INTO v_conf FROM configuracion_centro;
+  UPDATE configuracion_centro SET morosidad_desde = now() - interval '30 days', medios_pago_habilitados = '{PAGO_EN_CENTRO}',
+                                  penalizacion_cancelacion_porcentaje = 50;
+  -- Sesion ya realizada sin pago (la inserta el dueño, sin contexto: no pasa por el bloqueo).
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(-2, 10), test.dia(-2, 11)) RETURNING id, monto INTO v, v_monto;
+  ASSERT v_monto > 0 AND (SELECT saldo FROM deudas_vencidas(test.u('1d')) WHERE cita_id = v) = v_monto,
+    'caso 131: sesion terminada sin pago = deuda';
+  ASSERT paciente_moroso(test.u('1d')), 'caso 131: moroso';
+  -- Ni el profesional ni GESTION agendan sin autorizacion.
+  PERFORM test.ctx('b9', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+    VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(50, 10), test.dia(50, 11));
+    RAISE EXCEPTION 'caso 131: un paciente moroso no agenda';
+  EXCEPTION WHEN check_violation THEN
+    GET STACKED DIAGNOSTICS v_restr = CONSTRAINT_NAME;
+    ASSERT v_restr = 'citas_paciente_moroso', format('caso 131: restriccion %s', v_restr);
+  END;
+  -- GESTION autoriza con motivo: sirve para una sola cita.
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM autorizar_cita_con_deuda(test.u('1d'), ' ');
+    RAISE EXCEPTION 'caso 131: autorizar exige motivo';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  v_exc := autorizar_cita_con_deuda(test.u('1d'), 'Inasistencia justificada: se reagenda');
+  ASSERT (SELECT saldo FROM excepciones_morosidad WHERE id = v_exc) = v_monto, 'caso 131: queda el saldo del momento';
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(50, 10), test.dia(50, 11)) RETURNING id INTO v2;
+  ASSERT (SELECT cita_id FROM excepciones_morosidad WHERE id = v_exc) = v2, 'caso 131: la autorizacion queda en la cita';
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+    VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(51, 10), test.dia(51, 11));
+    RAISE EXCEPTION 'caso 131: la autorizacion es de un solo uso';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  BEGIN
+    UPDATE excepciones_morosidad SET motivo = 'otro' WHERE id = v_exc;
+    RAISE EXCEPTION 'caso 131: excepciones append-only';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+  -- Sin el bloqueo del centro, sin COBROS, antes de morosidad_desde o dentro de la gracia: no bloquea / no cuenta.
+  UPDATE configuracion_centro SET bloquear_agenda_morosos = false;
+  PERFORM test.ctx('b9', 'PROFESIONAL');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(51, 10), test.dia(51, 11)) RETURNING id INTO v3;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  UPDATE configuracion_centro SET bloquear_agenda_morosos = true, modulos_activos = array_remove(modulos_activos, 'COBROS');
+  ASSERT NOT paciente_moroso(test.u('1d')), 'caso 131: sin COBROS no hay deuda';
+  UPDATE configuracion_centro SET modulos_activos = v_conf.modulos_activos, morosidad_desde = now() - interval '1 day';
+  ASSERT NOT paciente_moroso(test.u('1d')), 'caso 131: antes de morosidad_desde no cuenta';
+  UPDATE configuracion_centro SET morosidad_desde = now() - interval '30 days', dias_gracia_morosidad = 5;
+  ASSERT NOT paciente_moroso(test.u('1d')), 'caso 131: dentro de los dias de gracia no cuenta';
+  UPDATE configuracion_centro SET dias_gracia_morosidad = 0;
+  -- Deudas por rol: GESTION todas; el profesional las de sus citas.
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT saldo = v_monto AND sesiones = 1 AND citas = ARRAY[v] FROM deudas_pacientes() WHERE paciente_id = test.u('1d')),
+    'caso 131: GESTION ve la deuda';
+  PERFORM test.ctx('b9', 'PROFESIONAL');
+  ASSERT EXISTS (SELECT 1 FROM deudas_pacientes() WHERE paciente_id = test.u('1d')), 'caso 131: el profesional de la cita la ve';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM deudas_pacientes() WHERE paciente_id = test.u('1d')), 'caso 131: otro profesional no';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  -- Aviso de deuda: una vez por cita, al paciente y al profesional.
+  ASSERT avisar_deudas() >= 1, 'caso 131: avisos de deuda';
+  ASSERT avisar_deudas() = 0, 'caso 131: un aviso por cita';
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'DEUDA_PENDIENTE' AND paciente_id = test.u('1d') AND referencia_id = v)
+         AND EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'DEUDA_PENDIENTE' AND usuario_id = test.u('b9') AND referencia_id = v),
+    'caso 131: aviso al paciente y al profesional';
+  ASSERT (SELECT count(*) FROM notificaciones_por_enviar(500) n WHERE n.tipo = 'DEUDA_PENDIENTE' AND n.datos->>'cita_id' = v::text) >= 1,
+    'caso 131: el aviso sale referido a su cita';
+  -- El pago regulariza; la inasistencia justificada con devolucion lleva la penalizacion de la cancelacion tardia.
+  PERFORM test.ctx('a3', 'GESTION');
+  PERFORM registrar_pago(v, v_monto, 'EFECTIVO');
+  ASSERT NOT paciente_moroso(test.u('1d')), 'caso 131: el pago regulariza';
+  BEGIN
+    PERFORM resolver_cita(v, 'DEVOLUCION', NULL, NULL);
+    RAISE EXCEPTION 'caso 131: la inasistencia justificada exige motivo';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM resolver_cita(v, 'DEVOLUCION', NULL, 'Enfermedad con certificado');
+  ASSERT (SELECT inasistencia_justificada AND a_tiempo IS FALSE AND porcentaje = 50 AND monto_exigible = round(v_monto * 0.5)
+                 AND monto_devolucion = v_monto - round(v_monto * 0.5)
+          FROM resoluciones_cita WHERE cita_id = v), 'caso 131: devolucion con penalizacion';
+  ASSERT NOT paciente_moroso(test.u('1d')), 'caso 131: sin saldo tras la devolucion';
+  -- Traslado justificado: sin penalizacion; la deuda de la sesion se va.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(-3, 10), test.dia(-3, 11)) RETURNING id INTO w;
+  ASSERT paciente_moroso(test.u('1d')), 'caso 131: otra sesion sin pago';
+  PERFORM test.ctx('a3', 'GESTION');
+  PERFORM resolver_cita(w, 'TRASLADO', v3, 'Aviso tardio justificado');
+  ASSERT (SELECT inasistencia_justificada AND porcentaje = 0 AND monto_exigible = 0 FROM resoluciones_cita WHERE cita_id = w),
+    'caso 131: traslado sin penalizacion';
+  ASSERT NOT paciente_moroso(test.u('1d')), 'caso 131: reagendada, sin deuda';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  UPDATE configuracion_centro SET morosidad_desde = v_conf.morosidad_desde, medios_pago_habilitados = v_conf.medios_pago_habilitados,
+                                  penalizacion_cancelacion_porcentaje = v_conf.penalizacion_cancelacion_porcentaje;
+END $$;
+
+\echo 132 Hora retenida desde el panel (03b-3.3): caja solo presencial, por quien cobra y cubriendo lo exigido, concreta la reserva; liberar con motivo (ADMIN/GESTION); la reserva liberada ya no se concreta (el pago tardio queda para devolucion)
+DO $$ DECLARE v_pol uuid := (SELECT id FROM politica_vigente('POLITICA_DATOS'));
+              v_ter uuid := (SELECT id FROM politica_vigente('TERMINOS_AGENDAMIENTO')); v_p uuid; v_o uuid; v_l uuid;
+              v_cobro uuid; r record; v_conf configuracion_centro%ROWTYPE; BEGIN
+  SELECT * INTO v_conf FROM configuracion_centro;
+  UPDATE configuracion_centro SET medios_pago_habilitados = '{PAGO_EN_CENTRO,PASARELA}', porcentaje_pago_confirmacion = 50;
+  INSERT INTO salas_videollamada (usuario_id, modo) VALUES (test.u('b9'), 'JITSI') ON CONFLICT (usuario_id) DO NOTHING;
+  SELECT cita_id INTO v_p FROM crear_solicitud_hora(test.u('9a'), test.u('b9'), 'PRESENCIAL', test.dia(52, 10), test.dia(52, 11),
+                               'Caja', 'Presencial', '1990-01-01', 'caja@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t132a'), sha256('r132a'));
+  SELECT cita_id INTO v_o FROM crear_solicitud_hora(test.u('9b'), test.u('b9'), 'ONLINE', test.dia(53, 10), test.dia(53, 11),
+                               'Caja', 'Online', '1990-01-01', 'online@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t132b'), sha256('r132b'));
+  SELECT cita_id INTO v_l FROM crear_solicitud_hora(test.u('9c'), test.u('b9'), 'PRESENCIAL', test.dia(54, 10), test.dia(54, 11),
+                               'Libre', 'Liberada', '1990-01-01', 'libre@x', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, v_pol, v_ter,
+                               sha256('t132c'), sha256('r132c'));
+  ASSERT (SELECT bool_and(estado = 'RETENIDA') FROM citas WHERE id IN (v_p, v_o, v_l)), 'caso 132: tres horas retenidas';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM cobrar_reserva_en_caja(v_p, 100000, 'EFECTIVO');
+    RAISE EXCEPTION 'caso 132: cobra quien recibe el dinero';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM cobrar_reserva_en_caja(v_o, (SELECT monto FROM citas WHERE id = v_o), 'EFECTIVO');
+    RAISE EXCEPTION 'caso 132: la hora online no se paga en caja';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM cobrar_reserva_en_caja(v_p, 1, 'EFECTIVO');
+    RAISE EXCEPTION 'caso 132: la caja cubre lo exigido para confirmar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM cobrar_reserva_en_caja(v_p, (SELECT monto FROM citas WHERE id = v_p), 'TARJETA_DEBITO');
+  SELECT * INTO r FROM concretar_reserva(v_p, NULL, test.u('4a'), test.u('d9'), NULL, NULL, NULL, NULL, NULL, NULL);
+  ASSERT r.estado = 'CONFIRMADA' AND r.paciente_id = test.u('4a'), format('caso 132: la caja concreta la reserva %s', r);
+  ASSERT (SELECT medio_confirmacion = 'PAGO_EN_CENTRO' AND paciente_id = test.u('4a') FROM citas WHERE id = v_p)
+         AND EXISTS (SELECT 1 FROM fichas_clinicas WHERE paciente_id = test.u('4a'))
+         AND (SELECT saldo = 0 FROM estado_pago_citas WHERE cita_id = v_p), 'caso 132: paciente, ficha y cita pagada';
+  -- Liberar: ADMIN/GESTION con motivo.
+  PERFORM elegir_medio_reserva(sha256('r132c'), 'PASARELA', NULL, NULL);
+  SELECT cobro_id INTO v_cobro FROM iniciar_cobro_reserva(sha256('r132c'));
+  BEGIN
+    PERFORM liberar_hora_retenida(v_l, ' ');
+    RAISE EXCEPTION 'caso 132: liberar exige motivo';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM liberar_hora_retenida(v_p, 'ya concretada');
+    RAISE EXCEPTION 'caso 132: solo una hora retenida';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM liberar_hora_retenida(v_l, 'La persona llamo para anular');
+  ASSERT (SELECT estado = 'LIBERADA' AND liberada_por_id = test.u('a3') FROM citas WHERE id = v_l)
+         AND (SELECT estado = 'EXPIRADA' FROM solicitudes_hora WHERE id = test.u('9c')), 'caso 132: liberada a mano';
+  ASSERT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b9'), test.dia(54, 9), test.dia(54, 12)) d
+                 WHERE d.modalidad = 'PRESENCIAL' AND d.inicio <= test.dia(54, 10) AND d.fin >= test.dia(54, 11)),
+    'caso 132: la hora vuelve a estar libre';
+  -- Pago tardio de la reserva liberada: queda registrado para devolucion, sin concretar.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT (SELECT estado FROM confirmar_cobro_pasarela(v_cobro, 'ev-132', true)) = 'PAGADO', 'caso 132: pago tardio registrado';
+  ASSERT (SELECT count(*) FROM reserva_por_concretar(v_l)) = 0, 'caso 132: la liberada a mano no se concreta';
+  ASSERT (SELECT siguiente FROM estado_reserva(sha256('r132c'))) = 'CONTACTAR_CENTRO', 'caso 132: la reserva pide contactar al centro';
+  UPDATE configuracion_centro SET medios_pago_habilitados = v_conf.medios_pago_habilitados,
+                                  porcentaje_pago_confirmacion = v_conf.porcentaje_pago_confirmacion;
+END $$;
+\echo 133 Deuda en linea y enlace de pago (03b-3.4): la sesion realizada con saldo se paga con los medios en linea (pasarela y transferencia del saldo, otra transferencia aunque ya haya una validada); sin medios en linea, en el centro; la futura no; enlace PAGO_CITA solo sin cuenta, varios usos y con vencimiento; el profesional registra el pago presencial de sus citas
+DO $$ DECLARE v uuid; w uuid; f uuid; v_cobro uuid; v_pago uuid; v_saldo int; r record; v_conf configuracion_centro%ROWTYPE; BEGIN
+  SELECT * INTO v_conf FROM configuracion_centro;
+  UPDATE configuracion_centro SET medios_pago_habilitados = '{PAGO_EN_CENTRO,TRANSFERENCIA,PASARELA}', porcentaje_pago_confirmacion = 100;
+  -- Sesiones ya realizadas sin pago y una futura confirmada (la inserta el dueño).
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(-4, 10), test.dia(-4, 11)) RETURNING id, monto INTO v, v_saldo;
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(-5, 10), test.dia(-5, 11)) RETURNING id INTO w;
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(57, 10), test.dia(57, 11)) RETURNING id INTO f;
+  SELECT * INTO r FROM estado_pago_cita(v);
+  ASSERT r.estado = 'SALDO_PENDIENTE' AND r.siguiente = 'ELEGIR_MEDIO' AND r.medios = '{TRANSFERENCIA,PASARELA}' AND r.monto = v_saldo
+         AND r.vence_en IS NULL, format('caso 133: saldo pendiente %s', r);
+  ASSERT (SELECT estado = 'CONFIRMADA' AND siguiente = 'NINGUNO' FROM estado_pago_cita(f)), 'caso 133: la sesion futura no se cobra en linea';
+  BEGIN
+    PERFORM elegir_medio_cita(v, 'PAGO_EN_CENTRO', NULL);
+    RAISE EXCEPTION 'caso 133: el saldo solo con medios en linea';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- Pasarela: cobra el saldo; el pago avisa PAGO_REGISTRADO y la sesion queda sin deuda.
+  PERFORM elegir_medio_cita(v, 'PASARELA', NULL);
+  ASSERT (SELECT siguiente FROM estado_pago_cita(v)) = 'PAGAR_EN_LINEA', 'caso 133: pagar en linea';
+  SELECT cobro_id INTO v_cobro FROM iniciar_cobro_pasarela(v);
+  ASSERT (SELECT monto FROM cobros_pasarela WHERE id = v_cobro) = v_saldo, 'caso 133: la pasarela cobra el saldo';
+  ASSERT (SELECT estado FROM confirmar_cobro_pasarela(v_cobro, 'ev-133', true)) = 'PAGADO', 'caso 133: pagado';
+  ASSERT (SELECT estado = 'CONFIRMADA' AND siguiente = 'NINGUNO' FROM estado_pago_cita(v))
+         AND (SELECT medio_saldo IS NULL FROM citas WHERE id = v) AND saldo_cita(v) = 0, 'caso 133: sin saldo';
+  ASSERT EXISTS (SELECT 1 FROM notificaciones n JOIN pagos p ON p.id = n.referencia_id
+                 WHERE n.tipo = 'PAGO_REGISTRADO' AND p.cita_id = v), 'caso 133: aviso de pago registrado';
+  -- Transferencia del saldo: datos sin plazo, comprobante, validacion de GESTION (cobro del centro).
+  PERFORM elegir_medio_cita(w, 'TRANSFERENCIA', gen_random_uuid());
+  ASSERT (SELECT monto = saldo_cita(w) AND vence_en IS NULL FROM datos_transferencia(w)), 'caso 133: datos para transferir el saldo';
+  PERFORM guardar_comprobante(w, test.cif('comprobante saldo'), 'application/pdf', 'saldo.pdf');
+  ASSERT (SELECT siguiente = 'ESPERAR_VALIDACION' AND comprobante_recibido FROM estado_pago_cita(w)), 'caso 133: esperando validacion';
+  PERFORM test.ctx('a3', 'GESTION');
+  PERFORM rechazar_transferencia(w, 'Monto distinto');
+  ASSERT (SELECT siguiente = 'TRANSFERENCIA_RECHAZADA' AND motivo_rechazo = 'Monto distinto' FROM estado_pago_cita(w)),
+    'caso 133: rechazada, se puede volver a transferir';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  PERFORM guardar_comprobante(w, test.cif('comprobante saldo 2'), 'application/pdf', 'saldo2.pdf');
+  PERFORM test.ctx('a3', 'GESTION');
+  v_pago := validar_transferencia(w);
+  ASSERT (SELECT monto FROM pagos WHERE id = v_pago) > 0 AND saldo_cita(w) = 0, 'caso 133: validada registra el saldo';
+  -- Pago anulado: vuelve la deuda y se abre otra transferencia aunque ya haya una validada.
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM anular_pago(v_pago, 'Prueba de una segunda transferencia');
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT (SELECT estado FROM estado_pago_cita(w)) = 'SALDO_PENDIENTE', 'caso 133: vuelve el saldo';
+  PERFORM elegir_medio_cita(w, 'TRANSFERENCIA', gen_random_uuid());
+  ASSERT (SELECT count(*) FROM transferencias WHERE cita_id = w) = 2
+         AND (SELECT count(*) FROM transferencias WHERE cita_id = w AND estado <> 'VALIDADA') = 1, 'caso 133: una validada y una abierta';
+  BEGIN
+    INSERT INTO transferencias (id, cita_id) VALUES (gen_random_uuid(), w);
+    RAISE EXCEPTION 'caso 133: a lo mas una abierta por cita';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  -- Sin medios en linea: se paga en el centro.
+  UPDATE configuracion_centro SET medios_pago_habilitados = '{PAGO_EN_CENTRO}';
+  ASSERT (SELECT siguiente = 'PAGAR_EN_CENTRO' AND medios = '{}' FROM estado_pago_cita(w)), 'caso 133: solo en el centro';
+  UPDATE configuracion_centro SET medios_pago_habilitados = '{PAGO_EN_CENTRO,TRANSFERENCIA,PASARELA}';
+  -- Enlace de pago: solo sin cuenta, del job; varios usos; vence.
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM emitir_enlace_pago(w, sha256('e133x'));
+    RAISE EXCEPTION 'caso 133: el enlace lo emite el job';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT emitir_enlace_pago(w, sha256('e133a')), 'caso 133: paciente sin cuenta: enlace';
+  ASSERT cita_de_enlace_pago(sha256('e133a')) = w AND cita_de_enlace_pago(sha256('e133a')) = w, 'caso 133: varios usos';
+  ASSERT (SELECT estado FROM estado_pago_enlace(sha256('e133a'))) = 'SALDO_PENDIENTE'
+         AND (SELECT profesional IS NOT NULL AND inicio = test.dia(-5, 10) FROM resumen_enlace_pago(sha256('e133a'))),
+    'caso 133: estado y resumen por el enlace';
+  INSERT INTO usuarios (id, email, password_hash, nombre, rol, paciente_id)
+  VALUES (test.u('5a'), 't-con-cuenta@x', 'h', 'Con cuenta', 'PACIENTE', test.u('4a'));
+  ASSERT NOT emitir_enlace_pago((SELECT id FROM citas WHERE paciente_id = test.u('4a') LIMIT 1), sha256('e133b')),
+    'caso 133: con cuenta va al portal';
+  UPDATE tokens_correo SET creado_en = now() - interval '2 days', expira_en = now() - interval '1 day' WHERE token_hash = sha256('e133a');
+  BEGIN
+    PERFORM cita_de_enlace_pago(sha256('e133a'));
+    RAISE EXCEPTION 'caso 133: enlace vencido';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    PERFORM cita_de_enlace_pago(sha256('e133z'));
+    RAISE EXCEPTION 'caso 133: enlace inexistente';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  -- Pago presencial: el profesional de la cita lo registra (cobro del centro: el dinero es del centro); otro no.
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM registrar_pago(w, 1000, 'EFECTIVO');
+    RAISE EXCEPTION 'caso 133: otro profesional no registra';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b9', 'PROFESIONAL');
+  v_pago := registrar_pago(w, 1000, 'EFECTIVO');
+  ASSERT (SELECT cobrado_por = 'CENTRO' AND registrado_por_id = test.u('b9') FROM pagos WHERE id = v_pago), 'caso 133: pago presencial del profesional';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  UPDATE configuracion_centro SET medios_pago_habilitados = v_conf.medios_pago_habilitados,
+                                  porcentaje_pago_confirmacion = v_conf.porcentaje_pago_confirmacion;
+END $$;
+
+\echo 115 Job de solicitudes: la retencion vence con su cita (liberar_reservas_vencidas) y se eliminan solicitudes vencidas antiguas (minimizacion)
 DO $$ BEGIN
-  UPDATE solicitudes_hora SET expira_en = now() - interval '1 minute' WHERE id = test.u('3c');
-  PERFORM limpiar_solicitudes();
-  ASSERT (SELECT estado FROM solicitudes_hora WHERE id = test.u('3c')) = 'EXPIRADA', 'caso 115: vencida';
-  ASSERT NOT EXISTS (SELECT 1 FROM bloqueos_temporales WHERE solicitud_id = test.u('3c')), 'caso 115: la hora se libera';
+  UPDATE citas SET pago_vence_en = now() - interval '1 minute' WHERE id = (SELECT cita_id FROM solicitudes_hora WHERE id = test.u('3c'));
+  PERFORM liberar_reservas_vencidas();
+  ASSERT (SELECT s.estado = 'EXPIRADA' AND c.estado = 'LIBERADA' FROM solicitudes_hora s JOIN citas c ON c.id = s.cita_id
+          WHERE s.id = test.u('3c')), 'caso 115: vencida y la hora se libera';
   UPDATE solicitudes_hora SET creada_en = now() - interval '40 days' WHERE id = test.u('3c');
   PERFORM limpiar_solicitudes();
   ASSERT NOT EXISTS (SELECT 1 FROM solicitudes_hora WHERE id = test.u('3c')), 'caso 115: eliminada pasado el plazo';
@@ -4308,7 +4916,7 @@ DO $$ DECLARE t text; BEGIN
                            'solicitudes_epicrisis', 'documentos_clinicos', 'envios_documento', 'descargas_documento',
                            'pagos', 'boletas', 'resoluciones_cita', 'liquidaciones', 'preferencias_notificacion',
                            'recordatorios_cita', 'adjuntos_ficha', 'politicas', 'aceptaciones_politica', 'resenas_eventos',
-                           'altas_paciente', 'accesos_clinicos_temporales', 'imagenes_publicas'] LOOP
+                           'altas_paciente', 'accesos_clinicos_temporales', 'imagenes_publicas', 'excepciones_morosidad'] LOOP
     BEGIN
       EXECUTE format('DELETE FROM %I', t);
       RAISE EXCEPTION 'caso 67: DELETE % debio fallar', t;
@@ -4354,7 +4962,9 @@ DO $$ DECLARE c record; n int; BEGIN
   FOR c IN SELECT table_name, column_name FROM information_schema.columns
            WHERE table_schema = 'public' AND data_type = 'bytea' AND column_name NOT LIKE '%hmac'
              -- sesiones y tokens_correo guardan SHA-256 de tokens (bytea sin cifrar, como las sesiones).
-             AND table_name NOT IN ('llaves_datos', 'sesiones', 'tokens_correo', 'imagenes_publicas') LOOP
+             AND table_name NOT IN ('llaves_datos', 'sesiones', 'tokens_correo', 'imagenes_publicas')
+             -- 03b-3.1: SHA-256 del token opaco de la reserva (como tokens_correo).
+             AND table_name || '.' || column_name <> 'solicitudes_hora.reserva_hash' LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE %I IS NOT NULL AND (get_byte(%I, 0) <> 1 OR octet_length(%I) < 49)',
                    c.table_name, c.column_name, c.column_name, c.column_name) INTO n;
     ASSERT n = 0, format('caso 78: %s.%s con valores sin formato cifrado', c.table_name, c.column_name);

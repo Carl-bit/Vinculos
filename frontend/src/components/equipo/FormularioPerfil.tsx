@@ -48,7 +48,6 @@ export function FormularioPerfil({
   });
   const [opciones, setOpciones] = useState({
     perfilPublico: perfil?.perfilPublico ?? false,
-    requiereAprobacionNuevos: perfil?.requiereAprobacionNuevos ?? false,
     cobroDirecto: perfil?.cobroDirecto ?? false,
     boletaReembolsable: perfil?.boletaReembolsable ?? false,
   });
@@ -71,7 +70,6 @@ export function FormularioPerfil({
         enfoques: lista(f.enfoques),
         idiomas: lista(f.idiomas),
         convenios: lista(f.convenios),
-        requiereAprobacionNuevos: opciones.requiereAprobacionNuevos,
         cobroDirecto: opciones.cobroDirecto,
         boletaReembolsable: opciones.boletaReembolsable,
       };
@@ -174,13 +172,6 @@ export function FormularioPerfil({
             onChange={(v) => setOpciones((o) => ({ ...o, perfilPublico: v }))}
           />
         )}
-        <Interruptor
-          tono="team"
-          etiqueta="Aprobar antes a los pacientes nuevos"
-          descripcion="Las horas de pacientes nuevos quedan por confirmar hasta que se aprueben."
-          activo={opciones.requiereAprobacionNuevos}
-          onChange={(v) => setOpciones((o) => ({ ...o, requiereAprobacionNuevos: v }))}
-        />
         <Interruptor
           tono="team"
           etiqueta="Cobro directo"

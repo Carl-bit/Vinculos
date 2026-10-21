@@ -34,7 +34,9 @@ const MEDIOS: { valor: MedioPago; icono: Icono }[] = [
  * paciente asistio se registra el pago (total o parcial; el sobrepago lo
  * rechaza la BD); si no, la inasistencia aplica el porcentaje del centro. Una
  * cita cancelada se resuelve con devolucion o traslado a otra cita. La boleta
- * sale sola cuando la cita queda pagada.
+ * sale sola cuando la cita queda pagada. 03b-3.3: la inasistencia justificada
+ * (con motivo) se reagenda trasladando lo pagado, sin penalizacion, o se
+ * devuelve con la penalizacion de la cancelacion tardia.
  */
 export function RegistrarAsistenciaPago({
   citaId,
@@ -58,16 +60,19 @@ export function RegistrarAsistenciaPago({
   const [medio, setMedio] = useState<MedioPago>('TRANSFERENCIA');
   const [motivo, setMotivo] = useState('');
   const [traslado, setTraslado] = useState('');
+  const [justificada, setJustificada] = useState<'NO' | 'TRASLADO' | 'DEVOLUCION'>('NO');
   const [anulando, setAnulando] = useState<string | null>(null);
   const [error, setError] = useState<string>();
   const d = detalle.data;
-  const futuras = useCitas({ pacienteId: d?.paciente_id, desde: hoyChile().desde }, !!d && d.estado_cita === 'CANCELADA');
+  const futuras = useCitas({ pacienteId: d?.paciente_id, desde: hoyChile().desde }, !!d && (d.estado_cita === 'CANCELADA' || asistio === false));
+  const citasDestino = (futuras.data ?? []).filter((x) => (x.estado === 'CONFIRMADA' || x.estado === 'PENDIENTE_PAGO') && x.id !== d?.cita_id);
 
   const cerrar = () => {
     setAsistio(null);
     setMonto('');
     setMotivo('');
     setTraslado('');
+    setJustificada('NO');
     setAnulando(null);
     setError(undefined);
     onCerrar();
@@ -144,6 +149,7 @@ export function RegistrarAsistenciaPago({
                     {c.resolucion.decision === 'INASISTENCIA' ? 'No asistió' : c.resolucion.decision === 'DEVOLUCION' ? 'Devolución' : 'Trasladada'}
                   </Badge>
                 )}
+                {c.resolucion?.inasistenciaJustificada && <Badge tono="neutro">Inasistencia justificada</Badge>}
                 {c.boleta && <span className="text-[12.5px] font-bold text-neutral-800">Boleta N° {c.boleta.numero} (simulada, sin SII)</span>}
               </div>
 
@@ -257,16 +263,48 @@ export function RegistrarAsistenciaPago({
                   )}
                   {asistio === false && (
                     <>
+                      <Field label="¿La inasistencia está justificada?">
+                        {(p) => (
+                          <Select {...p} value={justificada} onChange={(ev) => setJustificada(ev.target.value as typeof justificada)}>
+                            <option value="NO">No: se aplica el cargo por inasistencia</option>
+                            <option value="TRASLADO">Sí: se reagenda (lo pagado pasa a otra cita)</option>
+                            <option value="DEVOLUCION">Sí: pide reembolso (con penalización)</option>
+                          </Select>
+                        )}
+                      </Field>
                       <Aviso tono="advertencia">
-                        Se cobra el {String(configuracion.data?.cobroInasistenciaPorcentaje ?? '…')}% del monto por inasistencia (política del centro). La
-                        decisión no se deshace.
+                        {justificada === 'NO'
+                          ? `Se cobra el ${String(configuracion.data?.cobroInasistenciaPorcentaje ?? '…')}% del monto por inasistencia (política del centro).`
+                          : justificada === 'TRASLADO'
+                            ? 'Sin penalización: lo pagado pasa a la nueva cita y esta sesión queda sin saldo. Agenda primero la nueva hora en Agenda (si el paciente tiene deuda, administración la autoriza con motivo).'
+                            : `Se devuelve lo pagado menos el ${String(configuracion.data?.penalizacionCancelacionPorcentaje ?? '…')}% de penalización (como una cancelación fuera de plazo). Si no había pagado, queda debiendo esa penalización.`}{' '}
+                        La decisión no se deshace.
                       </Aviso>
-                      <Field label="Nota (opcional)">
+                      {justificada === 'TRASLADO' && (
+                        <Field label="Nueva cita del paciente" required>
+                          {(p) => (
+                            <Select {...p} value={traslado} onChange={(ev) => setTraslado(ev.target.value)}>
+                              <option value="">{citasDestino.length ? 'Elige la nueva cita' : 'El paciente no tiene horas futuras'}</option>
+                              {citasDestino.map((x) => (
+                                <option key={x.id} value={x.id}>
+                                  {formatoFechaLarga(x.inicio)}, {formatoHora(x.inicio)}
+                                </option>
+                              ))}
+                            </Select>
+                          )}
+                        </Field>
+                      )}
+                      <Field label={justificada === 'NO' ? 'Nota (opcional)' : 'Motivo de la justificación'} required={justificada !== 'NO'}>
                         {(p) => <Textarea {...p} rows={2} maxLength={500} value={motivo} onChange={(ev) => setMotivo(ev.target.value)} className="!min-h-16" />}
                       </Field>
                       <div className="flex justify-end">
-                        <Button variant="team" loading={resolver.isPending} onClick={() => resolver.mutate('INASISTENCIA')}>
-                          Registrar inasistencia
+                        <Button
+                          variant="team"
+                          loading={resolver.isPending}
+                          disabled={justificada !== 'NO' && (motivo.trim().length < 3 || (justificada === 'TRASLADO' && !traslado))}
+                          onClick={() => resolver.mutate(justificada === 'NO' ? 'INASISTENCIA' : justificada)}
+                        >
+                          {justificada === 'NO' ? 'Registrar inasistencia' : justificada === 'TRASLADO' ? 'Reagendar sin penalización' : 'Registrar devolución'}
                         </Button>
                       </div>
                     </>
@@ -284,13 +322,11 @@ export function RegistrarAsistenciaPago({
                     {(p) => (
                       <Select {...p} value={traslado} onChange={(ev) => setTraslado(ev.target.value)}>
                         <option value="">Sin traslado: devolución</option>
-                        {(futuras.data ?? [])
-                          .filter((x) => x.estado === 'CONFIRMADA' && x.id !== c.cita_id)
-                          .map((x) => (
-                            <option key={x.id} value={x.id}>
-                              {formatoFechaLarga(x.inicio)}, {formatoHora(x.inicio)}
-                            </option>
-                          ))}
+                        {citasDestino.map((x) => (
+                          <option key={x.id} value={x.id}>
+                            {formatoFechaLarga(x.inicio)}, {formatoHora(x.inicio)}
+                          </option>
+                        ))}
                       </Select>
                     )}
                   </Field>

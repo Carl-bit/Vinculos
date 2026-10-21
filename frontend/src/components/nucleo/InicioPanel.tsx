@@ -12,7 +12,7 @@ import { useProfesionales } from '@/lib/consultas';
 import { formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
 import { MENU, type ModuloCentro } from '@/lib/navegacion';
-import { hoyChile, nombresPacientes, useCitas, useDashboard, useEspacios, usePacientes, type ReporteDashboard } from '@/lib/panel';
+import { hoyChile, nombreDeCita, nombresPacientes, useCitas, useDashboard, useEspacios, usePacientes, type ReporteDashboard } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
@@ -160,7 +160,7 @@ function SesionesHoy({ rol }: { rol: Rol }) {
   const nombres = nombresPacientes(pacientes.data);
   const boxes = new Map((espacios.data ?? []).map((e) => [e.id, e.nombre]));
   const equipo = new Map((profesionales.data ?? []).map((p) => [p.id, p.nombre ?? 'Profesional']));
-  const lista = (citas.data ?? []).filter((c) => c.estado === 'CONFIRMADA' || c.estado === 'SOLICITADA');
+  const lista = (citas.data ?? []).filter((c) => c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO');
 
   return (
     <section className="rounded-lg border border-divider bg-bg px-[22px] pt-5 pb-[22px] shadow-md">
@@ -181,11 +181,11 @@ function SesionesHoy({ rol }: { rol: Rol }) {
                   className={`h-[30px] w-[3px] flex-none rounded-full ${c.modalidad === 'ONLINE' ? 'bg-accent-2-600' : 'bg-accent-600'}`}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="m-0 truncate text-[14.5px] font-extrabold tracking-[-0.01em]">{nombres.get(c.pacienteId) ?? 'Paciente'}</p>
+                  <p className="m-0 truncate text-[14.5px] font-extrabold tracking-[-0.01em]">{nombreDeCita(nombres, c)}</p>
                   <p className="m-0 text-[12.5px] font-semibold text-neutral-700">
                     {c.modalidad === 'ONLINE' ? 'Online' : 'Presencial'}
                     {admin ? ` · ${equipo.get(c.profesionalId) ?? 'Profesional'}` : ''}
-                    {c.estado === 'SOLICITADA' ? ' · por aprobar' : ''}
+                    {c.estado === 'PENDIENTE_PAGO' ? ' · pago pendiente' : ''}
                   </p>
                 </div>
                 {c.espacioId && (
@@ -216,11 +216,25 @@ function pendientesCentro(r: ReporteDashboard, rol: Rol): Pendiente[] {
   const p = r.pendientes;
   if (!p) return [];
   const lista: (Pendiente | false)[] = [
-    p.solicitudes_por_aprobar > 0 && {
-      icono: 'how_to_reg',
-      titulo: plural(p.solicitudes_por_aprobar, 'hora por aprobar', 'horas por aprobar'),
-      meta: 'Pacientes nuevos de profesionales que aprueban',
+    p.transferencias_por_validar > 0 && {
+      icono: 'payments',
+      titulo: plural(p.transferencias_por_validar, 'transferencia por validar', 'transferencias por validar'),
+      meta: 'Al validarla, la hora queda confirmada',
+      href: '/admin/cobros',
+      tono: 'atencion',
+    },
+    p.pagos_pendientes > 0 && {
+      icono: 'schedule',
+      titulo: plural(p.pagos_pendientes, 'hora con pago pendiente', 'horas con pago pendiente'),
+      meta: 'Se confirman con el pago; si vence el plazo, se pagan en el centro',
       href: '/admin/agenda?vista=pendientes',
+      tono: 'neutra',
+    },
+    p.pacientes_con_deuda > 0 && {
+      icono: 'payments',
+      titulo: plural(p.pacientes_con_deuda, 'paciente con deuda', 'pacientes con deuda'),
+      meta: 'Sesiones realizadas sin pagar: no agendan hasta regularizar',
+      href: '/admin/cobros?vista=deudas',
       tono: 'atencion',
     },
     p.por_reprogramar > 0 && {
@@ -294,11 +308,18 @@ function pendientesPropios(r: ReporteDashboard): Pendiente[] {
       href: '/admin/fichas?vista=borradores',
       tono: 'atencion',
     },
-    (r.solicitudes_por_aprobar ?? 0) > 0 && {
-      icono: 'how_to_reg',
-      titulo: plural(r.solicitudes_por_aprobar!, 'hora por aprobar', 'horas por aprobar'),
-      meta: 'Pacientes nuevos',
+    (r.pagos_pendientes ?? 0) > 0 && {
+      icono: 'schedule',
+      titulo: plural(r.pagos_pendientes!, 'hora con pago pendiente', 'horas con pago pendiente'),
+      meta: 'Se confirman con el pago del paciente',
       href: '/admin/agenda?vista=pendientes',
+      tono: 'neutra',
+    },
+    (r.pacientes_con_deuda ?? 0) > 0 && {
+      icono: 'payments',
+      titulo: plural(r.pacientes_con_deuda!, 'paciente con deuda', 'pacientes con deuda'),
+      meta: 'Sesiones realizadas sin pagar: no agendan hasta regularizar',
+      href: '/admin/cobros?vista=deudas',
       tono: 'atencion',
     },
     (r.mensajes_sin_leer ?? 0) > 0 && {

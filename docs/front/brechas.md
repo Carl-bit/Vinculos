@@ -316,7 +316,7 @@ Estado por fila de las secciones 1-5:
 | C-9 | El paciente edita solo telefono y correo (correo nuevo verificado) via `portal/mis-datos` |
 | C-10 | Fuera de 03a (fase posterior de cobros) |
 | C-11 | La liquidacion considera citas REALIZADAS (terminadas); configuracion opcional para exigir evolucion vinculada. **Pendiente**: si se liquidan los cobros por cancelacion tardia e inasistencia (hoy no) |
-| C-15 | Estado SOLICITADA: la reserva directa retiene 30 min (bloqueos temporales) y queda CONFIRMADA al verificar el correo; opcion por profesional "requiere aprobacion para pacientes nuevos" deja la cita SOLICITADA hasta `citas/:id/aprobacion`; RUT obligatorio al registrar la primera evolucion; invitacion al confirmar |
+| C-15 | Estado SOLICITADA: la reserva directa retiene 30 min (bloqueos temporales) y queda CONFIRMADA al verificar el correo; opcion por profesional "requiere aprobacion para pacientes nuevos" deja la cita SOLICITADA hasta `citas/:id/aprobacion`; RUT obligatorio al registrar la primera evolucion; invitacion al confirmar. **03b-3.2**: la aprobacion se retira (el pago validado es la aprobacion; seccion 18) |
 | C-17 | El match publico no guarda nada: resultado en pantalla y paso a Pedir hora |
 | Seccion 5 | Incluidos en 03a-1: lista de espera con aviso al liberarse una hora, PDF de reporte de cobros y de liquidacion, horario general y por box (citas dentro del horario), contacto de emergencia cifrado, idiomas y cita destacada. Para 03a-2: campos clinicos por especialidad y mensajeria interna. Fuera: genero del profesional, protocolo con acuse de lectura, WhatsApp |
 
@@ -422,7 +422,7 @@ Estado por fila de las secciones 1-5:
 | TOTP (1.2) | `PasoTotp` compartido por login, enlace e invitacion; enrolamiento con QR |
 | Cambio de contraseña | `/portal/seguridad` (y `CambioPassword` para "Mi perfil" del panel en 03b-4) |
 | Paginas por token | `/cuenta/correo`, `/consentimiento` (atencion, practicante, oposicion a cambio de supervisor; explica que se acepta y que pasa si se rechaza), `/recordatorio` (confirmar o cancelar con la politica que aplica ahora), `/portal/documentos/descarga`. El aviso de hora liberada llega a la bandeja y a `/portal/lista-espera` ("Se liberó una hora") |
-| Mi profesional, Mis horas, mensajes y historial, Mis datos (1.6) | Diseño implementado. "Por confirmar" = SOLICITADA (C-15). "Calificar" una vez por profesional (D-1) bajo la ultima sesion realizada. Citas online con "Entrar a la videollamada" |
+| Mi profesional, Mis horas, mensajes y historial, Mis datos (1.6) | Diseño implementado. "Por confirmar" = SOLICITADA (C-15; 03b-3.2: retirado, la hora se confirma con el pago). "Calificar" una vez por profesional (D-1) bajo la ultima sesion realizada. Citas online con "Entrar a la videollamada" |
 | Box de la cita ("Presencial, Box 2") | `portal/citas.espacioNombre` (nuevo) |
 | Mis datos: editar nombre y nacimiento, adulto responsable (C-9) | Solo telefono y correo; correo nuevo con enlace. Contacto de emergencia visible (lo registra el centro) |
 | Pagos, documentos, epicrisis, consentimientos y avisos, preferencias, lista de espera (03b-3) | Secciones nuevas del portal. Datos para transferir solo con cobro directo y saldo |
@@ -447,7 +447,7 @@ Pendiente o fuera de la API:
 | Dashboard por rol (2.1) | `InicioPanel`: ADMIN/GESTION agregados sin datos clinicos; el profesional los suyos. Pendientes enlazan a la pestaña que los resuelve |
 | Fichas y vista administrativa (2.2, 2.3) | Lista con filtros en la URL, vista por profesional (solo metadata), detalle con RUT de recepcion y duplicados. El contenido clinico es 03b-5 |
 | "Reasignar a otro profesional" en Agenda (C-4/C-5) | Dos acciones: "Cubrir sesion" (ADMIN/GESTION; otro profesional atiende esa sesion con acceso clinico temporal vigente; ADMIN lo otorga en el mismo paso, GESTION no otorga accesos) y "Derivar paciente" (solo el tratante, abre la derivacion en la ficha con `?derivar=1`) |
-| "Por confirmar" en el calendario | Cita SOLICITADA (paciente nuevo de un profesional que aprueba antes): "Aprobar hora" (ADMIN, GESTION, PROFESIONAL) o cancelar |
+| "Por confirmar" en el calendario | 03b-3.2: sin aprobacion. "Pago pendiente" (plazo visible) y "Hora retenida (reserva en curso)" sin paciente, solo informativa (se confirma con el pago o se libera sola) |
 | "Reservando..." en el calendario | No se muestra: `GET agenda/horarios-tomados` solo devuelve las retenciones propias. El EXCLUDE sigue siendo la fuente de verdad (409 con alternativas al confirmar) |
 | Editar box: abre / cierra (2.4) | Horario base por dia y horarios por periodo (semana, mes, trimestre); la ocupacion del box es el % apartado de la semana (horas de `bloques_atencion` ÷ horas abiertas) |
 | "Editar horario" del profesional (2.4) | La agenda sale de las horas de box apartadas (03b): "Apartar horas" (lo libre de cada box, con sugerencia segun el horario habitual), liberar, horario habitual como plantilla y "Bloquear agenda" (vacaciones, licencia, personal) |
@@ -558,3 +558,124 @@ posterior. Reemplaza lo dicho sobre la lista en las secciones 6, 9, 10, 11 y
 ni tarjeta en el dashboard. Sin horas, Pedir hora ofrece ver otros
 profesionales o entrar a la cuenta. Detalle tecnico en
 `docs/api/estado_fase_api.md` (Rollback: lista de espera).
+
+## 17. Resolucion en 03b-3.1 (confirmacion de citas por medio de pago)
+
+Decisiones del usuario (2026-10-19): RETENIDA es estado de la **reserva**, no
+de la cita (no se crean paciente ni ficha para un correo sin verificar), y la
+lista de espera sigue retirada (seccion 16): LIBERADA avisa solo al paciente
+y la pantalla de hora liberada ofrece otras horas, sin lista de espera.
+
+| Pantalla | Resolucion |
+|---|---|
+| Pedir hora (03b-2) | Cuatro pasos (Horario, Tus datos, Correo, Pago). "Revisa tu correo" consulta `publico/reservas/estado` cada 4 s mientras la pestaña esta visible (React Query pausa en segundo plano) y avanza sola al verificarse, tambien desde otro dispositivo; al llegar a cero la cuenta regresiva solo vuelve a consultar (manda el servidor). Paso de pago con los medios habilitados (`PasoPago`): pago en el centro (confirma, "pagas al llegar"), transferencia (datos de la cuenta, monto, plazo, comprobante opcional, "esperando validacion" que se actualiza sola, motivo si se rechazo) y pasarela simulada ("modo demostracion: no se realiza ningun cobro"). Finales: confirmada, solicitud enviada (aprobacion de pacientes nuevos) y liberada (con las horas libres para elegir otra; los datos del formulario se conservan) |
+| Enlace de verificacion (03b-3) | Confirma la verificacion e indica que la pestaña original, si sigue abierta, ya avanzo sola; pendiente de pago: pagar en esa pestaña o desde la cuenta (invitacion enviada); hora tomada tras la retencion: 409 con horas cercanas |
+| Pedir hora con cuenta (portal) | Sin retencion: directo al paso de pago (`PagoCitaPortal`) |
+| Mi cuenta (Mis horas) | Estados nuevos ("Pago pendiente", "Liberada (pago vencido)"); la cita pendiente muestra el plazo y "Pagar o subir comprobante" |
+
+Pendiente para fases siguientes (no implementado; el prompt las llama 03b-5
+y 03b-6, numeros que ya usan 03b-5.1 a 5.3; se renombran al planificarlas):
+
+- **Cobros:** bandeja de transferencias por validar (comprobante, validar o
+  rechazar con motivo) segun el modelo de cobro, sobre
+  `GET cobros/transferencias`, `GET cobros/transferencias/:id/comprobante` y
+  `POST cobros/citas/:id/transferencia/{validacion,rechazo}`; configuracion de
+  medios de pago, plazo, porcentaje y cuenta del centro (`PATCH configuracion`,
+  `PUT cobros/cuenta-centro`). Mientras tanto se usan por API (y el seed demo
+  deja una transferencia por validar).
+- **Playwright:** verificacion en otra pestaña con la original avanzando sola;
+  cada medio de pago; transferencia vencida (enlace leido desde la API de
+  Mailpit).
+- **Lista de espera:** si se retoma (seccion 16), LIBERADA es el punto donde
+  avisarle.
+
+## 18. Resolucion en 03b-3.2 (la hora se confirma con el pago)
+
+Decisiones del usuario (2026-10-20), sobre la seccion 17: la hora se retiene
+hasta que se maneja el cobro; el pago validado crea al paciente y confirma la
+sesion (es la aprobacion: no hay aprobacion aparte de pacientes nuevos). Con
+pago en el centro el gatillo sigue siendo el correo verificado. Misma regla
+en el portal. La hora que agenda el equipo queda pendiente de pago hasta 12 h
+antes de la sesion, con avisos 48 h y 24 h antes.
+
+| Pantalla | Resolucion |
+|---|---|
+| Pedir hora (03b-2) | Pasos Horario, Tus datos, Pago, Confirmada. Al enviar los datos la hora queda retenida (cuenta regresiva) y se paga ahi mismo; "Revisa tu correo" solo con pago en el centro (unico medio o elegido). El comprobante subido a tiempo mantiene la hora hasta la validacion (la cuenta regresiva se oculta y se muestra el plazo). Final nuevo: "Recibimos tu pago, pero la hora ya no estaba" (`CONTACTAR_CENTRO`). Se quita "solicitud enviada" |
+| Enlace del correo | Solo para pago en el centro: confirma y avisa de la invitacion; hora tomada: horas cercanas; si despues se eligio pagar antes, muestra el motivo (409) |
+| Agenda (panel) | Detalle de cita: "Reserva en curso" (hora retenida sin paciente, sin acciones) y "Pago pendiente" con plazo; sin "Aprobar hora". Pestaña Pendientes: "Pago pendiente" (con plazo) en vez de "Por aprobar" |
+| Agendar sesion | Con cobro previo, el resultado dice "pago pendiente" con el plazo (12 h antes), los avisos al paciente y que se paga desde la cuenta o en Cobros; a menos de 12 h, pago en el centro |
+| Inicio del panel | Pendientes: "transferencias por validar" y "horas con pago pendiente" (ya no "horas por aprobar") |
+| Perfil del profesional | Se quita "Aprobar antes a los pacientes nuevos" |
+
+Pendiente (no implementado):
+
+- **Cobros:** la bandeja de transferencias por validar sigue sin pantalla
+  (seccion 17); el aviso del inicio enlaza a Cobros. Con 03b-3.2 la
+  validacion ademas crea al paciente de la reserva sin cuenta.
+- **Paciente sin cuenta con hora del equipo:** paga en caja (Cobros
+  confirma la cita) o el equipo lo invita al portal desde su ficha; no se
+  invita automaticamente al agendar.
+- **Devolucion de un pago tardio:** queda registrado (la reserva informa
+  `CONTACTAR_CENTRO`); la devolucion es manual (fuera del sistema).
+- **Playwright:** reserva con transferencia validada creando al paciente;
+  hora del equipo pendiente de pago pagada desde el portal.
+
+## 19. Resolucion en 03b-3.3 (pago tardio, morosidad y caja)
+
+Decisiones del usuario (2026-10-20): la hora que agenda el equipo sin pago al
+vencer su plazo (configurable, 12 h por defecto) se mantiene con pago en el
+centro; si nadie paga, la sesion queda con deuda. Un paciente con deuda no
+agenda (ni el paciente ni su profesional) salvo que ADMIN/GESTION autoricen la
+hora con motivo; el centro puede desactivar el bloqueo. La hora retenida
+presencial se cobra en caja desde el panel; cualquier hora retenida se libera
+a mano con motivo.
+
+| Pantalla | Resolucion |
+|---|---|
+| Agendar sesion | 422 por deuda con texto claro; ADMIN/GESTION ven "Motivo para autorizar con deuda" y "Autorizar y confirmar" sin perder la hora retenida; el resto ve que debe regularizar en el centro |
+| Detalle de cita (panel) | Hora retenida: "Cobrar en caja" (solo presencial; monto y medio) y "Liberar hora" (motivo). Liberada a mano: muestra el motivo. Pago pendiente: "si vence el plazo sin pago, la hora se mantiene y se paga en el centro" |
+| Cobros | Pestaña "Deudas": pacientes con sesiones impagas (saldo, desde, sesiones) y "Registrar pago" sobre la mas antigua |
+| Registrar asistencia y pago | "No asistio" pregunta si esta justificada: cargo por inasistencia, reagendar sin penalizacion (traslado a una cita futura) o devolucion con la penalizacion de la cancelacion tardia (motivo obligatorio) |
+| Reglas del centro | Plazo de pago previo del equipo (horas), dias de gracia y "No agendar a pacientes con deuda" |
+| Inicio del panel | "Pacientes con deuda" (centro y profesional) |
+| Portal | La hora del equipo pendiente de pago dice que despues del plazo se paga en el centro (la pedida por el paciente se sigue liberando) |
+
+Pendiente (no implementado):
+
+- **Nombre de la reserva en el panel:** decision del usuario (2026-10-20): no
+  hace falta. La hora retenida no expone los datos de una reserva sin
+  verificar al equipo; en la consulta se le paga al profesional, que la
+  identifica y registra el pago (seccion 20).
+- **Pago en linea de la deuda y enlace de pago sin cuenta:** resueltos en
+  03b-3.4 (seccion 20).
+- **Aviso a la persona cuya reserva se libera a mano:** decision del usuario:
+  no se le escribe (el profesional puede usar esa hora); su pagina de reserva
+  muestra la hora liberada.
+- **Doble pago caja + pasarela:** si la persona tambien paga en linea despues
+  de pagar en caja, el pago queda registrado y se devuelve a mano.
+- **Playwright:** agendar con deuda (bloqueo y autorizacion), cobrar en caja
+  y liberar una hora retenida, pestaña Deudas.
+
+## 20. Resolucion en 03b-3.4 (deuda en linea, enlace de pago y cobro del profesional)
+
+Decisiones del usuario (2026-10-20): la deuda se paga en linea con los medios
+del centro, como el pago de una hora; quien no tiene cuenta paga con un enlace
+del correo; en la consulta se le paga al profesional, que registra el pago.
+
+| Pantalla | Resolucion |
+|---|---|
+| Pagos (portal) | Cada sesion realizada con saldo: "Pagar $X en línea" abre el paso de pago (transferencia o pago en linea, segun el centro); sin medios en linea, "Pagas en el centro". Al terminar: "Pago registrado" |
+| Enlace de pago (`/pagar?t=...`, sin sesion) | Pagina nueva: sesion (fecha, hora, modalidad, profesional), el mismo paso de pago y su resultado; enlace incompleto, inexistente o vencido (30 dias) con texto claro. Sirve para la hora pendiente de pago y para el saldo |
+| Correos de pago | Sin cuenta (ni del paciente ni de su adulto responsable): el enlace de PAGO_PENDIENTE, DEUDA_PENDIENTE, PAGO_RECHAZADO e INSTRUCCIONES_TRANSFERENCIA es el de pago de esa cita; con cuenta, el portal. El aviso de deuda dice "Puede pagarlo en línea o en el centro" |
+| Detalle de cita (panel) | Hora retenida presencial: el profesional de la cita tambien ve "Cobrar en caja" (liberar sigue siendo de administracion) |
+| Registrar asistencia y pago | El profesional registra el pago de sus citas en cualquier modelo de cobro (con cobro del centro, el dinero es del centro y el lo entrega) |
+
+Componentes: `PasoPago` y `PagoCitaPortal` pasan a `components/shared/` (los
+usan Agenda, Cobros y la pagina del enlace); `PagoPorEnlace` en
+`components/cobros/`.
+
+Pendiente (no implementado):
+
+- **Playwright:** pagar una deuda desde el portal y con el enlace del correo.
+- **Pasarela real:** el retorno del enlace vuelve a `/pagar` con el token (con
+  la simulada no hay redireccion).

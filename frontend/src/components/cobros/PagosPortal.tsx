@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { usePortal } from '@/components/shared/ContextoPortal';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
+import { PagoCitaPortal } from '@/components/shared/PagoCitaPortal';
 import { Aviso } from '@/components/ui/Aviso';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +21,8 @@ import { nombresDe, useCobrosPortal, useEquipoPortal, type EstadoPagoCita } from
  * Pagos del portal (paciente adulto o adulto responsable): estado de cada
  * cita (monto fijado al confirmar, pagado, saldo), detalle de pagos y
  * boleta, y los datos para transferir cuando el profesional cobra directo y
- * queda saldo. El pago se registra en el centro: no hay pasarela.
+ * queda saldo. 03b-3.4: el saldo de una sesion ya realizada se paga en linea
+ * con los medios del centro ("Pagar en línea"); si no, en el centro.
  */
 export function PagosPortal() {
   const portal = usePortal();
@@ -37,10 +39,10 @@ export function PagosPortal() {
     <div className="flex flex-col gap-[18px]">
       {saldo > 0 && (
         <Aviso tono="advertencia" icono="payments" titulo={`Tienes ${formatoClp(saldo)} por pagar`}>
-          Puedes pagar en el centro o, si tu profesional cobra directo, por transferencia con los datos de cada sesión.
+          Puedes pagar en línea las sesiones ya realizadas o pagar en el centro. Mientras tengas saldo pendiente, no puedes agendar una nueva hora.
         </Aviso>
       )}
-      <Panel titulo="Pagos de tus sesiones" bajada="El monto de cada sesión queda fijo cuando se confirma la hora. Los pagos los registra el centro.">
+      <Panel titulo="Pagos de tus sesiones" bajada="El monto de cada sesión queda fijo cuando se confirma la hora.">
         <EstadoConsulta consulta={cobros} vacio={() => filas.length === 0} textoVacio="Todavía no hay pagos ni cobros registrados">
           {() => (
             <ul className="m-0 flex list-none flex-col gap-[11px] p-0">
@@ -57,7 +59,10 @@ export function PagosPortal() {
 
 function FilaPago({ c, profesional }: { c: EstadoPagoCita; profesional: string }) {
   const [abierto, setAbierto] = useState(false);
+  const [pagando, setPagando] = useState(false);
   const e = ESTADO_PAGO[c.estado_pago];
+  // Deuda: sesion ya realizada (o cancelada con cargo) con saldo.
+  const deuda = c.saldo > 0 && (c.estado_cita === 'CONFIRMADA' || c.estado_cita === 'CANCELADA') && new Date(c.fin).getTime() <= Date.now();
   const detalle = useQuery({
     queryKey: ['portal', 'cobro', c.cita_id],
     queryFn: () => datos(api.GET('/api/cobros/citas/{id}', { params: { path: { id: c.cita_id } } })),
@@ -79,15 +84,27 @@ function FilaPago({ c, profesional }: { c: EstadoPagoCita; profesional: string }
         </div>
         <Badge tono={e.tono}>{e.texto}</Badge>
       </div>
-      <button
-        type="button"
-        aria-expanded={abierto}
-        onClick={() => setAbierto((v) => !v)}
-        className="mt-2 flex min-h-10 cursor-pointer items-center gap-1.5 text-[13px] font-extrabold text-accent-2-700 hover:text-accent-2-800"
-      >
-        <Icon name={abierto ? 'expand_less' : 'expand_more'} size={18} />
-        {abierto ? 'Ocultar detalle' : 'Ver detalle'}
-      </button>
+      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
+        <button
+          type="button"
+          aria-expanded={abierto}
+          onClick={() => setAbierto((v) => !v)}
+          className="flex min-h-10 cursor-pointer items-center gap-1.5 text-[13px] font-extrabold text-accent-2-700 hover:text-accent-2-800"
+        >
+          <Icon name={abierto ? 'expand_less' : 'expand_more'} size={18} />
+          {abierto ? 'Ocultar detalle' : 'Ver detalle'}
+        </button>
+        {deuda && (
+          <Button variant="team" icon="payments" aria-expanded={pagando} onClick={() => setPagando((v) => !v)} className="!px-[18px] !text-[13px]">
+            {pagando ? 'Ocultar pago' : `Pagar ${formatoClp(c.saldo)} en línea`}
+          </Button>
+        )}
+      </div>
+      {pagando && (
+        <div className="mt-3 border-t border-divider pt-3.5">
+          <PagoCitaPortal citaId={c.cita_id} />
+        </div>
+      )}
       {abierto && (
         <div className="mt-2 flex flex-col gap-3 border-t border-divider pt-3.5">
           <EstadoConsulta consulta={detalle}>

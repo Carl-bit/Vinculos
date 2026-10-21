@@ -29,6 +29,14 @@ export interface EstadoPagoCita {
 /** Fecha (AAAA-MM-DD) de un Date de DTO, para columnas date. */
 const dia = (d: Date) => d.toISOString().slice(0, 10);
 
+export interface DeudaPaciente {
+  paciente_id: string;
+  sesiones: number;
+  saldo: number;
+  desde: Date;
+  citas: string[];
+}
+
 export interface ReporteCobros {
   desde: string;
   hasta: string;
@@ -89,6 +97,11 @@ export class CobrosService {
     };
   }
 
+  /** 03b-3.3: deudas por paciente (ADMIN/GESTION todas; PROFESIONAL las de sus citas). */
+  deudas(): Promise<DeudaPaciente[]> {
+    return this.bd.tx().$queryRaw<DeudaPaciente[]>`SELECT * FROM deudas_pacientes()`;
+  }
+
   /** Sobrepago -> 422. Si la cita queda PAGADA se emite su boleta en la misma transaccion. */
   async registrarPago(citaId: string, dto: RegistrarPagoDto) {
     const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
@@ -104,7 +117,12 @@ export class CobrosService {
     return encontrado(await this.bd.tx().pago.findUnique({ where: { id: pagoId } }), 'Pago');
   }
 
-  /** Politica de cancelacion e inasistencia (porcentajes de configuracion_centro). */
+  /**
+   * Politica de cancelacion e inasistencia (porcentajes de configuracion_centro).
+   * 03b-3.3: TRASLADO o DEVOLUCION de una cita confirmada ya terminada =
+   * inasistencia justificada (exige motivo; la devolucion lleva la penalizacion
+   * de la cancelacion tardia).
+   */
   async resolver(citaId: string, dto: ResolverCitaDto) {
     const nueva = dto.decision === 'TRASLADO' ? dto.citaNuevaId! : null;
     await this.bd.tx().$queryRaw`

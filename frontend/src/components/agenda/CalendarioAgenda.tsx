@@ -6,7 +6,7 @@ import { useEquipoActivo } from '@/components/shared/EquipoActivo';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Icon } from '@/components/ui/Icon';
 import { dia } from '@/lib/horarios';
-import { nombresPacientes, semanaChile, useCitas, useEquipoAgenda, useEspacios, usePacientes, type CitaVista } from '@/lib/panel';
+import { nombreDeCita, nombresPacientes, semanaChile, useCitas, useEquipoAgenda, useEspacios, usePacientes, type CitaVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
@@ -22,12 +22,18 @@ const ESTILO_ESTADO: Record<CitaVista['estado'], string> = {
   SOLICITADA: 'border-accent-500 bg-accent-200',
   POR_REPROGRAMAR: 'border-neutral-500 bg-neutral-200',
   CANCELADA: 'border-divider bg-neutral-100',
+  PENDIENTE_PAGO: 'border-accent-500 bg-accent-200',
+  LIBERADA: 'border-divider bg-neutral-100',
+  RETENIDA: 'border-dashed border-accent-500 bg-accent-100',
 };
 const TEXTO_ESTADO: Record<CitaVista['estado'], string> = {
   CONFIRMADA: 'text-neutral-700',
   SOLICITADA: 'text-accent-800',
   POR_REPROGRAMAR: 'text-neutral-800',
   CANCELADA: 'text-neutral-700',
+  PENDIENTE_PAGO: 'text-accent-800',
+  LIBERADA: 'text-neutral-700',
+  RETENIDA: 'text-accent-800',
 };
 
 /**
@@ -170,9 +176,7 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
                               onClick={() => onElegir(c)}
                               className={`flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-xl border-[1.5px] border-l-4 px-[9px] py-[7px] text-left transition-transform duration-200 ease-out hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-accent-700 motion-reduce:hover:translate-y-0 ${ESTILO_ESTADO[c.estado]} ${tono.borde}`}
                             >
-                              <span className={`max-w-full truncate text-[12px] font-black tracking-[-0.01em] ${tono.texto}`}>
-                                {nombres.get(c.pacienteId) ?? 'Paciente'}
-                              </span>
+                              <span className={`max-w-full truncate text-[12px] font-black tracking-[-0.01em] ${tono.texto}`}>{nombreDeCita(nombres, c)}</span>
                               <span className="max-w-full truncate text-[11px] font-bold text-neutral-800">
                                 {modo === 'profesional' ? `${pro} · ${box}` : `${box} · ${pro}`}
                               </span>

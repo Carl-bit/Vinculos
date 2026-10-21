@@ -112,11 +112,6 @@ export class PerfilDto {
   @IsString()
   @MaxLength(300)
   citaDestacada?: string;
-
-  /** C-15: las solicitudes de pacientes nuevos quedan por aprobar (SOLICITADA). */
-  @IsOptional()
-  @IsBoolean()
-  requiereAprobacionNuevos?: boolean;
 }
 
 export class EditarPerfilDto {
@@ -187,11 +182,6 @@ export class EditarPerfilDto {
   @IsString()
   @MaxLength(300)
   citaDestacada?: string;
-
-  /** C-15: las solicitudes de pacientes nuevos quedan por aprobar (SOLICITADA). */
-  @IsOptional()
-  @IsBoolean()
-  requiereAprobacionNuevos?: boolean;
 }
 
 export class MargenDto {

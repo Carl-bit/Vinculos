@@ -5,7 +5,7 @@ import { RespuestaArchivo, TAGS } from '../../core/docs/openapi';
 import { Modulo } from '../../core/modulos/modulos';
 import { Roles } from '../../core/auth/decoradores';
 import { CobrosService } from './cobros.service';
-import { ArriendoVista, DetalleCobroCita, EstadoPagoCitaVista, LiquidacionVista, PagoVista, ReporteCobros } from './dto/cobros-respuestas.dto';
+import { ArriendoVista, DetalleCobroCita, DeudaPaciente, EstadoPagoCitaVista, LiquidacionVista, PagoVista, ReporteCobros } from './dto/cobros-respuestas.dto';
 import { AnularPagoDto, ArriendoDto, FiltroCobrosDto, LiquidacionDto, PeriodoDto, RegistrarPagoDto, ResolverCitaDto } from './dto/cobros.dto';
 
 const pdf = (contenido: Buffer, nombre: string) => new StreamableFile(contenido, { type: 'application/pdf', disposition: `attachment; filename="${nombre}"` });
@@ -30,6 +30,13 @@ export class CobrosController {
     return this.cobros.estados(filtro);
   }
 
+  /** 03b-3.3: pacientes con sesiones terminadas impagas (bloquean agendar si el centro lo activa). */
+  @Get('deudas')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  deudas(): Promise<DeudaPaciente[]> {
+    return this.cobros.deudas();
+  }
+
   @Get('citas/:id')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PACIENTE', 'RESPONSABLE')
   detalle(@Param('id', Uuid) id: string): Promise<DetalleCobroCita> {
@@ -49,7 +56,7 @@ export class CobrosController {
     return this.cobros.anularPago(id, dto.motivo);
   }
 
-  /** Cancelacion (a tiempo o tardia) e inasistencia: decision registrada y auditada. */
+  /** Cancelacion (a tiempo o tardia) e inasistencia (03b-3.3: tambien justificada): decision registrada y auditada. */
   @Post('citas/:id/resolucion')
   @HttpCode(200)
   @Roles('ADMIN', 'GESTION')

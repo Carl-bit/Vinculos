@@ -177,13 +177,20 @@ export class ResultadoMatch {
 }
 
 export class SolicitudCreada {
-  /** Fin de la retencion de la hora (bloqueo temporal). */
+  /** Fin de la retencion de la hora (03b-3.2: cita RETENIDA, plazo para pagar). */
   expiraEn!: Date;
+  /** 03b-3.2: true solo si el gatillo es el correo (unico medio: pago en el centro, o nada que cobrar). */
   verificacionEnviada!: boolean;
+  /**
+   * 03b-3.1: token opaco de la reserva (sin datos personales). La pestaña lo
+   * guarda solo en memoria y consulta POST /publico/reservas/estado; tambien
+   * elige el medio de pago con el.
+   */
+  reserva!: string;
 }
 
 export class SolicitudVerificada {
-  /** CONFIRMADA, o SOLICITADA si el profesional aprueba a los pacientes nuevos. */
+  /** CONFIRMADA (03b-3.2: el enlace del correo solo concreta reservas con pago en el centro). */
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
   estado!: EstadoCita;
   citaId!: string;

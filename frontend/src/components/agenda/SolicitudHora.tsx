@@ -2,9 +2,11 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
+import { PasoPago } from '@/components/shared/PasoPago';
+import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Casilla } from '@/components/ui/Casilla';
@@ -17,6 +19,8 @@ import { condicionesAgendamiento, edadEn } from '@/lib/condiciones';
 import { formatoClp, formatoFechaLarga, formatoHora, rutValido } from '@/lib/formato';
 import type { Bloque } from '@/lib/horarios';
 import { olvidarMatch, ultimoMatch } from '@/lib/match-memoria';
+import type { Icono } from '@/lib/iconos';
+import { caminoReserva, useEstadoPago, type CaminoPago, type EstadoConfirmacion } from '@/lib/pagos';
 import { nombreCorto, nombrePerfil } from '@/lib/perfiles';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
@@ -26,7 +30,7 @@ type Centro = components['schemas']['CentroPublico'];
 type Perfil = components['schemas']['PerfilPublico'];
 type Politica = { id: string; version: number };
 
-const PASOS = ['Horario', 'Tus datos', 'Correo'] as const;
+const PASOS = ['Horario', 'Tus datos', 'Pago', 'Confirmada'] as const;
 const TELEFONO = /^\+56\d{9}$/;
 
 interface Datos {
@@ -66,9 +70,15 @@ const tarifaPara = (p: Perfil, m: Bloque['modalidad']) =>
   (p.tarifas.find((t) => !t.tipo_atencion && t.modalidad === m) ?? p.tarifas.find((t) => !t.tipo_atencion && !t.modalidad))?.monto ?? null;
 
 /**
- * Pedir hora sin cuenta (D-2, D-3, C-15): horario, datos de contacto con la
- * politica de datos, y "revisa tu correo" con la cuenta regresiva de la
- * retencion. La cita se confirma (o queda por aprobar) al abrir el enlace.
+ * Pedir hora sin cuenta (D-2, D-3): horario, datos de contacto con la
+ * politica de datos y, con la hora retenida (03b-3.2: cuenta regresiva), el
+ * pago con los medios del centro. El pago validado confirma la hora y crea al
+ * paciente (la invitacion a la cuenta llega al correo); con pago en el centro
+ * el gatillo es el enlace del correo. La pestaña consulta el estado de la
+ * reserva (token opaco en memoria) cada pocos segundos mientras esta visible
+ * y avanza sola, tambien si el correo se abre en otro dispositivo. El
+ * vencimiento lo decide el servidor: al llegar a cero, la cuenta regresiva
+ * solo pide el estado.
  */
 export function SolicitudHora({
   perfil,
@@ -88,7 +98,10 @@ export function SolicitudHora({
   const [error, setError] = useState<string>();
   const [enviando, setEnviando] = useState(false);
   const [retencion, setRetencion] = useState<{ desde: Date; hasta: Date } | null>(null);
-  const [vencida, setVencida] = useState(false);
+  const [reserva, setReserva] = useState<string | null>(null);
+  const camino = useMemo(() => (reserva ? caminoReserva(reserva) : null), [reserva]);
+  const consulta = useEstadoPago(paso >= 2 ? camino : null);
+  const estadoReserva = consulta.data;
   const titulo = useRef<HTMLHeadingElement>(null);
   const alerta = useRef<HTMLParagraphElement>(null);
   const montado = useRef(false);
@@ -112,7 +125,7 @@ export function SolicitudHora({
     if (!d.apellido.trim()) e.apellido = 'Escribe el apellido del paciente.';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fechaNacimiento) || new Date(d.fechaNacimiento) > new Date())
       e.fechaNacimiento = 'Indica una fecha de nacimiento válida.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = 'Escribe un correo válido: ahí llega el enlace para confirmar.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = 'Escribe un correo válido: ahí llegan la confirmación y la invitación a tu cuenta.';
     if (d.telefono && !TELEFONO.test(d.telefono.replace(/\s/g, ''))) e.telefono = 'Formato +56 9 1234 5678.';
     if (d.rut && !rutValido(d.rut)) e.rut = 'El RUT no es válido. Revisa el dígito verificador.';
     if (menor) {
@@ -161,7 +174,7 @@ export function SolicitudHora({
       );
       olvidarMatch();
       setRetencion({ desde: new Date(), hasta: new Date(r.expiraEn) });
-      setVencida(false);
+      setReserva(r.reserva);
       setPaso(2);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
@@ -176,13 +189,17 @@ export function SolicitudHora({
     }
   };
 
-  const alVencer = useCallback(() => setVencida(true), []);
-  const otraHora = () => {
+  // Manda el servidor: al llegar a cero se consulta el estado antes de mostrar "hora liberada".
+  const { refetch } = consulta;
+  const alVencer = useCallback(() => void refetch(), [refetch]);
+  const otraHora = (b: Bloque) => {
     void cliente.invalidateQueries({ queryKey: ['disponibilidad-publica', perfil.id] });
-    setBloque(null);
+    setBloque(b);
     setRetencion(null);
-    setPaso(0);
+    setReserva(null);
+    setPaso(1);
   };
+  const pasoVisible = paso === 2 && estadoReserva?.estado === 'CONFIRMADA' ? 3 : paso;
 
   const tarifa = bloque ? tarifaPara(perfil, bloque.modalidad) : null;
 
@@ -191,9 +208,11 @@ export function SolicitudHora({
       <div className="min-w-0">
         <ol className="m-0 mb-[26px] flex list-none gap-2.5 p-0" aria-label="Pasos">
           {PASOS.map((p, i) => (
-            <li key={p} aria-current={i === paso ? 'step' : undefined} className="flex flex-1 flex-col gap-2">
-              <span className={`block h-[5px] rounded-full transition-colors duration-300 ${i <= paso ? 'bg-accent-2-600' : 'bg-neutral-300'}`} />
-              <span className={`text-[11.5px] font-extrabold tracking-[0.06em] uppercase ${i === paso ? 'text-accent-2-800' : 'text-neutral-700'}`}>{p}</span>
+            <li key={p} aria-current={i === pasoVisible ? 'step' : undefined} className="flex flex-1 flex-col gap-2">
+              <span className={`block h-[5px] rounded-full transition-colors duration-300 ${i <= pasoVisible ? 'bg-accent-2-600' : 'bg-neutral-300'}`} />
+              <span className={`text-[11.5px] font-extrabold tracking-[0.06em] uppercase ${i === pasoVisible ? 'text-accent-2-800' : 'text-neutral-700'}`}>
+                {p}
+              </span>
             </li>
           ))}
         </ol>
@@ -220,7 +239,7 @@ export function SolicitudHora({
               Elige el horario de tu sesión
             </h1>
             <p className="m-0 mb-6 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
-              Estas son las horas libres de {nombreCorto(perfil)}. Al enviar tus datos, la hora queda retenida mientras confirmas tu correo.
+              Estas son las horas libres de {nombreCorto(perfil)}. Al enviar tus datos, la hora queda retenida unos minutos mientras pagas.
             </p>
             <div className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
               <SelectorHorario
@@ -255,7 +274,7 @@ export function SolicitudHora({
               Datos del paciente
             </h1>
             <p className="m-0 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
-              Te enviamos un enlace al correo para confirmar. Si eres paciente nuevo, con ese mismo correo creas tu cuenta después.
+              Con el pago confirmamos tu hora y te enviamos al correo la confirmación y la invitación para crear tu cuenta.
             </p>
 
             <fieldset className="m-0 grid gap-4 rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm sm:grid-cols-2">
@@ -382,8 +401,8 @@ export function SolicitudHora({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" variant="team" size="lg" icon="send" loading={enviando}>
-                Retener la hora y enviar el enlace
+              <Button type="submit" variant="team" size="lg" icon="arrow_forward" loading={enviando}>
+                Retener la hora y pagar
               </Button>
               <Button variant="ghost" icon="arrow_back" onClick={() => setPaso(0)}>
                 Cambiar el horario
@@ -392,48 +411,18 @@ export function SolicitudHora({
           </form>
         )}
 
-        {paso === 2 && bloque && retencion && (
-          <section className="entrada flex flex-col gap-5" aria-labelledby="titulo-correo">
-            <span className="grid size-[60px] place-items-center rounded-full border border-accent-2-500 bg-accent-2-200">
-              <Icon name={vencida ? 'event_busy' : 'mark_email_read'} size={30} className="text-accent-2-700" />
-            </span>
-            <h1
-              id="titulo-correo"
-              ref={titulo}
-              tabIndex={-1}
-              className="m-0 text-[clamp(28px,3.6vw,40px)] leading-[1.02] font-black tracking-[-0.035em] text-balance outline-none"
-            >
-              {vencida ? 'La hora se liberó' : 'Revisa tu correo'}
-            </h1>
-            {vencida ? (
-              <>
-                <p className="m-0 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
-                  Pasó el tiempo de retención sin que se abriera el enlace, así que la hora quedó disponible para otras personas. El enlace que te enviamos ya
-                  no sirve.
-                </p>
-                <div>
-                  <Button variant="team" size="lg" icon="calendar_month" onClick={otraHora}>
-                    Elegir una hora de nuevo
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="m-0 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
-                  Enviamos un enlace a <strong className="text-text">{d.email.trim()}</strong>. Ábrelo antes de que termine el tiempo para confirmar la hora. Si
-                  no lo ves, revisa la carpeta de spam.
-                </p>
-                <div className="rounded-lg border border-divider bg-neutral-100 p-6 shadow-sm">
-                  <CuentaRegresiva desde={retencion.desde} hasta={retencion.hasta} onVencida={alVencer} />
-                </div>
-                <p className="m-0 flex gap-2.5 text-[13.5px] font-semibold text-pretty text-neutral-700">
-                  <Icon name="info" size={18} />
-                  Si {nombreCorto(perfil)} revisa primero a los pacientes nuevos, al abrir el enlace tu hora queda como solicitud y te avisamos cuando la
-                  apruebe.
-                </p>
-              </>
-            )}
-          </section>
+        {paso === 2 && bloque && retencion && camino && (
+          <ResultadoReserva
+            estado={estadoReserva}
+            camino={camino}
+            perfil={perfil}
+            centro={centro}
+            email={d.email.trim()}
+            desde={retencion.desde}
+            titulo={titulo}
+            onVencida={alVencer}
+            onOtraHora={otraHora}
+          />
         )}
       </div>
 
@@ -476,6 +465,116 @@ export function SolicitudHora({
         )}
       </aside>
     </div>
+  );
+}
+
+/**
+ * Con la hora retenida: el paso de pago (o "revisa tu correo" si se paga en el
+ * centro) con la cuenta regresiva, y la pantalla final: confirmada, liberada
+ * (con las horas libres para elegir otra; los datos del formulario se
+ * conservan) o pagada cuando la hora ya no estaba (devolucion).
+ */
+function ResultadoReserva({
+  estado,
+  camino,
+  perfil,
+  centro,
+  email,
+  desde,
+  titulo,
+  onVencida,
+  onOtraHora,
+}: {
+  estado: EstadoConfirmacion | undefined;
+  camino: CaminoPago;
+  perfil: Perfil;
+  centro: Centro;
+  email: string;
+  desde: Date;
+  titulo: RefObject<HTMLHeadingElement | null>;
+  onVencida: () => void;
+  onOtraHora: (b: Bloque) => void;
+}) {
+  const [otra, setOtra] = useState<Bloque | null>(null);
+  const encabezado = (icono: Icono, texto: string) => (
+    <>
+      <span className="grid size-[60px] place-items-center rounded-full border border-accent-2-500 bg-accent-2-200">
+        <Icon name={icono} size={30} className="text-accent-2-700" />
+      </span>
+      <h1 ref={titulo} tabIndex={-1} className="m-0 text-[clamp(28px,3.6vw,40px)] leading-[1.02] font-black tracking-[-0.035em] text-balance outline-none">
+        {texto}
+      </h1>
+    </>
+  );
+  const parrafo = (texto: string) => <p className="m-0 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">{texto}</p>;
+
+  if (!estado) {
+    return (
+      <p className="m-0 text-[14px] font-bold text-neutral-700" aria-live="polite">
+        Reteniendo tu hora…
+      </p>
+    );
+  }
+  if (estado.estado === 'RETENIDA') {
+    const correo = estado.siguiente === 'VERIFICAR_CORREO';
+    return (
+      <section className="entrada flex flex-col gap-5" aria-live="polite">
+        {encabezado(correo ? 'mark_email_read' : 'payments', correo ? 'Revisa tu correo' : 'Paga para confirmar tu hora')}
+        {correo &&
+          parrafo(
+            `Enviamos un enlace a ${email}. Ábrelo antes de que termine el tiempo: la hora queda reservada a tu nombre y pagas al llegar a tu sesión. Si no lo ves, revisa la carpeta de spam. Puedes abrirlo en este u otro dispositivo: esta pantalla avanza sola.`,
+          )}
+        {estado.venceEn && !estado.comprobanteRecibido && (
+          <div className="rounded-lg border border-divider bg-neutral-100 p-6 shadow-sm">
+            <CuentaRegresiva desde={desde} hasta={new Date(estado.venceEn)} onVencida={onVencida} />
+          </div>
+        )}
+        <PasoPago camino={camino} estado={estado} />
+      </section>
+    );
+  }
+  if (estado.estado === 'CONFIRMADA') {
+    return (
+      <section className="entrada flex flex-col gap-5" aria-live="polite">
+        {encabezado('check_circle', 'Tu hora quedó confirmada')}
+        {parrafo('Te enviamos la confirmación por correo. Si eres paciente nuevo, ahí también llega la invitación para crear tu cuenta.')}
+        {estado.medio === 'PAGO_EN_CENTRO' && (
+          <Aviso tono="exito" icono="storefront" titulo="Pagas al llegar">
+            El pago se hace en el centro, el día de tu sesión.
+          </Aviso>
+        )}
+      </section>
+    );
+  }
+  if (estado.siguiente === 'CONTACTAR_CENTRO') {
+    return (
+      <section className="entrada flex flex-col gap-5" aria-live="polite">
+        {encabezado('info', 'Recibimos tu pago, pero la hora ya no estaba')}
+        {parrafo(
+          `El pago llegó después de que venciera la retención y otra persona tomó la hora. El centro te contactará para devolverlo${
+            centro.contacto_correo ? `; también puedes escribir a ${centro.contacto_correo}` : ''
+          }.`,
+        )}
+      </section>
+    );
+  }
+  return (
+    <section className="entrada flex flex-col gap-5" aria-live="polite">
+      {encabezado('event_busy', 'La hora se liberó')}
+      {parrafo(
+        estado.estado === 'LIBERADA'
+          ? 'Venció el plazo y la hora quedó disponible para otras personas. Elige otra hora: tus datos se conservan.'
+          : 'Esta hora ya no está vigente. Elige otra hora: tus datos se conservan.',
+      )}
+      <div className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+        <SelectorHorario profesionalId={perfil.id} valor={otra} onElegir={setOtra} sinHoras={<SinHoras perfil={perfil} centro={centro} />} />
+      </div>
+      <div>
+        <Button variant="team" size="lg" icon="arrow_forward" disabled={!otra} onClick={() => otra && onOtraHora(otra)}>
+          Continuar con esta hora
+        </Button>
+      </div>
+    </section>
   );
 }
 

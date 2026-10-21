@@ -6,13 +6,14 @@ import { useState } from 'react';
 import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
-import { Field, Input, Select } from '@/components/ui/Field';
+import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
+import { MEDIO_PAGO, type MedioPago } from '@/lib/cobros';
 import { useMiCuenta, useProfesionales } from '@/lib/consultas';
-import { formatoFechaLarga, formatoHora } from '@/lib/formato';
+import { formatoFechaHora, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
 import { inicioDiaChile, sumarDias, useAccesosTemporales, useEquipoAgenda, useEspacios, type CitaVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
@@ -30,6 +31,12 @@ const diaChile = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'America
  *   con acceso clinico temporal vigente en el horario (la BD lo exige). ADMIN
  *   puede otorgarlo aca mismo; GESTION no otorga accesos.
  * - "Derivar paciente": cambio definitivo de tratante, desde la ficha.
+ *
+ * 03b-3.2: la pendiente de pago muestra su plazo; se confirma con el pago
+ * (portal, transferencia validada o pago registrado en Cobros). 03b-3.3: si
+ * vence sin pago se mantiene y se paga en el centro. La hora retenida
+ * (reserva sin cuenta en curso, sin paciente) se cobra en caja si es
+ * presencial (crea paciente y ficha) o se libera con motivo (ADMIN/GESTION).
  */
 export function DetalleCita({
   cita,
@@ -66,11 +73,6 @@ export function DetalleCita({
   };
   const fallo = (texto: string) => (e: unknown) => setError(e instanceof ApiError ? e.message : texto);
 
-  const aprobar = useMutation({
-    mutationFn: () => datos(api.POST('/api/citas/{id}/aprobacion', { params: { path: { id: cita!.id } } })),
-    onSuccess: listo,
-    onError: fallo('No pudimos aprobar la hora.'),
-  });
   const cancelar = useMutation({
     mutationFn: () => datos(api.PATCH('/api/citas/{id}/cancelacion', { params: { path: { id: cita!.id } } })),
     onSuccess: listo,
@@ -112,17 +114,18 @@ export function DetalleCita({
           ))}
         </dl>
 
-        {cita.estado === 'SOLICITADA' && !pasada && (
-          <div className="rounded-lg border border-accent-500 bg-accent-200 px-[18px] py-4">
-            <p className="m-0 mb-3 text-[13.5px] font-extrabold text-pretty text-accent-900">
-              Paciente nuevo para {profesional}: la hora queda retenida hasta que se apruebe. Si no se aprueba, cancélala para liberar el bloque.
-            </p>
-            {rol !== 'PRACTICANTE' && (
-              <Button variant="team" icon="check" loading={aprobar.isPending} onClick={() => aprobar.mutate()} className="!py-2.5">
-                Aprobar hora
-              </Button>
-            )}
-          </div>
+        {cita.estado === 'RETENIDA' && (
+          <Aviso tono="info" titulo="Reserva en curso">
+            Alguien pidió esta hora desde el sitio y está pagando{cita.pagoVenceEn ? ` (plazo: ${formatoFechaHora(cita.pagoVenceEn)})` : ''}. El paciente se
+            crea con el pago validado; si no paga a tiempo, la hora se libera sola.
+            {cita.modalidad === 'PRESENCIAL' && ' Si viene a pagar al centro, cóbrala acá.'}
+          </Aviso>
+        )}
+        {cita.estado === 'PENDIENTE_PAGO' && (
+          <Aviso tono="advertencia" titulo="Pago pendiente">
+            Se confirma con el pago{cita.pagoVenceEn ? ` antes del ${formatoFechaHora(cita.pagoVenceEn)}` : ''}: el paciente paga desde su cuenta o se registra
+            en Cobros. Si vence el plazo sin pago, la hora se mantiene y se paga en el centro.
+          </Aviso>
         )}
         {cita.estado === 'POR_REPROGRAMAR' && (
           <Aviso tono="advertencia" titulo="Por reprogramar">
@@ -130,11 +133,21 @@ export function DetalleCita({
           </Aviso>
         )}
 
+        {(admin || (esTratante && cita.modalidad === 'PRESENCIAL')) && cita.estado === 'RETENIDA' && (
+          <HoraRetenida cita={cita} puedeLiberar={admin} onListo={listo} />
+        )}
+
+        {cita.estado === 'LIBERADA' && cita.motivoLiberacion && (
+          <Aviso tono="info" titulo="Hora liberada por el centro">
+            {cita.motivoLiberacion}
+          </Aviso>
+        )}
+
         {admin && cita.estado === 'CONFIRMADA' && !pasada && (
           <CubrirSesion cita={cita} rol={rol} abierto={cubriendo} onAbrir={() => setCubriendo(true)} onListo={listo} />
         )}
 
-        {!pasada && cita.estado !== 'CANCELADA' && (
+        {!pasada && cita.pacienteId && cita.estado !== 'CANCELADA' && (
           <div className="flex flex-col gap-2 rounded-lg border border-divider bg-neutral-100 px-[18px] py-4">
             <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Cambio definitivo de profesional</p>
             {esTratante ? (
@@ -163,7 +176,7 @@ export function DetalleCita({
           </p>
         )}
 
-        {pasada ? (
+        {cita.estado === 'RETENIDA' ? null : pasada ? (
           <div className="flex flex-col gap-3">
             <p className="m-0 text-[13px] font-semibold text-neutral-700">Sesión ya ocurrida: la asistencia y el pago se registran en Cobros.</p>
             {rol === 'ADMIN' && cita.estado === 'CONFIRMADA' && (
@@ -209,10 +222,114 @@ export function DetalleCita({
   );
 }
 
+const MEDIOS_CAJA: MedioPago[] = ['EFECTIVO', 'TARJETA_DEBITO', 'TARJETA_CREDITO', 'TRANSFERENCIA', 'CONVENIO'];
+
+/**
+ * Hora retenida desde el panel: cobrar en caja (solo presencial; cubre al
+ * menos lo exigido para confirmar y crea paciente y ficha) lo hacen
+ * ADMIN/GESTION o el profesional de la cita (03b-3.4: en la consulta se le
+ * paga a el); liberarla con motivo, solo ADMIN/GESTION.
+ */
+function HoraRetenida({ cita, puedeLiberar, onListo }: { cita: CitaVista; puedeLiberar: boolean; onListo: () => void }) {
+  const [modo, setModo] = useState<'caja' | 'liberar' | null>(null);
+  const [monto, setMonto] = useState(String(cita.monto ?? ''));
+  const [medio, setMedio] = useState<MedioPago>('EFECTIVO');
+  const [motivo, setMotivo] = useState('');
+  const [error, setError] = useState<string>();
+  const fallo = (texto: string) => (e: unknown) => setError(e instanceof ApiError ? e.message : texto);
+
+  const caja = useMutation({
+    mutationFn: () => datos(api.POST('/api/cobros/citas/{id}/caja', { params: { path: { id: cita.id } }, body: { monto: Number(monto), medioPago: medio } })),
+    onSuccess: onListo,
+    onError: fallo('No pudimos registrar el pago.'),
+  });
+  const liberar = useMutation({
+    mutationFn: () => datos(api.PATCH('/api/citas/{id}/liberacion', { params: { path: { id: cita.id } }, body: { motivo: motivo.trim() } })),
+    onSuccess: onListo,
+    onError: fallo('No pudimos liberar la hora.'),
+  });
+
+  if (!modo) {
+    return (
+      <div className="flex flex-wrap justify-end gap-2.5">
+        {puedeLiberar && (
+          <Button variant="ghost" icon="event_busy" onClick={() => setModo('liberar')}>
+            Liberar hora
+          </Button>
+        )}
+        {cita.modalidad === 'PRESENCIAL' && (
+          <Button variant="secondary" icon="payments" onClick={() => setModo('caja')}>
+            Cobrar en caja
+          </Button>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3.5 rounded-lg border border-accent-500 bg-accent-100 px-[18px] py-4">
+      <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-accent-800 uppercase">{modo === 'caja' ? 'Cobrar en caja' : 'Liberar hora'}</p>
+      {modo === 'caja' ? (
+        <>
+          <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
+            Confirma con la persona la fecha, la hora y el profesional de su reserva. Al registrar el pago se crean el paciente y su ficha, la hora queda
+            confirmada y le llega la invitación a su cuenta.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Monto" hint="Al menos lo exigido para confirmar, sin superar el valor de la sesión." required>
+              {(p) => <Input {...p} inputMode="numeric" value={monto} onChange={(e) => setMonto(e.target.value.replace(/\D/g, ''))} />}
+            </Field>
+            <Field label="Medio de pago" required>
+              {(p) => (
+                <Select {...p} value={medio} onChange={(e) => setMedio(e.target.value as MedioPago)}>
+                  {MEDIOS_CAJA.map((m) => (
+                    <option key={m} value={m}>
+                      {MEDIO_PAGO[m]}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
+        </>
+      ) : (
+        <Field label="Motivo" hint="Queda registrado. La reserva ya no se puede confirmar." required>
+          {(p) => <Textarea {...p} rows={2} maxLength={500} value={motivo} onChange={(e) => setMotivo(e.target.value)} />}
+        </Field>
+      )}
+      {error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-wrap justify-end gap-2.5">
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setModo(null);
+            setError(undefined);
+          }}
+        >
+          Volver
+        </Button>
+        {modo === 'caja' ? (
+          <Button variant="team" icon="payments" disabled={!Number(monto)} loading={caja.isPending} onClick={() => caja.mutate()}>
+            Registrar pago y confirmar
+          </Button>
+        ) : (
+          <Button variant="team" icon="event_busy" disabled={motivo.trim().length < 3} loading={liberar.isPending} onClick={() => liberar.mutate()}>
+            Liberar hora
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CubrirSesion({ cita, rol, abierto, onAbrir, onListo }: { cita: CitaVista; rol: Rol; abierto: boolean; onAbrir: () => void; onListo: () => void }) {
   const profesionales = useProfesionales(true);
   const otorga = rol === 'ADMIN';
-  const accesos = useAccesosTemporales(cita.pacienteId, abierto && otorga);
+  // Solo se cubre una cita CONFIRMADA: siempre tiene paciente.
+  const accesos = useAccesosTemporales(cita.pacienteId ?? '', abierto && otorga && !!cita.pacienteId);
   const diaSesion = diaChile(new Date(cita.inicio));
   const [profesionalId, setProfesionalId] = useState('');
   const [hasta, setHasta] = useState(sumarDias(diaSesion, 7));

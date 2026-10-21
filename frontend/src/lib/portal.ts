@@ -123,11 +123,12 @@ export function useCobrosPortal(habilitado = true) {
   return useQuery({ queryKey: ['portal', 'cobros'], queryFn: () => datos(api.GET('/api/cobros/citas')), enabled: habilitado });
 }
 
-/** Estado de una cita para el paciente (diseño "Mi Cuenta"). "Por confirmar" = SOLICITADA (espera aprobacion). */
+/** Estado de una cita para el paciente (diseño "Mi Cuenta"). 03b-3.2: se confirma con el pago (sin aprobacion aparte). */
 export function estadoCitaPortal(c: Pick<CitaPortal, 'estado' | 'realizada' | 'fin'>): { texto: string; tono: 'positivo' | 'atencion' | 'neutro' } {
   if (c.estado === 'CANCELADA') return { texto: 'Cancelada', tono: 'atencion' };
   if (c.estado === 'POR_REPROGRAMAR') return { texto: 'Por reprogramar', tono: 'atencion' };
-  if (c.estado === 'SOLICITADA') return { texto: 'Por confirmar', tono: 'atencion' };
+  if (c.estado === 'PENDIENTE_PAGO') return { texto: 'Pago pendiente', tono: 'atencion' };
+  if (c.estado === 'LIBERADA') return { texto: 'Liberada (pago vencido)', tono: 'neutro' };
   if (c.realizada) return { texto: 'Completada', tono: 'neutro' };
   return { texto: 'Confirmada', tono: 'positivo' };
 }

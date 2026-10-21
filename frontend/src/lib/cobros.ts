@@ -30,6 +30,7 @@ export const MEDIO_PAGO: Record<MedioPago, string> = {
   TARJETA_DEBITO: 'Tarjeta de débito',
   TARJETA_CREDITO: 'Tarjeta de crédito',
   CONVENIO: 'Convenio o bono',
+  PASARELA: 'Pago en línea',
 };
 
 export const ESTADO_LIQUIDACION: Record<LiquidacionVista['estado'], { texto: string; tono: TonoBadge }> = {
@@ -93,4 +94,11 @@ export function useLiquidaciones(profesionalId?: string) {
     queryKey: ['panel', 'cobros', 'liquidaciones', profesionalId ?? 'todos'],
     queryFn: () => datos(api.GET('/api/cobros/liquidaciones', { params: { query: { profesionalId } } })),
   });
+}
+
+export type DeudaPaciente = components['schemas']['DeudaPaciente'];
+
+/** 03b-3.3: pacientes con sesiones terminadas impagas (ADMIN/GESTION todos; el profesional los de sus citas). */
+export function useDeudas() {
+  return useQuery({ queryKey: ['panel', 'cobros', 'deudas'], queryFn: () => datos(api.GET('/api/cobros/deudas')) });
 }

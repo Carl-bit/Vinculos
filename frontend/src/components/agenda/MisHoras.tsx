@@ -5,6 +5,7 @@ import { useId, useState } from 'react';
 
 import { usePortal } from '@/components/shared/ContextoPortal';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
+import { PagoCitaPortal } from '@/components/shared/PagoCitaPortal';
 import { Aviso } from '@/components/ui/Aviso';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +15,7 @@ import { Panel } from '@/components/ui/Panel';
 import { Pestanas } from '@/components/ui/Pestanas';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { formatoFechaLarga, formatoHora } from '@/lib/formato';
+import { formatoFechaHora, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
 import { estadoCitaPortal, nombresDe, useCitasPortal, useEquipoPortal, useResenasPortal, type CitaPortal } from '@/lib/portal';
 
@@ -27,7 +28,7 @@ const icono = (c: CitaPortal, pasada: boolean): Icono =>
       ? 'history'
       : c.modalidad === 'ONLINE'
         ? 'videocam'
-        : c.estado === 'SOLICITADA'
+        : c.estado === 'PENDIENTE_PAGO'
           ? 'schedule'
           : 'event_available';
 
@@ -124,11 +125,7 @@ export function MisHoras({ limite }: { limite?: number }) {
                       <Badge tono={estado.tono}>{estado.texto}</Badge>
                     </div>
                     {!pasada && c.modalidad === 'ONLINE' && c.estado === 'CONFIRMADA' && <EnlaceVideollamada citaId={c.id} />}
-                    {c.estado === 'SOLICITADA' && (
-                      <p className="m-0 mt-3 text-[12.5px] font-bold text-neutral-700">
-                        Tu profesional revisa las solicitudes de pacientes nuevos y te avisará por correo.
-                      </p>
-                    )}
+                    {c.estado === 'PENDIENTE_PAGO' && !pasada && !portal.restringida && <PagoPendiente cita={c} />}
                     {invita && (
                       <div className="mt-3.5 flex flex-wrap items-center gap-[13px] border-t border-divider pt-3.5">
                         <span className="flex-[1_1_150px] text-[12.5px] font-bold text-pretty text-neutral-700">
@@ -201,6 +198,28 @@ function EnlaceVideollamada({ citaId }: { citaId: string }) {
           {estado.error}
         </p>
       )}
+    </div>
+  );
+}
+
+/** 03b-3.1: cita pendiente de pago: plazo visible y el paso de pago (medio, datos para transferir, comprobante). */
+function PagoPendiente({ cita }: { cita: CitaPortal }) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <div className="mt-3.5 flex flex-col gap-3 border-t border-divider pt-3.5">
+      <div className="flex flex-wrap items-center gap-[13px]">
+        <span className="flex-[1_1_180px] text-[12.5px] font-bold text-pretty text-accent-800">
+          Falta el pago para confirmar.
+          {cita.pagoVenceEn &&
+            (cita.agendadaPorEquipo
+              ? ` Plazo para pagar en línea: ${formatoFechaHora(cita.pagoVenceEn)}; después se paga en el centro el día de la atención.`
+              : ` Plazo: ${formatoFechaHora(cita.pagoVenceEn)}; después la hora se libera.`)}
+        </span>
+        <Button variant="team" icon="payments" aria-expanded={abierto} onClick={() => setAbierto((a) => !a)} className="!px-[18px] !text-[13px]">
+          {abierto ? 'Ocultar' : 'Pagar o subir comprobante'}
+        </Button>
+      </div>
+      {abierto && <PagoCitaPortal citaId={cita.id} agendadaPorEquipo={cita.agendadaPorEquipo} />}
     </div>
   );
 }

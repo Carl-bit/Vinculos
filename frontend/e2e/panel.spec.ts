@@ -59,7 +59,7 @@ test('Agenda: pestañas de espacios, horarios del equipo y pendientes', async ({
   await expect(page.getByRole('button', { name: 'Apartar horas' }).first()).toBeVisible();
 
   await page.getByRole('tab', { name: 'Pendientes' }).click();
-  await expect(page.getByRole('heading', { name: 'Por aprobar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pago pendiente' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Por reprogramar' })).toBeVisible();
 });
 

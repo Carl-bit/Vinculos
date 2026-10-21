@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AccionAcceso, ModeloCobro, ModuloCentro, Rol, TipoAlerta, TipoPolitica } from '@prisma/client';
+import { AccionAcceso, MedioConfirmacion, ModeloCobro, ModuloCentro, Rol, TipoAlerta, TipoPolitica } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
   IsArray,
   IsBoolean,
   IsHexColor,
@@ -244,6 +246,47 @@ export class EditarConfiguracionDto {
   @Min(30)
   @Max(3650)
   retencionMensajesDias?: number;
+
+  /** 03b-3.1: medios con que el paciente confirma su hora (PASARELA exige un adaptador configurado). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayUnique()
+  @IsEnum(MedioConfirmacion, { each: true })
+  mediosPagoHabilitados?: MedioConfirmacion[];
+
+  /** 03b-3.1: horas para pagar o validar la transferencia (siempre antes del inicio). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(168)
+  plazoValidacionTransferenciaHoras?: number;
+
+  /** 03b-3.1: porcentaje del monto que se paga para confirmar. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  porcentajePagoConfirmacion?: number;
+
+  /** 03b-3.3: horas antes de la sesion en que vence el pago previo de la hora que agenda el equipo (0 a 168). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(168)
+  horasPlazoPagoEquipo?: number;
+
+  /** 03b-3.3: dias tras la sesion antes de contar el saldo como deuda (0 a 90). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(90)
+  diasGraciaMorosidad?: number;
+
+  /** 03b-3.3: un paciente con deuda no agenda (ADMIN/GESTION autorizan con motivo). */
+  @IsOptional()
+  @IsBoolean()
+  bloquearAgendaMorosos?: boolean;
 }
 
 export class OtorgarAccesoDto {
@@ -457,7 +500,11 @@ export class ProximaSesionDashboard {
 
 /** Pendientes de administracion (conteos, sin datos clinicos). */
 export class PendientesDashboard {
-  solicitudes_por_aprobar!: number;
+  /** 03b-3.2: citas pendientes de pago (el pago validado las confirma). */
+  pagos_pendientes!: number;
+  /** 03b-3.3: pacientes con sesiones terminadas impagas. */
+  pacientes_con_deuda!: number;
+  transferencias_por_validar!: number;
   ruts_faltantes!: number;
   posibles_duplicados!: number;
   consentimientos_pendientes!: number;
@@ -481,7 +528,7 @@ export class ReporteDashboard {
   pacientes_activos!: number;
   @ApiProperty({ required: false, description: 'ADMIN/GESTION' })
   pacientes_nuevos_mes?: number;
-  @ApiProperty({ required: false, description: 'ADMIN/GESTION: solicitudes y recordatorios sin respuesta en 48 h' })
+  @ApiProperty({ required: false, description: 'ADMIN/GESTION: pagos pendientes y recordatorios sin respuesta en 48 h' })
   por_confirmar?: number;
   @ApiProperty({ required: false, description: 'ADMIN/GESTION: % de horas apartadas sobre el horario de boxes (muestra)' })
   ocupacion_boxes_hoy?: number;
@@ -497,8 +544,10 @@ export class ReporteDashboard {
   fichas_sin_cerrar?: number;
   @ApiProperty({ required: false })
   borradores?: number;
-  @ApiProperty({ required: false })
-  solicitudes_por_aprobar?: number;
+  @ApiProperty({ required: false, description: 'PROFESIONAL/PRACTICANTE: sus citas pendientes de pago' })
+  pagos_pendientes?: number;
+  @ApiProperty({ type: Number, nullable: true, required: false, description: 'PROFESIONAL: pacientes con deuda en sus citas (PRACTICANTE: null)' })
+  pacientes_con_deuda?: number | null;
   @ApiProperty({ required: false })
   mensajes_sin_leer?: number;
   @ApiProperty({ type: Number, nullable: true, required: false })
@@ -540,6 +589,15 @@ export class ConfiguracionCentroVista {
   minutosRetencionSolicitud!: number;
   retencionMensajesDias!: number;
   edadMinimaCuenta!: number;
+  @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', isArray: true })
+  mediosPagoHabilitados!: MedioConfirmacion[];
+  plazoValidacionTransferenciaHoras!: number;
+  porcentajePagoConfirmacion!: number;
+  horasPlazoPagoEquipo!: number;
+  diasGraciaMorosidad!: number;
+  bloquearAgendaMorosos!: boolean;
+  /** Solo cuentan como deuda las sesiones terminadas despues de esta fecha (la fija la migracion). */
+  morosidadDesde!: Date;
   updatedAt!: Date;
 }
 

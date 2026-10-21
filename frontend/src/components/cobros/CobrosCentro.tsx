@@ -14,14 +14,16 @@ import { sumarDias } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
+import { DeudasPacientes } from './DeudasPacientes';
 import { LiquidacionesCobros } from './LiquidacionesCobros';
 import { ResumenCobros } from './ResumenCobros';
 import { SesionesPorCobrar } from './SesionesPorCobrar';
 
-type Vista = 'resumen' | 'sesiones' | 'liquidaciones';
+type Vista = 'resumen' | 'sesiones' | 'deudas' | 'liquidaciones';
 const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'resumen', etiqueta: 'Resumen del período' },
   { valor: 'sesiones', etiqueta: 'Asistencia y pago' },
+  { valor: 'deudas', etiqueta: 'Deudas' },
   { valor: 'liquidaciones', etiqueta: 'Liquidaciones' },
 ];
 const mes = new Intl.DateTimeFormat('es-CL', { timeZone: 'UTC', month: 'long', year: 'numeric' });
@@ -120,6 +122,7 @@ export function CobrosCentro({ rol }: { rol: Rol }) {
         <div id="cobros-panel" role="tabpanel">
           {vista === 'resumen' && <ResumenCobros periodo={periodo} rol={rol} onLiquidado={() => ir('liquidaciones')} />}
           {vista === 'sesiones' && <SesionesPorCobrar periodo={periodo} rol={rol} />}
+          {vista === 'deudas' && <DeudasPacientes rol={rol} />}
           {vista === 'liquidaciones' && <LiquidacionesCobros periodo={periodo} rol={rol} />}
         </div>
       </div>

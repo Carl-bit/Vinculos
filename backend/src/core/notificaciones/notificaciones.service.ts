@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { OnEvent } from '@nestjs/event-emitter';
 import type { CanalMensaje, EstadoCita, ModalidadAtencion, ModoEnvioDocumento, TipoNotificacion } from '@prisma/client';
 
+import { nuevoTokenCorreo } from '../auth/tokens-correo';
 import { ContextoBd, type Tx } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
 import { generarPdfDocumento } from '../documentos/pdf';
@@ -28,6 +29,13 @@ const PLANTILLA_GENERICA = { asunto: 'Aviso de {{nombre_centro}}', cuerpo: 'Tien
 const CON_ICS: TipoNotificacion[] = ['CITA_CONFIRMADA', 'CITA_REPROGRAMADA', 'CITA_CANCELADA'];
 
 const AAD_ENLACE: Record<string, string> = { citas: 'enlace_online', envios_documento: 'enlace', recordatorios_cita: 'enlace' };
+
+/**
+ * 03b-3.4: correos de pago de una cita. Si el paciente (o su adulto
+ * responsable) no tiene cuenta, el enlace es el de pago de esa cita (token
+ * PAGO_CITA que emite la BD, varios usos hasta vencer); con cuenta, el portal.
+ */
+const CON_ENLACE_PAGO: TipoNotificacion[] = ['PAGO_PENDIENTE', 'DEUDA_PENDIENTE', 'PAGO_RECHAZADO', 'INSTRUCCIONES_TRANSFERENCIA'];
 
 interface Pendiente {
   id: string;
@@ -178,7 +186,7 @@ export class NotificacionesService {
       tx.$executeRaw`SELECT marcar_notificacion(${n.id}::uuid, ${enviada}, ${detalle}, ${reintentar})`;
     let mensaje: { asunto: string; cuerpo: string };
     try {
-      mensaje = n.asunto ? this.descifrarMensaje(n) : this.armar(n);
+      mensaje = n.asunto ? this.descifrarMensaje(n) : await this.armar(tx, n);
     } catch {
       await marcar(false, 'no se pudo armar el mensaje', false);
       return false;
@@ -215,17 +223,30 @@ export class NotificacionesService {
   }
 
   /** Plantilla vigente con las variables del evento. Un CORREO sin plantilla activa (la desactivaron) no sale. */
-  private armar(n: Pendiente) {
+  private async armar(tx: Tx, n: Pendiente) {
     if (!n.plantilla_asunto && n.canal === 'CORREO') {
       throw new Error('plantilla de correo desactivada');
     }
     const plantilla = n.plantilla_asunto ? { asunto: n.plantilla_asunto, cuerpo: n.plantilla_cuerpo! } : PLANTILLA_GENERICA;
-    const valores = this.variables(n);
+    const valores = this.variables(n, await this.enlacePago(tx, n));
     return { asunto: armarPlantilla(plantilla.asunto, valores), cuerpo: armarPlantilla(plantilla.cuerpo, valores) };
   }
 
+  /**
+   * Enlace de pago sin cuenta (solo correo al paciente, una vez: el mensaje
+   * armado queda guardado y los reintentos lo reutilizan). Nulo si tiene cuenta.
+   */
+  private async enlacePago(tx: Tx, n: Pendiente): Promise<string | null> {
+    if (n.canal !== 'CORREO' || n.datos.destinatario !== 'PACIENTE' || !n.datos.cita_id || !CON_ENLACE_PAGO.includes(n.tipo)) {
+      return null;
+    }
+    const { token, hash } = nuevoTokenCorreo();
+    const [{ emitido }] = await tx.$queryRaw<[{ emitido: boolean }]>`SELECT emitir_enlace_pago(${n.datos.cita_id}::uuid, ${hash}) AS emitido`;
+    return emitido ? `${this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/+$/, '')}/pagar?t=${token}` : null;
+  }
+
   /** Solo las variables permitidas. El nombre del paciente, solo si el es el destinatario. */
-  private variables(n: Pendiente): Variables {
+  private variables(n: Pendiente, enlacePago: string | null = null): Variables {
     const d = n.datos;
     const cuando = new Date(d.inicio ?? d.emitido_en ?? d.creada_en);
     return {
@@ -234,7 +255,7 @@ export class NotificacionesService {
       fecha: cuando.toLocaleDateString('es-CL', { timeZone: ZONA, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
       hora: cuando.toLocaleTimeString('es-CL', { timeZone: ZONA, hour: '2-digit', minute: '2-digit', hour12: false }),
       modalidad: d.modalidad === 'ONLINE' ? 'online' : d.modalidad ? 'presencial' : '',
-      enlace: this.enlace(n),
+      enlace: enlacePago ?? this.enlace(n),
       nombre_centro: d.centro,
     };
   }

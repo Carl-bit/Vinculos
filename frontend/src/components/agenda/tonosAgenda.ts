@@ -39,9 +39,13 @@ export const tonoDe = (orden: string[], id: string): Tono => TONOS[Math.max(0, o
 
 export const NOMBRE_ESTADO_CITA: Record<CitaVista['estado'], string> = {
   CONFIRMADA: 'Confirmada',
+  // Retirado en 03b-3.2 (la BD ya no lo acepta); queda en el enum.
   SOLICITADA: 'Por confirmar',
   POR_REPROGRAMAR: 'Por reprogramar',
   CANCELADA: 'Cancelada',
+  PENDIENTE_PAGO: 'Pago pendiente',
+  LIBERADA: 'Liberada (pago vencido)',
+  RETENIDA: 'Hora retenida (reserva en curso)',
 };
 
 export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const;

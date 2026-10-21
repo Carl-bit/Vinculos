@@ -1,22 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { basename } from 'node:path';
 
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 
 import { registrarAcceso } from '../../core/bd/auditoria';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
-
-/** Firmas (magic bytes) de los tipos permitidos: el tipo sale del contenido, nunca del cliente. */
-const FIRMAS: { tipo: string; firma: number[] }[] = [
-  { tipo: 'application/pdf', firma: [0x25, 0x50, 0x44, 0x46, 0x2d] }, // %PDF-
-  { tipo: 'image/png', firma: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
-  { tipo: 'image/jpeg', firma: [0xff, 0xd8, 0xff] },
-];
-
-export function tipoPorContenido(datos: Buffer): string | undefined {
-  return FIRMAS.find((f) => datos.length >= f.firma.length && f.firma.every((b, i) => datos[i] === b))?.tipo;
-}
+import { nombreArchivo, tipoPorContenido } from '../../core/validacion/archivos';
 
 const VISTA = { id: true, pacienteId: true, subidoPorId: true, nombreArchivo: true, tipoMime: true, tamanoBytes: true, subidoEn: true } as const;
 
@@ -40,7 +29,7 @@ export class AdjuntosService {
     }
     const actor = this.bd.usuario();
     const tx = this.bd.tx();
-    const nombre = basename(Buffer.from(archivo.originalname, 'latin1').toString('utf8')).slice(0, 200).trim() || 'adjunto';
+    const nombre = nombreArchivo(archivo.originalname, 'adjunto');
     const adjunto = await tx.adjuntoFicha.create({
       data: {
         id: randomUUID(),

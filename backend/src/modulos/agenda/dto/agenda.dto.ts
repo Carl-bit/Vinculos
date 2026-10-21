@@ -140,6 +140,25 @@ export class HorarioDto {
 export class CrearCitaDto extends HorarioDto {
   @IsUUID()
   pacienteId!: string;
+
+  /**
+   * 03b-3.3: paciente con deuda (sesiones anteriores con saldo). ADMIN/GESTION
+   * autorizan esta cita con un motivo (queda en excepciones_morosidad); sin
+   * motivo, o con otro rol, la BD responde 422 citas_paciente_moroso / 403.
+   */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  motivoAutorizacionDeuda?: string;
+}
+
+/** 03b-3.3: liberar a mano una hora retenida (reserva sin cuenta en curso). */
+export class LiberarHoraDto {
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  motivo!: string;
 }
 
 export class ReprogramarCitaDto {

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Pestanas } from '@/components/ui/Pestanas';
 import { api, datos } from '@/lib/api/cliente';
-import { nombresPacientes, usePacientes, type CitaVista } from '@/lib/panel';
+import { nombreDeCita, nombresPacientes, usePacientes, type CitaVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
@@ -116,7 +116,7 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
 
       <DetalleCita
         cita={detalle}
-        nombrePaciente={detalle ? (nombres.get(detalle.pacienteId) ?? 'Paciente') : ''}
+        nombrePaciente={detalle ? nombreDeCita(nombres, detalle) : ''}
         rol={rol}
         onCerrar={() => {
           setElegida(null);
@@ -130,6 +130,7 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
       />
       <AgendarSesion
         abierto={agendar || !!reprogramar}
+        rol={rol}
         pacienteInicial={parametros.get('paciente') ?? undefined}
         reprogramar={reprogramar ?? undefined}
         onCerrar={() => {

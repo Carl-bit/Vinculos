@@ -5,14 +5,16 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
-import { Field, Select } from '@/components/ui/Field';
+import { Field, Select, Textarea } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { useProfesionales } from '@/lib/consultas';
-import { formatoFechaLarga, formatoHora } from '@/lib/formato';
+import { formatoFechaHora, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Bloque } from '@/lib/horarios';
 import { usePacientes, type CitaVista } from '@/lib/panel';
+import { esAdministracion } from '@/lib/roles';
+import type { Rol } from '@/lib/sesion';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
 import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
@@ -30,15 +32,20 @@ interface Retencion {
  * solo al confirmar se crea la cita. Si otra persona gano la carrera (409 del
  * EXCLUDE), se muestra un mensaje claro y las alternativas de la API; nunca
  * se reintenta solo. La hora es con el tratante del paciente (otro
- * profesional: derivacion o "cubrir sesion").
+ * profesional: derivacion o "cubrir sesion"). 03b-3.2: con cobro previo
+ * habilitado la cita nace pendiente de pago hasta el plazo del centro (lo
+ * decide la BD). 03b-3.3: un paciente con deuda no agenda (422); ADMIN/GESTION
+ * pueden autorizar la cita con motivo, sin perder la hora retenida.
  */
 export function AgendarSesion({
   abierto,
+  rol,
   onCerrar,
   pacienteInicial,
   reprogramar,
 }: {
   abierto: boolean;
+  rol: Rol;
   onCerrar: () => void;
   pacienteInicial?: string;
   /** Reprogramar una cita existente (mismo paciente y profesional). */
@@ -52,6 +59,10 @@ export function AgendarSesion({
   const [alternativas, setAlternativas] = useState<{ inicio: string; fin: string }[]>([]);
   const [aviso, setAviso] = useState<string>();
   const [listo, setListo] = useState<CitaVista | null>(null);
+  /** 03b-3.3: el paciente tiene deuda; ADMIN/GESTION pueden autorizar con motivo. */
+  const [conDeuda, setConDeuda] = useState(false);
+  const [motivoDeuda, setMotivoDeuda] = useState('');
+  const autoriza = esAdministracion(rol);
   const alerta = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (pacienteInicial) setPacienteId(pacienteInicial);
@@ -73,6 +84,8 @@ export function AgendarSesion({
     setAviso(undefined);
     setAlternativas([]);
     setListo(null);
+    setConDeuda(false);
+    setMotivoDeuda('');
     onCerrar();
   };
 
@@ -134,10 +147,16 @@ export function AgendarSesion({
       const cuerpo = { modalidad: b.modalidad, inicio: b.inicio.toISOString(), fin: b.fin.toISOString() };
       return reprogramar
         ? datos(api.PATCH('/api/citas/{id}/reprogramacion', { params: { path: { id: reprogramar.id } }, body: cuerpo }))
-        : datos(api.POST('/api/citas', { body: { ...cuerpo, pacienteId, profesionalId: profesionalId! } }));
+        : datos(
+            api.POST('/api/citas', {
+              body: { ...cuerpo, pacienteId, profesionalId: profesionalId!, ...(conDeuda && { motivoAutorizacionDeuda: motivoDeuda.trim() }) },
+            }),
+          );
     },
     onSuccess: (c) => {
       setRetencion(null);
+      setConDeuda(false);
+      setMotivoDeuda('');
       setListo(c);
       void cliente.invalidateQueries({ queryKey: ['panel'] });
       void cliente.invalidateQueries({ queryKey: ['huecos'] });
@@ -148,6 +167,13 @@ export function AgendarSesion({
         setAlternativas(e.cuerpo.alternativas ?? []);
         setAviso('Alguien confirmó esa hora antes. Te mostramos las horas libres más cercanas; ninguna queda reservada hasta que la elijas.');
         void cliente.invalidateQueries({ queryKey: ['huecos', profesionalId] });
+      } else if (e instanceof ApiError && e.cuerpo.restriccion === 'citas_paciente_moroso') {
+        setConDeuda(true);
+        setAviso(
+          autoriza
+            ? 'El paciente tiene sesiones anteriores con pago pendiente. Regularízalo en Cobros o autoriza esta hora indicando el motivo.'
+            : 'El paciente tiene sesiones anteriores con pago pendiente: debe regularizar en el centro antes de agendar. Administración puede autorizar la hora.',
+        );
       } else setAviso(e instanceof ApiError ? e.message : 'No pudimos crear la cita.');
     },
   });
@@ -167,9 +193,18 @@ export function AgendarSesion({
     >
       {listo ? (
         <div className="flex flex-col gap-4">
-          <Aviso tono="exito" titulo={`${formatoFechaLarga(listo.inicio)}, ${formatoHora(listo.inicio)}`}>
-            {NOMBRE_MODALIDAD_CITA[listo.modalidad]} con {nombreProfesional}. El paciente recibe la confirmación por correo.
-          </Aviso>
+          {listo.estado === 'PENDIENTE_PAGO' ? (
+            <Aviso tono="advertencia" titulo={`${formatoFechaLarga(listo.inicio)}, ${formatoHora(listo.inicio)}: pago pendiente`}>
+              {NOMBRE_MODALIDAD_CITA[listo.modalidad]} con {nombreProfesional}. Se confirma con el pago
+              {listo.pagoVenceEn ? ` antes del ${formatoFechaHora(listo.pagoVenceEn)}` : ''}: le avisamos al paciente ahora y 48 y 24 horas antes. Paga desde su
+              cuenta o se registra el pago en Cobros. Si vence el plazo sin pago, la hora se mantiene y se paga en el centro.
+            </Aviso>
+          ) : (
+            <Aviso tono="exito" titulo={`${formatoFechaLarga(listo.inicio)}, ${formatoHora(listo.inicio)}`}>
+              {NOMBRE_MODALIDAD_CITA[listo.modalidad]} con {nombreProfesional}. El paciente recibe la confirmación por correo.
+              {!reprogramar && listo.medioConfirmacion === 'PAGO_EN_CENTRO' && ' Ya no queda plazo para el pago previo: se paga en el centro.'}
+            </Aviso>
+          )}
           <div className="flex justify-end">
             <Button variant="team" onClick={cerrar}>
               Listo
@@ -186,6 +221,8 @@ export function AgendarSesion({
                   value={pacienteId}
                   onChange={(e) => {
                     void soltar();
+                    setConDeuda(false);
+                    setAviso(undefined);
                     setPacienteId(e.target.value);
                   }}
                   disabled={!!retencion}
@@ -240,12 +277,23 @@ export function AgendarSesion({
                   </p>
                 </div>
               </div>
+              {conDeuda && autoriza && (
+                <Field label="Motivo para autorizar con deuda" hint="Queda registrado junto al saldo pendiente del paciente." required>
+                  {(p) => <Textarea {...p} rows={2} maxLength={500} value={motivoDeuda} onChange={(e) => setMotivoDeuda(e.target.value)} />}
+                </Field>
+              )}
               <div className="flex flex-wrap justify-end gap-2.5">
                 <Button variant="ghost" onClick={() => void soltar()}>
                   Elegir otra hora
                 </Button>
-                <Button variant="team" icon="check" loading={confirmar.isPending} onClick={() => confirmar.mutate()}>
-                  {reprogramar ? 'Confirmar nuevo horario' : 'Confirmar cita'}
+                <Button
+                  variant="team"
+                  icon="check"
+                  loading={confirmar.isPending}
+                  disabled={conDeuda && (!autoriza || motivoDeuda.trim().length < 3)}
+                  onClick={() => confirmar.mutate()}
+                >
+                  {reprogramar ? 'Confirmar nuevo horario' : conDeuda ? 'Autorizar y confirmar' : 'Confirmar cita'}
                 </Button>
               </div>
             </div>
