@@ -31,29 +31,47 @@ prompts/                  prompts de generacion (ver prompts/00_index.md)
 
 ## Levantar en local
 
+La BD de desarrollo no viaja con el repo (vive en el volumen de Docker de cada
+equipo, y `infra/local/` e `infra/secrets/` estan ignorados). En un equipo
+nuevo, o despues de clonar, se recrea con estos pasos; el seed es codigo
+(`prisma/seed.ts` y `prisma/seed-demo.ts`) y deja siempre los mismos datos.
+
+Requisitos: Node 22 (el mismo de los Dockerfile; `winget install OpenJS.NodeJS.22`,
+abrir una terminal nueva despues), Docker Desktop corriendo, `sh` (Git for
+Windows) y el puerto 5432 libre (detener el servicio de Postgres de Windows si
+existe).
+
 ```bash
-# 1. Base de datos (Postgres 18). Las contraseñas de infra/.env y backend/.env
-#    deben coincidir (OWNER_DB_PASSWORD, APP_DB_PASSWORD).
+# 1. Variables (los .env.example ya traen contraseñas que coinciden entre
+#    infra/.env y backend/.env: OWNER_DB_PASSWORD, APP_DB_PASSWORD).
+#    En backend/.env: SMTP_URL="smtp://localhost:1025" (el equipo entra con
+#    codigo por correo; sin SMTP el correo es simulado y el codigo no llega).
 cp infra/.env.example infra/.env
 cp backend/.env.example backend/.env
-(cd backend && npm install)
-# BORRA la BD de desarrollo y la recrea: down -v, up db (healthy), migrate
-# deploy, contraseña de app_user, seed, llaves de desarrollo. El override de
-# dev expone el 5432 solo en 127.0.0.1. (Requiere Docker.)
-sh infra/scripts/reset_dev.sh
+cp frontend/.env.example frontend/.env.local
 
-# 2. Backend (se conecta como app_user: sujeto a RLS)
-cd backend
-npm run start:dev          # http://localhost:3001/api
+# 2. Dependencias
+npm install                       # raiz: solo concurrently
+npm --prefix backend install
+npm --prefix frontend install
+
+# 3. Base de datos. BORRA la BD de desarrollo y la recrea: down -v, up db
+#    (healthy), migrate deploy, contraseña de app_user, seed base y llaves de
+#    desarrollo nuevas en infra/secrets/dev (sin ellas la API no arranca). El
+#    override de dev expone el 5432 solo en 127.0.0.1.
+sh infra/scripts/reset_dev.sh --si
+
+# 4. Centro demo (usuarios en docs/pruebas/usuarios_demo.md). Levanta su propia
+#    API en un puerto libre, no necesita la API de desarrollo arriba.
+#    Idempotente; para recargar desde cero: npm run demo:reset (en backend).
+npm --prefix backend run seed:demo
+
+# 5. API y front, cada uno en su terminal
+npm run dev:api                   # http://localhost:3001/api (app_user, sujeto a RLS)
+npm run dev:front                 # http://localhost:3000 (/api/* va a la API por rewrite)
 
 # Tests de BD (cluster Postgres 18 temporal; no toca la BD de desarrollo)
-sh prisma/tests/correr_tests_bd.sh
-
-# 3. Frontend
-cd ../frontend
-cp .env.example .env.local
-npm install
-npm run dev                # http://localhost:3000 (/api/* va a la API por rewrite)
+npm --prefix backend run test:bd
 ```
 
 ### Todo junto: Mailpit + API + front
@@ -69,6 +87,10 @@ npm install                # raíz: solo concurrently
 
 npm run dev                # mailpit + api + front en paralelo
 ```
+
+Si Mailpit ya esta corriendo aparte, no usar `npm run dev`: choca con su puerto
+y `concurrently -k` corta tambien la API y el front. Usar `dev:api` y `dev:front`
+por separado (paso 5).
 
 - Correos: `SMTP_URL="smtp://localhost:1025"` en `backend/.env`; bandeja en http://localhost:8025.
 - VS Code: tarea "Vinculos: dev" (`.vscode/tasks.json`), equivalente a `npm run dev`.

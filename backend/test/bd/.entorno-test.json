@@ -1,8 +1,0 @@
-{
-  "dir": "/tmp/tmp.WOo3lOgSeX",
-  "secretos": "C:/Users/cagaj/Desktop/SW Proyecto/infra/secrets/api-tests-2623",
-  "ownerUrl": "postgresql://vinculos_owner:owner-test@localhost:15433/app?schema=public",
-  "appUrl": "postgresql://app_user:api-test@localhost:15433/app?schema=public",
-  "kek": "C:/Users/cagaj/Desktop/SW Proyecto/infra/secrets/api-tests-2623/kek",
-  "publica": "C:/Users/cagaj/Desktop/SW Proyecto/infra/secrets/api-tests-2623/recuperacion.pub"
-}
