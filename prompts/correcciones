@@ -1,0 +1,73 @@
+Hay 21 pendientes: 10 de 03b-4 y 11 de 03b-4.1. Los 7 primeros de 03b-4 son diferencias con el diseño. En la segunda lista va la solución para cada número.
+
+  Pendientes
+
+  03b-4 (backoffice según diseño)
+
+  1. Equipo: tira de avatares. El diseño muestra una fila horizontal de integrantes; hoy es una lista vertical.
+  2. Equipo: "Rol dentro del centro" con pastillas (Cuenta madre / Profesional / Practicante): no está implementado.
+  3. Agenda semanal: border-l-4 en las tarjetas de sesión. impeccable detect lo marca como antipatrón; viene de 03b-4.
+  4. "Reservando…" de otros en el calendario: la API solo entrega las retenciones propias.
+  5. Protocolo del centro y "Marcar como leído": no existe en la API ni en la BD.
+  6. Cobro por derivación con monto fijo o %: la BD solo tiene un porcentaje del centro (C-10).
+  7. Mi perfil:
+     - nombre, teléfono y correo están en "Mi cuenta" y no en "Mis datos y descripción";
+     - no hay una barra única "Guardar mi perfil / Salir sin guardar".
+  8. "Avisos y recordatorios" del equipo: solo lleva a la bandeja; el diseño muestra preferencias por canal.
+  9. "Mis pacientes": no aparecen "Por confirmar" ni "Pago pendiente"; solo "ficha sin cerrar", "al día" y "alta".
+  10. Calendario sin actualización automática: se recarga solo al volver a la pestaña o tras una acción propia.
+
+  03b-4.1 (correctivo)
+
+  11. Playwright: 2 pruebas fallan en la suite completa y pasan solas. Sospecho el rate limit de login (30 por minuto, dos llamadas por ingreso del equipo); no está confirmado.
+  12. TOTP: no se probó con TOTP_HABILITADO=true y falta la pantalla para activarlo desde Seguridad.
+  13. portal.spec: lo ajusté para aceptar "Falta el pago para confirmar tu hora". Falta confirmar que ese es el comportamiento esperado.
+  14. Validar al salir del campo: solo está en Pedir hora y Nuevo paciente. Faltan Mi cuenta, Mis datos del portal, Editar paciente, adulto responsable y Datos del centro.
+  15. "Último rol activo elegido" en localStorage: no está implementado (el prompt lo permitía, no lo exigía).
+  16. Capturas (unos 13 MB): falta decidir si van al repositorio.
+  17. Seed demo: la semana actual y "Sesiones de hoy" casi vacías, porque las horas empiezan 2 a 4 días hábiles después.
+  18. Códigos de verificación vencidos: se acumulan en la tabla; no hay limpieza.
+  19. Selector de equipo: se pierde al recargar la página (vive en memoria).
+  20. Capturas en móvil: solo hice 1440 px; faltan diseño vs implementación a 390 px.
+  21. impeccable sobre la app corriendo: solo corrió el análisis estático; faltan las reglas de contraste y texto pequeño.
+
+  Soluciones propuestas
+
+  1. Tira horizontal con desplazamiento lateral: avatar, nombre, rol y un punto de estado. Agrupada por rol, con búsqueda si hay más de 8. La lista actual queda como "Ver lista". Solo front.
+  2. Pastillas de solo lectura con el rol principal y los adicionales. Para cambiarlo, el botón "Agregar o quitar Profesional" usa los endpoints que ya existen (POST usuarios/:id/roles, baja de rol). El rol principal no se edita (regla de BD).
+  3. Cambiar el borde lateral por un punto de color más un fondo suave por profesional o box, como ya quedó en la vista mensual. Solo front.
+  4. Opción A: función retenciones_en_curso(), categoría C: solo espacio_id y rango, sin quién; se muestran como "Reservando…" en gris. Opción B: dejarlo fuera y documentarlo. Recomiendo A (es chica).
+  5. Tabla protocolos versionada (B, append-only, como politicas) y lecturas_protocolo (A: usuario, versión, fecha). ADMIN publica y ve quién leyó; el equipo marca como leído. Es un módulo nuevo: lo propongo para una fase aparte.
+  6. Decidir el modelo. Si se quiere fijo o %, agregar comision_derivacion_tipo y comision_derivacion_valor en la configuración y aplicarlo en generar_liquidacion solo a pacientes que llegaron por el match (hay que vincular la solicitud a la cita). Si no, mantener el porcentaje único.
+  7. Un solo formulario "Mis datos y descripción" que guarde las dos cosas en orden (PATCH usuarios/yo y luego PUT perfil), con barra fija abajo "Guardar mi perfil / Descartar cambios" que se activa al haber cambios. Si uno de los dos falla, el error se muestra en su campo.
+  19. Selector de equipo: se pierde al recargar la página (vive en memoria).
+  20. Capturas en móvil: solo hice 1440 px; faltan diseño vs implementación a 390 px.
+  21. impeccable sobre la app corriendo: solo corrió el análisis estático; faltan las reglas de contraste y texto pequeño.
+
+  Soluciones propuestas
+
+  1. Tira horizontal con desplazamiento lateral: avatar, nombre, rol y un punto de estado. Agrupada por rol, con búsqueda si hay más de 8. La lista actual queda como "Ver lista". Solo front.
+  2. Pastillas de solo lectura con el rol principal y los adicionales. Para cambiarlo, el botón "Agregar o quitar Profesional" usa los endpoints que ya existen (POST usuarios/:id/roles, baja de rol). El rol principal no se edita (regla de BD).
+  3. Cambiar el borde lateral por un punto de color más un fondo suave por profesional o box, como ya quedó en la vista mensual. Solo front.
+  4. Opción A: función retenciones_en_curso(), categoría C: solo espacio_id y rango, sin quién; se muestran como "Reservando…" en gris. Opción B: dejarlo fuera y documentarlo. Recomiendo A (es chica).
+  5. Tabla protocolos versionada (B, append-only, como politicas) y lecturas_protocolo (A: usuario, versión, fecha). ADMIN publica y ve quién leyó; el equipo marca como leído. Es un módulo nuevo: lo propongo para una fase aparte.
+  6. Decidir el modelo. Si se quiere fijo o %, agregar comision_derivacion_tipo y comision_derivacion_valor en la configuración y aplicarlo en generar_liquidacion solo a pacientes que llegaron por el match (hay que vincular la solicitud a la cita). Si no, mantener el porcentaje único.
+  7. Un solo formulario "Mis datos y descripción" que guarde las dos cosas en orden (PATCH usuarios/yo y luego PUT perfil), con barra fija abajo "Guardar mi perfil / Descartar cambios" que se activa al haber cambios. Si uno de los dos falla, el error se muestra en su campo.
+  8. Preferencias del equipo: hoy preferencias_notificacion es del paciente. Habría que extenderla a usuarios del equipo (canal correo sí/no por tipo de aviso) y mostrar "Correo activado". WhatsApp sigue fuera de alcance.
+  9. Cruzar con las citas propias (PENDIENTE_PAGO) y con cobros/deudas para mostrar "Pago pendiente" y "Con deuda". "Por confirmar" ya no aplica (03b-3.2): lo documentaría como tal.
+  10. Mantener el estándar sin polling. Opcional: refrescar cada 2 minutos solo con la pestaña visible, como en la reserva. Requiere tu aprobación porque cambia estandar_polling.md.
+  11. En la configuración de Playwright, subir LOGIN_LIMITE_POR_MINUTO para la API de desarrollo (por ejemplo a 200 en .env). Alternativa: reutilizar la sesión por rol con storageState y evitar logins repetidos. Recomiendo storageState: más rápido y estable.
+  12. Probar con TOTP_HABILITADO=true en un test de integración aparte. Agregar en Seguridad "Usar app de autenticación" (QR y código), visible solo si la API informa que está habilitado, por ejemplo con un campo en estado_segundo_factor.
+  13. Confirmar contigo. Si es lo esperado, el test sigue con "elegir medio, pago en el centro, confirmada" para cubrir el flujo completo.
+  14. Hook compartido useValidacionCampo en lib/ que valida al salir y limpia al escribir, aplicado a todos los formularios con formato. Solo front.
+  15. Guardar en localStorage el rol por cuenta como un hash (no el correo) y, después del login, si está en roles y difiere, llamar a cambio de rol. Es opcional; lo omitiría salvo que lo quieras.
+  16. Dejar en el repo solo comparadas/ comprimidas en JPEG al 80 % (unos 3 MB) y el README.md; diseno/ y app/ fuera (en .gitignore) y se regeneran con un script npm run capturas.
+  17. En el seed: 3 a 4 horas hoy y mañana por profesional (pasadas como dueño de la BD y futuras por la API), más una sesión realizada de hoy sin evolución para "fichas por cerrar".
+  18. El job diario existente borra los códigos vencidos hace más de 24 h y los de respaldo anulados hace más de 90 días, como la purga de correos_cuenta_pendientes. Agregar el caso a seguridad_bd.sql.
+  19. Guardar el integrante elegido en sessionStorage (un id, sin datos clínicos) o en la URL (?equipo=). Recomiendo la URL: se puede compartir y sobrevive a recargar.
+  20. Agregar ANCHO=390 al script de capturas y componer el par móvil por vista; documentar las diferencias de móvil en el mismo README.md.
+  21. Correr npx impeccable detect http://localhost:3000/... por cada vista con sesión iniciada y corregir lo que marque (contraste AA).
+  22. Una observacion que visualice, fue que con la cuenta madre, cuando se selecciona "Mi perfil", debe salir el perfil como profesional, como es el estandar, ya que la gran diferencia por ser cuenta madre, es el hecho de visualar todo lo que tiene que ver con lo del centro en sus propias secciones, por eso hay una seccion donde se puede visualiar el centro
+  23. Puedes quitar la seccion del centro de todos los roles que no sean cuentas madres
+
+  Por esfuerzo: 3, 11, 14, 17, 18, 19 y 21 son cortas y se pueden hacer ya. 1, 2, 7, 9, 12 y 20 son medianas. Antes de implementar 4, 5, 6, 8, 10 y 15 necesito tu decisión. 13 y 16 solo necesitan tu confirmación.
