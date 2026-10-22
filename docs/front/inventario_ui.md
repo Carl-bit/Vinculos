@@ -109,6 +109,17 @@ El punto de la marca y los bordes siguen con `-600` (son decorativos, no son tex
 | Filtro directo del match público | (nuevo, 03b-5.3) | `FiltroDirecto` | `match/` |
 | Reportar una reseña pública | (nuevo, 03b-5.3) | `ReportarResena` | `equipo/` |
 | Menú del panel en móvil | (nuevo, 03b-5.3) | `LayoutAdmin` | `shared/` |
+| Control segmentado (opciones excluyentes con icono, radios nativos) | (nuevo, 03b-4.1) | `ControlSegmentado` | `ui/` |
+| Campo único de RUT (formatea, valida DV, normaliza; acepta correo en el login) | (nuevo, 03b-4.1) | `CampoRut` | `shared/` |
+| Fecha de nacimiento en tres desplegables (bisiestos, aviso de menor) | (nuevo, 03b-4.1) | `FechaNacimiento` | `shared/` |
+| Segundo paso por correo, códigos de respaldo, verificación de la cuenta | (nuevo, 03b-4.1) | `PasoSegundoFactor`, `CodigosRespaldo`, `SegundoFactorCuenta` | `shared/` |
+| "Iniciar sesión" / "Ir a mi panel" del header público (renueva la sesión en silencio) | Landing | `AccesoCuenta` | `shared/` |
+| "Viendo a" del selector de equipo | (nuevo, 03b-4.1) | `ViendoA` (en `EquipoActivo`) | `shared/` |
+| Cabecera de Mi perfil (foto, indicadores, próxima sesión) | Admin - Mi Perfil | `CabeceraMiPerfil` | `equipo/` |
+| Mis datos y descripción, calificaciones, resto del perfil | Admin - Mi Perfil | `MisDatosDescripcion`, `MisResenas`, `MasDeMiPerfil` | `equipo/` |
+| Mis horas e información de pacientes | Admin - Mi Perfil | `MisPacientesEstado` | `pacientes/` |
+| Mi cuenta (filas desplegables) | Admin - Mi Perfil | `MiCuentaAccesos` | `nucleo/` |
+| Periodo de la agenda (< periodo >, Semana \| Mes, Hoy) y vista mensual | Admin - Agenda y Espacios | `SelectorPeriodo`, `CalendarioAgenda` | `agenda/` |
 
 ## Huecos del diseño (resueltos en `design-system/vinculos/MASTER.md`)
 

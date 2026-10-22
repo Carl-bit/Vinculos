@@ -13,8 +13,48 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Correo (o RUT del paciente) y contraseña. Con TOTP (obligatorio en roles clinicos) responde un desafio. */
+        /**
+         * Correo o RUT y contraseña. Equipo (y pacientes que lo activaron): responde
+         *     un desafio y envia un codigo de 6 digitos al correo (03b-4.1).
+         */
         post: operations["AuthController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/segundo-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Segundo factor: codigo del correo o de respaldo. La primera vez activa la
+         *     verificacion y devuelve los 10 codigos de respaldo (codigosRespaldo).
+         */
+        post: operations["AuthController_segundoFactor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/segundo-factor/codigo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** "Reenviar codigo": 409 si no pasaron 60 segundos desde el anterior. */
+        post: operations["AuthController_reenviarCodigo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -30,7 +70,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Segundo factor: codigo de la app (activa el TOTP si era el enrolamiento). */
+        /** TOTP (03a): 404 mientras TOTP_HABILITADO este apagado (03b-4.1). */
         post: operations["AuthController_totp"];
         delete?: never;
         options?: never;
@@ -47,7 +87,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Enrolamiento TOTP: secreto y URI otpauth para el codigo QR. */
+        /** Enrolamiento TOTP: secreto y URI otpauth para el codigo QR. 404 con TOTP apagado. */
         post: operations["AuthController_enrolar"];
         delete?: never;
         options?: never;
@@ -394,6 +434,52 @@ export interface paths {
         put?: never;
         /** @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE */
         post: operations["UsuariosController_cambiarPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usuarios/yo/segundo-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 03b-4.1: estado de la verificacion en dos pasos por correo.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE
+         */
+        get: operations["UsuariosController_segundoFactor"];
+        /**
+         * Activar o desactivar la verificacion por correo (pacientes y
+         *     responsables; el equipo no la desactiva: 422). Al activar devuelve los 10
+         *     codigos de respaldo.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE
+         */
+        put: operations["UsuariosController_cambiarSegundoFactor"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usuarios/yo/segundo-factor/codigos-respaldo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Codigos de respaldo nuevos (anula los anteriores). 422 sin verificacion activa.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE
+         */
+        post: operations["UsuariosController_codigosRespaldo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4524,12 +4610,23 @@ export interface components {
             expiraEn: number;
             /** @description Minutos sin actividad tras los que se cierra la sesion (el front la cierra antes de renovar). */
             inactividadMinutos: number;
+            /**
+             * @description 03b-4.1: solo la primera vez que se verifica por correo (activacion del
+             *     segundo factor): 10 codigos de respaldo de un solo uso. No se vuelven a
+             *     mostrar.
+             */
+            codigosRespaldo?: string[];
         };
-        DesafioTotp: {
+        DesafioSegundoFactor: {
             /** @enum {boolean} */
-            requiereTotp: true;
+            requiereSegundoFactor: true;
+            /** @enum {string} */
+            metodo: "CORREO" | "TOTP";
+            /** @description Primera verificacion de la cuenta: al validarla se entregan los codigos de respaldo. */
             enrolamiento: boolean;
-            /** @description JWT corto (5 min) que identifica el login a medio camino. */
+            /** @description Correo enmascarado al que se envio el codigo (CORREO). */
+            destino: string | null;
+            /** @description JWT corto (15 min) que identifica el login a medio camino. */
             desafio: string;
         };
         LoginDto: {
@@ -4543,12 +4640,16 @@ export interface components {
              */
             rol?: "ADMIN" | "GESTION" | "PROFESIONAL" | "PRACTICANTE" | "PACIENTE" | "RESPONSABLE";
         };
-        TotpDto: {
+        SegundoFactorDto: {
             codigo: string;
             desafio: string;
         };
         DesafioDto: {
             desafio: string;
+        };
+        TotpDto: {
+            desafio: string;
+            codigo: string;
         };
         EnrolamientoTotp: {
             secreto: string;
@@ -4702,6 +4803,18 @@ export interface components {
         CambiarPasswordDto: {
             actual: string;
             nueva: string;
+        };
+        EstadoSegundoFactor: {
+            activo: boolean;
+            /** @description Equipo: siempre activa, no se desactiva. */
+            obligatorio: boolean;
+            codigosRespaldoRestantes: number;
+        };
+        CambiarSegundoFactorDto: {
+            activo: boolean;
+        };
+        CodigosRespaldo: {
+            codigos: string[];
         };
         EditarUsuarioDto: {
             /** @enum {string} */
@@ -6585,7 +6698,7 @@ export interface components {
         /** @enum {string} */
         TipoPreguntaMatch: "UNICA" | "MULTIPLE" | "ESCALA" | "TEXTO" | "DIAS" | "FRANJAS";
         /** @enum {string} */
-        CriterioMatch: "TIPO_ATENCION" | "ENFOQUE" | "ESPECIALIDAD" | "MODALIDAD" | "PREVISION";
+        CriterioMatch: "TIPO_ATENCION" | "ENFOQUE" | "ESPECIALIDAD" | "MODALIDAD" | "PREVISION" | "PRESUPUESTO";
         OpcionPublica: {
             nota: string | null;
             criterio: components["schemas"]["CriterioMatch"] | null;
@@ -6617,11 +6730,20 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        TramoPrecio: {
+            /** @description 0 = dentro de la preferencia; despues, cada tramo mas caro. */
+            indice: number;
+            titulo: string;
+        };
         OpcionResultadoMatch: {
             /** @description Criterios estrictos que no cumple */
             advertencia: string | null;
             /** Format: date-time */
             primerHueco: string | null;
+            /** @description 03b-4.1: tarifa vigente en la modalidad elegida (la general si no hay especifica). */
+            tarifa: number | null;
+            /** @description 03b-4.1: tramo de precio respecto de la preferencia de pago (null si no la indico). */
+            tramo: components["schemas"]["TramoPrecio"] | null;
             perfil: components["schemas"]["PerfilPublico"];
             puntaje: number;
             /** @description Explicacion en lenguaje claro (por que se recomienda). */
@@ -7053,7 +7175,7 @@ export interface components {
             nota?: string;
             orden: number;
             /** @enum {string} */
-            criterio?: "TIPO_ATENCION" | "ENFOQUE" | "ESPECIALIDAD" | "MODALIDAD" | "PREVISION";
+            criterio?: "TIPO_ATENCION" | "ENFOQUE" | "ESPECIALIDAD" | "MODALIDAD" | "PREVISION" | "PRESUPUESTO";
             objetivo?: string;
             peso?: number;
             estricto?: boolean;
@@ -7065,7 +7187,7 @@ export interface components {
             orden?: number;
             activa?: boolean;
             /** @enum {string} */
-            criterio?: "TIPO_ATENCION" | "ENFOQUE" | "ESPECIALIDAD" | "MODALIDAD" | "PREVISION";
+            criterio?: "TIPO_ATENCION" | "ENFOQUE" | "ESPECIALIDAD" | "MODALIDAD" | "PREVISION" | "PRESUPUESTO";
             objetivo?: string;
             peso?: number;
             estricto?: boolean;
@@ -7432,8 +7554,88 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Tokens"] | components["schemas"]["DesafioTotp"];
+                    "application/json": components["schemas"]["Tokens"] | components["schemas"]["DesafioSegundoFactor"];
                 };
+            };
+            /** @description Parametros invalidos */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Limite de consultas por minuto e IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    AuthController_segundoFactor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SegundoFactorDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tokens"];
+                };
+            };
+            /** @description Parametros invalidos */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Limite de consultas por minuto e IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    AuthController_reenviarCodigo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesafioDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Parametros invalidos */
             400: {
@@ -7793,7 +7995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Tokens"] | components["schemas"]["DesafioTotp"];
+                    "application/json": components["schemas"]["Tokens"] | components["schemas"]["DesafioSegundoFactor"];
                 };
             };
             /** @description Parametros invalidos */
@@ -7834,7 +8036,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Tokens"] | components["schemas"]["DesafioTotp"];
+                    "application/json": components["schemas"]["Tokens"] | components["schemas"]["DesafioSegundoFactor"];
                 };
             };
             /** @description Parametros invalidos */
@@ -8926,6 +9128,229 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    UsuariosController_segundoFactor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoSegundoFactor"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    UsuariosController_cambiarSegundoFactor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CambiarSegundoFactorDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodigosRespaldo"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    UsuariosController_codigosRespaldo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodigosRespaldo"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {

@@ -12,12 +12,13 @@
  *
  * Idempotente: si los usuarios demo ya existen no hace nada. Para volver a
  * cargar desde cero: npm run demo:reset (recrea la BD local). Se niega con
- * NODE_ENV=production. Usuarios y contraseña: docs/pruebas/guion_manual.md.
+ * NODE_ENV=production. Usuarios y contraseña: docs/pruebas/usuarios_demo.md.
+ *
+ * 03b-4.1: el equipo entra con un codigo por correo. El seed captura los
+ * codigos que emite su propia API (no los envia); al usar la app, los codigos
+ * llegan a Mailpit (http://localhost:8025).
  */
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -26,8 +27,8 @@ import { PrismaClient } from '@prisma/client';
 import { AppModule } from '../src/app.module';
 import { configurarApp } from '../src/configurar-app';
 import { hashToken } from '../src/core/auth/tokens-correo';
-import { codigoTotp } from '../src/core/auth/totp';
 import { JobsService } from '../src/core/jobs/jobs.service';
+import { type Correo, ProveedorCorreo } from '../src/core/notificaciones/correo';
 import { dvRut } from '../src/core/validacion/validadores';
 
 const logger = new Logger('SeedDemo');
@@ -35,8 +36,6 @@ const PASSWORD = process.env.SEED_PASSWORD ?? 'dev-password';
 const DOMINIO = 'centro-prueba.cl';
 const MARCA = `gestion@${DOMINIO}`;
 const DIA = 86_400_000;
-/** Secretos TOTP de las cuentas demo (03a: obligatorio para el equipo clinico). Fuera de git. */
-const ARCHIVO_TOTP = join(__dirname, '..', '..', 'infra', 'local', 'totp-demo.txt');
 
 const rut = (cuerpo: string) => `${cuerpo}-${dvRut(cuerpo)}`;
 
@@ -89,6 +88,16 @@ async function main(): Promise<void> {
   configurarApp(app);
   await app.listen(0, '127.0.0.1');
   const base = `${await app.getUrl()}/api`;
+  // Codigos de verificacion (03b-4.1): se capturan aca y no salen; el resto de los correos sigue su curso.
+  const codigos = new Map<string, string>();
+  const correo = app.get(ProveedorCorreo);
+  const enviar = correo.enviar.bind(correo);
+  correo.enviar = async (c: Correo) => {
+    if (!c.asunto.startsWith('Tu código de verificación')) {
+      return enviar(c);
+    }
+    codigos.set(c.para, /(\d{6})/.exec(c.texto)![1]);
+  };
 
   const llamar = async (token: string | null, metodo: string, ruta: string, cuerpo?: Cuerpo) => {
     const r = await fetch(`${base}${ruta}`, {
@@ -102,17 +111,13 @@ async function main(): Promise<void> {
     }
     return (texto ? JSON.parse(texto) : {}) as Cuerpo & { id: string };
   };
-  // Segundo factor (03a): se enrola en el primer login y el secreto queda en ARCHIVO_TOTP para entrar a mano.
-  const secretosTotp = new Map<string, string>();
+  // Segundo factor por correo (03b-4.1): el codigo capturado responde el desafio.
   const login = async (email: string) => {
     const r = await llamar(null, 'POST', '/auth/login', { email, password: PASSWORD });
-    if (!r.requiereTotp) {
+    if (!r.requiereSegundoFactor) {
       return r.accessToken as string;
     }
-    if (!secretosTotp.has(email)) {
-      secretosTotp.set(email, (await llamar(null, 'POST', '/auth/totp/enrolamiento', { desafio: r.desafio })).secreto as string);
-    }
-    return (await llamar(null, 'POST', '/auth/totp', { desafio: r.desafio, codigo: codigoTotp(secretosTotp.get(email)!) })).accessToken as string;
+    return (await llamar(null, 'POST', '/auth/segundo-factor', { desafio: r.desafio, codigo: codigos.get(email) })).accessToken as string;
   };
 
   try {
@@ -128,12 +133,13 @@ async function main(): Promise<void> {
     });
     const crearUsuario = (cuerpo: Cuerpo) => llamar(admin, 'POST', '/usuarios', { password: PASSWORD, ...cuerpo });
     const yo = async (token: string) => (await llamar(token, 'GET', '/usuarios/yo')).id;
+    // 03b-4.1: el ADMIN del demo tambien atiende (selector de rol activo).
+    await llamar(admin, 'POST', `/usuarios/${await yo(admin)}/roles`, { rol: 'PROFESIONAL' });
 
     await crearUsuario({ email: MARCA, nombre: 'Gestion Demo', rol: 'GESTION' });
     // C-1: cuenta con dos roles (ADMIN + PROFESIONAL) para el selector de rol activo del front.
     const directoraId = (await crearUsuario({ email: `directora@${DOMINIO}`, nombre: 'Directora Demo', rol: 'ADMIN' })).id;
     await llamar(admin, 'POST', `/usuarios/${directoraId}/roles`, { rol: 'PROFESIONAL' });
-    await login(`directora@${DOMINIO}`); // rol clinico: TOTP obligatorio, se enrola aca.
     const prof3Id = (await crearUsuario({ email: `profesional3@${DOMINIO}`, nombre: 'Profesional Tres (Demo)', rol: 'PROFESIONAL' })).id;
     const inactivo = await crearUsuario({ email: `inactivo@${DOMINIO}`, nombre: 'Profesional Inactivo (Demo)', rol: 'PROFESIONAL' });
     await llamar(admin, 'PATCH', `/usuarios/${inactivo.id}`, { activo: false });
@@ -142,6 +148,17 @@ async function main(): Promise<void> {
     const prof2 = await login(`profesional2@${DOMINIO}`);
     const prof3 = await login(`profesional3@${DOMINIO}`);
     const [prof1Id, prof2Id] = [await yo(prof1), await yo(prof2)];
+    // 03b-4.1: tres profesionales mas (seis con perfil publico) para probar filtros, presupuesto y match.
+    const nuevos: { id: string; token: string }[] = [];
+    for (const [usuario, nombre] of [
+      ['profesional4', 'Profesional Cuatro (Demo)'],
+      ['profesional5', 'Profesional Cinco (Demo)'],
+      ['profesional6', 'Profesional Seis (Demo)'],
+    ]) {
+      const id = (await crearUsuario({ email: `${usuario}@${DOMINIO}`, nombre, rol: 'PROFESIONAL' })).id;
+      nuevos.push({ id, token: await login(`${usuario}@${DOMINIO}`) });
+    }
+    const [prof4, prof5, prof6] = nuevos;
 
     const practica = { fechaInicioPractica: diaHabil(-20), fechaTerminoPractica: diaHabil(120) };
     const practicanteId = (
@@ -169,6 +186,10 @@ async function main(): Promise<void> {
     const practicante = await login(`practicante@${DOMINIO}`);
 
     // Catalogos: tipos de atencion propuestos por cada profesional y aprobados por ADMIN.
+    // Nombres que el cuestionario del match reconoce (adolescentes, niños, parejas).
+    for (const nombre of ['Psicoterapia adolescentes', 'Psicoterapia niños', 'Terapia de pareja']) {
+      await llamar(admin, 'POST', '/tipos-atencion', { nombre });
+    }
     const tipos = (await llamar(admin, 'GET', '/tipos-atencion')) as unknown as { id: string; nombre: string }[];
     const tipo = (nombre: string) => tipos.find((t) => t.nombre === nombre)!.id;
     const adultos = tipo('Psicoterapia individual adultos');
@@ -177,6 +198,9 @@ async function main(): Promise<void> {
       [prof1, prof1Id, [adultos, tipo('Evaluacion psicologica')]],
       [prof2, prof2Id, [adultos, infanto]],
       [prof3, prof3Id, [adultos]],
+      [prof4.token, prof4.id, [adultos, tipo('Terapia de pareja')]],
+      [prof5.token, prof5.id, [tipo('Psicoterapia adolescentes'), tipo('Psicoterapia niños'), infanto]],
+      [prof6.token, prof6.id, [adultos, tipo('Psicoterapia adolescentes')]],
     ] as const) {
       for (const tipoAtencionId of nombres) {
         await llamar(token, 'POST', '/profesionales/yo/tipos-atencion', { tipoAtencionId });
@@ -225,6 +249,33 @@ async function main(): Promise<void> {
           enfoques: ['Cognitivo-conductual', 'Trabajo', 'Ánimo'],
         },
       ],
+      [
+        prof4.token,
+        prof4.id,
+        'Ps. Profesional Cuatro (Demo)',
+        'Terapia de pareja y familia',
+        25000,
+        null,
+        { enfoques: ['Sistémico', 'Pareja', 'Familia', 'Estrés'], convenios: ['FONASA'], modalidad: 'ONLINE', idiomas: ['Español', 'Portugués'] },
+      ],
+      [
+        prof5.token,
+        prof5.id,
+        'Ps. Profesional Cinco (Demo)',
+        'Psicologia infanto-juvenil',
+        55000,
+        null,
+        { enfoques: ['Conducta', 'Ansiedad', 'Sueño', 'Autoestima'], boletaReembolsable: true, modalidad: 'PRESENCIAL' },
+      ],
+      [
+        prof6.token,
+        prof6.id,
+        'Ps. Profesional Seis (Demo)',
+        'Psicologia clinica adultos',
+        45000,
+        42000,
+        { enfoques: ['Humanista', 'Duelo', 'Ánimo', 'Trabajo', 'Autoestima'], convenios: ['FONASA'], boletaReembolsable: true },
+      ],
     ] as const;
     for (const [token, id, nombrePublico, especialidad, general, online, extra] of perfiles) {
       await llamar(token, 'POST', '/profesionales/yo/tarifas', { monto: general });
@@ -245,9 +296,11 @@ async function main(): Promise<void> {
       modo: 'ENLACE_PROPIO',
       enlace: `https://meet.jit.si/vinculos-demo-${practicanteId.slice(0, 8)}`,
     });
-    for (const id of [prof1Id, prof2Id, prof3Id, practicanteId]) {
+    const soloOnline = [prof4.id];
+    const soloPresencial = [prof5.id];
+    for (const id of [prof1Id, prof2Id, prof3Id, practicanteId, prof4.id, prof5.id, prof6.id]) {
       for (let diaSemana = 1; diaSemana <= 5; diaSemana++) {
-        for (const modalidad of ['PRESENCIAL', 'ONLINE']) {
+        for (const modalidad of soloOnline.includes(id) ? ['ONLINE'] : soloPresencial.includes(id) ? ['PRESENCIAL'] : ['PRESENCIAL', 'ONLINE']) {
           await llamar(admin, 'POST', `/profesionales/${id}/disponibilidad`, { diaSemana, inicioMin: 9 * 60, finMin: 19 * 60, modalidad });
         }
       }
@@ -266,16 +319,20 @@ async function main(): Promise<void> {
     });
     const fechas = [...new Set(Array.from({ length: 37 }, (_v, i) => diaHabil(i - 6)))];
     const diaSemana = (fecha: string) => new Date(`${fecha}T12:00:00Z`).getUTCDay();
-    const apartar = (token: string, id: string, espacioId: string, desde: string, hasta: string, dias = [1, 2, 3, 4, 5]) =>
+    const apartar = (token: string, id: string, espacioId: string, desde: string, hasta: string, dias = [1, 2, 3, 4, 5], desdeFecha = '') =>
       llamar(token, 'POST', `/profesionales/${id}/bloques`, {
         bloques: fechas
-          .filter((f) => dias.includes(diaSemana(f)))
+          .filter((f) => dias.includes(diaSemana(f)) && f >= desdeFecha)
           .map((f) => ({ espacioId, inicio: enChile(f, desde).toISOString(), fin: enChile(f, hasta).toISOString() })),
       });
     await apartar(prof1, prof1Id, box1, '09:00', '14:00');
     await apartar(prof2, prof2Id, box1, '14:00', '19:00');
     await apartar(prof3, prof3Id, box2, '09:00', '13:00', [1, 3, 5]);
     await apartar(practicante, practicanteId, box2, '15:00', '19:00');
+    await apartar(prof4.token, prof4.id, box2, '13:00', '15:00');
+    await apartar(prof6.token, prof6.id, box2, '09:00', '13:00', [2, 4]);
+    // Box 3: Profesional Cinco lunes, miercoles y viernes (martes y jueves quedan libres para probar "Apartar horas").
+    await apartar(prof5.token, prof5.id, box3, '09:00', '13:00', [1, 3, 5], diaHabil(0));
 
     // Datos para la copia de autoria de las evoluciones y para las liquidaciones (cifrados).
     await llamar(prof1, 'PUT', '/profesionales/yo/datos-privados', {
@@ -517,6 +574,39 @@ async function main(): Promise<void> {
     await crearUsuario({ email: `adolescente@${DOMINIO}`, nombre: 'Tomas Demo Adolescente', rol: 'PACIENTE', pacienteId: tomas.id });
     await cita({ pacienteId: tomas.id, profesionalId: prof2Id, modalidad: 'ONLINE', ...horario(5, '16:00') });
     await llamar(prof1, 'PATCH', `/pacientes/${pacientePrueba}`, { contactoEmergencia: 'Contacto Demo (hermana) +56922222222' });
+    // 03b-4.1: un paciente y horas para cada profesional nuevo (agenda, cobros y fichas sin vistas vacias).
+    // n-esimo dia habil desde `desde` que cae en uno de los dias de la semana con horas apartadas.
+    const diaCon = (diasSemana: number[], desde: number) => {
+      let n = desde;
+      while (!diasSemana.includes(new Date(`${diaHabil(n)}T12:00:00Z`).getUTCDay())) n++;
+      return n;
+    };
+    for (const [p, nombre, cuerpoRut, modalidad, dias, hora, tipoAtencionId] of [
+      [prof4, 'Andres', '26666666', 'ONLINE', diaCon([1, 2, 3, 4, 5], 3), '13:00', adultos],
+      [prof5, 'Valentina', '27777777', 'PRESENCIAL', diaCon([1, 3, 5], 2), '10:00', infanto],
+      [prof6, 'Rocio', '28888888', 'PRESENCIAL', diaCon([2, 4], 2), '09:00', adultos],
+    ] as const) {
+      const nuevo = await llamar(p.token, 'POST', '/pacientes', {
+        nombre,
+        apellido: 'Demo',
+        rut: rut(cuerpoRut),
+        fechaNacimiento: nombre === 'Valentina' ? `${new Date().getFullYear() - 15}-02-02` : '1991-07-07',
+        email: `${nombre.toLowerCase()}.demo@${DOMINIO}`,
+        tipoAtencionId,
+      });
+      if (nombre === 'Valentina') {
+        await llamar(p.token, 'POST', `/pacientes/${nuevo.id}/adultos-responsables`, {
+          nombre: 'Madre de Valentina (Demo)',
+          parentesco: 'Madre',
+          rut: rut('17777777'),
+          telefono: '+56977777777',
+          email: `madre.valentina@${DOMINIO}`,
+        });
+      }
+      await cita({ pacienteId: nuevo.id, profesionalId: p.id, modalidad, ...horario(dias, hora) });
+      // Misma semana siguiente (5 dias habiles despues: mismo dia de la semana).
+      await cita({ pacienteId: nuevo.id, profesionalId: p.id, modalidad, ...horario(dias + 5, hora) });
+    }
 
     // Paciente Prueba: mensajes a su profesional, documento emitido y copia de ficha pedida.
     await llamar(paciente, 'POST', '/portal/mensajes', {
@@ -593,14 +683,10 @@ async function main(): Promise<void> {
   } finally {
     await app.close();
     await dueno.$disconnect();
-    if (secretosTotp.size) {
-      mkdirSync(join(ARCHIVO_TOTP, '..'), { recursive: true });
-      writeFileSync(ARCHIVO_TOTP, [...secretosTotp].map(([email, s]) => `${email} ${s}`).join('\n') + '\n');
-    }
   }
   // El logger de la app (pino, nivel warn) ya no esta: aviso final directo.
   process.stdout
-    .write(`Centro demo cargado. Usuarios @${DOMINIO}, contraseña "${PASSWORD}"; secretos TOTP en infra/local/totp-demo.txt (ver docs/pruebas/guion_manual.md)
+    .write(`Centro demo cargado. Usuarios @${DOMINIO}, contraseña "${PASSWORD}"; el codigo del segundo paso llega a Mailpit (docs/pruebas/usuarios_demo.md)
 `);
 }
 

@@ -28,6 +28,9 @@ import {
   OtorgarRolDto,
   PoliticaDto,
   CambiarPasswordDto,
+  CambiarSegundoFactorDto,
+  CodigosRespaldo,
+  EstadoSegundoFactor,
   CrearUsuarioDto,
   EditarConfiguracionDto,
   EditarMiCuentaDto,
@@ -100,6 +103,32 @@ export class UsuariosController {
   @Roles(...TODOS)
   cambiarPassword(@Body() dto: CambiarPasswordDto) {
     return this.usuarios.cambiarPassword(dto);
+  }
+
+  /** 03b-4.1: estado de la verificacion en dos pasos por correo. */
+  @Get('yo/segundo-factor')
+  @Roles(...TODOS)
+  segundoFactor(): Promise<EstadoSegundoFactor> {
+    return this.usuarios.segundoFactor();
+  }
+
+  /**
+   * Activar o desactivar la verificacion por correo (pacientes y
+   * responsables; el equipo no la desactiva: 422). Al activar devuelve los 10
+   * codigos de respaldo.
+   */
+  @Put('yo/segundo-factor')
+  @Roles(...TODOS)
+  cambiarSegundoFactor(@Body() dto: CambiarSegundoFactorDto): Promise<CodigosRespaldo> {
+    return this.usuarios.cambiarSegundoFactor(dto.activo);
+  }
+
+  /** Codigos de respaldo nuevos (anula los anteriores). 422 sin verificacion activa. */
+  @Post('yo/segundo-factor/codigos-respaldo')
+  @HttpCode(200)
+  @Roles(...TODOS)
+  codigosRespaldo(): Promise<CodigosRespaldo> {
+    return this.usuarios.nuevosCodigosRespaldo();
   }
 
   @Get(':id')

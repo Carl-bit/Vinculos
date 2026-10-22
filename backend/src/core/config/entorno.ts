@@ -59,6 +59,17 @@ export class Entorno {
   @Max(720)
   SESION_INACTIVIDAD_MINUTOS: number = 30;
 
+  /**
+   * 03b-4.1: verificacion en dos pasos con app de autenticacion (TOTP, 03a).
+   * Desactivada: el segundo factor es un codigo por correo y las rutas TOTP
+   * responden 404. El codigo y las columnas siguen para habilitarla despues
+   * (docs/seguridad/requisitos_02_apis.md, 03b-4.1).
+   */
+  @IsOptional()
+  @Transform(aBooleano)
+  @IsBoolean()
+  TOTP_HABILITADO: boolean = false;
+
   /** Intentos de login por minuto e IP. */
   @IsOptional()
   @IsInt()

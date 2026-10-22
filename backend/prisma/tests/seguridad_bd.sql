@@ -10,7 +10,7 @@
 -- aprovisionamiento de llaves (infra/scripts/llaves/aprovisionar.sh).
 --
 -- Casos 1-17: los 17 del prompt 01. 18-27: prompt 01b. 28-44: prompt 01c.
--- 127-128: prompt 03b-3.1 (confirmacion por medio de pago; 128 como dueño). 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 101-115: prompt 03a-1 (roles por cuenta, cuentas y tokens, politicas, menores, agenda, solicitudes sin cuenta, acceso temporal (lista de espera retirada en 107 y 124), borradores, alta, reseñas, reportes, contenido publico, liquidacion por cita realizada); 03a agrega a 67 las tablas append-only nuevas y a 78 excluye imagenes_publicas (publicas, sin cifrar). 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
+-- 134: prompt 03b-4.1 (segundo factor por correo, login por RUT, presupuesto del match). 127-128: prompt 03b-3.1 (confirmacion por medio de pago; 128 como dueño). 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 101-115: prompt 03a-1 (roles por cuenta, cuentas y tokens, politicas, menores, agenda, solicitudes sin cuenta, acceso temporal (lista de espera retirada en 107 y 124), borradores, alta, reseñas, reportes, contenido publico, liquidacion por cita realizada); 03a agrega a 67 las tablas append-only nuevas y a 78 excluye imagenes_publicas (publicas, sin cifrar). 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
 -- derivacion traspasa el paciente); 01d redefinio 36, 37 y 42 (tipo de
 -- atencion por catalogo, oferta con citas en conflicto, el origen cancela en
 -- SIN_ASIGNAR); 01e redefinio 19 (tablas sin GRANT), 50 (perfil
@@ -3673,7 +3673,7 @@ DO $$ DECLARE n int; BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   UPDATE match_preguntas SET activa = false WHERE clave = 'seguro';
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
-  ASSERT jsonb_array_length(cuestionario_match()) = 8, 'caso 113: cuestionario activo (8 preguntas de ejemplo)';
+  ASSERT jsonb_array_length(cuestionario_match()) = 9, 'caso 113: cuestionario activo (8 preguntas de ejemplo + presupuesto de 03b-4.1)';
   PERFORM registrar_resultado_match(test.u('b1'));
 END $$;
 
@@ -4444,6 +4444,77 @@ DO $$ DECLARE v uuid; BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
   UPDATE configuracion_centro SET horas_plazo_pago_equipo = 12, dias_gracia_morosidad = 0;
 END $$;
+\echo 134 Segundo factor por correo y match con presupuesto (03b-4.1) como app_user: codigos solo via funciones (sin GRANT); obligatorio para el equipo; reenvio con espera; 5 intentos; un uso; respaldo de un uso y solo para la propia cuenta; el equipo no lo desactiva; login por RUT; tope numerico del presupuesto
+DO $$ DECLARE h1 bytea := sha256(convert_to('t134-uno', 'UTF8')); h2 bytea := sha256(convert_to('t134-dos', 'UTF8'));
+              v_mal bytea := sha256(convert_to('t134-mal', 'UTF8')); v_hashes bytea[]; i int; BEGIN
+  BEGIN
+    PERFORM count(*) FROM codigos_verificacion;
+    RAISE EXCEPTION 'caso 134: codigos_verificacion sin GRANT';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO codigos_respaldo (usuario_id, codigo_hash) VALUES (test.u('a1'), h1);
+    RAISE EXCEPTION 'caso 134: codigos_respaldo sin GRANT';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT requerido AND NOT correo FROM segundo_factor(test.u('a1'))), 'caso 134: ADMIN lo requiere (aun sin activar)';
+  ASSERT (SELECT requerido FROM segundo_factor(test.u('c1'))), 'caso 134: PRACTICANTE lo requiere';
+  ASSERT (SELECT NOT requerido AND NOT correo FROM segundo_factor(test.u('a2'))), 'caso 134: el paciente no lo requiere';
+
+  ASSERT emitir_codigo_verificacion(test.u('a1'), h1, 60) = 't-admin@x', 'caso 134: devuelve el correo de destino';
+  BEGIN
+    PERFORM emitir_codigo_verificacion(test.u('a1'), h2, 60);
+    RAISE EXCEPTION 'caso 134: reenvio antes de la espera';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  -- El login emite sin espera y anula el anterior.
+  PERFORM emitir_codigo_verificacion(test.u('a1'), h2, 0);
+  ASSERT NOT verificar_codigo_verificacion(test.u('a1'), h1), 'caso 134: el codigo anterior queda anulado';
+  FOR i IN 1..3 LOOP
+    ASSERT NOT verificar_codigo_verificacion(test.u('a1'), v_mal), 'caso 134: codigo incorrecto';
+  END LOOP;
+  -- 4 errores (probar el anulado cuenta como intento contra el vigente) y el correcto entra; despues ya no sirve.
+  ASSERT verificar_codigo_verificacion(test.u('a1'), h2), 'caso 134: el codigo vigente entra';
+  ASSERT NOT verificar_codigo_verificacion(test.u('a1'), h2), 'caso 134: un solo uso';
+  PERFORM emitir_codigo_verificacion(test.u('a1'), h1, 0);
+  FOR i IN 1..5 LOOP
+    PERFORM verificar_codigo_verificacion(test.u('a1'), v_mal);
+  END LOOP;
+  ASSERT NOT verificar_codigo_verificacion(test.u('a1'), h1), 'caso 134: tras 5 intentos ni el correcto entra';
+
+  ASSERT activar_verificacion_correo(test.u('a1')), 'caso 134: primera activacion';
+  ASSERT NOT activar_verificacion_correo(test.u('a1')), 'caso 134: la segunda ya no es la primera';
+  SELECT array_agg(sha256(convert_to('t134-r' || g, 'UTF8'))) INTO v_hashes FROM generate_series(1, 10) g;
+  PERFORM generar_codigos_respaldo(test.u('a1'), v_hashes);
+  ASSERT usar_codigo_respaldo(test.u('a1'), v_hashes[2]), 'caso 134: respaldo valido';
+  ASSERT NOT usar_codigo_respaldo(test.u('a1'), v_hashes[2]), 'caso 134: respaldo de un solo uso';
+  ASSERT NOT usar_codigo_respaldo(test.u('a2'), v_hashes[3]), 'caso 134: el respaldo es de su cuenta';
+  BEGIN
+    PERFORM generar_codigos_respaldo(test.u('a1'), v_hashes[1:9]);
+    RAISE EXCEPTION 'caso 134: son 10 codigos';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+
+  PERFORM test.ctx('a2', 'PACIENTE');
+  BEGIN
+    PERFORM generar_codigos_respaldo(test.u('a1'), v_hashes);
+    RAISE EXCEPTION 'caso 134: con contexto, solo para la propia cuenta';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM cambiar_verificacion_correo(true);
+  ASSERT (SELECT activo AND NOT obligatorio FROM estado_segundo_factor()), 'caso 134: el paciente lo activa';
+  PERFORM cambiar_verificacion_correo(false);
+  ASSERT (SELECT NOT activo FROM estado_segundo_factor()), 'caso 134: y lo desactiva';
+  ASSERT (SELECT count(*) = 1 AND bool_and(rol = 'PACIENTE')
+          FROM credenciales_login_rut(sha256(convert_to('rut ' || test.u('0a'), 'UTF8')))), 'caso 134: login por RUT del paciente';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT activo AND obligatorio AND codigos_respaldo_restantes = 9 FROM estado_segundo_factor()), 'caso 134: estado del ADMIN';
+  BEGIN
+    PERFORM cambiar_verificacion_correo(false);
+    RAISE EXCEPTION 'caso 134: el equipo no lo desactiva';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE match_opciones SET objetivo = 'mucho' WHERE valor = 'hasta_35000';
+    RAISE EXCEPTION 'caso 134: el tope del presupuesto es un monto';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE match_opciones SET etiqueta = 'Hasta $36.000', objetivo = '36000' WHERE valor = 'hasta_35000';
+  UPDATE match_opciones SET etiqueta = 'Hasta $35.000', objetivo = '35000' WHERE valor = 'hasta_35000';
+END $$;
 \connect :owner_url
 \set ON_ERROR_STOP 1
 
@@ -4962,7 +5033,8 @@ DO $$ DECLARE c record; n int; BEGIN
   FOR c IN SELECT table_name, column_name FROM information_schema.columns
            WHERE table_schema = 'public' AND data_type = 'bytea' AND column_name NOT LIKE '%hmac'
              -- sesiones y tokens_correo guardan SHA-256 de tokens (bytea sin cifrar, como las sesiones).
-             AND table_name NOT IN ('llaves_datos', 'sesiones', 'tokens_correo', 'imagenes_publicas')
+             -- 03b-4.1: codigos de verificacion y de respaldo guardan HMAC-SHA256 (como tokens_correo).
+             AND table_name NOT IN ('llaves_datos', 'sesiones', 'tokens_correo', 'imagenes_publicas', 'codigos_verificacion', 'codigos_respaldo')
              -- 03b-3.1: SHA-256 del token opaco de la reserva (como tokens_correo).
              AND table_name || '.' || column_name <> 'solicitudes_hora.reserva_hash' LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE %I IS NOT NULL AND (get_byte(%I, 0) <> 1 OR octet_length(%I) < 49)',

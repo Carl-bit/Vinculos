@@ -87,20 +87,23 @@ login). `npm run openapi:exportar` regenera `docs/api/openapi.json`.
 ### 0.4 Postman y segundo factor
 
 Las requests se arman en Postman contra `http://localhost:3001/api` (o desde
-Swagger). Desde 03a el login es en dos pasos para el equipo clinico:
-`POST /api/auth/login` devuelve `requiereTotp` y un `desafio`; luego
-`POST /api/auth/totp` con el `desafio` y el codigo de 6 digitos. El seed demo
-enrola el TOTP de esas cuentas y deja los secretos en
-`infra/local/totp-demo.txt` (cargarlos en una app autenticadora).
+Swagger). Desde 03b-4.1 el equipo entra en dos pasos con un codigo por
+correo: `POST /api/auth/login` devuelve `requiereSegundoFactor` y un
+`desafio`; el codigo de 6 digitos llega a Mailpit (http://localhost:8025) y
+se envia con `POST /api/auth/segundo-factor` (`desafio`, `codigo`). El TOTP
+de 03a esta apagado (`TOTP_HABILITADO=false`).
 
 ### 0.5 Usuarios demo
+
+Lista completa y RUT para ingresar: `docs/pruebas/usuarios_demo.md` (03b-4.1:
+seis profesionales con perfil publico, `profesional4` a `profesional6` nuevos).
 
 Contraseña de todos: `dev-password` (solo desarrollo; `SEED_PASSWORD` la
 cambia). Dominio `@centro-prueba.cl`.
 
 | Usuario | Rol | Para que |
 |---|---|---|
-| `admin` | ADMIN | configuracion, usuarios, aprobaciones, auditoria |
+| `admin` | ADMIN + PROFESIONAL (03b-4.1) | configuracion, usuarios, aprobaciones, auditoria; selector de rol |
 | `gestion` | GESTION (habilitado) | agenda, pagos, consentimientos con respaldo |
 | `profesional1` | PROFESIONAL | tratante de Paciente Prueba y Diego; origen de derivaciones; perfil publico completo (FONASA, idiomas, cita destacada, formacion verificada, reseña publicada) |
 | `profesional2` | PROFESIONAL | supervisor del practicante; tratante de Sofia; candidato 1 |
@@ -113,7 +116,7 @@ cambia). Dominio `@centro-prueba.cl`.
 | `adolescente` | PACIENTE 16 años (03b-3) | Tomas Demo Adolescente, de Profesional Dos: cuenta restringida (horas, recordatorios y mensajes) |
 | `inactivo` | PROFESIONAL desactivado | login rechazado |
 | `practicante.expirado` | PRACTICANTE con acceso vencido | login rechazado |
-| `directora` | ADMIN + PROFESIONAL (dos roles, TOTP) | cambio de rol activo (`auth/cambio-rol`, selector del front) |
+| `directora` | ADMIN + PROFESIONAL (dos roles) | cambio de rol activo (`auth/cambio-rol`, selector del front) |
 
 Sitio publico (03b-2): el seed publica el contenido del landing, la politica de
 datos y los terminos de agendamiento (sin politica de datos no se puede pedir

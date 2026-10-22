@@ -42,12 +42,12 @@ export function CuentaRegresiva({ desde, hasta, onVencida }: { desde: Date; hast
         />
       </svg>
       <div>
-        <div className="text-[11px] font-extrabold tracking-[0.12em] text-neutral-700 uppercase">Tu hora está retenida</div>
+        <div className="text-[11px] font-extrabold tracking-[0.12em] text-neutral-700 uppercase">Te guardamos la hora</div>
         <div className="text-[40px] leading-none font-black tracking-[-0.04em] tabular-nums" aria-hidden="true">
           {texto}
         </div>
         <p className="sr-only" aria-live="polite">
-          {ms === 0 ? 'La retención terminó.' : `Quedan ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'} para confirmar.`}
+          {ms === 0 ? 'Terminó el tiempo para confirmar.' : `Quedan ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'} para confirmar.`}
         </p>
       </div>
     </div>

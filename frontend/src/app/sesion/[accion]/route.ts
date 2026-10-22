@@ -23,6 +23,7 @@ interface Accion {
 const ACCIONES: Record<string, Accion> = {
   login: { ruta: '/api/auth/login', campos: ['email', 'rut', 'password', 'rol'] },
   totp: { ruta: '/api/auth/totp', campos: ['desafio', 'codigo'] },
+  'segundo-factor': { ruta: '/api/auth/segundo-factor', campos: ['desafio', 'codigo'] },
   'enlace-acceso': { ruta: '/api/auth/enlace-acceso/confirmacion', campos: ['token'] },
   activacion: { ruta: '/api/auth/activacion', campos: ['token', 'password'] },
   refresh: { ruta: '/api/auth/refresh', campos: [], conCookie: true },
@@ -64,7 +65,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const minutos = typeof datos.inactividadMinutos === 'number' ? datos.inactividadMinutos : 30;
     almacen.set(COOKIE, refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // 03b-4.1: Secure solo con HTTPS (en el silo Traefik termina TLS y avisa con X-Forwarded-Proto); en localhost sin HTTPS la cookie igual viaja.
+      secure: (request.headers.get('x-forwarded-proto') ?? request.nextUrl.protocol.replace(':', '')) === 'https',
       sameSite: 'strict',
       path: RUTA_COOKIE,
       maxAge: minutos * 60,

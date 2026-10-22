@@ -9,10 +9,9 @@ import { randomUUID } from 'node:crypto';
 
 import sharp = require('sharp');
 
-import { codigoTotp } from '../src/core/auth/totp';
 import { ModulosGuard } from '../src/core/modulos/modulos';
 import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
-import { auth, binario, CLAVE, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, binario, CLAVE, crearApp, ultimoCodigo, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const DIA = 86_400_000;
 const HORA = 3_600_000;
@@ -110,45 +109,7 @@ describe('03a alineacion con el diseño', () => {
   afterAll(() => t.cerrar());
 
   describe('cuentas', () => {
-    it('TOTP obligatorio para roles clinicos: desafio, enrolamiento y codigo; opcional para el resto', async () => {
-      const u = await t.datos.usuario('PROFESIONAL');
-      const r = await t.http().post('/api/auth/login').send({ email: u.email, password: CLAVE });
-      expect(r.body).toEqual(expect.objectContaining({ requiereTotp: true, enrolamiento: true }));
-      expect(r.body.accessToken).toBeUndefined();
-      const e = await t.http().post('/api/auth/totp/enrolamiento').send({ desafio: r.body.desafio });
-      expect(e.body.uri).toMatch(/^otpauth:\/\/totp\//);
-      expect((await t.http().post('/api/auth/totp').send({ desafio: r.body.desafio, codigo: '000000' })).status).toBe(401);
-      const ok = await t
-        .http()
-        .post('/api/auth/totp')
-        .send({ desafio: r.body.desafio, codigo: codigoTotp(e.body.secreto) });
-      expect(ok.status).toBe(200);
-      expect(ok.body).toEqual(expect.objectContaining({ rol: 'PROFESIONAL', roles: ['PROFESIONAL'] }));
-      const segundo = await t.http().post('/api/auth/login').send({ email: u.email, password: CLAVE });
-      expect(segundo.body.enrolamiento).toBe(false);
-      expect((await t.http().post('/api/auth/totp/enrolamiento').send({ desafio: segundo.body.desafio })).status).toBe(409);
-      // El paciente entra sin TOTP.
-      const p = await t.http().post('/api/auth/login').send({ email: paciente.email, password: CLAVE });
-      expect(p.body.accessToken).toBeDefined();
-      // Solo ADMIN reinicia el segundo factor de otro.
-      expect(
-        (
-          await t
-            .http()
-            .post(`/api/usuarios/${u.id}/totp/reinicio`)
-            .set(await tk(gestion))
-        ).status,
-      ).toBe(403);
-      expect(
-        (
-          await t
-            .http()
-            .post(`/api/usuarios/${u.id}/totp/reinicio`)
-            .set(await tk(admin))
-        ).status,
-      ).toBe(200);
-      expect((await t.http().post('/api/auth/login').send({ email: u.email, password: CLAVE })).body.enrolamiento).toBe(true);
-    });
+    // 03b-4.1: el segundo factor es un codigo por correo y el TOTP queda apagado (test/03b41-correctivo.e2e-spec.ts).
 
     it('login del paciente por RUT', async () => {
       const rut = '11.111.111-1';
@@ -261,9 +222,16 @@ describe('03a alineacion con el diseño', () => {
       const token = tokenDe(ultimoA(email));
       expect(token).not.toBe('');
       expect((await t.http().post('/api/auth/login').send({ email, password: 'cualquier-clave' })).status).toBe(401);
-      const activa = await t.http().post('/api/auth/activacion').send({ token, password: 'clave-elegida-123' });
-      expect(activa.status).toBe(200);
+      const desafio = await t.http().post('/api/auth/activacion').send({ token, password: 'clave-elegida-123' });
+      expect(desafio.status).toBe(200);
+      // 03b-4.1: el equipo termina de entrar con el codigo por correo (primera vez: codigos de respaldo).
+      expect(desafio.body).toEqual(expect.objectContaining({ requiereSegundoFactor: true, enrolamiento: true }));
+      const activa = await t
+        .http()
+        .post('/api/auth/segundo-factor')
+        .send({ desafio: desafio.body.desafio, codigo: ultimoCodigo(t.app, email) });
       expect(activa.body.rol).toBe('GESTION');
+      expect(activa.body.codigosRespaldo).toHaveLength(10);
 
       const p = await t.datos.paciente(prof.id);
       const emailP = `paciente-${randomUUID().slice(0, 8)}@test.cl`;
@@ -498,6 +466,7 @@ describe('03a alineacion con el diseño', () => {
         relato: 'Hace meses que duermo mal y me cuesta concentrarme',
         prevision: 'fonasa',
         modalidad: 'online',
+        presupuesto: 'no_decir',
       };
       const m = await t.http().post('/api/publico/match').send({ respuestas });
       expect(m.status).toBe(200);

@@ -6,15 +6,36 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/Eyebrow';
-import { Field, Input } from '@/components/ui/Field';
+import { Field, Input, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { ApiError } from '@/lib/api/errores';
 import { pareceRut, rutValido } from '@/lib/formato';
 import { destinoTrasIngreso } from '@/lib/roles';
-import { iniciarSesion, type DesafioTotp, type SesionActiva } from '@/lib/sesion';
+import { useSesion } from '@/lib/consultas';
+import { iniciarSesion, renovarSesion, type DesafioSegundoFactor, type SesionActiva } from '@/lib/sesion';
 
-import { PasoTotp } from './PasoTotp';
+import { CampoRut, rutNormalizado } from './CampoRut';
+import { PasoSegundoFactor } from './PasoSegundoFactor';
 import { TarjetaIngreso, TituloIngreso, type PerfilIngreso } from './TarjetaIngreso';
+
+/**
+ * Solo en modo demo (NEXT_PUBLIC_DEMO=true, nunca en produccion): entrar rapido
+ * con cada usuario del seed demo (docs/pruebas/usuarios_demo.md). El codigo
+ * del segundo paso llega igual a Mailpit.
+ */
+const DEMO = process.env.NEXT_PUBLIC_DEMO === 'true' && process.env.NODE_ENV !== 'production';
+const PASSWORD_DEMO = 'dev-password';
+const USUARIOS_DEMO: { usuario: string; etiqueta: string; perfil: PerfilIngreso }[] = [
+  { usuario: 'admin', etiqueta: 'ADMIN + PROFESIONAL (admin)', perfil: 'equipo' },
+  { usuario: 'directora', etiqueta: 'ADMIN + PROFESIONAL (directora)', perfil: 'equipo' },
+  { usuario: 'gestion', etiqueta: 'GESTIÓN', perfil: 'equipo' },
+  { usuario: 'profesional1', etiqueta: 'PROFESIONAL (Uno)', perfil: 'equipo' },
+  { usuario: 'profesional2', etiqueta: 'PROFESIONAL supervisor (Dos)', perfil: 'equipo' },
+  { usuario: 'practicante', etiqueta: 'PRACTICANTE', perfil: 'equipo' },
+  { usuario: 'paciente', etiqueta: 'PACIENTE adulto', perfil: 'paciente' },
+  { usuario: 'adolescente', etiqueta: 'PACIENTE adolescente (16)', perfil: 'paciente' },
+  { usuario: 'madre.demo', etiqueta: 'Adulto responsable', perfil: 'paciente' },
+];
 
 const TEXTOS = {
   paciente: {
@@ -29,8 +50,8 @@ const TEXTOS = {
     eyebrow: 'Acceso del equipo',
     titulo: 'Bienvenido de vuelta.',
     bajada: 'Ingresa con tu cuenta del centro para ver tu agenda, tus fichas y los módulos activos.',
-    usuario: 'Correo del centro',
-    ejemplo: 'nombre@centro.cl',
+    usuario: 'Correo o RUT',
+    ejemplo: 'nombre@centro.cl o 12.345.678-9',
     boton: 'Entrar al panel',
   },
 } as const;
@@ -50,7 +71,7 @@ export function FormularioIngreso() {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [verPassword, setVerPassword] = useState(false);
-  const [desafio, setDesafio] = useState<DesafioTotp | null>(null);
+  const [desafio, setDesafio] = useState<DesafioSegundoFactor | null>(null);
   const [error, setError] = useState<string>();
   const [enviando, setEnviando] = useState(false);
   const t = TEXTOS[perfil];
@@ -61,18 +82,22 @@ export function FormularioIngreso() {
   }, [error]);
 
   const entrar = (sesion: SesionActiva) => router.replace(destinoTrasIngreso(sesion.rol, volver));
+  // 03b-4.1: con una sesion viva (cookie de refresh) no se pide entrar de nuevo.
+  const sesion = useSesion();
+  useEffect(() => {
+    if (sesion.tipo === 'desconocida') void renovarSesion();
+    else if (sesion.tipo === 'activa' && !desafio) router.replace(destinoTrasIngreso(sesion.sesion.rol, volver));
+  }, [sesion, desafio, router, volver]);
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
     setError(undefined);
     const esRut = pareceRut(usuario);
-    if (esRut && !rutValido(usuario)) {
-      setError('El RUT no es válido. Revisa el dígito verificador.');
-      return;
-    }
+    // El campo ya muestra el error del digito verificador (03b-4.1): no se envia.
+    if (esRut && !rutValido(usuario)) return;
     setEnviando(true);
     try {
-      const r = await iniciarSesion({ ...(esRut ? { rut: usuario.trim() } : { email: usuario.trim() }), password });
+      const r = await iniciarSesion({ ...(esRut ? { rut: rutNormalizado(usuario) } : { email: usuario.trim() }), password });
       if ('accessToken' in r) entrar(r);
       else setDesafio(r);
     } catch (err) {
@@ -87,7 +112,7 @@ export function FormularioIngreso() {
   if (desafio) {
     return (
       <TarjetaIngreso perfil={perfil}>
-        <PasoTotp desafio={desafio} onEntrar={entrar} onVolver={() => setDesafio(null)} />
+        <PasoSegundoFactor desafio={desafio} onEntrar={entrar} onVolver={() => setDesafio(null)} />
       </TarjetaIngreso>
     );
   }
@@ -121,10 +146,36 @@ export function FormularioIngreso() {
         </p>
       )}
 
+      {DEMO && (
+        <div className="mb-5 rounded-[18px] border border-dashed border-neutral-500 px-4 py-3">
+          <Field label="Modo demo: entrar como" hint="El código del segundo paso llega a Mailpit (http://localhost:8025).">
+            {(p) => (
+              <Select
+                {...p}
+                value=""
+                onChange={(e) => {
+                  const u = USUARIOS_DEMO.find((x) => x.usuario === e.target.value);
+                  if (!u) return;
+                  setPerfil(u.perfil);
+                  setUsuario(`${u.usuario}@centro-prueba.cl`);
+                  setPassword(PASSWORD_DEMO);
+                }}
+                className="!py-2.5"
+              >
+                <option value="">Elige un usuario demo…</option>
+                {USUARIOS_DEMO.map((u) => (
+                  <option key={u.usuario} value={u.usuario}>
+                    {u.etiqueta}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </div>
+      )}
+
       <form onSubmit={(e) => void enviar(e)} className="flex flex-col gap-4" noValidate>
-        <Field label={t.usuario}>
-          {(p) => <Input {...p} type="text" autoComplete="username" placeholder={t.ejemplo} value={usuario} onChange={(e) => setUsuario(e.target.value)} />}
-        </Field>
+        <CampoRut label="Correo o RUT" oCorreo autoComplete="username" placeholder={t.ejemplo} value={usuario} onChange={setUsuario} />
         <Field
           label="Contraseña"
           aside={

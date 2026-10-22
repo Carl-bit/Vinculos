@@ -12,10 +12,12 @@ import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { edadEn } from '@/lib/condiciones';
 import { useProfesionales } from '@/lib/consultas';
-import { formatoRut, rutValido } from '@/lib/formato';
+import { rutValido } from '@/lib/formato';
 import { useTiposAtencion, type PacienteVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
+import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
 
 const vacio = {
   nombre: '',
@@ -64,7 +66,7 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
           body: {
             nombre: d.nombre.trim(),
             apellido: d.apellido.trim(),
-            rut: d.rut.trim() || undefined,
+            rut: rutNormalizado(d.rut) || undefined,
             fechaNacimiento: d.fechaNacimiento,
             email: d.email.trim().toLowerCase() || undefined,
             telefono: d.telefono ? telefono(d.telefono) : undefined,
@@ -98,6 +100,12 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
     if (crear.error) alerta.current?.focus();
   }, [crear.error]);
 
+  /** 03b-4.1: formato al salir del campo (no al final). */
+  const alSalir = (k: 'email' | 'telefono' | 'adultoTelefono' | 'adultoEmail') => () => {
+    const ok = k.toLowerCase().includes('email') ? correoValido(d[k]) : telefonoValido(d[k]);
+    setErrores((e) => ({ ...e, [k]: ok ? undefined : k.toLowerCase().includes('email') ? 'Revisa el correo.' : 'Con código de país: +56 9 1234 5678.' }));
+  };
+
   const enviar = (e: FormEvent) => {
     e.preventDefault();
     const err: Errores = {};
@@ -127,26 +135,35 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
         <Field label="Apellido" required error={errores.apellido}>
           {(p) => <Input {...p} autoComplete="off" value={d.apellido} onChange={(e) => cambiar('apellido', e.target.value)} />}
         </Field>
-        <Field label="Fecha de nacimiento" required error={errores.fechaNacimiento}>
-          {(p) => <Input {...p} type="date" value={d.fechaNacimiento} onChange={(e) => cambiar('fechaNacimiento', e.target.value)} />}
+        <FechaNacimiento
+          label="Fecha de nacimiento"
+          required
+          error={errores.fechaNacimiento}
+          value={d.fechaNacimiento}
+          onChange={(v) => cambiar('fechaNacimiento', v)}
+          avisoMenor="Es menor de edad: registra abajo a su adulto responsable para poder agendarle horas."
+        />
+        <CampoRut
+          label="RUT"
+          hint="Opcional ahora; se exige antes de la primera evolución."
+          error={errores.rut}
+          value={d.rut}
+          onChange={(v) => cambiar('rut', v)}
+        />
+        <Field label="Correo" error={errores.email}>
+          {(p) => <Input {...p} type="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} onBlur={alSalir('email')} />}
         </Field>
-        <Field label="RUT" hint="Opcional ahora; se exige antes de la primera evolución." error={errores.rut}>
+        <Field label="Teléfono" error={errores.telefono}>
           {(p) => (
             <Input
               {...p}
-              inputMode="text"
-              placeholder="12.345.678-9"
-              value={d.rut}
-              onChange={(e) => cambiar('rut', e.target.value)}
-              onBlur={() => d.rut && cambiar('rut', formatoRut(d.rut))}
+              type="tel"
+              placeholder="+56 9 1234 5678"
+              value={d.telefono}
+              onChange={(e) => cambiar('telefono', e.target.value)}
+              onBlur={alSalir('telefono')}
             />
           )}
-        </Field>
-        <Field label="Correo" error={errores.email}>
-          {(p) => <Input {...p} type="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} />}
-        </Field>
-        <Field label="Teléfono" error={errores.telefono}>
-          {(p) => <Input {...p} type="tel" placeholder="+56 9 1234 5678" value={d.telefono} onChange={(e) => cambiar('telefono', e.target.value)} />}
         </Field>
         {admin && (
           <Field label="Profesional tratante" required error={errores.profesionalId}>
@@ -206,7 +223,15 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
               )}
             </Field>
             <Field label="Teléfono" error={errores.adultoTelefono}>
-              {(p) => <Input {...p} type="tel" value={d.adultoTelefono} onChange={(e) => cambiar('adultoTelefono', e.target.value)} />}
+              {(p) => (
+                <Input
+                  {...p}
+                  type="tel"
+                  value={d.adultoTelefono}
+                  onChange={(e) => cambiar('adultoTelefono', e.target.value)}
+                  onBlur={alSalir('adultoTelefono')}
+                />
+              )}
             </Field>
             <Field label="Correo" hint="Recibe los avisos y consentimientos del menor." error={errores.adultoEmail}>
               {(p) => <Input {...p} type="email" value={d.adultoEmail} onChange={(e) => cambiar('adultoEmail', e.target.value)} />}

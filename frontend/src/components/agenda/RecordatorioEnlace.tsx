@@ -66,7 +66,7 @@ export function RecordatorioEnlace() {
     } catch (e) {
       setCancelar(false);
       if (e instanceof ApiError && e.status === 409) {
-        setError('Esta hora ya cambió o el recordatorio ya se respondió. Revisa tu cuenta para ver el estado actual.');
+        setError('Esta hora ya cambió o el recordatorio ya se respondió. Revisa tu cuenta para ver cómo quedaron tus horas.');
         void cliente.invalidateQueries({ queryKey: ['recordatorio', token] });
       } else setError(e instanceof ApiError ? e.message : 'No pudimos registrar tu respuesta. Intenta de nuevo.');
     } finally {
@@ -129,7 +129,7 @@ export function RecordatorioEnlace() {
         <Aviso tono="info" titulo={r.respuesta ? 'Ya respondiste este recordatorio' : 'Este recordatorio ya no se puede responder'}>
           {r.respuesta
             ? 'Si necesitas cambiar algo, escríbele a tu profesional desde tu cuenta.'
-            : 'La hora ya pasó o cambió. Revisa tu cuenta para ver el estado actual de tus horas.'}
+            : 'La hora ya pasó o cambió. Revisa tu cuenta para ver cómo quedaron tus horas.'}
         </Aviso>
       ) : (
         <>

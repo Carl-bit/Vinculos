@@ -679,3 +679,93 @@ Pendiente (no implementado):
 - **Playwright:** pagar una deuda desde el portal y con el enlace del correo.
 - **Pasarela real:** el retorno del enlace vuelve a `/pagar` con el token (con
   la simulada no hay redireccion).
+
+## 21. Resolucion en 03b-4.1 (correctivo de pruebas manuales)
+
+Prompt 03b-4.1 (2026-10-21). 03b-5 queda en pausa hasta cerrar la seccion 4
+(backoffice conforme al diseño); el estado real de cada fase va al final.
+
+### Flujos publicos
+
+| Pedido | Resolucion |
+|---|---|
+| Relato del match con minimo | Contador visible, "Escribe al menos 10 caracteres (te faltan N)" mientras escribe y "Continuar" deshabilitado bajo el minimo (`lista()` en `PreguntaMatch`); un relato opcional a medias tampoco avanza (la API lo rechazaria al final) |
+| Validar al escribir o al salir del campo | RUT (en el momento), fecha (desplegables), correo y telefonos al salir del campo en Pedir hora y Nuevo paciente; el error se limpia al volver a escribir |
+| Presupuesto del match | Pregunta `presupuesto` con rangos editables por ADMIN (texto y tope en CLP) y "Prefiero no decirlo". Resultado por tramos con encabezado y tarifa visible en cada tarjeta; el recomendado lleva su tramo. No se guarda |
+| Textos para pacientes | Lista en "Textos cambiados" |
+| Filtros Online / Presencial | `ControlSegmentado` (pildora con icono, activo relleno, radios nativos con foco y flechas) en Pedir hora y en el filtro directo del match |
+
+### Textos cambiados (publico, portal y correo)
+
+| Donde | Antes | Ahora |
+|---|---|---|
+| Pedir hora, boton | Retener la hora y pagar | Reservar mi hora |
+| Pedir hora, bajada del horario | ... la hora queda retenida unos minutos mientras pagas | ... te guardamos la hora unos minutos mientras pagas |
+| Pedir hora, envio en curso | Reteniendo tu hora… | Reservando tu hora… |
+| Pedir hora, pago tardio | ... despues de que venciera la retencion ... | ... despues de que venciera el plazo para pagar ... |
+| Cuenta regresiva | Tu hora esta retenida / La retencion termino. | Te guardamos la hora / Termino el tiempo para confirmar. |
+| Confirmar correo de la reserva | la hora retenida queda reservada ... | la hora que elegiste queda reservada ... |
+| Confirmar correo, vencido o tomado | Vencio / Paso el tiempo de retencion | Vencio / Paso el tiempo para confirmar |
+| Recordatorio por enlace | ... ver el estado actual (de tus horas) | ... ver como quedaron tus horas |
+| Correo de verificacion de la reserva | Retuvimos la hora ... antes de que venza la retencion; despues la hora se libera ... | Le guardamos la hora ... antes de que venza el plazo; despues la hora queda disponible para otras personas ... |
+| Login, segundo paso | Ingresa tu codigo. / app de autenticacion | Revisa tu correo. / Te enviamos un codigo a tu correo (x•••@dominio). Vence en 10 minutos. |
+| Login, codigo malo | El codigo no es valido o ya vencio. Escribe el que muestra ahora tu app. | El codigo no es valido o vencio. Puedes pedir uno nuevo. |
+| Header publico con sesion | Iniciar sesion | Ir a mi panel (equipo) / Ir a mi cuenta (portal) |
+
+El panel del equipo mantiene "hora retenida" (lenguaje interno de
+coordinacion, no lo ve el paciente).
+
+### Formularios y acceso
+
+- `FechaNacimiento` (tres desplegables, bisiestos, 110 años, aviso de menor
+  que activa el adulto responsable) en Pedir hora, Nuevo paciente y Editar
+  paciente.
+- `CampoRut` en Pedir hora, Nuevo paciente, RUT de recepcion, datos para
+  pagos del profesional, RUT del centro y login. Envia `12345678-K`.
+- Login con correo o RUT para todos (paciente, responsable y equipo con RUT
+  en sus datos privados); error generico y mismo rate limit.
+- Verificacion en dos pasos por correo (obligatoria para el equipo, opcional
+  para pacientes en Seguridad), reenvio con cuenta regresiva de 60 s,
+  codigos de respaldo (copiar o descargar). TOTP oculto y apagado.
+
+### Sesion (6.1)
+
+Causa del "se pierde la sesion": el header publico siempre ofrecia "Iniciar
+sesion" y el login no miraba la cookie, asi que volver desde la landing
+pedia entrar de nuevo aunque la sesion seguia viva. Ahora el header publico
+y el login renuevan en silencio con la cookie de refresh (`AccesoCuenta`,
+`FormularioIngreso`); con sesion activa el header ofrece volver al panel y el
+login redirige. La cookie es `Secure` solo con HTTPS (`X-Forwarded-Proto` o
+el protocolo de la request): en localhost sin HTTPS sigue funcionando. En
+localStorage solo quedan la marca de actividad, la de salida y la vista de la
+agenda (Semana | Mes).
+
+### Backoffice
+
+- Mi perfil segun el diseño (cabecera con foto e indicadores, mis datos,
+  calificaciones, mis pacientes, mi cuenta) y, abajo, lo que el diseño no
+  tiene y la API si (tipos de atencion, trayectoria, tarifas, datos para
+  pagos, sala y calendario).
+- Selector de equipo con "Viendo a X" (ver su perfil, volver a todo el
+  equipo); agenda, pendientes y cobros ya se filtraban por el integrante.
+- Selector de rol: solo con mas de un rol (el ADMIN del seed tiene ADMIN y
+  PROFESIONAL). Entrar por URL a una seccion del menu que el rol no tiene
+  muestra "sin permiso" (`rutaPermitida`).
+- Agenda: "< periodo >" con Semana | Mes (control segmentado) y "Hoy";
+  vista mensual (hasta 3 sesiones por dia y "+N mas", que abre esa semana).
+
+### Diferencias que quedan con el diseño
+
+Lista por vista, con motivo, en `docs/front/capturas/03b-4.1/README.md`
+(capturas lado a lado en `comparadas/`). Pendiente sin motivo de BD: la tira
+de avatares de Equipo (se usa una lista vertical con estado); queda para
+decidir.
+
+### Estado real de las fases (2026-10-21)
+
+| Fase | Estado | Pendientes |
+|---|---|---|
+| 03b-2 (sitio publico) | Completa | — |
+| 03b-3 (cuentas y portal, con 3.1 a 3.4) | Completa | Lista de espera retirada (implementacion futura, seccion 16); pantalla de transferencias por validar dentro de Cobros ya existe como pendiente del inicio |
+| 03b-4 (backoffice segun diseño) | Con pendientes | Equipo: tira de avatares del diseño (lista vertical hoy); "Reservando..." ajeno y protocolo del centro fuera de la API; `impeccable detect` marca `border-l-4` en las sesiones de la vista semanal (de 03b-4, no de este correctivo) |
+| 03b-5 | En pausa | No se avanza hasta cerrar 03b-4 |

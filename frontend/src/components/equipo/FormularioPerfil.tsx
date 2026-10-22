@@ -192,15 +192,19 @@ export function FormularioPerfil({
           {estado.error}
         </p>
       )}
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {estado.ok && (
-          <p role="status" className="m-0 mr-auto text-[13px] font-bold text-accent-2-800">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
+          {perfil ? (modo === 'propio' ? 'Guardar mi perfil' : 'Guardar perfil') : 'Crear perfil'}
+        </Button>
+        {estado.ok ? (
+          <p role="status" className="m-0 text-[13px] font-bold text-accent-2-800">
             Perfil guardado. Los cambios se ven en la página pública si está publicado.
           </p>
+        ) : (
+          modo === 'propio' && (
+            <p className="m-0 text-[12.5px] font-semibold text-neutral-700">Los cambios se reflejan también en mi perfil público del centro.</p>
+          )
         )}
-        <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
-          {perfil ? 'Guardar perfil' : 'Crear perfil'}
-        </Button>
       </div>
     </form>
   );

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
+import { ControlSegmentado } from '@/components/ui/ControlSegmentado';
 import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
 import { formatoFechaLarga, formatoHora } from '@/lib/formato';
@@ -93,22 +94,14 @@ function Grilla({
 
   return (
     <div className="flex flex-col gap-5">
-      {modalidades.length > 1 && (
-        <fieldset className="m-0 flex flex-wrap gap-2.5 border-0 p-0">
-          <legend className="mb-2.5 text-[11px] font-extrabold tracking-[0.12em] text-neutral-700 uppercase">Modalidad</legend>
-          {modalidades.map((m) => (
-            <label
-              key={m}
-              className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border-[1.5px] px-5 text-sm font-extrabold transition-colors duration-200 has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
-                activa === m ? 'border-accent-2-600 bg-accent-2-200 text-accent-2-900' : 'border-neutral-400 bg-bg hover:border-accent-500'
-              }`}
-            >
-              <input type="radio" name="modalidad" className="sr-only" checked={activa === m} onChange={() => setModalidad(m)} />
-              <Icon name={m === 'ONLINE' ? 'videocam' : 'meeting_room'} />
-              {NOMBRE_MODALIDAD_CITA[m]}
-            </label>
-          ))}
-        </fieldset>
+      {modalidades.length > 1 && activa && (
+        <ControlSegmentado
+          etiqueta="Modalidad"
+          conLeyenda
+          valor={activa}
+          onChange={setModalidad}
+          opciones={modalidades.map((m) => ({ valor: m, etiqueta: NOMBRE_MODALIDAD_CITA[m], icono: m === 'ONLINE' ? 'videocam' : 'meeting_room' }))}
+        />
       )}
 
       <div>

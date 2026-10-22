@@ -15,7 +15,7 @@ import { ErrorCifrado } from '../src/common/crypto/cifrado';
 import { Roles } from '../src/core/auth/decoradores';
 import { ContextoBd } from '../src/core/bd/contexto-bd.service';
 import { JobsService } from '../src/core/jobs/jobs.service';
-import { auth, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, crearApp, ultimoCodigo, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 class EcoDto {
   @IsString() rut!: string;
@@ -89,8 +89,14 @@ describe('02a infraestructura', () => {
   afterAll(() => t.cerrar());
 
   describe('login', () => {
-    it('valido: 200 con access y refresh token', async () => {
-      const r = await t.http().post('/api/auth/login').send({ email: admin.email, password: 'clave-de-prueba-123' });
+    it('valido: 200 con access y refresh token (03b-4.1: tras el codigo por correo)', async () => {
+      const d = await t.http().post('/api/auth/login').send({ email: admin.email, password: 'clave-de-prueba-123' });
+      expect(d.body).toEqual(expect.objectContaining({ requiereSegundoFactor: true, metodo: 'CORREO' }));
+      expect(d.body.accessToken).toBeUndefined();
+      const r = await t
+        .http()
+        .post('/api/auth/segundo-factor')
+        .send({ desafio: d.body.desafio, codigo: ultimoCodigo(t.app, admin.email) });
       expect(r.status).toBe(200);
       expect(r.body).toEqual(expect.objectContaining({ rol: 'ADMIN', expiraEn: 900 }));
       expect(typeof r.body.accessToken).toBe('string');

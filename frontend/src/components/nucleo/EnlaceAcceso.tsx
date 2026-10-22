@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-import { PasoTotp } from '@/components/shared/PasoTotp';
+import { PasoSegundoFactor } from '@/components/shared/PasoSegundoFactor';
 import { TarjetaIngreso, TituloIngreso } from '@/components/shared/TarjetaIngreso';
 import { Button } from '@/components/ui/Button';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { inicioDeRol } from '@/lib/roles';
-import { usarEnlaceAcceso, type DesafioTotp, type SesionActiva } from '@/lib/sesion';
+import { usarEnlaceAcceso, type DesafioSegundoFactor, type SesionActiva } from '@/lib/sesion';
 
 import { PedirEnlaceCorreo } from './PedirEnlaceCorreo';
 import { ResultadoCuenta } from './ResultadoCuenta';
@@ -46,7 +46,7 @@ export function EnlaceAcceso() {
 
 function UsarEnlace({ token }: { token: string }) {
   const router = useRouter();
-  const [desafio, setDesafio] = useState<DesafioTotp>();
+  const [desafio, setDesafio] = useState<DesafioSegundoFactor>();
   const [vencido, setVencido] = useState(false);
   const [error, setError] = useState<string>();
   const [enviando, setEnviando] = useState(false);
@@ -67,7 +67,7 @@ function UsarEnlace({ token }: { token: string }) {
     }
   };
 
-  if (desafio) return <PasoTotp desafio={desafio} onEntrar={entrar} onVolver={() => router.replace('/ingreso')} />;
+  if (desafio) return <PasoSegundoFactor desafio={desafio} onEntrar={entrar} onVolver={() => router.replace('/ingreso')} />;
   if (vencido) {
     return (
       <ResultadoCuenta

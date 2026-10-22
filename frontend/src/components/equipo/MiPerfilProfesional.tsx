@@ -29,6 +29,7 @@ import { formatoClp, formatoFecha, rutValido } from '@/lib/formato';
 import { useTiposAtencion } from '@/lib/panel';
 
 import { FormularioPerfil } from './FormularioPerfil';
+import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
 
 type DatosPrivadosDto = components['schemas']['DatosPrivadosDto'];
 const BANCOS: NonNullable<DatosPrivadosDto['banco']>[] = [
@@ -58,29 +59,57 @@ const CUENTAS: Record<NonNullable<DatosPrivadosDto['tipoCuenta']>, string> = {
 const ESTADO_RESENA = { PENDIENTE: 'Por moderar', PUBLICADA: 'Publicada', OCULTA: 'Oculta', RETIRADA: 'Retirada' } as const;
 
 /**
- * Lo que el profesional gestiona de si mismo (diseño "Mi Perfil"): perfil
- * publico, tipos de atencion y especialidades que declara (ADMIN aprueba),
- * trayectoria, tarifas, datos para pagos y las reseñas que recibio (con el
- * feedback privado, solo visible para el).
+ * "Mis datos y descripcion" (diseño "Admin - Mi Perfil"): lo que sale en el
+ * perfil publico. Años de experiencia y registro profesional salen de la
+ * trayectoria verificada (solo lectura: se editan en Trayectoria).
  */
-export function MiPerfilProfesional({ usuarioId, practicante }: { usuarioId: string; practicante: boolean }) {
-  const perfil = usePerfilProfesional(practicante ? undefined : usuarioId);
+export function MisDatosDescripcion({ usuarioId }: { usuarioId: string }) {
+  const perfil = usePerfilProfesional(usuarioId);
+  const trayectoria = useTrayectoria(usuarioId).data ?? [];
+  const verificada = trayectoria.filter((t) => t.verificado);
+  const primerAnio = Math.min(...verificada.filter((t) => t.tipo === 'TITULO').map((t) => t.anio));
+  const registro = verificada.find((t) => t.registroSuperintendencia)?.registroSuperintendencia;
+  const soloLectura = (etiqueta: string, valor: string) => (
+    <div className="flex flex-col gap-[7px]">
+      <span className="text-[12.5px] font-extrabold">{etiqueta}</span>
+      <span className="rounded-full border-[1.5px] border-dashed border-neutral-400 px-[18px] py-3 text-[15px] font-semibold text-neutral-800">{valor}</span>
+    </div>
+  );
+  return (
+    <Panel
+      titulo="Mis datos y descripción"
+      bajada={
+        <span className="inline-flex items-center gap-1.5">
+          <Icon name="public" size={16} />
+          Estos datos se muestran en mi perfil público del centro.
+        </span>
+      }
+    >
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {soloLectura('Años de experiencia', Number.isFinite(primerAnio) ? `${new Date().getFullYear() - primerAnio} años` : 'Según tu título verificado')}
+        {soloLectura('Registro profesional', registro ? `Superintendencia de Salud · ${registro}` : 'Sin registro verificado')}
+      </div>
+      <div className="mt-4">
+        <EstadoConsulta consulta={perfil}>
+          {(p) => <FormularioPerfil key={p?.updatedAt ?? 'nuevo'} modo="propio" profesionalId={usuarioId} perfil={p} puedeFoto={false} />}
+        </EstadoConsulta>
+      </div>
+    </Panel>
+  );
+}
+
+/**
+ * Lo demas que el profesional gestiona de si mismo: tipos de atencion y
+ * especialidades que declara (ADMIN aprueba), trayectoria, tarifas y datos
+ * para pagos. El practicante solo trayectoria y datos para pagos.
+ */
+export function MasDeMiPerfil({ usuarioId, practicante }: { usuarioId: string; practicante: boolean }) {
   return (
     <div className="flex flex-col gap-6">
-      {!practicante && (
-        <Panel titulo="Mis datos y descripción" bajada="Estos datos se muestran en mi perfil público del centro.">
-          <div className="mt-4">
-            <EstadoConsulta consulta={perfil}>
-              {(p) => <FormularioPerfil key={p?.updatedAt ?? 'nuevo'} modo="propio" profesionalId={usuarioId} perfil={p} puedeFoto />}
-            </EstadoConsulta>
-          </div>
-        </Panel>
-      )}
       {!practicante && <MisDeclaraciones usuarioId={usuarioId} />}
       <MiTrayectoria usuarioId={usuarioId} />
       {!practicante && <MisTarifas usuarioId={usuarioId} />}
       <MisDatosPrivados usuarioId={usuarioId} />
-      {!practicante && <MisResenas />}
     </div>
   );
 }
@@ -456,7 +485,7 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
       datos(
         api.PUT('/api/profesionales/yo/datos-privados', {
           body: {
-            rut: f.rut.trim() || undefined,
+            rut: rutNormalizado(f.rut) || undefined,
             banco: (f.banco || undefined) as DatosPrivadosDto['banco'],
             tipoCuenta: (f.tipoCuenta || undefined) as DatosPrivadosDto['tipoCuenta'],
             numeroCuenta: f.numeroCuenta.trim() || undefined,
@@ -479,7 +508,7 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
   return (
     <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="RUT">{(x) => <Input {...x} value={f.rut} maxLength={12} onChange={cambiar('rut')} placeholder="12.345.678-9" />}</Field>
+        <CampoRut label="RUT" hint="También sirve para iniciar sesión." value={f.rut} onChange={(v) => setF((a) => ({ ...a, rut: v }))} />
         <Field label="Titular de la cuenta">{(x) => <Input {...x} value={f.titular} maxLength={120} onChange={cambiar('titular')} />}</Field>
         <Field label="Banco">
           {(x) => (
@@ -528,13 +557,32 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
   );
 }
 
-function MisResenas() {
+/** Calificaciones recibidas (con el feedback privado, solo visible para el profesional). */
+export function MisResenas() {
   const resenas = useQuery({ queryKey: ['equipo', 'mis-resenas'], queryFn: () => datos(api.GET('/api/profesionales/yo/resenas')) });
+  const publicadas = (resenas.data ?? []).filter((r) => r.estado === 'PUBLICADA');
+  const promedio = publicadas.length ? publicadas.reduce((a, r) => a + r.calificacion, 0) / publicadas.length : null;
   return (
     <Panel
-      titulo="Mis calificaciones"
-      bajada="Solo lectura: son anónimas y no puedo editarlas ni eliminarlas. El comentario privado solo lo veo yo."
-      accion={<Badge>Solo lectura</Badge>}
+      titulo={
+        <span className="inline-flex flex-wrap items-center gap-2.5">
+          Mis calificaciones <Badge>Solo lectura</Badge>
+        </span>
+      }
+      bajada="Son anónimas y no puedo editarlas ni eliminarlas. El comentario privado solo lo veo yo."
+      accion={
+        promedio !== null && (
+          <span className="flex items-center gap-2.5 rounded-[18px] border border-divider bg-bg px-4 py-2">
+            <span className="text-[30px] leading-none font-black tracking-[-0.04em] tabular-nums">{promedio.toFixed(1).replace('.', ',')}</span>
+            <span className="flex flex-col gap-0.5">
+              <Estrellas valor={Math.round(promedio)} />
+              <span className="text-[12px] font-bold text-neutral-700">
+                {publicadas.length} {publicadas.length === 1 ? 'calificación' : 'calificaciones'}
+              </span>
+            </span>
+          </span>
+        )
+      }
     >
       <div className="mt-4">
         <EstadoConsulta consulta={resenas} vacio={(l) => l.length === 0} textoVacio="Todavía no recibes calificaciones">

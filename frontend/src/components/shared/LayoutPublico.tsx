@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Icon } from '@/components/ui/Icon';
 import { centroPublico } from '@/lib/api/servidor';
 
+import { AccesoCuenta } from './AccesoCuenta';
 import { Marca, NOMBRE_CENTRO } from './Marca';
 
 /**
@@ -36,12 +37,7 @@ export async function LayoutPublico({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <Link
-          href="/ingreso"
-          className="ml-auto rounded-full border-[1.5px] border-neutral-400 px-5 py-2.5 text-sm font-extrabold whitespace-nowrap text-text transition-colors duration-200 hover:border-accent-500 hover:bg-accent-200 hover:text-text md:ml-0"
-        >
-          Iniciar sesión
-        </Link>
+        <AccesoCuenta />
       </header>
       <main className="flex-1">{children}</main>
       <footer className="flex flex-wrap items-center gap-x-[22px] gap-y-2 py-[30px] text-[13px] font-semibold text-neutral-700">

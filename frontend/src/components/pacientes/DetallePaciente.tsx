@@ -33,6 +33,8 @@ import {
   HistorialSesiones,
   IndicacionesPaciente,
 } from './SeccionesPaciente';
+import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
 
 /**
  * Detalle del paciente (diseño "Fichas y Pacientes", lado administrativo):
@@ -128,7 +130,7 @@ function RegistroRut({ paciente }: { paciente: PacienteVista }) {
   const [rut, setRut] = useState('');
   const [error, setError] = useState<string>();
   const guardar = useMutation({
-    mutationFn: () => datos(api.PATCH('/api/pacientes/{id}', { params: { path: { id: paciente.id } }, body: { rut: rut.trim() } })),
+    mutationFn: () => datos(api.PATCH('/api/pacientes/{id}', { params: { path: { id: paciente.id } }, body: { rut: rutNormalizado(rut) } })),
     onSuccess: (p) => cliente.setQueryData(['panel', 'paciente', paciente.id], p),
     onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos guardar el RUT.'),
   });
@@ -146,18 +148,7 @@ function RegistroRut({ paciente }: { paciente: PacienteVista }) {
       <p className="m-0 mb-3">Regístralo en recepción: se exige antes de la primera evolución y evita registros duplicados.</p>
       <form onSubmit={enviar} noValidate className="flex flex-wrap items-start gap-2.5">
         <div className="w-full max-w-[240px]">
-          <Field label="RUT" error={error}>
-            {(p) => (
-              <Input
-                {...p}
-                placeholder="12.345.678-9"
-                value={rut}
-                onChange={(e) => setRut(e.target.value)}
-                onBlur={() => rut && setRut(formatoRut(rut))}
-                className="!bg-neutral-100 !py-2.5"
-              />
-            )}
-          </Field>
+          <CampoRut label="RUT" error={error} value={rut} onChange={setRut} />
         </div>
         <Button type="submit" variant="team" icon="save" loading={guardar.isPending} className="mt-[26px]">
           Guardar RUT
@@ -287,9 +278,14 @@ function EditarPaciente({ paciente, onListo }: { paciente: PacienteVista; onList
         <Field label="Apellido" required>
           {(p) => <Input {...p} value={d.apellido} onChange={(e) => cambiar('apellido', e.target.value)} />}
         </Field>
-        <Field label="Fecha de nacimiento" required hint="Define si es menor de edad: la BD exige adulto responsable para agendar a un menor.">
-          {(p) => <Input {...p} type="date" value={d.fechaNacimiento} onChange={(e) => cambiar('fechaNacimiento', e.target.value)} />}
-        </Field>
+        <FechaNacimiento
+          label="Fecha de nacimiento"
+          required
+          hint="Define si es menor de edad: para agendarle horas a un menor hace falta su adulto responsable."
+          value={d.fechaNacimiento}
+          onChange={(v) => cambiar('fechaNacimiento', v)}
+          avisoMenor="Con esta fecha es menor de edad: necesita un adulto responsable registrado para agendar."
+        />
         <Field label="Correo">{(p) => <Input {...p} type="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} />}</Field>
         <Field label="Teléfono">{(p) => <Input {...p} type="tel" value={d.telefono} onChange={(e) => cambiar('telefono', e.target.value)} />}</Field>
       </div>

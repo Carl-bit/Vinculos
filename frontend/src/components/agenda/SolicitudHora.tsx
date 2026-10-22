@@ -25,6 +25,8 @@ import { nombreCorto, nombrePerfil } from '@/lib/perfiles';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
 import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
+import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
 
 type Centro = components['schemas']['CentroPublico'];
 type Perfil = components['schemas']['PerfilPublico'];
@@ -64,6 +66,9 @@ const VACIO: Datos = {
   aceptaTerminos: false,
   sitioWeb: '',
 };
+
+const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MENSAJE_CORREO = 'Escribe un correo válido: ahí llegan la confirmación y la invitación a tu cuenta.';
 
 /** Tarifa aplicable a la modalidad elegida (la mas especifica sin tipo de atencion). */
 const tarifaPara = (p: Perfil, m: Bloque['modalidad']) =>
@@ -109,7 +114,16 @@ export function SolicitudHora({
 
   const edad = bloque && /^\d{4}-\d{2}-\d{2}$/.test(d.fechaNacimiento) ? edadEn(d.fechaNacimiento, bloque.inicio) : null;
   const menor = d.paraMenor || (edad !== null && edad < 18);
-  const cambiar = <K extends keyof Datos>(k: K, v: Datos[K]) => setD((a) => ({ ...a, [k]: v }));
+  const cambiar = <K extends keyof Datos>(k: K, v: Datos[K]) => {
+    setD((a) => ({ ...a, [k]: v }));
+    // El error de un campo se vuelve a revisar al salir de el (03b-4.1), no al final.
+    if (errores[k]) setErrores((e) => ({ ...e, [k]: undefined }));
+  };
+  const alSalir = (k: 'email' | 'telefono' | 'adultoTelefono') => () => {
+    const v = d[k].trim();
+    const malo = k === 'email' ? v !== '' && !CORREO.test(v) : v !== '' && !TELEFONO.test(v.replace(/\s/g, ''));
+    if (malo) setErrores((e) => ({ ...e, [k]: k === 'email' ? MENSAJE_CORREO : 'Formato +56 9 1234 5678.' }));
+  };
 
   useEffect(() => {
     if (montado.current) titulo.current?.focus();
@@ -125,7 +139,7 @@ export function SolicitudHora({
     if (!d.apellido.trim()) e.apellido = 'Escribe el apellido del paciente.';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fechaNacimiento) || new Date(d.fechaNacimiento) > new Date())
       e.fechaNacimiento = 'Indica una fecha de nacimiento válida.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = 'Escribe un correo válido: ahí llegan la confirmación y la invitación a tu cuenta.';
+    if (!CORREO.test(d.email.trim())) e.email = MENSAJE_CORREO;
     if (d.telefono && !TELEFONO.test(d.telefono.replace(/\s/g, ''))) e.telefono = 'Formato +56 9 1234 5678.';
     if (d.rut && !rutValido(d.rut)) e.rut = 'El RUT no es válido. Revisa el dígito verificador.';
     if (menor) {
@@ -163,7 +177,7 @@ export function SolicitudHora({
             fechaNacimiento: d.fechaNacimiento,
             email: d.email.trim(),
             telefono: opcional(d.telefono),
-            rut: d.rut.trim() || undefined,
+            rut: rutNormalizado(d.rut) || undefined,
             ...(menor ? { adultoNombre: d.adultoNombre.trim(), adultoParentesco: d.adultoParentesco.trim(), adultoTelefono: opcional(d.adultoTelefono) } : {}),
             ...(match ? { respuestas: match.respuestas, recomendadoId: match.recomendadoId ?? undefined } : {}),
             politicaId: politicaDatos.id,
@@ -239,7 +253,7 @@ export function SolicitudHora({
               Elige el horario de tu sesión
             </h1>
             <p className="m-0 mb-6 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
-              Estas son las horas libres de {nombreCorto(perfil)}. Al enviar tus datos, la hora queda retenida unos minutos mientras pagas.
+              Estas son las horas libres de {nombreCorto(perfil)}. Al enviar tus datos, te guardamos la hora unos minutos mientras pagas.
             </p>
             <div className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
               <SelectorHorario
@@ -296,22 +310,32 @@ export function SolicitudHora({
                   <Input {...p} autoComplete={d.paraMenor ? 'off' : 'family-name'} value={d.apellido} onChange={(e) => cambiar('apellido', e.target.value)} />
                 )}
               </Field>
-              <Field label="Fecha de nacimiento" required error={errores.fechaNacimiento}>
+              <FechaNacimiento
+                label="Fecha de nacimiento"
+                required
+                error={errores.fechaNacimiento}
+                value={d.fechaNacimiento}
+                onChange={(v) => cambiar('fechaNacimiento', v)}
+                avisoMenor={d.paraMenor ? undefined : 'Es menor de 18 años: más abajo te pediremos los datos de su adulto responsable.'}
+              />
+              <CampoRut
+                label="RUT"
+                hint="Opcional. Lo pedimos en la primera sesión si no lo tienes a mano."
+                error={errores.rut}
+                value={d.rut}
+                onChange={(v) => cambiar('rut', v)}
+              />
+              <Field label={menor ? 'Correo del adulto responsable' : 'Correo'} required error={errores.email}>
                 {(p) => (
                   <Input
                     {...p}
-                    type="date"
-                    max={new Date().toISOString().slice(0, 10)}
-                    value={d.fechaNacimiento}
-                    onChange={(e) => cambiar('fechaNacimiento', e.target.value)}
+                    type="email"
+                    autoComplete="email"
+                    value={d.email}
+                    onChange={(e) => cambiar('email', e.target.value)}
+                    onBlur={alSalir('email')}
                   />
                 )}
-              </Field>
-              <Field label="RUT" hint="Opcional. Lo pedimos en la primera sesión si no lo tienes a mano." error={errores.rut}>
-                {(p) => <Input {...p} inputMode="text" placeholder="12.345.678-9" value={d.rut} onChange={(e) => cambiar('rut', e.target.value)} />}
-              </Field>
-              <Field label={menor ? 'Correo del adulto responsable' : 'Correo'} required error={errores.email}>
-                {(p) => <Input {...p} type="email" autoComplete="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} />}
               </Field>
               <Field label="Teléfono" hint="Opcional." error={errores.telefono}>
                 {(p) => (
@@ -322,6 +346,7 @@ export function SolicitudHora({
                     placeholder="+56 9 1234 5678"
                     value={d.telefono}
                     onChange={(e) => cambiar('telefono', e.target.value)}
+                    onBlur={alSalir('telefono')}
                   />
                 )}
               </Field>
@@ -357,6 +382,7 @@ export function SolicitudHora({
                       placeholder="+56 9 1234 5678"
                       value={d.adultoTelefono}
                       onChange={(e) => cambiar('adultoTelefono', e.target.value)}
+                      onBlur={alSalir('adultoTelefono')}
                     />
                   )}
                 </Field>
@@ -402,7 +428,7 @@ export function SolicitudHora({
 
             <div className="flex flex-wrap items-center gap-3">
               <Button type="submit" variant="team" size="lg" icon="arrow_forward" loading={enviando}>
-                Retener la hora y pagar
+                Reservar mi hora
               </Button>
               <Button variant="ghost" icon="arrow_back" onClick={() => setPaso(0)}>
                 Cambiar el horario
@@ -511,7 +537,7 @@ function ResultadoReserva({
   if (!estado) {
     return (
       <p className="m-0 text-[14px] font-bold text-neutral-700" aria-live="polite">
-        Reteniendo tu hora…
+        Reservando tu hora…
       </p>
     );
   }
@@ -551,7 +577,7 @@ function ResultadoReserva({
       <section className="entrada flex flex-col gap-5" aria-live="polite">
         {encabezado('info', 'Recibimos tu pago, pero la hora ya no estaba')}
         {parrafo(
-          `El pago llegó después de que venciera la retención y otra persona tomó la hora. El centro te contactará para devolverlo${
+          `El pago llegó después de que venciera el plazo para pagar y otra persona tomó la hora. El centro te contactará para devolverlo${
             centro.contacto_correo ? `; también puedes escribir a ${centro.contacto_correo}` : ''
           }.`,
         )}

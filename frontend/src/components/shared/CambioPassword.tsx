@@ -13,7 +13,7 @@ import { ApiError } from '@/lib/api/errores';
 import { CamposPassword, errorPassword } from './CamposPassword';
 
 /** Cambiar la contraseña con la actual (portal y "Mi perfil" del backoffice). */
-export function CambioPassword({ tono = 'patient' }: { tono?: 'patient' | 'team' }) {
+export function CambioPassword({ tono = 'patient', enPanel = true }: { tono?: 'patient' | 'team'; enPanel?: boolean }) {
   const [actual, setActual] = useState('');
   const [nueva, setNueva] = useState('');
   const [repetida, setRepetida] = useState('');
@@ -41,29 +41,34 @@ export function CambioPassword({ tono = 'patient' }: { tono?: 'patient' | 'team'
     cambiar.mutate();
   };
 
-  return (
+  const formulario = (
+    <form onSubmit={enviar} className="flex max-w-[460px] flex-col gap-4" noValidate>
+      {listo && (
+        <Aviso tono="exito" role="status">
+          Listo, tu contraseña cambió. Úsala la próxima vez que ingreses.
+        </Aviso>
+      )}
+      <Field label="Contraseña actual" error={errores.actual}>
+        {(p) => <Input {...p} type="password" autoComplete="current-password" value={actual} onChange={(e) => setActual(e.target.value)} />}
+      </Field>
+      <CamposPassword nueva={nueva} repetida={repetida} onNueva={setNueva} onRepetida={setRepetida} errores={errores} />
+      {cambiar.error && !errores.actual && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {cambiar.error instanceof ApiError ? cambiar.error.message : 'No pudimos cambiar la contraseña.'}
+        </p>
+      )}
+      <div>
+        <Button type="submit" variant={tono === 'team' ? 'team' : 'primary'} icon="lock" loading={cambiar.isPending}>
+          Cambiar contraseña
+        </Button>
+      </div>
+    </form>
+  );
+  return enPanel ? (
     <Panel titulo="Cambiar contraseña" bajada="Te pediremos la actual para confirmar que eres tú.">
-      <form onSubmit={enviar} className="flex max-w-[460px] flex-col gap-4" noValidate>
-        {listo && (
-          <Aviso tono="exito" role="status">
-            Listo, tu contraseña cambió. Úsala la próxima vez que ingreses.
-          </Aviso>
-        )}
-        <Field label="Contraseña actual" error={errores.actual}>
-          {(p) => <Input {...p} type="password" autoComplete="current-password" value={actual} onChange={(e) => setActual(e.target.value)} />}
-        </Field>
-        <CamposPassword nueva={nueva} repetida={repetida} onNueva={setNueva} onRepetida={setRepetida} errores={errores} />
-        {cambiar.error && !errores.actual && (
-          <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
-            {cambiar.error instanceof ApiError ? cambiar.error.message : 'No pudimos cambiar la contraseña.'}
-          </p>
-        )}
-        <div>
-          <Button type="submit" variant={tono === 'team' ? 'team' : 'primary'} icon="lock" loading={cambiar.isPending}>
-            Cambiar contraseña
-          </Button>
-        </div>
-      </form>
+      {formulario}
     </Panel>
+  ) : (
+    formulario
   );
 }

@@ -5,12 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { CamposPassword, errorPassword } from '@/components/shared/CamposPassword';
-import { PasoTotp } from '@/components/shared/PasoTotp';
+import { PasoSegundoFactor } from '@/components/shared/PasoSegundoFactor';
 import { TarjetaIngreso, TituloIngreso } from '@/components/shared/TarjetaIngreso';
 import { Button } from '@/components/ui/Button';
 import { ApiError } from '@/lib/api/errores';
 import { inicioDeRol } from '@/lib/roles';
-import { activarCuenta, type DesafioTotp, type SesionActiva } from '@/lib/sesion';
+import { activarCuenta, type DesafioSegundoFactor, type SesionActiva } from '@/lib/sesion';
 
 import { ResultadoCuenta } from './ResultadoCuenta';
 
@@ -26,7 +26,7 @@ export function ActivarCuenta() {
   const [nueva, setNueva] = useState('');
   const [repetida, setRepetida] = useState('');
   const [errores, setErrores] = useState<{ nueva?: string; repetida?: string }>({});
-  const [desafio, setDesafio] = useState<DesafioTotp>();
+  const [desafio, setDesafio] = useState<DesafioSegundoFactor>();
   const [vencido, setVencido] = useState(false);
   const [error, setError] = useState<string>();
   const [enviando, setEnviando] = useState(false);
@@ -58,7 +58,7 @@ export function ActivarCuenta() {
   return (
     <TarjetaIngreso perfil="paciente">
       {desafio ? (
-        <PasoTotp desafio={desafio} onEntrar={entrar} onVolver={() => router.replace('/ingreso?perfil=equipo')} />
+        <PasoSegundoFactor desafio={desafio} onEntrar={entrar} onVolver={() => router.replace('/ingreso?perfil=equipo')} />
       ) : !token ? (
         <ResultadoCuenta
           icono="link"

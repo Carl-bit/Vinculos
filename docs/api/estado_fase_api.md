@@ -408,3 +408,26 @@ sin editar las aplicadas:
   segunda transferencia, sin medios en linea, enlace, cobro del profesional) y
   ajustes en 93 y 127; integracion `test/03b34-deuda-enlace.e2e-spec.ts` y
   `03b33` ajustado; Vitest `PasoPago` (saldo).
+
+## 03b-4.1 (correctivo: segundo factor por correo, login por RUT, presupuesto del match)
+
+- Migraciones `20261029000000_03b41_enums` y
+  `20261029000100_03b41_segundo_factor_presupuesto` (detalle en
+  `docs/seguridad/requisitos_02_apis.md`, seccion 03b-4.1, y en la matriz).
+- API: `POST auth/segundo-factor` (codigo del correo o de respaldo; la primera
+  vez devuelve `codigosRespaldo`), `POST auth/segundo-factor/codigo`
+  (reenvio, 409 antes de 60 s), `GET/PUT usuarios/yo/segundo-factor`,
+  `POST usuarios/yo/segundo-factor/codigos-respaldo`. El login, el enlace de
+  acceso y la activacion responden `DesafioSegundoFactor` (antes
+  `DesafioTotp`). TOTP tras `TOTP_HABILITADO` (apagado: rutas 404). Login por
+  RUT del adulto responsable y del equipo. `POST publico/match` con
+  `tarifa` y `tramo` por opcion (pregunta `presupuesto`). Correo de
+  verificacion de la reserva sin "retencion".
+- Seed demo: `admin` con ADMIN + PROFESIONAL, `profesional4` a `profesional6`,
+  tipos de atencion que reconoce el match, un paciente y dos horas por
+  profesional nuevo; los codigos del seed se capturan en el proceso (ya no
+  hay `infra/local/totp-demo.txt`). Usuarios: `docs/pruebas/usuarios_demo.md`.
+- Tests: `seguridad_bd.sql` caso 134 (nuevo) y 113/78 ajustados; integracion
+  `test/03b41-correctivo.e2e-spec.ts` (nuevo) y `02a`, `02b`, `03a`
+  ajustados al codigo por correo (el helper lee el codigo del proveedor
+  simulado); unitario `reglas-match.spec.ts` (tramos).

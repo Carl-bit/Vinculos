@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Rol } from '@prisma/client';
@@ -10,7 +10,8 @@ import { ContextoBd } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
 import { esSqlstate } from '../errores/sqlstate';
 import { CorreosCuenta } from '../notificaciones/correos-cuenta';
-import type { DesafioTotp, Tokens } from './auth.dto';
+import type { DesafioSegundoFactor, Tokens } from './auth.dto';
+import { enmascararCorreo, esCodigoRespaldo, ESPERA_REENVIO_SEGUNDOS, hashCodigo, nuevoCodigoCorreo, nuevosCodigosRespaldo } from './segundo-factor';
 import { HORA, hashToken, nuevoTokenCorreo } from './tokens-correo';
 import { nuevoSecretoTotp, uriTotp, verificarTotp } from './totp';
 
@@ -24,7 +25,10 @@ interface Credenciales {
 
 const NO_AUTORIZADO = 'Credenciales invalidas o cuenta sin acceso';
 const COSTO_BCRYPT = 12;
-const DESAFIO_MINUTOS = 5;
+/** Cubre los 10 minutos del codigo por correo y un reenvio. */
+const DESAFIO_MINUTOS = 15;
+const CODIGO_INVALIDO = 'El código no es válido o venció. Puedes pedir uno nuevo.';
+type Metodo = DesafioSegundoFactor['metodo'];
 
 /**
  * Login y sesiones. Corre sin contexto RLS (funciones de login y sesiones,
@@ -41,10 +45,14 @@ const DESAFIO_MINUTOS = 5;
  *
  * 03a: una cuenta puede tener dos roles (ADMIN o GESTION + PROFESIONAL); la
  * sesion trabaja con uno (rol del JWT = app.current_rol) y se cambia sin
- * cerrar sesion (cambiar_rol_sesion: token nuevo). TOTP obligatorio si la
- * cuenta tiene un rol clinico (PROFESIONAL o PRACTICANTE) y opcional para el
- * resto (si lo activo, se pide). Recuperacion, acceso por enlace (pacientes)
- * e invitaciones: tokens de un solo uso por correo (tokens_correo).
+ * cerrar sesion (cambiar_rol_sesion: token nuevo). Recuperacion, acceso por
+ * enlace (pacientes) e invitaciones: tokens de un solo uso por correo
+ * (tokens_correo).
+ *
+ * 03b-4.1: segundo factor por correo, obligatorio para todo el equipo y
+ * opcional para pacientes y responsables; la primera verificacion entrega 10
+ * codigos de respaldo. El TOTP de 03a queda tras TOTP_HABILITADO (apagado):
+ * sus rutas responden 404 y el login nunca lo pide.
  */
 @Injectable()
 export class AuthService {
@@ -59,38 +67,119 @@ export class AuthService {
     private readonly correos: CorreosCuenta,
   ) {}
 
-  async login(identificador: { email?: string; rut?: string }, password: string, rolPedido?: Rol): Promise<Tokens | DesafioTotp> {
+  /**
+   * Correo o RUT (03b-4.1: paciente, adulto responsable o integrante del
+   * equipo con RUT registrado). Un RUT puede tener dos cuentas (la misma
+   * persona paciente y del equipo): entra la que coincide con la contraseña.
+   * Mismo mensaje en todo caso de error.
+   */
+  async login(identificador: { email?: string; rut?: string }, password: string, rolPedido?: Rol): Promise<Tokens | DesafioSegundoFactor> {
     const db = this.bd.sinContexto('login');
-    const [fila] = identificador.rut
+    const filas = identificador.rut
       ? await db.$queryRaw<Credenciales[]>`
           SELECT id::text, password_hash, rol, activo, fecha_expiracion_acceso
           FROM credenciales_login_rut(${Buffer.from(this.llavero.hmacRut(identificador.rut))})`
       : await db.$queryRaw<Credenciales[]>`
           SELECT id::text, password_hash, rol, activo, fecha_expiracion_acceso FROM credenciales_login(${identificador.email ?? ''})`;
-    const coincide = await bcrypt.compare(password, fila?.password_hash ?? this.hashRelleno);
-    if (!fila || !fila.password_hash || !coincide || !fila.activo) {
+    let fila: Credenciales | undefined;
+    for (const f of filas.length ? filas : [undefined]) {
+      if ((await bcrypt.compare(password, f?.password_hash ?? this.hashRelleno)) && f?.password_hash) {
+        fila = f;
+        break;
+      }
+    }
+    if (!fila || !fila.activo) {
       throw new UnauthorizedException(NO_AUTORIZADO);
     }
     return this.segundoPaso(fila.id, rolPedido);
   }
 
-  /** Despues de un primer factor valido: rol de la sesion y TOTP si corresponde. */
-  private async segundoPaso(usuarioId: string, rolPedido?: Rol): Promise<Tokens | DesafioTotp> {
+  /** Despues de un primer factor valido: rol de la sesion y segundo factor si corresponde. */
+  private async segundoPaso(usuarioId: string, rolPedido?: Rol): Promise<Tokens | DesafioSegundoFactor> {
     const roles = await this.roles(usuarioId);
     const rol = rolPedido ?? roles[0];
     if (!rol || !roles.includes(rol)) {
       throw new UnauthorizedException(NO_AUTORIZADO);
     }
     const factor = await this.segundoFactor(usuarioId);
-    if (factor.requerido || factor.activo) {
-      const desafio = await this.jwt.signAsync({ sub: usuarioId, rol, tipo: 'desafio' }, { expiresIn: DESAFIO_MINUTOS * 60, algorithm: 'HS256' });
-      return { requiereTotp: true, enrolamiento: !factor.activo, desafio };
+    const metodo: Metodo | null = this.totpHabilitado() && factor.activo ? 'TOTP' : factor.requerido || factor.correo ? 'CORREO' : null;
+    if (!metodo) {
+      return this.abrirSesion(usuarioId, rol, roles);
     }
-    return this.abrirSesion(usuarioId, rol, roles);
+    const desafio = await this.jwt.signAsync({ sub: usuarioId, rol, metodo, tipo: 'desafio' }, { expiresIn: DESAFIO_MINUTOS * 60, algorithm: 'HS256' });
+    if (metodo === 'CORREO') {
+      await this.emitirCodigo(usuarioId, 0);
+    }
+    return {
+      requiereSegundoFactor: true,
+      metodo,
+      enrolamiento: metodo === 'CORREO' && !factor.correo,
+      destino: metodo === 'CORREO' ? enmascararCorreo(factor.email) : null,
+      desafio,
+    };
+  }
+
+  /** Codigo nuevo al correo de la cuenta (anula el anterior). Reenvio: 409 antes de ESPERA_REENVIO_SEGUNDOS. */
+  private async emitirCodigo(usuarioId: string, esperaSegundos: number): Promise<void> {
+    const codigo = nuevoCodigoCorreo();
+    let email: string;
+    try {
+      [{ email }] = await this.bd.sinContexto('login').$queryRaw<[{ email: string }]>`
+        SELECT emitir_codigo_verificacion(${usuarioId}::uuid, ${hashCodigo(this.secretoCodigos(), usuarioId, codigo)}, ${esperaSegundos}::int) AS email`;
+    } catch (error) {
+      if (esSqlstate(error, '55000')) {
+        throw new ConflictException(`Espera ${ESPERA_REENVIO_SEGUNDOS} segundos antes de pedir otro código.`);
+      }
+      if (esSqlstate(error, '42501')) {
+        throw new UnauthorizedException(NO_AUTORIZADO);
+      }
+      throw error;
+    }
+    await this.correos.enviarCodigo(email, codigo);
+  }
+
+  /** "Reenviar codigo" (solo metodo CORREO). */
+  async reenviarCodigo(desafio: string): Promise<void> {
+    const { sub, metodo } = await this.leerDesafio(desafio);
+    if (metodo !== 'CORREO') {
+      throw new ConflictException('Este ingreso no usa código por correo');
+    }
+    await this.emitirCodigo(sub, ESPERA_REENVIO_SEGUNDOS);
+  }
+
+  /**
+   * Segundo paso: codigo del correo (o de la app si el metodo es TOTP) o un
+   * codigo de respaldo. La primera verificacion por correo activa el segundo
+   * factor y devuelve los 10 codigos de respaldo.
+   */
+  async verificarSegundoFactor(desafio: string, codigo: string): Promise<Tokens> {
+    const { sub, rol, metodo } = await this.leerDesafio(desafio);
+    if (metodo === 'TOTP' && !esCodigoRespaldo(codigo)) {
+      return this.verificarTotp(desafio, codigo);
+    }
+    const db = this.bd.sinContexto('login');
+    const hash = hashCodigo(this.secretoCodigos(), sub, codigo);
+    const [{ valido }] = esCodigoRespaldo(codigo)
+      ? await db.$queryRaw<[{ valido: boolean }]>`SELECT usar_codigo_respaldo(${sub}::uuid, ${hash}) AS valido`
+      : await db.$queryRaw<[{ valido: boolean }]>`SELECT verificar_codigo_verificacion(${sub}::uuid, ${hash}) AS valido`;
+    if (!valido) {
+      throw new UnauthorizedException(CODIGO_INVALIDO);
+    }
+    const [{ primera }] = await db.$queryRaw<[{ primera: boolean }]>`SELECT activar_verificacion_correo(${sub}::uuid) AS primera`;
+    const tokens = await this.abrirSesion(sub, rol, await this.roles(sub));
+    if (!primera) {
+      return tokens;
+    }
+    // Activacion: 10 codigos de respaldo (sin contexto; la cuenta ya probo ambos factores).
+    const codigosRespaldo = nuevosCodigosRespaldo();
+    const hashes = codigosRespaldo.map((c) => hashCodigo(this.secretoCodigos(), sub, c));
+    await db.$executeRaw`SELECT generar_codigos_respaldo(${sub}::uuid, ${hashes}::bytea[])`;
+    return { ...tokens, codigosRespaldo };
   }
 
   /** Enrolamiento: secreto nuevo (cifrado en la BD) y URI para la app. Solo si aun no esta activo. */
   async enrolarTotp(desafio: string): Promise<{ secreto: string; uri: string }> {
+    this.exigirTotp();
     const { sub } = await this.leerDesafio(desafio);
     const secreto = nuevoSecretoTotp();
     try {
@@ -108,6 +197,7 @@ export class AuthService {
 
   /** Segundo factor: valida el codigo (activa el TOTP si era el enrolamiento) y abre la sesion. */
   async verificarTotp(desafio: string, codigo: string): Promise<Tokens> {
+    this.exigirTotp();
     const { sub, rol } = await this.leerDesafio(desafio);
     const factor = await this.segundoFactor(sub);
     const secreto = factor.secreto ? this.llavero.descifrarCampo(factor.secreto, 'usuarios', 'totp_secreto', sub) : null;
@@ -172,7 +262,7 @@ export class AuthService {
     }
   }
 
-  async usarEnlaceAcceso(token: string): Promise<Tokens | DesafioTotp> {
+  async usarEnlaceAcceso(token: string): Promise<Tokens | DesafioSegundoFactor> {
     const [fila] = await this.bd.sinContexto('login').$queryRaw<{ usuario_id: string }[]>`
       SELECT usuario_id::text FROM usar_token_acceso(${hashToken(token)})`;
     if (!fila) {
@@ -182,7 +272,7 @@ export class AuthService {
   }
 
   /** Activar una invitacion: fija la contraseña (o crea la cuenta del paciente/responsable) y entra. */
-  async activarInvitacion(token: string, password: string): Promise<Tokens | DesafioTotp> {
+  async activarInvitacion(token: string, password: string): Promise<Tokens | DesafioSegundoFactor> {
     const [fila] = await this.bd.sinContexto('login').$queryRaw<{ usuario_id: string }[]>`
       SELECT usuario_id::text FROM activar_invitacion(${hashToken(token)}, ${await bcrypt.hash(password, COSTO_BCRYPT)}, ${randomUUID()}::uuid)`;
     if (!fila) {
@@ -218,21 +308,36 @@ export class AuthService {
 
   private async segundoFactor(usuarioId: string) {
     const [f] = await this.bd.sinContexto('login').$queryRaw<
-      { secreto: Uint8Array | null; activo: boolean; requerido: boolean; email: string | null }[]
-    >`SELECT secreto, activo, requerido, email FROM segundo_factor(${usuarioId}::uuid)`;
-    return f ?? { secreto: null, activo: false, requerido: false, email: null };
+      { secreto: Uint8Array | null; activo: boolean; requerido: boolean; email: string | null; correo: boolean }[]
+    >`SELECT secreto, activo, requerido, email, correo FROM segundo_factor(${usuarioId}::uuid)`;
+    return f ?? { secreto: null, activo: false, requerido: false, email: null, correo: false };
   }
 
-  private async leerDesafio(desafio: string): Promise<{ sub: string; rol: Rol }> {
+  private async leerDesafio(desafio: string): Promise<{ sub: string; rol: Rol; metodo: Metodo }> {
     try {
-      const c = await this.jwt.verifyAsync<{ sub: string; rol: Rol; tipo: string }>(desafio, { algorithms: ['HS256'] });
+      const c = await this.jwt.verifyAsync<{ sub: string; rol: Rol; tipo: string; metodo?: Metodo }>(desafio, { algorithms: ['HS256'] });
       if (c.tipo !== 'desafio') {
         throw new Error('no es un desafio');
       }
-      return { sub: c.sub, rol: c.rol };
+      return { sub: c.sub, rol: c.rol, metodo: c.metodo ?? 'TOTP' };
     } catch {
-      throw new UnauthorizedException('Desafio invalido o vencido: vuelva a iniciar sesion');
+      throw new UnauthorizedException('El ingreso venció. Vuelve a iniciar sesión.');
     }
+  }
+
+  private totpHabilitado(): boolean {
+    return this.config.get<boolean>('TOTP_HABILITADO') === true;
+  }
+
+  /** TOTP apagado (03b-4.1): sus rutas no existen. */
+  private exigirTotp(): void {
+    if (!this.totpHabilitado()) {
+      throw new NotFoundException('Ruta no encontrada');
+    }
+  }
+
+  private secretoCodigos(): string {
+    return this.config.getOrThrow<string>('JWT_SECRET');
   }
 
   private async tokens(id: string, rol: Rol, refreshToken: string, roles: Rol[]): Promise<Tokens> {

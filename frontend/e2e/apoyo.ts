@@ -1,43 +1,50 @@
-import { createHmac } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { expect, type Page } from '@playwright/test';
 
-/** Seed demo (docs/pruebas/guion_manual.md 0.5). */
+/** Seed demo (docs/pruebas/usuarios_demo.md). */
 export const PASSWORD = 'dev-password';
 export const correo = (u: string) => `${u}@centro-prueba.cl`;
+const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:8025';
 
-/** Codigo TOTP (RFC 6238, SHA-1, 30 s, 6 digitos) desde infra/local/totp-demo.txt. */
-export function codigoTotp(usuario: string): string {
-  const linea = readFileSync(join(__dirname, '..', '..', 'infra', 'local', 'totp-demo.txt'), 'utf8')
-    .split(/\r?\n/)
-    .find((l) => l.startsWith(`${correo(usuario)} `));
-  if (!linea) throw new Error(`Sin secreto TOTP para ${usuario}`);
-  const base32 = linea.split(' ')[1]!.replace(/=+$/, '');
-  let bits = '';
-  for (const c of base32) bits += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(c).toString(2).padStart(5, '0');
-  const llave = Buffer.from(bits.match(/.{8}/g)!.map((b) => parseInt(b, 2)));
-  const contador = Buffer.alloc(8);
-  contador.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)));
-  const h = createHmac('sha1', llave).update(contador).digest();
-  const o = h[h.length - 1]! & 0xf;
-  return String((h.readUInt32BE(o) & 0x7fffffff) % 1_000_000).padStart(6, '0');
-}
-
-/** Ingreso al panel del equipo; con TOTP si la cuenta lo tiene. */
-export async function ingresarEquipo(page: Page, usuario: string) {
-  await page.goto('/ingreso');
-  await page.getByRole('button', { name: 'Soy del equipo' }).click();
-  await page.getByLabel('Correo del centro').fill(correo(usuario));
-  await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Entrar al panel' }).click();
-  const codigo = page.getByLabel('Código de verificación');
-  // Segundo paso (TOTP) o entrada directa al panel (en movil el menu parte oculto: se espera la URL).
-  await Promise.race([codigo.waitFor(), page.waitForURL(/\/admin$/)]);
-  if (await codigo.isVisible()) {
-    await codigo.fill(codigoTotp(usuario));
-    await page.getByRole('button', { name: 'Verificar' }).click();
+/**
+ * 03b-4.1: ultimo codigo de verificacion enviado a un correo, leido de la API
+ * de Mailpit. `despues`: solo correos posteriores (el codigo anterior queda
+ * anulado al emitir otro).
+ */
+export async function codigoCorreo(destino: string, despues: Date): Promise<string> {
+  for (let intento = 0; intento < 40; intento++) {
+    const r = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${destino}" subject:"código de verificación"`)}&limit=5`);
+    const { messages = [] } = (await r.json()) as { messages?: { Subject: string; Created: string }[] };
+    const nuevo = messages.find((m) => new Date(m.Created).getTime() >= despues.getTime() - 1000);
+    const codigo = nuevo && /(\d{6})/.exec(nuevo.Subject)?.[1];
+    if (codigo) return codigo;
+    await new Promise((listo) => setTimeout(listo, 250));
   }
-  await expect(page).toHaveURL(/\/admin$/);
+  throw new Error(`Sin codigo de verificacion para ${destino} en Mailpit`);
 }
+
+/**
+ * Ingreso por la pantalla de login con el segundo paso por correo (equipo, y
+ * pacientes que lo activaron). Si la cuenta entrega codigos de respaldo (primer
+ * ingreso) los confirma. Devuelve cuando la URL es la de la zona.
+ */
+export async function ingresar(page: Page, usuario: string, zona: 'admin' | 'portal' = 'admin') {
+  await page.goto('/ingreso');
+  if (zona === 'admin') await page.getByRole('button', { name: 'Soy del equipo' }).click();
+  await page.getByLabel('Correo o RUT').fill(correo(usuario));
+  await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
+  const antes = new Date();
+  await page.getByRole('button', { name: zona === 'admin' ? 'Entrar al panel' : 'Entrar a mi cuenta' }).click();
+  const codigo = page.getByLabel('Código de verificación');
+  await Promise.race([codigo.waitFor(), page.waitForURL(new RegExp(`/${zona}$`))]);
+  if (await codigo.isVisible()) {
+    await codigo.fill(await codigoCorreo(correo(usuario), antes));
+    await page.getByRole('button', { name: 'Verificar' }).click();
+    const listo = page.getByRole('button', { name: 'Ya los guardé, continuar' });
+    await Promise.race([listo.waitFor(), page.waitForURL(new RegExp(`/${zona}$`))]);
+    if (await listo.isVisible()) await listo.click();
+  }
+  await expect(page).toHaveURL(new RegExp(`/${zona}$`));
+}
+
+/** Ingreso al panel del equipo (codigo por correo). */
+export const ingresarEquipo = (page: Page, usuario: string) => ingresar(page, usuario, 'admin');

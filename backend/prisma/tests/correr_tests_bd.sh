@@ -99,7 +99,7 @@ DATABASE_URL="$MIGRATION_DATABASE_URL" node -e "
   const p = new PrismaClient();
   p.\$queryRaw\`SELECT table_name || '.' || column_name AS c FROM information_schema.columns
     WHERE table_schema = 'public' AND data_type = 'bytea' AND column_name NOT LIKE '%hmac'
-      AND table_name NOT IN ('llaves_datos', 'sesiones', 'tokens_correo')
+      AND table_name NOT IN ('llaves_datos', 'sesiones', 'tokens_correo', 'codigos_verificacion', 'codigos_respaldo')
       AND table_name || '.' || column_name NOT IN ('imagenes_publicas.contenido', 'solicitudes_hora.reserva_hash') ORDER BY 1\`.then((filas) => {
     const bd = filas.map((f) => f.c).join(',');
     const reg = CAMPOS_CIFRADOS.map((c) => c.tabla + '.' + c.columna).sort().join(',');

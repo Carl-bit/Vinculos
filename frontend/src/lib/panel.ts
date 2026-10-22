@@ -101,6 +101,24 @@ export function semanaChile(desplazamiento = 0): { lunes: string; dias: string[]
   return { lunes, dias, desde: inicioDiaChile(lunes).toISOString(), hasta: inicioDiaChile(sumarDias(lunes, 7)).toISOString() };
 }
 
+/**
+ * 03b-4.1: mes en Chile para la vista mensual (`desplazamiento` en meses).
+ * `dias`: semanas completas de lunes a domingo que cubren el mes (con dias
+ * del mes anterior y siguiente para completar la grilla).
+ */
+export function mesChile(desplazamiento = 0, hoy = diaChile(new Date())): { primero: string; dias: string[]; desde: string; hasta: string } {
+  const [anio, mes] = hoy.split('-').map(Number) as [number, number];
+  const base = new Date(Date.UTC(anio, mes - 1 + desplazamiento, 1, 12));
+  const primero = base.toISOString().slice(0, 10);
+  const ultimo = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0, 12)).toISOString().slice(0, 10);
+  const inicio = sumarDias(primero, -((base.getUTCDay() + 6) % 7));
+  const finDow = new Date(`${ultimo}T12:00:00Z`).getUTCDay();
+  const fin = sumarDias(ultimo, (7 - finDow) % 7);
+  const dias: string[] = [];
+  for (let d = inicio; d <= fin; d = sumarDias(d, 1)) dias.push(d);
+  return { primero, dias, desde: inicioDiaChile(inicio).toISOString(), hasta: inicioDiaChile(sumarDias(fin, 1)).toISOString() };
+}
+
 export type EstadoFicha = components['schemas']['EstadoFichaPaciente'];
 export type AceptacionVista = components['schemas']['AceptacionVista'];
 export type AdultoResponsable = components['schemas']['AdultoResponsableVista'];

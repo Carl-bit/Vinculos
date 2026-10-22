@@ -30,7 +30,7 @@ const TEXTOS: Record<TipoCorreoCuenta, { ruta: string; asunto: string; cuerpo: s
     ruta: '/pedir-hora/verificar',
     asunto: 'Confirme su correo para reservar la hora',
     cuerpo:
-      'Retuvimos la hora que eligió con pago en el centro. Para reservarla a su nombre, confirme su correo con este enlace antes de que venza la retención; después la hora se libera y el enlace solo sirve si nadie la tomó:',
+      'Le guardamos la hora que eligió con pago en el centro. Para reservarla a su nombre, confirme su correo con este enlace antes de que venza el plazo; después la hora queda disponible para otras personas y el enlace solo sirve si nadie la tomó:',
   },
   VERIFICACION_CORREO: {
     ruta: '/cuenta/correo',
@@ -81,6 +81,26 @@ export class CorreosCuenta {
       this.logger.warn(`No se pudo enviar el correo ${tipo}: queda para reintento`);
       await this.encolarReintento(para, asunto, texto, vence).catch(() => this.logger.error(`No se pudo encolar el reintento del correo ${tipo}`));
     }
+  }
+
+  /**
+   * 03b-4.1: codigo de verificacion en dos pasos. Directo, sin reintento
+   * (vence en 10 minutos; si falla, la persona pide otro).
+   */
+  async enviarCodigo(para: string, codigo: string): Promise<void> {
+    const centro = await this.nombreCentro();
+    await this.correo.enviar({
+      para,
+      remitente: centro,
+      asunto: `Tu código de verificación: ${codigo} - ${centro}`,
+      texto: `Tu código para ingresar es:
+
+${codigo}
+
+Vence en 10 minutos y sirve una sola vez. Si no intentaste ingresar, cambia tu contraseña: alguien la conoce.
+
+${centro}`,
+    });
   }
 
   private async encolarReintento(para: string, asunto: string, texto: string, vence: Date) {

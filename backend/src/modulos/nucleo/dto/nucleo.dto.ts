@@ -680,6 +680,24 @@ export class TotpReiniciado {
   totpActivo!: boolean;
 }
 
+/** 03b-4.1: verificacion en dos pasos de la propia cuenta (opcional para pacientes y responsables). */
+export class CambiarSegundoFactorDto {
+  @IsBoolean()
+  activo!: boolean;
+}
+
+export class EstadoSegundoFactor {
+  activo!: boolean;
+  /** Equipo: siempre activa, no se desactiva. */
+  obligatorio!: boolean;
+  codigosRespaldoRestantes!: number;
+}
+
+/** Codigos de respaldo nuevos (se muestran una sola vez). */
+export class CodigosRespaldo {
+  codigos!: string[];
+}
+
 export class PracticanteVista {
   usuarioId!: string;
   @ApiProperty({ type: String, format: 'date' })

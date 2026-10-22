@@ -10,12 +10,12 @@ import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
 import type { components } from '@/lib/api/esquema';
 import { ApiError } from '@/lib/api/errores';
-import { formatoFechaLarga } from '@/lib/formato';
+import { formatoClp, formatoFechaLarga } from '@/lib/formato';
 import { guardarMatch } from '@/lib/match-memoria';
 import { nombreCorto, nombrePerfil, textoTarifa } from '@/lib/perfiles';
 
 import { FiltroDirecto } from './FiltroDirecto';
-import { elegidos, PreguntaMatch, respondida, type Pregunta, type Respuesta } from './PreguntaMatch';
+import { elegidos, lista, PreguntaMatch, respondida, type Pregunta, type Respuesta } from './PreguntaMatch';
 
 type Resultado = components['schemas']['ResultadoMatch'];
 type Opcion = components['schemas']['OpcionResultadoMatch'];
@@ -43,7 +43,7 @@ export function AsistenteMatch({ preguntas, agenda, filtroDirecto = false }: { p
   const montado = useRef(false);
   const total = preguntas.length;
   const q = preguntas[paso];
-  const listo = (i: number) => !preguntas[i]!.obligatoria || respondida(preguntas[i]!, respuestas[preguntas[i]!.clave]);
+  const listo = (i: number) => lista(preguntas[i]!, respuestas[preguntas[i]!.clave]);
   const pct = resultado ? 100 : Math.round((paso / total) * 100);
 
   // Cambio de paso: el foco va al titulo nuevo (teclado y lector de pantalla siguen el flujo).
@@ -194,7 +194,11 @@ export function AsistenteMatch({ preguntas, agenda, filtroDirecto = false }: { p
                   <span />
                 )}
                 <div className="flex items-center gap-3">
-                  {!listo(paso) && <span className="text-[13px] font-bold text-neutral-700">Responde para continuar.</span>}
+                  {!listo(paso) && (
+                    <span className="text-[13px] font-bold text-neutral-700">
+                      {q.tipo === 'TEXTO' ? 'Completa el mínimo para continuar.' : 'Responde para continuar.'}
+                    </span>
+                  )}
                   {paso < total - 1 ? (
                     <Button variant="team" size="lg" disabled={!listo(paso)} onClick={() => setPaso(paso + 1)}>
                       Continuar
@@ -227,6 +231,15 @@ function ResultadoMatch({
   onReiniciar: () => void;
 }) {
   const r = resultado.recomendado;
+  // 03b-4.1: con preferencia de pago, el resto del equipo va por tramos de precio (la API ya ordena).
+  const conTramos = resultado.otros.some((o) => o.tramo);
+  const tramos = resultado.otros.reduce<{ indice: number; titulo: string; opciones: Opcion[] }[]>((acc, o) => {
+    const ultimo = acc.at(-1);
+    if (!o.tramo) return acc;
+    if (ultimo?.indice === o.tramo.indice) ultimo.opciones.push(o);
+    else acc.push({ ...o.tramo, opciones: [o] });
+    return acc;
+  }, []);
   return (
     <div className="entrada flex flex-col gap-4">
       <div>
@@ -266,19 +279,31 @@ function ResultadoMatch({
         <p className="m-0 text-[15px] font-semibold text-neutral-700">Revisa el equipo completo o escríbenos: te ayudamos a encontrar a alguien.</p>
       )}
 
-      {resultado.otros.length > 0 && (
-        <details className="group rounded-lg border border-divider bg-neutral-100 px-5 py-4">
-          <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-black tracking-[-0.02em]">
-            Otras opciones del equipo ({resultado.otros.length})
-            <Icon name="expand_more" className="transition-transform duration-200 group-open:rotate-180" />
-          </summary>
-          <div className="mt-3 flex flex-col gap-3">
-            {resultado.otros.map((o) => (
-              <TarjetaResultado key={o.perfil.id} opcion={o} agenda={agenda} />
-            ))}
-          </div>
-        </details>
-      )}
+      {conTramos
+        ? tramos.map((t) => (
+            <section key={t.titulo} aria-labelledby={`tramo-${t.indice}`} className="flex flex-col gap-3">
+              <h2 id={`tramo-${t.indice}`} className="m-0 mt-2 flex items-center gap-2 text-[17px] font-black tracking-[-0.02em]">
+                <Icon name="sell" size={19} className="text-accent-700" />
+                {t.titulo}
+              </h2>
+              {t.opciones.map((o) => (
+                <TarjetaResultado key={o.perfil.id} opcion={o} agenda={agenda} />
+              ))}
+            </section>
+          ))
+        : resultado.otros.length > 0 && (
+            <details className="group rounded-lg border border-divider bg-neutral-100 px-5 py-4">
+              <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-black tracking-[-0.02em]">
+                Otras opciones del equipo ({resultado.otros.length})
+                <Icon name="expand_more" className="transition-transform duration-200 group-open:rotate-180" />
+              </summary>
+              <div className="mt-3 flex flex-col gap-3">
+                {resultado.otros.map((o) => (
+                  <TarjetaResultado key={o.perfil.id} opcion={o} agenda={agenda} />
+                ))}
+              </div>
+            </details>
+          )}
 
       <div className="flex flex-wrap gap-3">
         <ButtonLink href="/equipo" variant="secondary" icon="group">
@@ -294,7 +319,8 @@ function ResultadoMatch({
 
 function TarjetaResultado({ opcion: o, agenda, destacada = false }: { opcion: Opcion; agenda: boolean; destacada?: boolean }) {
   const p = o.perfil;
-  const tarifa = textoTarifa(p);
+  // La tarifa de la modalidad elegida (03b-4.1); sin ella, el resumen del perfil.
+  const tarifa = o.tarifa !== null ? `${formatoClp(o.tarifa)} por sesión` : textoTarifa(p);
   return (
     <article
       className={`rounded-lg p-[clamp(18px,3vw,26px)] ${destacada ? 'border-[1.5px] border-accent-500 bg-bg shadow-lg' : 'border border-divider bg-bg'}`}
@@ -306,6 +332,12 @@ function TarjetaResultado({ opcion: o, agenda, destacada = false }: { opcion: Op
             <span className="mb-2.5 inline-flex items-center gap-[7px] rounded-full bg-accent-700 px-[13px] py-[5px] text-[11px] font-extrabold tracking-[0.08em] text-neutral-100 uppercase">
               <Icon name="star" size={15} className="[font-variation-settings:'FILL'_1]" />
               Mejor match
+            </span>
+          )}
+          {destacada && o.tramo && (
+            <span className="mb-2.5 ml-2 inline-flex items-center gap-1.5 rounded-full border border-accent-2-600 bg-accent-2-100 px-3 py-1 text-[11.5px] font-extrabold text-accent-2-900">
+              <Icon name="sell" size={14} />
+              {o.tramo.titulo}
             </span>
           )}
           <h2 className={`m-0 mb-1.5 leading-[1.05] font-black tracking-[-0.03em] ${destacada ? 'text-[clamp(22px,2.8vw,28px)]' : 'text-lg'}`}>

@@ -26,7 +26,7 @@
                       "$ref": "#/components/schemas/Tokens"
                     },
                     {
-                      "$ref": "#/components/schemas/DesafioTotp"
+                      "$ref": "#/components/schemas/DesafioSegundoFactor"
                     }
                   ]
                 }
@@ -54,7 +54,104 @@
             }
           }
         },
-        "summary": "Correo (o RUT del paciente) y contraseña. Con TOTP (obligatorio en roles clinicos) responde un desafio.",
+        "summary": "Correo o RUT y contraseña. Equipo (y pacientes que lo activaron): responde\nun desafio y envia un codigo de 6 digitos al correo (03b-4.1).",
+        "tags": [
+          "Autenticacion"
+        ]
+      }
+    },
+    "/api/auth/segundo-factor": {
+      "post": {
+        "operationId": "AuthController_segundoFactor",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegundoFactorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tokens"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Segundo factor: codigo del correo o de respaldo. La primera vez activa la\nverificacion y devuelve los 10 codigos de respaldo (codigosRespaldo).",
+        "tags": [
+          "Autenticacion"
+        ]
+      }
+    },
+    "/api/auth/segundo-factor/codigo": {
+      "post": {
+        "operationId": "AuthController_reenviarCodigo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesafioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "summary": "\"Reenviar codigo\": 409 si no pasaron 60 segundos desde el anterior.",
         "tags": [
           "Autenticacion"
         ]
@@ -106,7 +203,7 @@
             }
           }
         },
-        "summary": "Segundo factor: codigo de la app (activa el TOTP si era el enrolamiento).",
+        "summary": "TOTP (03a): 404 mientras TOTP_HABILITADO este apagado (03b-4.1).",
         "tags": [
           "Autenticacion"
         ]
@@ -158,7 +255,7 @@
             }
           }
         },
-        "summary": "Enrolamiento TOTP: secreto y URI otpauth para el codigo QR.",
+        "summary": "Enrolamiento TOTP: secreto y URI otpauth para el codigo QR. 404 con TOTP apagado.",
         "tags": [
           "Autenticacion"
         ]
@@ -470,7 +567,7 @@
                       "$ref": "#/components/schemas/Tokens"
                     },
                     {
-                      "$ref": "#/components/schemas/DesafioTotp"
+                      "$ref": "#/components/schemas/DesafioSegundoFactor"
                     }
                   ]
                 }
@@ -528,7 +625,7 @@
                       "$ref": "#/components/schemas/Tokens"
                     },
                     {
-                      "$ref": "#/components/schemas/DesafioTotp"
+                      "$ref": "#/components/schemas/DesafioSegundoFactor"
                     }
                   ]
                 }
@@ -1961,6 +2058,278 @@
           }
         ],
         "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/usuarios/yo/segundo-factor": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE",
+        "operationId": "UsuariosController_segundoFactor",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoSegundoFactor"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b-4.1: estado de la verificacion en dos pasos por correo.",
+        "tags": [
+          "Nucleo"
+        ]
+      },
+      "put": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE",
+        "operationId": "UsuariosController_cambiarSegundoFactor",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarSegundoFactorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodigosRespaldo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Activar o desactivar la verificacion por correo (pacientes y\nresponsables; el equipo no la desactiva: 422). Al activar devuelve los 10\ncodigos de respaldo.",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/usuarios/yo/segundo-factor/codigos-respaldo": {
+      "post": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE",
+        "operationId": "UsuariosController_codigosRespaldo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodigosRespaldo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Codigos de respaldo nuevos (anula los anteriores). 422 sin verificacion activa.",
         "tags": [
           "Nucleo"
         ]
@@ -28360,6 +28729,13 @@
           "inactividadMinutos": {
             "type": "number",
             "description": "Minutos sin actividad tras los que se cierra la sesion (el front la cierra antes de renovar)."
+          },
+          "codigosRespaldo": {
+            "description": "03b-4.1: solo la primera vez que se verifica por correo (activacion del\nsegundo factor): 10 codigos de respaldo de un solo uso. No se vuelven a\nmostrar.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -28371,26 +28747,41 @@
           "inactividadMinutos"
         ]
       },
-      "DesafioTotp": {
+      "DesafioSegundoFactor": {
         "type": "object",
         "properties": {
-          "requiereTotp": {
+          "requiereSegundoFactor": {
             "type": "boolean",
             "enum": [
               true
             ]
           },
+          "metodo": {
+            "enum": [
+              "CORREO",
+              "TOTP"
+            ],
+            "type": "string"
+          },
           "enrolamiento": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Primera verificacion de la cuenta: al validarla se entregan los codigos de respaldo."
+          },
+          "destino": {
+            "type": "string",
+            "nullable": true,
+            "description": "Correo enmascarado al que se envio el codigo (CORREO)."
           },
           "desafio": {
             "type": "string",
-            "description": "JWT corto (5 min) que identifica el login a medio camino."
+            "description": "JWT corto (15 min) que identifica el login a medio camino."
           }
         },
         "required": [
-          "requiereTotp",
+          "requiereSegundoFactor",
+          "metodo",
           "enrolamiento",
+          "destino",
           "desafio"
         ]
       },
@@ -28427,12 +28818,12 @@
           "password"
         ]
       },
-      "TotpDto": {
+      "SegundoFactorDto": {
         "type": "object",
         "properties": {
           "codigo": {
             "type": "string",
-            "pattern": "^\\d{6}$"
+            "pattern": "^(\\d{6}|[A-Za-z0-9]{5}-?[A-Za-z0-9]{5})$"
           },
           "desafio": {
             "type": "string",
@@ -28456,6 +28847,24 @@
         },
         "required": [
           "desafio"
+        ]
+      },
+      "TotpDto": {
+        "type": "object",
+        "properties": {
+          "desafio": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 2000
+          },
+          "codigo": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "desafio",
+          "codigo"
         ]
       },
       "EnrolamientoTotp": {
@@ -29024,6 +29433,51 @@
         "required": [
           "actual",
           "nueva"
+        ]
+      },
+      "EstadoSegundoFactor": {
+        "type": "object",
+        "properties": {
+          "activo": {
+            "type": "boolean"
+          },
+          "obligatorio": {
+            "type": "boolean",
+            "description": "Equipo: siempre activa, no se desactiva."
+          },
+          "codigosRespaldoRestantes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "activo",
+          "obligatorio",
+          "codigosRespaldoRestantes"
+        ]
+      },
+      "CambiarSegundoFactorDto": {
+        "type": "object",
+        "properties": {
+          "activo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "activo"
+        ]
+      },
+      "CodigosRespaldo": {
+        "type": "object",
+        "properties": {
+          "codigos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "codigos"
         ]
       },
       "EditarUsuarioDto": {
@@ -35799,7 +36253,8 @@
           "ENFOQUE",
           "ESPECIALIDAD",
           "MODALIDAD",
-          "PREVISION"
+          "PREVISION",
+          "PRESUPUESTO"
         ]
       },
       "OpcionPublica": {
@@ -35929,6 +36384,22 @@
           "respuestas"
         ]
       },
+      "TramoPrecio": {
+        "type": "object",
+        "properties": {
+          "indice": {
+            "type": "number",
+            "description": "0 = dentro de la preferencia; despues, cada tramo mas caro."
+          },
+          "titulo": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "indice",
+          "titulo"
+        ]
+      },
       "OpcionResultadoMatch": {
         "type": "object",
         "properties": {
@@ -35941,6 +36412,21 @@
             "format": "date-time",
             "type": "string",
             "nullable": true
+          },
+          "tarifa": {
+            "type": "number",
+            "nullable": true,
+            "description": "03b-4.1: tarifa vigente en la modalidad elegida (la general si no hay especifica)."
+          },
+          "tramo": {
+            "nullable": true,
+            "description": "03b-4.1: tramo de precio respecto de la preferencia de pago (null si no la indico).",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TramoPrecio"
+              }
+            ]
           },
           "perfil": {
             "$ref": "#/components/schemas/PerfilPublico"
@@ -35959,6 +36445,8 @@
         "required": [
           "advertencia",
           "primerHueco",
+          "tarifa",
+          "tramo",
           "perfil",
           "puntaje",
           "razones"
@@ -37416,7 +37904,8 @@
               "ENFOQUE",
               "ESPECIALIDAD",
               "MODALIDAD",
-              "PREVISION"
+              "PREVISION",
+              "PRESUPUESTO"
             ]
           },
           "objetivo": {
@@ -37471,7 +37960,8 @@
               "ENFOQUE",
               "ESPECIALIDAD",
               "MODALIDAD",
-              "PREVISION"
+              "PREVISION",
+              "PRESUPUESTO"
             ]
           },
           "objetivo": {

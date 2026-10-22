@@ -1,17 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { ingresarEquipo } from './apoyo';
+
+const ingresarAdmin = (page: Page) => ingresarEquipo(page, 'admin');
+
 /** Backoffice 03b-4 contra la API local y el seed demo (docs/pruebas/guion_manual.md). */
-const PASSWORD = 'dev-password';
-
-async function ingresarAdmin(page: Page) {
-  await page.goto('/ingreso');
-  await page.getByRole('button', { name: 'Soy del equipo' }).click();
-  await page.getByLabel('Correo del centro').fill('admin@centro-prueba.cl');
-  await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Entrar al panel' }).click();
-  await expect(page).toHaveURL(/\/admin$/);
-}
-
 test('Agenda: agendar retiene la hora con cuenta regresiva y solo confirma al pulsar', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/agenda?nueva=1');
@@ -125,10 +118,55 @@ test('Match: preguntas del cuestionario, filtro directo y metricas', async ({ pa
   await expect(page.getByRole('heading', { name: 'Métricas básicas' })).toBeVisible();
 });
 
-test('Mi perfil: cuenta y contraseña; sin perfil profesional para una cuenta madre que no atiende', async ({ page }) => {
-  await ingresarAdmin(page);
+test('Mi perfil: cuenta, contraseña y verificacion en dos pasos; sin perfil profesional para quien no atiende (GESTION)', async ({ page }) => {
+  await ingresarEquipo(page, 'gestion');
   await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Mi perfil' }).click();
   await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Cambiar contraseña' })).toBeVisible();
+  await page.getByText('Cambiar mi contraseña').click();
+  await expect(page.getByLabel('Contraseña actual')).toBeVisible();
+  await page.getByText('Verificación en dos pasos').click();
+  await expect(page.getByText('Es obligatoria para el equipo del centro.', { exact: false })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Mis datos y descripción' })).toHaveCount(0);
+});
+
+test('Mi perfil del profesional (diseño "Admin - Mi Perfil"): cabecera con indicadores, mis datos, calificaciones, mis pacientes y mi cuenta', async ({
+  page,
+}) => {
+  await ingresarEquipo(page, 'profesional1');
+  await page.goto('/admin/perfil');
+  await expect(page.getByRole('heading', { level: 1, name: 'Ps. Profesional Uno (Demo)' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Mis indicadores' })).toContainText('Sesiones esta semana');
+  await expect(page.getByRole('heading', { name: 'Mis datos y descripción' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Mis calificaciones/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mis horas e información de pacientes' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Paciente Prueba/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ver mi agenda' })).toBeVisible();
+});
+
+test('Agenda: Semana | Mes y Hoy; la vista mensual se recuerda', async ({ page }) => {
+  await ingresarAdmin(page);
+  await page.goto('/admin/agenda');
+  await expect(page.getByRole('region', { name: 'Calendario de la semana' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hoy' })).toBeDisabled();
+  await page.getByRole('group', { name: 'Vista de la agenda' }).locator('label').filter({ hasText: /Mes$/ }).click();
+  await expect(page.getByRole('region', { name: 'Calendario del mes' })).toBeVisible();
+  await page.getByRole('button', { name: 'Mes siguiente' }).click();
+  await expect(page.getByRole('button', { name: 'Hoy' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Hoy' }).click();
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Calendario del mes' })).toBeVisible();
+  await page
+    .getByRole('group', { name: 'Vista de la agenda' })
+    .locator('label')
+    .filter({ hasText: /Semana$/ })
+    .click();
+});
+
+test('selector de equipo: "Viendo a" con volver a todo el equipo', async ({ page }) => {
+  await ingresarAdmin(page);
+  await page.goto('/admin/agenda');
+  await page.getByLabel('Equipo').selectOption({ label: 'Profesional Uno' });
+  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
+  await page.getByRole('button', { name: 'Volver a todo el equipo' }).click();
+  await expect(page.getByLabel('Equipo')).toHaveValue('');
 });

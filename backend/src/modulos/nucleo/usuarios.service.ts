@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
-import { Injectable, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Rol } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
+import { hashCodigo, nuevosCodigosRespaldo } from '../../core/auth/segundo-factor';
 import { HORA, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
 import { ProveedorPasarela } from '../../core/integraciones/pasarela';
 import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
@@ -46,6 +48,7 @@ export class UsuariosService {
     private readonly bd: ContextoBd,
     private readonly correos: CorreosCuenta,
     private readonly pasarela: ProveedorPasarela,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -112,8 +115,40 @@ export class UsuariosService {
 
   /** ADMIN reinicia el segundo factor de otra cuenta (dispositivo perdido). */
   async reiniciarTotp(id: string) {
+    // 03b-4.1: con TOTP apagado la ruta no existe.
+    if (this.config.get<boolean>('TOTP_HABILITADO') !== true) {
+      throw new NotFoundException('Ruta no encontrada');
+    }
     await this.bd.tx().$executeRaw`SELECT reiniciar_totp(${id}::uuid)`;
     return { usuarioId: id, totpActivo: false };
+  }
+
+  async segundoFactor() {
+    const [e] = await this.bd.tx().$queryRaw<{ activo: boolean; obligatorio: boolean; restantes: number }[]>`
+      SELECT activo, obligatorio, codigos_respaldo_restantes AS restantes FROM estado_segundo_factor()`;
+    const f = encontrado(e, 'Usuario');
+    return { activo: f.activo, obligatorio: f.obligatorio, codigosRespaldoRestantes: f.restantes };
+  }
+
+  /** Activar entrega codigos de respaldo nuevos; desactivar los anula (solo pacientes y responsables). */
+  async cambiarSegundoFactor(activo: boolean) {
+    await this.bd.tx().$executeRaw`SELECT cambiar_verificacion_correo(${activo})`;
+    return { codigos: activo ? await this.generarRespaldo() : [] };
+  }
+
+  async nuevosCodigosRespaldo() {
+    if (!(await this.segundoFactor()).activo) {
+      throw new UnprocessableEntityException('Activa la verificación en dos pasos para generar códigos de respaldo');
+    }
+    return { codigos: await this.generarRespaldo() };
+  }
+
+  private async generarRespaldo(): Promise<string[]> {
+    const id = this.bd.usuario().id;
+    const codigos = nuevosCodigosRespaldo();
+    const hashes = codigos.map((c) => hashCodigo(this.config.getOrThrow<string>('JWT_SECRET'), id, c));
+    await this.bd.tx().$executeRaw`SELECT generar_codigos_respaldo(${id}::uuid, ${hashes}::bytea[])`;
+    return codigos;
   }
 
   async miCuenta() {

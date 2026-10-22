@@ -25,14 +25,15 @@ const ROL = {
 /**
  * Datos de la cuenta propia (diseño "Mi Perfil", Mi cuenta): nombre, correo y
  * telefono de contacto interno. El rol y el acceso los administra la cuenta
- * madre; el segundo factor se configura al ingresar.
+ * madre; la verificacion en dos pasos (codigo por correo) es obligatoria
+ * para el equipo (03b-4.1).
  */
-export function MiCuentaEquipo() {
+export function MiCuentaEquipo({ enPanel = true }: { enPanel?: boolean }) {
   const cuenta = useMiCuenta();
-  return <EstadoConsulta consulta={cuenta}>{(c) => <Formulario key={c.id} c={c} />}</EstadoConsulta>;
+  return <EstadoConsulta consulta={cuenta}>{(c) => <Formulario key={c.id} c={c} enPanel={enPanel} />}</EstadoConsulta>;
 }
 
-function Formulario({ c }: { c: NonNullable<ReturnType<typeof useMiCuenta>['data']> }) {
+function Formulario({ c, enPanel }: { c: NonNullable<ReturnType<typeof useMiCuenta>['data']>; enPanel: boolean }) {
   const cliente = useQueryClient();
   const [f, setF] = useState({ nombre: c.nombre ?? '', email: c.email ?? '', telefono: c.telefono ?? '' });
   const [estado, setEstado] = useState<{ error?: string; ok?: boolean }>({});
@@ -54,6 +55,40 @@ function Formulario({ c }: { c: NonNullable<ReturnType<typeof useMiCuenta>['data
     setEstado({});
     setF((x) => ({ ...x, [k]: e.target.value }));
   };
+  const formulario = (
+    <form onSubmit={enviar} noValidate className="mt-4 flex flex-col gap-4">
+      <div className={`grid gap-4 ${enPanel ? 'sm:grid-cols-3' : ''}`}>
+        <Field label="Nombre" required>
+          {(x) => <Input {...x} value={f.nombre} maxLength={120} onChange={cambiar('nombre')} />}
+        </Field>
+        <Field label="Correo" required hint="Con él ingresas al panel y te llega el código de verificación.">
+          {(x) => <Input {...x} type="email" autoComplete="email" value={f.email} onChange={cambiar('email')} />}
+        </Field>
+        <Field label="Teléfono" hint="+56XXXXXXXXX">
+          {(x) => <Input {...x} type="tel" autoComplete="tel" value={f.telefono} onChange={cambiar('telefono')} />}
+        </Field>
+      </div>
+      {c.fechaExpiracionAcceso && (
+        <p className="m-0 text-[13px] font-semibold text-neutral-800">Tu acceso termina el {formatoFecha(c.fechaExpiracionAcceso)}.</p>
+      )}
+      {estado.error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {estado.error}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {estado.ok && (
+          <p role="status" className="m-0 mr-auto text-[13px] font-bold text-accent-2-800">
+            Datos guardados.
+          </p>
+        )}
+        <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
+          Guardar mis datos
+        </Button>
+      </div>
+    </form>
+  );
+  if (!enPanel) return formulario;
   return (
     <Panel
       titulo="Mi cuenta"
@@ -63,41 +98,10 @@ function Formulario({ c }: { c: NonNullable<ReturnType<typeof useMiCuenta>['data
           {[c.rol, ...c.rolesAdicionales.filter((r) => r.activo).map((r) => r.rol)].map((r) => (
             <Badge key={r}>{ROL[r]}</Badge>
           ))}
-          <Badge tono={c.totpActivo ? 'positivo' : 'neutro'}>{c.totpActivo ? 'Segundo factor activo' : 'Sin segundo factor'}</Badge>
         </div>
       }
     >
-      <form onSubmit={enviar} noValidate className="mt-4 flex flex-col gap-4">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Nombre" required>
-            {(x) => <Input {...x} value={f.nombre} maxLength={120} onChange={cambiar('nombre')} />}
-          </Field>
-          <Field label="Correo" required hint="Con él ingresas al panel.">
-            {(x) => <Input {...x} type="email" autoComplete="email" value={f.email} onChange={cambiar('email')} />}
-          </Field>
-          <Field label="Teléfono" hint="+56XXXXXXXXX">
-            {(x) => <Input {...x} type="tel" autoComplete="tel" value={f.telefono} onChange={cambiar('telefono')} />}
-          </Field>
-        </div>
-        {c.fechaExpiracionAcceso && (
-          <p className="m-0 text-[13px] font-semibold text-neutral-800">Tu acceso termina el {formatoFecha(c.fechaExpiracionAcceso)}.</p>
-        )}
-        {estado.error && (
-          <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
-            {estado.error}
-          </p>
-        )}
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {estado.ok && (
-            <p role="status" className="m-0 mr-auto text-[13px] font-bold text-accent-2-800">
-              Datos guardados.
-            </p>
-          )}
-          <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
-            Guardar mis datos
-          </Button>
-        </div>
-      </form>
+      {formulario}
     </Panel>
   );
 }

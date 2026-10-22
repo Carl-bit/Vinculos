@@ -52,6 +52,12 @@ export class TotpDto extends DesafioDto {
   codigo!: string;
 }
 
+/** Codigo del correo (6 digitos) o de respaldo (XXXXX-XXXXX, con o sin guion). */
+export class SegundoFactorDto extends DesafioDto {
+  @Matches(/^(\d{6}|[A-Za-z0-9]{5}-?[A-Za-z0-9]{5})$/, { message: 'codigo: 6 digitos o un codigo de respaldo' })
+  codigo!: string;
+}
+
 export class CorreoDto {
   @minusculas()
   @IsEmail()
@@ -88,14 +94,29 @@ export class Tokens {
   /** Roles con los que la cuenta puede trabajar (cambio con /auth/cambio-rol). */
   @ApiProperty({ enum: Rol, enumName: 'Rol', isArray: true })
   roles!: Rol[];
+  /**
+   * 03b-4.1: solo la primera vez que se verifica por correo (activacion del
+   * segundo factor): 10 codigos de respaldo de un solo uso. No se vuelven a
+   * mostrar.
+   */
+  codigosRespaldo?: string[];
 }
 
-/** Segundo paso del login: TOTP (o su enrolamiento si es obligatorio y no esta activo). */
-export class DesafioTotp {
+/**
+ * Segundo paso del login (03b-4.1): codigo por correo (obligatorio para el
+ * equipo, opcional para pacientes) o TOTP si la API lo habilita y la cuenta
+ * lo tiene activo.
+ */
+export class DesafioSegundoFactor {
   @ApiProperty({ enum: [true] })
-  requiereTotp!: true;
+  requiereSegundoFactor!: true;
+  @ApiProperty({ enum: ['CORREO', 'TOTP'] })
+  metodo!: 'CORREO' | 'TOTP';
+  /** Primera verificacion de la cuenta: al validarla se entregan los codigos de respaldo. */
   enrolamiento!: boolean;
-  /** JWT corto (5 min) que identifica el login a medio camino. */
+  /** Correo enmascarado al que se envio el codigo (CORREO). */
+  destino!: string | null;
+  /** JWT corto (15 min) que identifica el login a medio camino. */
   desafio!: string;
 }
 

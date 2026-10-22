@@ -16,15 +16,12 @@ import request = require('supertest');
 import { AppModule } from '../src/app.module';
 import { aad, Llavero, type FilaLlave } from '../src/common/crypto/cifrado';
 import { configurarApp } from '../src/configurar-app';
-import { codigoTotp } from '../src/core/auth/totp';
 import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
 import { NotificacionesService } from '../src/core/notificaciones/notificaciones.service';
 import { dvRut } from '../src/core/validacion/validadores';
 import { leerEntorno } from './bd/global';
 
 export const CLAVE = 'clave-de-prueba-123';
-/** Secretos TOTP enrolados (por usuario), compartidos entre apps del mismo proceso de tests. */
-const secretosTotp = new Map<string, string>();
 const HASH = bcrypt.hashSync(CLAVE, 4);
 
 export function prepararEntorno(extra: Record<string, string> = {}) {
@@ -55,7 +52,7 @@ export interface AppPrueba {
   dueno: PrismaClient;
   datos: Fixtures;
   token: (u: UsuarioPrueba) => Promise<string>;
-  /** Login completo (con TOTP si corresponde) con un rol elegido; devuelve el cuerpo con los tokens. */
+  /** Login completo (con el codigo por correo si corresponde) con un rol elegido; devuelve el cuerpo con los tokens. */
   login: (u: UsuarioPrueba, rol?: Rol) => Promise<{ accessToken: string; refreshToken: string; rol: Rol; roles: Rol[] }>;
   cerrar: () => Promise<void>;
 }
@@ -73,21 +70,13 @@ export async function crearApp(extra: Record<string, string> = {}, modulosExtra:
   const dueno = new PrismaClient({ datasourceUrl: e.ownerUrl });
   const http = () => request(app.getHttpServer());
   const tokens = new Map<string, string>();
-  // 03a: TOTP obligatorio para roles clinicos: el helper enrola la primera vez y responde el desafio.
+  // 03b-4.1: el equipo (y el paciente que lo activa) recibe un codigo por correo: se lee del proveedor simulado.
   const login = async (u: UsuarioPrueba, rol?: Rol) => {
     let r = await http().post('/api/auth/login').send({ email: u.email, password: CLAVE, rol });
-    if (r.status === 200 && r.body.requiereTotp) {
-      const desafio = r.body.desafio as string;
-      if (!secretosTotp.has(u.id)) {
-        const e = await http().post('/api/auth/totp/enrolamiento').send({ desafio });
-        if (e.status !== 200) {
-          throw new Error(`enrolamiento TOTP de prueba fallo (${e.status}) para ${u.rol}`);
-        }
-        secretosTotp.set(u.id, e.body.secreto as string);
-      }
+    if (r.status === 200 && r.body.requiereSegundoFactor) {
       r = await http()
-        .post('/api/auth/totp')
-        .send({ desafio, codigo: codigoTotp(secretosTotp.get(u.id)!) });
+        .post('/api/auth/segundo-factor')
+        .send({ desafio: r.body.desafio, codigo: ultimoCodigo(app, u.email) });
     }
     if (r.status !== 200) {
       throw new Error(`login de prueba fallo (${r.status}) para ${u.rol}`);
@@ -300,6 +289,17 @@ export class Fixtures {
 }
 
 export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+/** 03b-4.1: ultimo codigo de verificacion (6 digitos) enviado a un correo por el proveedor simulado. */
+export function ultimoCodigo(app: NestExpressApplication, para: string): string {
+  const enviados = app.get<ProveedorCorreo, ProveedorCorreoSimulado>(ProveedorCorreo).enviados;
+  const correo = [...enviados].reverse().find((c) => c.para === para && c.asunto.startsWith('Tu código de verificación'));
+  const codigo = /(\d{6})/.exec(correo?.texto ?? '')?.[1];
+  if (!codigo) {
+    throw new Error(`sin codigo de verificacion para ${para}`);
+  }
+  return codigo;
+}
 
 /**
  * Corre el job de mensajes hasta que no queden pendientes ya vencidos (la BD

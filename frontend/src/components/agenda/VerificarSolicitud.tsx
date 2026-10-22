@@ -61,7 +61,8 @@ export function VerificarSolicitud() {
         <Eyebrow tone="patient">Confirmar hora</Eyebrow>
         <h1 className="m-0 mb-4 text-[clamp(30px,4vw,44px)] leading-[1.02] font-black tracking-[-0.035em] text-balance">Confirma tu correo para reservar</h1>
         <p className="m-0 mb-7 text-base leading-relaxed text-pretty text-neutral-700">
-          Al confirmar, la hora retenida queda reservada a tu nombre (pagas en el centro, el día de tu sesión) y aceptas las condiciones que viste al pedirla.
+          Al confirmar, la hora que elegiste queda reservada a tu nombre (pagas en el centro, el día de tu sesión) y aceptas las condiciones que viste al
+          pedirla.
         </p>
         {estado?.tipo === 'error' && (
           <p role="alert" className="m-0 mb-5 text-sm font-bold text-accent-700">
@@ -79,7 +80,7 @@ export function VerificarSolicitud() {
       <Resultado
         icono="event_busy"
         titulo="Este enlace ya no sirve"
-        texto="Venció el tiempo de retención o el enlace ya se usó. Si no alcanzaste a confirmar, la hora se liberó para otras personas: pide una nueva."
+        texto="Venció el tiempo para confirmar o el enlace ya se usó. Si no alcanzaste a confirmar, la hora se liberó para otras personas: pide una nueva."
         accion={PEDIR_OTRA}
       />
     );
@@ -91,10 +92,10 @@ export function VerificarSolicitud() {
         titulo="La hora ya no está disponible"
         texto={
           estado.alternativas.length
-            ? `Pasó el tiempo de retención y otra persona tomó esa hora. Las más cercanas: ${estado.alternativas
+            ? `Pasó el tiempo para confirmar y otra persona tomó esa hora. Las más cercanas: ${estado.alternativas
                 .map((a) => `${formatoFechaLarga(a.inicio)}, ${formatoHora(a.inicio)}`)
                 .join('; ')}. Pide una nueva desde el perfil del profesional.`
-            : 'Pasó el tiempo de retención y otra persona tomó esa hora. Pide una nueva desde el perfil del profesional.'
+            : 'Pasó el tiempo para confirmar y otra persona tomó esa hora. Pide una nueva desde el perfil del profesional.'
         }
         accion={PEDIR_OTRA}
       />

@@ -63,6 +63,9 @@ export function cumple(op: OpcionMatch, p: PerfilParaMatch): string | null {
       return contiene([p.especialidad], o) ? `es ${p.especialidad.toLowerCase()}` : null;
     case 'MODALIDAD':
       return p.modalidad === 'MIXTA' || p.modalidad === o ? `atiende ${o === 'ONLINE' ? 'online' : 'presencial'}` : null;
+    case 'PRESUPUESTO':
+      // No puntua: ordena por tramos de precio (tramoPrecio).
+      return null;
     case 'PREVISION':
       if (normalizar(o) === 'fonasa') {
         return contiene(p.convenios, 'fonasa') ? 'tiene convenio FONASA' : null;
@@ -124,6 +127,31 @@ export function evaluar(perfiles: PerfilParaMatch[], elegidas: OpcionMatch[]): E
     }
     return { perfilId: p.id, puntaje, razones: [...new Set(razones)], incumple };
   });
+}
+
+export interface Tramo {
+  /** 0 = dentro de la preferencia; despues, cada tramo mas caro. */
+  indice: number;
+  titulo: string;
+}
+
+const clp = (n: number) => `$${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+
+/**
+ * Tramo de precio de una tarifa respecto de la preferencia de pago (03b-4.1).
+ * Los tramos siguen los topes que el centro configuro como opciones de la
+ * pregunta: con preferencia "hasta $35.000" y topes 45.000 y 60.000, una
+ * tarifa de 40.000 cae en "Hasta $10.000 más que tu preferencia". Sin tarifa
+ * publicada, al final.
+ */
+export function tramoPrecio(tarifa: number | null, tope: number, topes: number[]): Tramo {
+  if (tarifa === null) return { indice: Number.MAX_SAFE_INTEGER, titulo: 'Sin tarifa publicada' };
+  if (tarifa <= tope) return { indice: 0, titulo: 'Dentro de tu preferencia' };
+  const mayores = [...new Set(topes)].filter((t) => t > tope).sort((a, b) => a - b);
+  const i = mayores.findIndex((t) => tarifa <= t);
+  if (i >= 0) return { indice: i + 1, titulo: `Hasta ${clp(mayores[i] - tope)} más que tu preferencia` };
+  const ultimo = mayores.at(-1);
+  return { indice: mayores.length + 1, titulo: ultimo ? `Más de ${clp(ultimo - tope)} sobre tu preferencia` : 'Sobre tu preferencia' };
 }
 
 /**

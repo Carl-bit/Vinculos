@@ -8,17 +8,18 @@ import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Field, Input } from '@/components/ui/Field';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { verificarTotp, type DesafioTotp, type SesionActiva } from '@/lib/sesion';
+import { verificarTotp, type DesafioSegundoFactor, type SesionActiva } from '@/lib/sesion';
 
 import { TituloIngreso } from './TarjetaIngreso';
 
 /**
- * Segundo paso del login (TOTP, obligatorio en roles clinicos; MASTER.md
+ * 03b-4.1: apagado (TOTP_HABILITADO en la API); solo se muestra si la API
+ * responde metodo TOTP. Segundo paso del login (TOTP; MASTER.md
  * "Login, segundo paso TOTP"). En el enrolamiento muestra el codigo QR y la
  * clave para agregar la cuenta a la app de autenticacion. Lo usan el login,
  * el enlace de acceso y la activacion por invitacion.
  */
-export function PasoTotp({ desafio, onEntrar, onVolver }: { desafio: DesafioTotp; onEntrar: (s: SesionActiva) => void; onVolver: () => void }) {
+export function PasoTotp({ desafio, onEntrar, onVolver }: { desafio: DesafioSegundoFactor; onEntrar: (s: SesionActiva) => void; onVolver: () => void }) {
   const [codigo, setCodigo] = useState('');
   const [enrolamiento, setEnrolamiento] = useState<{ secreto: string; qr?: string }>();
   const [error, setError] = useState<string>();

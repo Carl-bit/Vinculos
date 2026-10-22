@@ -793,3 +793,49 @@ Decisiones del usuario (2026-10-20):
   la hora retenida, en cualquier modelo de cobro; `cobrado_por` sigue el
   modelo. La boleta automatica tambien sale cuando paga el profesional.
   Anular, solo ADMIN/GESTION.
+
+## 03b-4.1 (segundo factor por correo, login por RUT y presupuesto del match)
+
+Migraciones `20261029000000_03b41_enums` y
+`20261029000100_03b41_segundo_factor_presupuesto`. Decisiones del usuario
+(2026-10-21):
+
+- **Verificacion en dos pasos por correo**: obligatoria para el equipo
+  (ADMIN, GESTION, PROFESIONAL, PRACTICANTE, como rol principal o adicional)
+  y opcional para PACIENTE y RESPONSABLE (`PUT usuarios/yo/segundo-factor`).
+  Tras la contraseña, el login (y el enlace de acceso y la activacion)
+  responde `DesafioSegundoFactor` (`requiereSegundoFactor`, `metodo`,
+  `enrolamiento`, `destino` enmascarado, `desafio` JWT de 15 min) y envia un
+  codigo de 6 digitos al correo (directo, sin cola ni reintento). Vence en
+  10 minutos, un uso, 5 intentos; `POST auth/segundo-factor/codigo` reenvia
+  (409 antes de 60 s; el anterior queda anulado). `POST auth/segundo-factor`
+  acepta el codigo o uno de respaldo (`XXXXX-XXXXX`, con o sin guion); error
+  401 con "El código no es válido o venció. Puedes pedir uno nuevo.". La
+  primera verificacion (`activar_verificacion_correo`) devuelve
+  `codigosRespaldo` (10, un uso; solo se muestran esa vez).
+  `POST usuarios/yo/segundo-factor/codigos-respaldo` genera otros (anula los
+  anteriores; 422 sin verificacion activa).
+- **Hash de los codigos**: HMAC-SHA256 con una llave derivada de
+  `JWT_SECRET` y el id de la cuenta (`core/auth/segundo-factor.ts`). Un
+  respaldo de la BD solo no permite probar los 10^6 codigos.
+- **TOTP (03a)**: queda en el codigo y en la BD, apagado con
+  `TOTP_HABILITADO=false` (por defecto): `auth/totp`, `auth/totp/enrolamiento`
+  y `usuarios/:id/totp/reinicio` responden 404 y el login nunca lo pide. Para
+  habilitarlo despues: `TOTP_HABILITADO=true`; el login pide TOTP solo a quien
+  lo tiene activo (falta una pantalla de enrolamiento desde Seguridad, hoy
+  oculta en el front).
+- **Login por RUT**: `credenciales_login_rut` busca tambien al adulto
+  responsable con cuenta y al equipo con RUT en sus datos privados. Mismo
+  mensaje generico (401) y mismo rate limit (`LOGIN_LIMITE_POR_MINUTO`) que
+  por correo.
+- **Presupuesto del match**: pregunta `presupuesto` (UNICA, obligatoria) con
+  opciones de criterio `PRESUPUESTO` (objetivo = tope en CLP, editable por
+  ADMIN en la configuracion del match) y "Prefiero no decirlo" sin criterio.
+  No puntua ni filtra ni se guarda: `POST publico/match` devuelve en cada
+  opcion `tarifa` (la vigente en la modalidad elegida; la general si no hay)
+  y `tramo` (`indice` 0 = dentro de la preferencia; despues un tramo por cada
+  tope configurado mas alto, "Hasta $X más que tu preferencia"; al final
+  "Más de $X sobre tu preferencia" y "Sin tarifa publicada"). El orden es
+  por tramo y, dentro de cada uno, el de siempre (necesidad y
+  disponibilidad). Con presupuesto se devuelve el equipo completo en `otros`.
+

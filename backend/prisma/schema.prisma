@@ -192,6 +192,9 @@ model Usuario {
   /// 03a: segundo factor (TOTP). cifrado (IDENTIFICACION)
   totpSecreto           Bytes?    @map("totp_secreto")
   totpActivo            Boolean   @default(false) @map("totp_activo")
+  /// 03b-4.1: verificacion en dos pasos por correo (opcional para pacientes y
+  /// responsables; el equipo la tiene siempre, la marca queda al primer uso).
+  verificacionCorreo    Boolean   @default(false) @map("verificacion_correo")
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -220,6 +223,8 @@ model Usuario {
   citas                      Cita[]                       @relation("CitaProfesional")
   citasLiberadas             Cita[]                       @relation("CitaLiberadaPor")
   excepcionesMorosidad       ExcepcionMorosidad[]
+  codigosVerificacion        CodigoVerificacion[]
+  codigosRespaldo            CodigoRespaldo[]
   bloqueosTemporales         BloqueoTemporal[]
   historialAccesos           HistorialAccesoPracticante[] @relation("HistorialPracticante")
   accionesAccesos            HistorialAccesoPracticante[] @relation("HistorialActor")
@@ -2268,6 +2273,8 @@ enum CriterioMatch {
   ESPECIALIDAD
   MODALIDAD
   PREVISION
+  /// 03b-4.1: tope de la preferencia de pago (CLP); ordena por tramos, no puntua.
+  PRESUPUESTO
 
   @@map("criterio_match")
 }
@@ -2746,4 +2753,38 @@ model BloqueAtencion {
   @@index([profesionalId, inicio])
   @@index([espacioId, inicio])
   @@map("bloques_atencion")
+}
+
+/// 03b-4.1: codigo de verificacion en dos pasos enviado por correo (A). Solo
+/// HMAC del codigo; vence en 10 minutos, un uso, 5 intentos. Sin GRANT: solo
+/// funciones.
+model CodigoVerificacion {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId  String    @map("usuario_id") @db.Uuid
+  codigoHash Bytes     @map("codigo_hash")
+  expiraEn   DateTime  @map("expira_en") @db.Timestamptz(6)
+  intentos   Int       @default(0) @db.SmallInt
+  usadoEn    DateTime? @map("usado_en") @db.Timestamptz(6)
+  creadoEn   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([usuarioId, creadoEn])
+  @@map("codigos_verificacion")
+}
+
+/// 03b-4.1: codigos de respaldo del segundo factor (A), 10 por activacion, un
+/// uso. Solo HMAC. Sin GRANT: solo funciones.
+model CodigoRespaldo {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId  String    @map("usuario_id") @db.Uuid
+  codigoHash Bytes     @map("codigo_hash")
+  usadoEn    DateTime? @map("usado_en") @db.Timestamptz(6)
+  anuladoEn  DateTime? @map("anulado_en") @db.Timestamptz(6)
+  creadoEn   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([usuarioId])
+  @@map("codigos_respaldo")
 }

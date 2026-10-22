@@ -37,6 +37,7 @@ const CRITERIO: Record<Criterio, string> = {
   ESPECIALIDAD: 'Especialidad',
   MODALIDAD: 'Modalidad',
   PREVISION: 'Previsión',
+  PRESUPUESTO: 'Presupuesto (tope en CLP)',
 };
 const clave = (t: string) =>
   t
@@ -224,7 +225,14 @@ function Opciones({ pregunta }: { pregunta: Pregunta }) {
           key={o.id}
           className={`grid gap-2 rounded-[14px] border border-divider px-3 py-2.5 sm:grid-cols-[1.4fr_1fr_1fr_90px_auto] sm:items-center ${o.activa ? 'bg-bg' : 'bg-neutral-100'}`}
         >
-          <span className={`text-[13.5px] font-bold ${o.activa ? '' : 'text-neutral-700 line-through'}`}>{o.etiqueta}</span>
+          <Input
+            aria-label={`Texto de la opción «${o.etiqueta}»`}
+            defaultValue={o.etiqueta}
+            onBlur={(e) =>
+              e.target.value.trim() && e.target.value.trim() !== o.etiqueta && editar.mutate({ id: o.id, body: { etiqueta: e.target.value.trim() } })
+            }
+            className={`!py-1.5 !text-[13.5px] !font-bold ${o.activa ? '' : 'text-neutral-700 line-through'}`}
+          />
           <Select
             aria-label={`Criterio de «${o.etiqueta}»`}
             value={o.criterio ?? ''}
@@ -240,7 +248,7 @@ function Opciones({ pregunta }: { pregunta: Pregunta }) {
           </Select>
           <Input
             aria-label={`Valor que busca «${o.etiqueta}»`}
-            placeholder="Valor (p. ej. Parejas)"
+            placeholder={o.criterio === 'PRESUPUESTO' ? 'Tope en CLP (p. ej. 35000)' : 'Valor (p. ej. Parejas)'}
             defaultValue={o.objetivo ?? ''}
             onBlur={(e) => e.target.value !== (o.objetivo ?? '') && editar.mutate({ id: o.id, body: { objetivo: e.target.value.trim() } })}
             className="!py-1.5 !text-[13px]"

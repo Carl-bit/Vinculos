@@ -34,11 +34,17 @@ const ICONO_OPCION: Record<string, Icono> = {
 };
 
 export const MAX_RELATO = 2000;
+/** Minimo que exige la API para el relato (validarRespuestas). */
+export const MIN_RELATO = 10;
 
 /** Valores elegidos como lista (UNICA/ESCALA guardan un string). */
 export const elegidos = (r: Respuesta): string[] => (r === undefined ? [] : Array.isArray(r) ? r : [r]);
 
-export const respondida = (q: Pregunta, r: Respuesta) => (q.tipo === 'TEXTO' ? typeof r === 'string' && r.trim() !== '' : elegidos(r).length > 0);
+export const respondida = (q: Pregunta, r: Respuesta) => (q.tipo === 'TEXTO' ? typeof r === 'string' && r.trim().length >= MIN_RELATO : elegidos(r).length > 0);
+
+/** Se puede avanzar: respondida, u opcional y sin tocar (un relato corto a medias no pasa: la API lo rechazaria al final). */
+export const lista = (q: Pregunta, r: Respuesta) =>
+  respondida(q, r) || (!q.obligatoria && (q.tipo === 'TEXTO' ? typeof r !== 'string' || r.trim() === '' : true));
 
 const esMultiple = (q: Pregunta) => q.tipo === 'MULTIPLE' || ((q.tipo === 'DIAS' || q.tipo === 'FRANJAS') && q.max_selecciones !== 1);
 
@@ -56,6 +62,7 @@ export function PreguntaMatch({ pregunta: q, valor, onChange }: { pregunta: Preg
 
   if (q.tipo === 'TEXTO') {
     const texto = typeof valor === 'string' ? valor : '';
+    const faltan = MIN_RELATO - texto.trim().length;
     return (
       <div className="flex flex-col gap-3">
         <label htmlFor={`${id}-texto`} className="sr-only">
@@ -67,13 +74,26 @@ export function PreguntaMatch({ pregunta: q, valor, onChange }: { pregunta: Preg
           maxLength={MAX_RELATO}
           value={texto}
           onChange={(e) => onChange(e.target.value)}
-          aria-describedby={`${id}-cuenta ${id}-privado`}
+          aria-describedby={`${id}-minimo ${id}-cuenta ${id}-privado`}
+          aria-invalid={texto.trim() !== '' && faltan > 0 ? true : undefined}
           placeholder="Por ejemplo: hace unos meses que duermo mal y me cuesta concentrarme en el trabajo."
           className="w-full resize-y rounded-[20px] border-[1.5px] border-neutral-400 bg-neutral-100 px-5 py-[18px] text-[15.5px] leading-[1.65] font-medium placeholder:text-neutral-700 focus-visible:border-accent-500"
         />
-        <span id={`${id}-cuenta`} className="self-end text-[12.5px] font-bold text-neutral-700">
-          {texto.length} / {MAX_RELATO}
-        </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span id={`${id}-minimo`} aria-live="polite" className={`text-[13px] font-extrabold ${faltan > 0 ? 'text-accent-800' : 'text-accent-2-800'}`}>
+            {faltan > 0 ? (
+              `Escribe al menos ${MIN_RELATO} caracteres${texto.trim() ? ` (te faltan ${faltan})` : ''}.`
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="check_circle" size={16} />
+                Listo, puedes continuar.
+              </span>
+            )}
+          </span>
+          <span id={`${id}-cuenta`} className="text-[12.5px] font-bold text-neutral-700 tabular-nums">
+            {texto.length} / {MAX_RELATO}
+          </span>
+        </div>
         <p
           id={`${id}-privado`}
           className="m-0 flex gap-[11px] rounded-[18px] border border-divider bg-neutral-100 px-[17px] py-[15px] text-[13px] font-bold text-pretty text-neutral-700"

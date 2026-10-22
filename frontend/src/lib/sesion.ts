@@ -16,9 +16,12 @@ import { ApiError } from './api/errores';
 import type { components } from './api/esquema';
 
 type Tokens = components['schemas']['Tokens'];
-export type DesafioTotp = components['schemas']['DesafioTotp'];
+/** 03b-4.1: segundo paso del login (codigo por correo; TOTP solo si la API lo habilita). */
+export type DesafioSegundoFactor = components['schemas']['DesafioSegundoFactor'];
 export type Rol = components['schemas']['Rol'];
-export type SesionActiva = Omit<Tokens, 'refreshToken'>;
+export type SesionActiva = Omit<Tokens, 'refreshToken' | 'codigosRespaldo'>;
+/** Respuesta de un ingreso completo: la primera verificacion trae los codigos de respaldo (solo se muestran una vez). */
+export type Ingreso = SesionActiva & { codigosRespaldo?: string[] };
 
 export type EstadoSesion = { tipo: 'desconocida' } | { tipo: 'anonima'; motivo?: 'inactividad' } | { tipo: 'activa'; sesion: SesionActiva };
 
@@ -133,12 +136,13 @@ async function pedir<T>(accion: string, cuerpo: object = {}): Promise<T> {
   return datos as T;
 }
 
-/** Login, TOTP, enlace de acceso o activacion: abre la sesion o devuelve el desafio TOTP. */
-async function entrar(accion: string, cuerpo: object): Promise<SesionActiva | DesafioTotp> {
-  const r = await pedir<SesionActiva | DesafioTotp>(accion, cuerpo);
+/** Login, segundo factor, enlace de acceso o activacion: abre la sesion o devuelve el desafio del segundo paso. */
+async function entrar(accion: string, cuerpo: object): Promise<Ingreso | DesafioSegundoFactor> {
+  const r = await pedir<Ingreso | DesafioSegundoFactor>(accion, cuerpo);
   if ('accessToken' in r) {
     registrarActividad();
-    fijar({ tipo: 'activa', sesion: r });
+    const { codigosRespaldo: _codigos, ...sesion } = r;
+    fijar({ tipo: 'activa', sesion });
   }
   return r;
 }
@@ -147,6 +151,8 @@ export type DatosLogin = components['schemas']['LoginDto'];
 
 export const iniciarSesion = (datos: DatosLogin) => entrar('login', datos);
 export const verificarTotp = (desafio: string, codigo: string) => entrar('totp', { desafio, codigo });
+/** Codigo del correo o de respaldo. */
+export const verificarSegundoFactor = (desafio: string, codigo: string) => entrar('segundo-factor', { desafio, codigo });
 export const usarEnlaceAcceso = (token: string) => entrar('enlace-acceso', { token });
 export const activarCuenta = (token: string, password: string) => entrar('activacion', { token, password });
 

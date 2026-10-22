@@ -6,6 +6,7 @@ import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { ChoiceGroup } from '@/components/ui/ChoiceGroup';
+import { ControlSegmentado } from '@/components/ui/ControlSegmentado';
 import { Field, Input, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
@@ -91,15 +92,15 @@ export function FiltroDirecto({ agenda, onVolver }: { agenda: boolean; onVolver:
             </Select>
           )}
         </Field>
-        <ChoiceGroup
-          legend="Modalidad"
-          type="radio"
-          value={[modalidad || 'cualquiera']}
-          onChange={(v) => setModalidad(v[0] === 'cualquiera' ? '' : ((v[0] as Modalidad) ?? ''))}
-          options={[
-            { value: 'cualquiera', label: 'Me da igual' },
-            { value: 'PRESENCIAL', label: 'Presencial' },
-            { value: 'ONLINE', label: 'Online' },
+        <ControlSegmentado
+          etiqueta="Modalidad"
+          conLeyenda
+          valor={modalidad || 'cualquiera'}
+          onChange={(v) => setModalidad(v === 'cualquiera' ? '' : v)}
+          opciones={[
+            { valor: 'cualquiera', etiqueta: 'Me da igual', icono: 'swap_horiz' },
+            { valor: 'PRESENCIAL', etiqueta: 'Presencial', icono: 'meeting_room' },
+            { valor: 'ONLINE', etiqueta: 'Online', icono: 'videocam' },
           ]}
         />
         <ChoiceGroup legend="¿Para cuándo?" type="radio" value={[plazo]} onChange={(v) => setPlazo(v[0] ?? '14')} options={PLAZOS} />

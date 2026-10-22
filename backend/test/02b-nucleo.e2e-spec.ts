@@ -181,10 +181,10 @@ describe('02b nucleo', () => {
       expect((await t.http().post('/api/usuarios/yo/password').set(h).send({ actual: 'mala', nueva: 'otra-clave-larga' })).status).toBe(401);
       expect((await t.http().post('/api/usuarios/yo/password').set(h).send({ actual: CLAVE, nueva: 'otra-clave-larga' })).status).toBe(204);
       expect((await t.http().post('/api/auth/refresh').send({ refreshToken: login.body.refreshToken })).status).toBe(401);
-      // TOTP (03a): la contraseña nueva pasa el primer factor y pide el segundo.
+      // 03b-4.1: la contraseña nueva pasa el primer factor y pide el codigo por correo.
       const nuevo = await t.http().post('/api/auth/login').send({ email: u.email, password: 'otra-clave-larga' });
       expect(nuevo.status).toBe(200);
-      expect(nuevo.body.requiereTotp).toBe(true);
+      expect(nuevo.body.requiereSegundoFactor).toBe(true);
     });
 
     it('GET /usuarios y PATCH /usuarios/:id: solo ADMIN', async () => {

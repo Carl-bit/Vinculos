@@ -155,6 +155,12 @@ export class CuestionarioPublico {
   filtroDirecto!: boolean;
 }
 
+export class TramoPrecio {
+  /** 0 = dentro de la preferencia; despues, cada tramo mas caro. */
+  indice!: number;
+  titulo!: string;
+}
+
 export class OpcionResultadoMatch {
   perfil!: PerfilPublico;
   puntaje!: number;
@@ -164,6 +170,12 @@ export class OpcionResultadoMatch {
   advertencia!: string | null;
   @ApiProperty({ type: Date, nullable: true })
   primerHueco!: Date | null;
+  /** 03b-4.1: tarifa vigente en la modalidad elegida (la general si no hay especifica). */
+  @ApiProperty({ type: Number, nullable: true })
+  tarifa!: number | null;
+  /** 03b-4.1: tramo de precio respecto de la preferencia de pago (null si no la indico). */
+  @ApiProperty({ type: TramoPrecio, nullable: true })
+  tramo!: TramoPrecio | null;
 }
 
 /** Resultado del match: no se guardan las respuestas (C-17). */

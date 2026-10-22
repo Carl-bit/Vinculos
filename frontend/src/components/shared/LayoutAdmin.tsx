@@ -7,11 +7,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { useMiCuenta, useModulos } from '@/lib/consultas';
-import { menuVisible, type ItemMenu } from '@/lib/navegacion';
+import { menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
 import { esAdministracion, NOMBRE_ROL } from '@/lib/roles';
 import type { SesionActiva } from '@/lib/sesion';
 import { BotonSalir } from './BotonSalir';
-import { ProveedorEquipoActivo, SelectorEquipo } from './EquipoActivo';
+import { ProveedorEquipoActivo, SelectorEquipo, ViendoA } from './EquipoActivo';
+import { EstadoVista } from './EstadoVista';
 import { Marca } from './Marca';
 import { SelectorRol } from './SelectorRol';
 
@@ -112,7 +113,8 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
           </div>
         </aside>
         <main key={ruta} className="entrada min-w-0 px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14">
-          {children}
+          {esAdministracion(sesion.rol) && <ViendoA />}
+          {rutaPermitida('admin', sesion.rol, ruta) ? children : <EstadoVista estado="sin-permiso" />}
         </main>
       </div>
     </ProveedorEquipoActivo>

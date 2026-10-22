@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/api/errores';
 import { useConfiguracionCentro, useContenidoPublico, type ConfiguracionCentro, type ContenidoPublico } from '@/lib/centro';
 import { rutValido } from '@/lib/formato';
 import { subirArchivo } from '@/lib/subidas';
+import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
 
 interface Servicio {
   icono?: string;
@@ -83,7 +84,7 @@ function Formulario({ c, p }: { c: ConfiguracionCentro; p: ContenidoPublico }) {
 
   const guardar = useMutation({
     mutationFn: async () => {
-      await datos(api.PATCH('/api/configuracion', { body: { nombreCentro: f.nombreCentro.trim(), rutCentro: f.rutCentro.trim() || undefined } }));
+      await datos(api.PATCH('/api/configuracion', { body: { nombreCentro: f.nombreCentro.trim(), rutCentro: rutNormalizado(f.rutCentro) || undefined } }));
       await datos(
         api.PATCH('/api/configuracion/contenido-publico', {
           body: {
@@ -133,9 +134,7 @@ function Formulario({ c, p }: { c: ConfiguracionCentro; p: ContenidoPublico }) {
           <Field label="Nombre del centro" required>
             {(x) => <Input {...x} value={f.nombreCentro} maxLength={120} onChange={cambiar('nombreCentro')} />}
           </Field>
-          <Field label="RUT del centro" hint="Con dígito verificador.">
-            {(x) => <Input {...x} value={f.rutCentro} maxLength={12} onChange={cambiar('rutCentro')} placeholder="76.123.456-7" />}
-          </Field>
+          <CampoRut label="RUT del centro" placeholder="76.123.456-7" value={f.rutCentro} onChange={(v) => setF((a) => ({ ...a, rutCentro: v }))} />
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-4 rounded-[18px] border border-divider bg-bg p-4">
           {logo ? (

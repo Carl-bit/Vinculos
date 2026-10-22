@@ -7,10 +7,11 @@ import {
   CambioRolDto,
   CorreoDto,
   DesafioDto,
-  DesafioTotp,
+  DesafioSegundoFactor,
   EnrolamientoTotp,
   LoginDto,
   RefreshDto,
+  SegundoFactorDto,
   TokenDto,
   TokenPasswordDto,
   Tokens,
@@ -18,8 +19,8 @@ import {
 } from './auth.dto';
 import { AuthService } from './auth.service';
 
-/** Login en uno o dos pasos: tokens, o desafio TOTP si la cuenta lo exige. */
-const TokensODesafio = () => ApiOkResponse({ schema: { oneOf: [{ $ref: getSchemaPath(Tokens) }, { $ref: getSchemaPath(DesafioTotp) }] } });
+/** Login en uno o dos pasos: tokens, o desafio del segundo factor si la cuenta lo tiene. */
+const TokensODesafio = () => ApiOkResponse({ schema: { oneOf: [{ $ref: getSchemaPath(Tokens) }, { $ref: getSchemaPath(DesafioSegundoFactor) }] } });
 import { Publico } from './decoradores';
 
 /**
@@ -32,26 +33,46 @@ import { Publico } from './decoradores';
 @Publico()
 @UseGuards(ThrottlerGuard)
 @SkipThrottle({ publico: true })
-@ApiExtraModels(Tokens, DesafioTotp)
+@ApiExtraModels(Tokens, DesafioSegundoFactor)
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** Correo (o RUT del paciente) y contraseña. Con TOTP (obligatorio en roles clinicos) responde un desafio. */
+  /**
+   * Correo o RUT y contraseña. Equipo (y pacientes que lo activaron): responde
+   * un desafio y envia un codigo de 6 digitos al correo (03b-4.1).
+   */
   @Post('login')
   @TokensODesafio()
   @HttpCode(200)
-  login(@Body() dto: LoginDto): Promise<Tokens | DesafioTotp> {
+  login(@Body() dto: LoginDto): Promise<Tokens | DesafioSegundoFactor> {
     return this.auth.login({ email: dto.email, rut: dto.rut }, dto.password, dto.rol);
   }
 
-  /** Segundo factor: codigo de la app (activa el TOTP si era el enrolamiento). */
+  /**
+   * Segundo factor: codigo del correo o de respaldo. La primera vez activa la
+   * verificacion y devuelve los 10 codigos de respaldo (codigosRespaldo).
+   */
+  @Post('segundo-factor')
+  @HttpCode(200)
+  segundoFactor(@Body() dto: SegundoFactorDto): Promise<Tokens> {
+    return this.auth.verificarSegundoFactor(dto.desafio, dto.codigo);
+  }
+
+  /** "Reenviar codigo": 409 si no pasaron 60 segundos desde el anterior. */
+  @Post('segundo-factor/codigo')
+  @HttpCode(204)
+  reenviarCodigo(@Body() dto: DesafioDto): Promise<void> {
+    return this.auth.reenviarCodigo(dto.desafio);
+  }
+
+  /** TOTP (03a): 404 mientras TOTP_HABILITADO este apagado (03b-4.1). */
   @Post('totp')
   @HttpCode(200)
   totp(@Body() dto: TotpDto): Promise<Tokens> {
     return this.auth.verificarTotp(dto.desafio, dto.codigo);
   }
 
-  /** Enrolamiento TOTP: secreto y URI otpauth para el codigo QR. */
+  /** Enrolamiento TOTP: secreto y URI otpauth para el codigo QR. 404 con TOTP apagado. */
   @Post('totp/enrolamiento')
   @HttpCode(200)
   enrolar(@Body() dto: DesafioDto): Promise<EnrolamientoTotp> {
@@ -100,7 +121,7 @@ export class AuthController {
   @Post('enlace-acceso/confirmacion')
   @TokensODesafio()
   @HttpCode(200)
-  usarEnlaceAcceso(@Body() dto: TokenDto): Promise<Tokens | DesafioTotp> {
+  usarEnlaceAcceso(@Body() dto: TokenDto): Promise<Tokens | DesafioSegundoFactor> {
     return this.auth.usarEnlaceAcceso(dto.token);
   }
 
@@ -108,7 +129,7 @@ export class AuthController {
   @Post('activacion')
   @TokensODesafio()
   @HttpCode(200)
-  activar(@Body() dto: TokenPasswordDto): Promise<Tokens | DesafioTotp> {
+  activar(@Body() dto: TokenPasswordDto): Promise<Tokens | DesafioSegundoFactor> {
     return this.auth.activarInvitacion(dto.token, dto.password);
   }
 

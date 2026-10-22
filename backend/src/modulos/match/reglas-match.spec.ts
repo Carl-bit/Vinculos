@@ -1,4 +1,4 @@
-import { evaluar, opcionesElegidas, ordenar, type PerfilParaMatch, type PreguntaMatch, validarRespuestas } from './reglas-match';
+import { evaluar, opcionesElegidas, ordenar, type PerfilParaMatch, type PreguntaMatch, tramoPrecio, validarRespuestas } from './reglas-match';
 
 const preguntas: PreguntaMatch[] = [
   {
@@ -67,5 +67,27 @@ describe('match por reglas', () => {
       { ...a, primerHueco: null },
     ]);
     expect(orden.map((x) => x.perfilId)).toEqual(['a', 'b']);
+  });
+
+  it('03b-4.1: tramos de precio segun los topes configurados; dentro de cada tramo se mantiene el orden', () => {
+    const topes = [25000, 35000, 45000, 60000];
+    expect(tramoPrecio(30000, 35000, topes)).toEqual({ indice: 0, titulo: 'Dentro de tu preferencia' });
+    expect(tramoPrecio(35000, 35000, topes).indice).toBe(0);
+    expect(tramoPrecio(40000, 35000, topes)).toEqual({ indice: 1, titulo: 'Hasta $10.000 más que tu preferencia' });
+    expect(tramoPrecio(50000, 35000, topes)).toEqual({ indice: 2, titulo: 'Hasta $25.000 más que tu preferencia' });
+    expect(tramoPrecio(70000, 35000, topes)).toEqual({ indice: 3, titulo: 'Más de $25.000 sobre tu preferencia' });
+    expect(tramoPrecio(70000, 60000, topes)).toEqual({ indice: 1, titulo: 'Sobre tu preferencia' });
+    expect(tramoPrecio(null, 35000, topes).indice).toBe(Number.MAX_SAFE_INTEGER);
+    // El orden por tramo es estable: conserva el orden por necesidad y disponibilidad.
+    const evals = [
+      { perfilId: 'caro-mejor', puntaje: 9, razones: [], incumple: [], primerHueco: null, tramo: tramoPrecio(50000, 35000, topes) },
+      { perfilId: 'barato-peor', puntaje: 1, razones: [], incumple: [], primerHueco: null, tramo: tramoPrecio(30000, 35000, topes) },
+      { perfilId: 'barato-mejor', puntaje: 5, razones: [], incumple: [], primerHueco: null, tramo: tramoPrecio(20000, 35000, topes) },
+    ];
+    expect(
+      ordenar(evals)
+        .sort((a, b) => a.tramo.indice - b.tramo.indice)
+        .map((e) => e.perfilId),
+    ).toEqual(['barato-mejor', 'barato-peor', 'caro-mejor']);
   });
 });

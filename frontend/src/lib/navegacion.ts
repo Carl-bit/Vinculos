@@ -63,3 +63,15 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
 export function menuVisible(zona: Zona, rol: Rol, activos: readonly ModuloCentro[], opciones: { restringida?: boolean } = {}): ItemMenu[] {
   return MENU[zona].filter((i) => i.roles.includes(rol) && (!i.modulo || activos.includes(i.modulo)) && !(opciones.restringida && i.soloCuentaPlena));
 }
+
+/**
+ * 03b-4.1: entrar por URL a una seccion del menu que el rol activo no tiene
+ * muestra "sin permiso" (la API responde 403 igual). Rutas fuera del menu
+ * (detalle de ficha, 404) las decide su pagina.
+ */
+export function rutaPermitida(zona: Zona, rol: Rol, ruta: string): boolean {
+  const item = MENU[zona]
+    .filter((i) => i.href !== '/' && i.href !== `/${zona}` && (ruta === i.href || ruta.startsWith(`${i.href}/`)))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+  return !item || item.roles.includes(rol);
+}

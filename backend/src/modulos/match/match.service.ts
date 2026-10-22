@@ -15,7 +15,7 @@ import type {
   ResultadoMatch,
   TarifaPublica,
 } from './dto/publico-respuestas.dto';
-import { evaluar, opcionesElegidas, ordenar, type PreguntaMatch, type Respuestas, validarRespuestas } from './reglas-match';
+import { evaluar, opcionesElegidas, ordenar, type PreguntaMatch, type Respuestas, tramoPrecio, validarRespuestas } from './reglas-match';
 
 const DIA = 86_400_000;
 const ZONA = 'America/Santiago';
@@ -110,6 +110,10 @@ export class MatchService {
    * cuenta el resultado anonimo (match_resultados) para las metricas.
    * Disponibilidad real: con Agenda activa, huecos de los proximos 14 dias en
    * los dias y franjas elegidos.
+   *
+   * 03b-4.1: con preferencia de pago, por tramos de precio (dentro de la
+   * preferencia primero; dentro de cada tramo, el mismo orden). "Prefiero no
+   * decirlo" (opcion sin criterio): sin tramos.
    */
   async calcular(respuestas: Respuestas): Promise<ResultadoMatch> {
     const preguntas: PreguntaMatch[] = (await this.cuestionario()).preguntas;
@@ -144,7 +148,16 @@ export class MatchService {
         return { ...e, razones, puntaje: e.puntaje + (enPreferencia.length ? 2 : 0), primerHueco: enPreferencia[0]?.inicio ?? null };
       }),
     );
-    const orden = ordenar(evaluados);
+    const presupuesto = elegidas.find((o) => o.criterio === 'PRESUPUESTO');
+    const topes = preguntas
+      .flatMap((q) => q.opciones)
+      .filter((o) => o.criterio === 'PRESUPUESTO')
+      .map((o) => Number(o.objetivo));
+    const conPrecio = evaluados.map((e) => {
+      const tarifa = tarifaAplicable(perfiles.find((x) => x.id === e.perfilId)!.tarifas, undefined, modalidad);
+      return { ...e, tarifa, tramo: presupuesto ? tramoPrecio(tarifa, Number(presupuesto.objetivo), topes) : null };
+    });
+    const orden = ordenar(conPrecio).sort((a, b) => (a.tramo?.indice ?? 0) - (b.tramo?.indice ?? 0));
     const vista = (e: (typeof orden)[number]) => {
       const p = perfiles.find((x) => x.id === e.perfilId)!;
       return {
@@ -153,6 +166,8 @@ export class MatchService {
         razones: e.razones,
         advertencia: e.incumple.length ? `No cumple con: ${e.incumple.join(', ')}. Puedes agendar igual o escribirnos para revisar alternativas.` : null,
         primerHueco: e.primerHueco,
+        tarifa: e.tarifa,
+        tramo: e.tramo,
       };
     };
     const recomendado = orden[0] ? vista(orden[0]) : null;
@@ -161,7 +176,8 @@ export class MatchService {
     }
     return {
       recomendado,
-      otros: orden.slice(1, 6).map(vista),
+      // Con tramos se muestra el equipo completo: el precio ordena, no excluye.
+      otros: orden.slice(1, presupuesto ? undefined : 6).map(vista),
       avisos: [...new Set(elegidas.map((o) => o.mensaje).filter((m): m is string => !!m))],
       resumen: elegidas.map((o) => o.etiqueta),
     };
