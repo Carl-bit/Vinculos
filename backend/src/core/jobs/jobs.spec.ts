@@ -69,8 +69,8 @@ describe('programacion de jobs (reloj simulado)', () => {
     }
   });
 
-  it('cada hora: procesar bajas y avisar deudas', () => {
-    for (const job of ['procesar_bajas', 'avisar_deudas']) {
+  it('cada hora: procesar bajas, avisar deudas y detectar anomalias (AUD-01)', () => {
+    for (const job of ['procesar_bajas', 'avisar_deudas', 'detectar_anomalias']) {
       expect(de(job)).toHaveLength(24);
       expect(de(job).every((d) => d.en.getUTCMinutes() === 0)).toBe(true);
     }
@@ -92,6 +92,18 @@ describe('programacion de jobs (reloj simulado)', () => {
     const purga = de('purgar_codigos_verificacion');
     expect(purga).toHaveLength(1);
     expect(purga[0].en.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour12: false })).toBe('03:45:00');
+  });
+
+  it('una vez al dia a las 08:00 de Chile: alertar solicitudes de derechos por vencer (AUD-01)', () => {
+    const alerta = de('alertar_solicitudes_por_vencer');
+    expect(alerta).toHaveLength(1);
+    expect(alerta[0].en.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour12: false })).toBe('08:00:00');
+  });
+
+  it('una vez al dia a las 04:15 de Chile: purgar exportaciones vencidas (AUD-01)', () => {
+    const purga = de('purgar_exportaciones_vencidas');
+    expect(purga).toHaveLength(1);
+    expect(purga[0].en.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour12: false })).toBe('04:15:00');
   });
 
   it('una vez al dia a las 03:00 de Chile: verificar canarios', () => {
@@ -117,6 +129,9 @@ describe('programacion de jobs (reloj simulado)', () => {
         'purgar_mensajes_internos',
         'purgar_codigos_verificacion',
         'verificar_canarios',
+        'detectar_anomalias',
+        'alertar_solicitudes_por_vencer',
+        'purgar_exportaciones_vencidas',
       ]),
     );
   });

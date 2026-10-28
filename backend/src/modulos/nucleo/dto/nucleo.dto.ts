@@ -1,5 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AccionAcceso, MedioConfirmacion, ModeloCobro, ModuloCentro, Rol, TipoAlerta, TipoComisionDerivacion, TipoPolitica } from '@prisma/client';
+import {
+  AccionAcceso,
+  AlcanceSoporte,
+  CanalSolicitudDerecho,
+  EstadoSolicitudDerecho,
+  TipoDerecho,
+  MedioConfirmacion,
+  ModeloCobro,
+  ModuloCentro,
+  Rol,
+  TipoAlerta,
+  TipoComisionDerivacion,
+  TipoPolitica,
+} from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -836,4 +849,314 @@ export class IntegranteEquipoTratante {
   id!: string;
   @ApiProperty({ type: String, nullable: true })
   nombre!: string | null;
+}
+
+/** AUD-01 (E1.5): acciones que se pueden filtrar en la auditoria de accesos. */
+export const ACCIONES_AUDITORIA = [
+  'LECTURA',
+  'ESCRITURA',
+  'DESCARGA',
+  'EXPORTACION',
+  'ENVIO',
+  'DERIVACION',
+  'SUPERVISION',
+  'RETENCION',
+  'ACCESO_TEMPORAL',
+] as const;
+
+/** Auditoria de accesos (ADMIN). Sin fechas: los ultimos 7 dias. */
+export class FiltroAuditoriaDto {
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  desde?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  hasta?: Date;
+
+  @IsOptional()
+  @IsUUID()
+  pacienteId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  usuarioId?: string;
+
+  @IsOptional()
+  @IsIn(ACCIONES_AUDITORIA)
+  accion?: (typeof ACCIONES_AUDITORIA)[number];
+}
+
+/** Fila de la auditoria: acceso a datos de un paciente o descarga sin paciente (registro_exportaciones). */
+export class RegistroAuditoria {
+  id!: string;
+  @ApiProperty({ enum: ['ACCESO_FICHA', 'EXPORTACION'] })
+  origen!: 'ACCESO_FICHA' | 'EXPORTACION';
+  ocurridoEn!: Date;
+  usuarioId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  usuarioNombre!: string | null;
+  @ApiProperty({ enum: Rol, enumName: 'Rol', description: 'Rol activo al momento del acceso' })
+  rol!: Rol;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteNombre!: string | null;
+  recurso!: string;
+  accion!: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Campos que cambiaron u otro detalle; nunca valores' })
+  detalle!: string | null;
+}
+
+/** AUD-01 (E2.1): autorizacion del centro al soporte de Vinculos (sin datos personales ni clinicos). */
+export class OtorgarSoporteDto {
+  @Recortar()
+  @IsString()
+  @Length(5, 500)
+  motivo!: string;
+
+  @IsEnum(AlcanceSoporte)
+  alcance!: AlcanceSoporte;
+
+  /** Entre 1 y 72 horas desde ahora. */
+  @IsInt()
+  @Min(1)
+  @Max(72)
+  horas!: number;
+}
+
+export class AutorizacionSoporteVista {
+  id!: string;
+  motivo!: string;
+  @ApiProperty({ enum: AlcanceSoporte, enumName: 'AlcanceSoporte' })
+  alcance!: AlcanceSoporte;
+  desde!: Date;
+  hasta!: Date;
+  vigente!: boolean;
+  @ApiProperty({ type: String, nullable: true })
+  otorgadaPor!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  revocadaEn!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  revocadaPor!: string | null;
+  /** Diagnosticos ejecutados con esta autorizacion. */
+  usos!: number;
+}
+
+export class RegistroSoporteVista {
+  id!: string;
+  autorizacionId!: string;
+  /** Funcion de diagnostico ejecutada (p. ej. soporte_resumen). */
+  funcion!: string;
+  /** Rol de BD con que se conecto el soporte. */
+  rolBd!: string;
+  ocurridoEn!: Date;
+}
+
+/** AUD-01 (E2.2): contrato del centro con Vinculos. */
+export const TIPOS_CONTRATO = ['TERMINOS_SERVICIO', 'DPA'] as const;
+
+export class AceptarContratoDto {
+  @IsIn(TIPOS_CONTRATO)
+  tipo!: (typeof TIPOS_CONTRATO)[number];
+}
+
+export class AceptacionContratoVista {
+  @ApiProperty({ type: String, nullable: true })
+  por!: string | null;
+  aceptadaEn!: Date;
+}
+
+export class ContratoVigenteVista {
+  @ApiProperty({ enum: TIPOS_CONTRATO })
+  tipo!: (typeof TIPOS_CONTRATO)[number];
+  politicaId!: string;
+  version!: number;
+  texto!: string;
+  vigenteDesde!: Date;
+  @ApiProperty({ type: AceptacionContratoVista, isArray: true })
+  aceptaciones!: AceptacionContratoVista[];
+}
+
+export class ContratoCentroVista {
+  /** Tipos cuya version vigente nadie del centro ha aceptado. */
+  @ApiProperty({ enum: TIPOS_CONTRATO, isArray: true })
+  pendientes!: (typeof TIPOS_CONTRATO)[number][];
+  @ApiProperty({ type: ContratoVigenteVista, isArray: true })
+  vigentes!: ContratoVigenteVista[];
+}
+
+/** AUD-01 (E2.3a): solicitud de derechos que registra el centro (no el formulario publico). */
+export class RegistrarSolicitudDerechoDto {
+  @IsEnum(TipoDerecho)
+  tipo!: TipoDerecho;
+
+  /** Titular identificado como paciente (opcional: puede no serlo). */
+  @IsOptional()
+  @IsUUID()
+  pacienteId?: string;
+
+  @IsIn(['PRESENCIAL', 'CORREO', 'PORTAL'])
+  canal!: Exclude<CanalSolicitudDerecho, 'FORMULARIO_PUBLICO'>;
+
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 2000)
+  detalle?: string;
+}
+
+export class AvanzarSolicitudDerechoDto {
+  @IsIn(['EN_CURSO', 'RESUELTA', 'RECHAZADA'])
+  estado!: Exclude<EstadoSolicitudDerecho, 'RECIBIDA'>;
+
+  /** Respuesta al titular: obligatoria al resolver o rechazar (la BD lo exige). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 4000)
+  respuesta?: string;
+}
+
+/** AUD-01 Fase 3: estado de la exportacion de un paciente (solo metadatos). */
+export const ESTADOS_EXPORTACION = ['ESPERANDO_TRATANTE', 'LISTA', 'ENVIADA', 'VENCIDA'] as const;
+
+export class ExportacionPacienteVista {
+  id!: string;
+  pacienteId!: string;
+  solicitudId!: string;
+  @ApiProperty({ enum: ESTADOS_EXPORTACION })
+  estado!: (typeof ESTADOS_EXPORTACION)[number];
+  /** El paciente tiene ficha: falta (o ya esta) la parte clinica del tratante. */
+  requiereClinica!: boolean;
+  creadaEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  clinicaEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  enviadaEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  venceEn!: Date | null;
+  descargas!: number;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  purgadaEn!: Date | null;
+}
+
+export class SolicitudDerechoVista {
+  id!: string;
+  @ApiProperty({ enum: TipoDerecho, enumName: 'TipoDerecho' })
+  tipo!: TipoDerecho;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteNombre!: string | null;
+  /** AUD-01 (E2.3c): el tratamiento del paciente esta bloqueado. */
+  pacienteBloqueado!: boolean;
+  @ApiProperty({ enum: CanalSolicitudDerecho, enumName: 'CanalSolicitudDerecho' })
+  canal!: CanalSolicitudDerecho;
+  @ApiProperty({ enum: EstadoSolicitudDerecho, enumName: 'EstadoSolicitudDerecho' })
+  estado!: EstadoSolicitudDerecho;
+  recibidaEn!: Date;
+  /** AAAA-MM-DD: 30 dias habiles desde la recepcion. */
+  @ApiProperty({ type: String, format: 'date' })
+  venceEl!: string;
+  /** Dias habiles que quedan (solo abiertas). */
+  @ApiProperty({ type: Number, nullable: true })
+  diasHabilesRestantes!: number | null;
+  @ApiProperty({ type: String, nullable: true })
+  detalle!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  respuesta!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  resueltaEn!: Date | null;
+  /** E2.3b: pidio actualizar su correo (verificar identidad antes de cambiarlo). */
+  pideCambioCorreo!: boolean;
+  /** Fase 3: exportacion en curso o enviada de esta solicitud. */
+  @ApiProperty({ type: ExportacionPacienteVista, nullable: true })
+  exportacion!: ExportacionPacienteVista | null;
+}
+
+/** AUD-01 (E2.3c): bloqueo del tratamiento de un paciente mientras se resuelve una solicitud. */
+export class BloquearTratamientoDto {
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  motivo!: string;
+
+  @IsOptional()
+  @IsUUID()
+  solicitudId?: string;
+}
+
+export class CancelarPerifericosDto {
+  /** Solicitud de cancelacion abierta del paciente. */
+  @IsUUID()
+  solicitudId!: string;
+}
+
+export class EstadoBloqueoVista {
+  pacienteId!: string;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  bloqueoDesde!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  bloqueoMotivo!: string | null;
+}
+
+export class CancelacionPerifericos {
+  /** Que se borro y que se conserva, con el motivo legal. */
+  mensaje!: string;
+}
+
+/** AUD-01 (E2.3b): solicitud de derechos sin cuenta, por RUT. La respuesta es siempre la misma. */
+export class SolicitudDerechoPublicaDto {
+  @IsRut()
+  @NormalizarRut()
+  rut!: string;
+
+  @IsEnum(TipoDerecho)
+  tipo!: TipoDerecho;
+
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 2000)
+  detalle?: string;
+
+  /** Quiere actualizar el correo registrado: el centro lo hace tras verificar su identidad. */
+  @IsOptional()
+  @IsBoolean()
+  cambiarCorreo?: boolean;
+
+  /** Trampa para bots: debe venir vacio. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  sitioWeb?: string;
+}
+
+export class SolicitudDerechoPublicaRecibida {
+  /** Siempre el mismo texto, exista o no el RUT. */
+  mensaje!: string;
+}
+
+/** Descarga de la exportacion de un paciente: enlace del correo y, sin cuenta, el codigo del segundo correo. */
+export class DescargaExportacionDto {
+  @IsString()
+  @Length(20, 200)
+  token!: string;
+
+  @IsOptional()
+  @Matches(/^\d{8}$/, { message: 'El codigo son 8 digitos' })
+  codigo?: string;
+
+  @IsIn(['json', 'pdf'])
+  formato!: 'json' | 'pdf';
+}
+
+/** Exportacion del centro: clave del ADMIN (no se guarda ni se registra). */
+export class ExportarCentroDto {
+  @IsString()
+  @Length(16, 200)
+  clave!: string;
 }

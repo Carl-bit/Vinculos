@@ -874,7 +874,7 @@ INSERT INTO profesional_tipos_atencion (profesional_id, tipo_atencion_id, estado
   (test.u('b1'), test.u('71'), 'APROBADO', now()), (test.u('b1'), test.u('73'), 'APROBADO', now());
 INSERT INTO arriendos (profesional_id, periodo_desde, periodo_hasta, monto) VALUES
   (test.u('b1'), '2026-01-01', '2026-02-01', 100000), (test.u('b2'), '2026-01-01', '2026-02-01', 120000);
-INSERT INTO boletas (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
+INSERT INTO comprobantes_pago (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
 SELECT gen_random_uuid(), cita_id, 'T-' || row_number() OVER (ORDER BY cita_id), monto, test.cif('Centro'), test.cif('76.000.000-0') FROM pagos;
 INSERT INTO historial_accesos_practicante (practicante_id, actor_id, accion, fecha_expiracion) VALUES
   (test.u('c1'), test.u('a1'), 'OTORGADO', now() + interval '30 days');
@@ -1068,24 +1068,24 @@ DO $$ DECLARE n int; BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 
-\echo 52 boletas por rol: ADMIN 2, GESTION 2, p1 1, p2 1, practicante 0, PACIENTE 1; nadie escribe directo (02h: emitir_boleta)
-DO $$ BEGIN PERFORM test.ctx('a1', 'ADMIN');       ASSERT (SELECT count(*) FROM boletas) = 2, 'caso 52: ADMIN'; END $$;
-DO $$ BEGIN PERFORM test.ctx('a3', 'GESTION');     ASSERT (SELECT count(*) FROM boletas) = 2, 'caso 52: GESTION'; END $$;
-DO $$ BEGIN PERFORM test.ctx('b1', 'PROFESIONAL'); ASSERT (SELECT count(*) FROM boletas) = 1, 'caso 52: p1'; END $$;
-DO $$ BEGIN PERFORM test.ctx('b2', 'PROFESIONAL'); ASSERT (SELECT count(*) FROM boletas) = 1, 'caso 52: p2'; END $$;
-DO $$ BEGIN PERFORM test.ctx('c1', 'PRACTICANTE'); ASSERT (SELECT count(*) FROM boletas) = 0, 'caso 52: practicante'; END $$;
-DO $$ BEGIN PERFORM test.ctx('a2', 'PACIENTE');    ASSERT (SELECT count(*) FROM boletas) = 1, 'caso 52: PACIENTE'; END $$;
+\echo 52 comprobantes_pago por rol: ADMIN 2, GESTION 2, p1 1, p2 1, practicante 0, PACIENTE 1; nadie escribe directo (02h: emitir_comprobante_pago)
+DO $$ BEGIN PERFORM test.ctx('a1', 'ADMIN');       ASSERT (SELECT count(*) FROM comprobantes_pago) = 2, 'caso 52: ADMIN'; END $$;
+DO $$ BEGIN PERFORM test.ctx('a3', 'GESTION');     ASSERT (SELECT count(*) FROM comprobantes_pago) = 2, 'caso 52: GESTION'; END $$;
+DO $$ BEGIN PERFORM test.ctx('b1', 'PROFESIONAL'); ASSERT (SELECT count(*) FROM comprobantes_pago) = 1, 'caso 52: p1'; END $$;
+DO $$ BEGIN PERFORM test.ctx('b2', 'PROFESIONAL'); ASSERT (SELECT count(*) FROM comprobantes_pago) = 1, 'caso 52: p2'; END $$;
+DO $$ BEGIN PERFORM test.ctx('c1', 'PRACTICANTE'); ASSERT (SELECT count(*) FROM comprobantes_pago) = 0, 'caso 52: practicante'; END $$;
+DO $$ BEGIN PERFORM test.ctx('a2', 'PACIENTE');    ASSERT (SELECT count(*) FROM comprobantes_pago) = 1, 'caso 52: PACIENTE'; END $$;
 DO $$ BEGIN
   PERFORM test.ctx('b1', 'PROFESIONAL');
-  INSERT INTO boletas (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
+  INSERT INTO comprobantes_pago (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
   SELECT gen_random_uuid(), cita_id, 'X-1', 1, test.cif('x'), test.cif('x') FROM pagos LIMIT 1;
-  RAISE EXCEPTION 'caso 52: PROFESIONAL emite boleta debio fallar';
+  RAISE EXCEPTION 'caso 52: PROFESIONAL emite comprobante debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 DO $$ BEGIN
   PERFORM test.ctx('a3', 'GESTION');
-  INSERT INTO boletas (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
+  INSERT INTO comprobantes_pago (id, cita_id, numero, monto, emisor_nombre, emisor_rut)
   SELECT gen_random_uuid(), cita_id, 'X-2', 1, test.cif('x'), test.cif('x') FROM pagos LIMIT 1;
-  RAISE EXCEPTION 'caso 52: GESTION inserta boleta directo debio fallar';
+  RAISE EXCEPTION 'caso 52: GESTION inserta comprobante directo debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 
 \echo 53 arriendos por rol: ADMIN 2, GESTION 2, p1 1, practicante 0, PACIENTE 0; solo gestion escribe
@@ -2603,7 +2603,7 @@ DO $$ DECLARE n int; BEGIN
   EXCEPTION WHEN no_data_found THEN NULL; END;
 END $$;
 
-\echo 93 Cobros: monto fijado al confirmar e inmutable; pagos solo via funciones (sobrepago 23514, parcial, anulacion con motivo); boleta unica al quedar pagada
+\echo 93 Cobros: monto fijado al confirmar e inmutable; pagos solo via funciones (sobrepago 23514, parcial, anulacion con motivo); comprobante de pago unico al quedar pagada
 DO $$ DECLARE v_cita uuid; v_cita2 uuid; v_pago uuid; BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
   UPDATE configuracion_centro SET modelo_cobro = 'CENTRO';
@@ -2625,7 +2625,7 @@ DO $$ DECLARE v_cita uuid; v_cita2 uuid; v_pago uuid; BEGIN
   EXCEPTION WHEN check_violation THEN NULL; END;
   v_pago := registrar_pago(v_cita, 10000, 'EFECTIVO');
   ASSERT (SELECT estado_pago || ':' || saldo FROM estado_pago_citas WHERE cita_id = v_cita) = 'PARCIAL:25000', 'caso 93: pago parcial';
-  ASSERT emitir_boleta(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) IS NULL, 'caso 93: sin boleta si no esta pagada';
+  ASSERT emitir_comprobante_pago(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) IS NULL, 'caso 93: sin comprobante si no esta pagada';
   BEGIN
     PERFORM anular_pago(v_pago, ' ');
     RAISE EXCEPTION 'caso 93: anular sin motivo debio fallar';
@@ -2638,11 +2638,11 @@ DO $$ DECLARE v_cita uuid; v_cita2 uuid; v_pago uuid; BEGIN
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
   PERFORM registrar_pago(v_cita, 35000, 'TRANSFERENCIA');
   ASSERT (SELECT estado_pago FROM estado_pago_citas WHERE cita_id = v_cita) = 'PAGADO', 'caso 93: pagado';
-  ASSERT emitir_boleta(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) LIKE 'SIM-%', 'caso 93: boleta al quedar pagada';
-  ASSERT emitir_boleta(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) IS NULL, 'caso 93: una sola boleta';
+  ASSERT emitir_comprobante_pago(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) LIKE 'CP-%', 'caso 93: comprobante al quedar pagada';
+  ASSERT emitir_comprobante_pago(gen_random_uuid(), v_cita, test.cif('Centro'), test.cif('rut')) IS NULL, 'caso 93: un solo comprobante';
   BEGIN
-    PERFORM anular_pago((SELECT id FROM pagos WHERE cita_id = v_cita AND estado = 'REGISTRADO'), 'con boleta');
-    RAISE EXCEPTION 'caso 93: anular con boleta debio fallar';
+    PERFORM anular_pago((SELECT id FROM pagos WHERE cita_id = v_cita AND estado = 'REGISTRADO'), 'con comprobante');
+    RAISE EXCEPTION 'caso 93: anular con comprobante debio fallar';
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
   BEGIN
     UPDATE pagos SET monto = 1 WHERE cita_id = v_cita;
@@ -2660,8 +2660,214 @@ DO $$ DECLARE v_cita uuid; v_cita2 uuid; v_pago uuid; BEGIN
   PERFORM test.ctx('c1', 'PRACTICANTE');
   ASSERT (SELECT count(*) FROM estado_pago_citas) = 0, 'caso 93: el practicante no ve cobros';
   PERFORM test.ctx('a2', 'PACIENTE');
-  ASSERT (SELECT count(*) FROM boletas WHERE cita_id = v_cita) = 1, 'caso 93: el paciente ve su boleta';
+  ASSERT (SELECT count(*) FROM comprobantes_pago WHERE cita_id = v_cita) = 1, 'caso 93: el paciente ve su comprobante';
   ASSERT (SELECT saldo FROM estado_pago_citas WHERE cita_id = v_cita2) = 50000, 'caso 93: el paciente ve su saldo';
+END $$;
+
+\echo 140 Documentos tributarios (AUD-01 E1.4) como app_user: solo via funcion; registra quien cobro (centro: ADMIN/GESTION; no el profesional); monto hasta lo pagado sin documentar; fecha no futura; honorarios solo del profesional; anular con motivo y volver a registrar el folio; lectura por rol como el comprobante
+DO $$ DECLARE v uuid; v_doc uuid; v_hoy date := (now() AT TIME ZONE 'America/Santiago')::date; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE configuracion_centro SET modelo_cobro = 'CENTRO';
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e1'), test.u('b1'), test.u('0a'), test.dia(88, 7), test.dia(88, 8)) RETURNING id INTO v;
+  PERFORM test.ctx('a3', 'GESTION');
+  PERFORM registrar_pago(v, (SELECT monto FROM citas WHERE id = v), 'EFECTIVO');
+  BEGIN
+    INSERT INTO documentos_tributarios (cita_id, tipo, folio, emisor, fecha_emision, monto, registrado_por_id)
+    VALUES (v, 'BOLETA_ELECTRONICA', '1', 'CENTRO', v_hoy, 1000, test.u('a3'));
+    RAISE EXCEPTION 'caso 140: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM registrar_documento_tributario(v, 'BOLETA_HONORARIOS', '77', v_hoy, 1000);
+    RAISE EXCEPTION 'caso 140: honorarios del centro debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM registrar_documento_tributario(v, 'BOLETA_ELECTRONICA', '77', v_hoy + 1, 1000);
+    RAISE EXCEPTION 'caso 140: fecha futura debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM registrar_documento_tributario(v, 'BOLETA_ELECTRONICA', '77', v_hoy, (SELECT monto + 1 FROM citas WHERE id = v));
+    RAISE EXCEPTION 'caso 140: monto sobre lo pagado debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  v_doc := registrar_documento_tributario(v, 'BOLETA_ELECTRONICA', '77', v_hoy, (SELECT monto FROM citas WHERE id = v));
+  ASSERT (SELECT emisor = 'CENTRO' AND emisor_profesional_id IS NULL AND registrado_por_id = test.u('a3')
+          FROM documentos_tributarios WHERE id = v_doc), 'caso 140: emisor centro';
+  BEGIN
+    PERFORM registrar_documento_tributario(v, 'BOLETA_ELECTRONICA', '78', v_hoy, 1);
+    RAISE EXCEPTION 'caso 140: ya documentado todo lo pagado debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE documentos_tributarios SET folio = '79' WHERE id = v_doc;
+    RAISE EXCEPTION 'caso 140: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- El profesional de la cita no registra ni anula lo que cobro el centro.
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM documentos_tributarios WHERE cita_id = v) = 1, 'caso 140: el profesional ve el de su cita';
+  BEGIN
+    PERFORM anular_documento_tributario(v_doc, 'no es mio');
+    RAISE EXCEPTION 'caso 140: el profesional anula lo del centro debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM registrar_documento_tributario(v, 'BOLETA_HONORARIOS', '5', v_hoy, 1);
+    RAISE EXCEPTION 'caso 140: el profesional registra lo del centro debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- Anular exige motivo; anulado, el folio se puede registrar de nuevo y el anulado queda.
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM anular_documento_tributario(v_doc, ' ');
+    RAISE EXCEPTION 'caso 140: anular sin motivo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM anular_documento_tributario(v_doc, 'Folio mal digitado');
+  BEGIN
+    PERFORM anular_documento_tributario(v_doc, 'otra vez');
+    RAISE EXCEPTION 'caso 140: anular dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM registrar_documento_tributario(v, 'BOLETA_ELECTRONICA', '77', v_hoy, (SELECT monto FROM citas WHERE id = v));
+  ASSERT (SELECT count(*) FILTER (WHERE estado = 'ANULADO') || '/' || count(*) FROM documentos_tributarios WHERE cita_id = v) = '1/2',
+    'caso 140: anulado conservado y uno vigente';
+  -- Lectura: paciente lo suyo; otro profesional y practicante nada.
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM documentos_tributarios WHERE cita_id = v) = 2, 'caso 140: el paciente ve los suyos';
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM documentos_tributarios WHERE cita_id = v) = 0, 'caso 140: otro profesional no';
+  PERFORM test.ctx('c1', 'PRACTICANTE');
+  ASSERT (SELECT count(*) FROM documentos_tributarios) = 0, 'caso 140: practicante no';
+END $$;
+
+\echo 141 Trazabilidad (AUD-01 E1.5) como app_user: editar datos de un paciente deja ESCRITURA con usuario, rol activo y nombres de campos (nunca valores); registro_exportaciones: cada uno inserta lo suyo, solo ADMIN lee, sin UPDATE
+DO $$ DECLARE v_email text; v_detalle text; BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  SELECT email INTO v_email FROM pacientes WHERE id = test.u('0a');
+  UPDATE pacientes SET email = 'nuevo-141@x.cl' WHERE id = test.u('0a');
+  UPDATE pacientes SET email = v_email WHERE id = test.u('0a');
+  PERFORM test.ctx('a1', 'ADMIN');
+  SELECT detalle INTO v_detalle FROM accesos_ficha
+  WHERE paciente_id = test.u('0a') AND usuario_id = test.u('a3') AND rol = 'GESTION' AND recurso = 'pacientes' AND accion = 'ESCRITURA'
+  ORDER BY ocurrido_en DESC LIMIT 1;
+  ASSERT v_detalle = 'campos: email', format('caso 141: detalle %s', v_detalle);
+  ASSERT NOT EXISTS (SELECT 1 FROM accesos_ficha WHERE detalle LIKE '%nuevo-141%'), 'caso 141: nunca el valor';
+  -- Exportaciones sin paciente.
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO registro_exportaciones (usuario_id, rol, recurso, detalle) VALUES (test.u('a3'), 'GESTION', 'reporte_cobros', 'periodo prueba');
+  BEGIN
+    INSERT INTO registro_exportaciones (usuario_id, rol, recurso) VALUES (test.u('a1'), 'ADMIN', 'reporte_cobros');
+    RAISE EXCEPTION 'caso 141: insertar a nombre de otro debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM registro_exportaciones) = 0, 'caso 141: GESTION no lee';
+  BEGIN
+    UPDATE registro_exportaciones SET detalle = 'x';
+    RAISE EXCEPTION 'caso 141: UPDATE debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM registro_exportaciones WHERE usuario_id = test.u('a3') AND recurso = 'reporte_cobros') = 1, 'caso 141: ADMIN lee';
+END $$;
+
+\echo 143 Soporte (AUD-01 E2.1) como app_user: solo ADMIN autoriza (1 a 72 h) y revoca; solo ADMIN lee autorizaciones y registro; la API no ejecuta funciones del soporte; sin escritura directa
+DO $$ DECLARE v uuid; BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM otorgar_soporte('Prueba de soporte', 'DIAGNOSTICO', 2);
+    RAISE EXCEPTION 'caso 143: GESTION autoriza debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM autorizaciones_soporte) = 0, 'caso 143: GESTION no lee';
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM otorgar_soporte('Prueba de soporte', 'DIAGNOSTICO', 100);
+    RAISE EXCEPTION 'caso 143: mas de 72 h debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  v := otorgar_soporte('Prueba de soporte', 'CONFIGURACION', 1);
+  ASSERT (SELECT otorgada_por_id = test.u('a1') AND hasta <= now() + interval '1 hour' FROM autorizaciones_soporte WHERE id = v),
+    'caso 143: ADMIN otorga';
+  BEGIN
+    PERFORM soporte_resumen();
+    RAISE EXCEPTION 'caso 143: app_user ejecuta soporte_resumen debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO autorizaciones_soporte (motivo, alcance, hasta, otorgada_por_id) VALUES ('directo', 'DIAGNOSTICO', now() + interval '1 hour', test.u('a1'));
+    RAISE EXCEPTION 'caso 143: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM revocar_soporte(v);
+  BEGIN
+    PERFORM revocar_soporte(v);
+    RAISE EXCEPTION 'caso 143: revocar dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
+
+\connect :owner_url
+-- AUD-01 (E2.2): el contrato lo publica el operador como dueño.
+INSERT INTO politicas (tipo, version, texto) VALUES ('DPA', 0, 'Anexo de tratamiento de datos de prueba (caso 144).');
+\connect :app_url
+\echo 144 Contrato del centro (AUD-01 E2.2) como app_user: ADMIN no publica terminos ni DPA; solo ADMIN los lee (ni GESTION ni sin contexto); pendiente hasta que un ADMIN acepta la version vigente; aceptar es idempotente y solo ADMIN
+DO $$ DECLARE v timestamptz; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    INSERT INTO politicas (tipo, version, texto) VALUES ('DPA', 0, 'DPA escrito por el centro (no debe poder)');
+    RAISE EXCEPTION 'caso 144: ADMIN publica DPA debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM politica_vigente('DPA')) = 1, 'caso 144: ADMIN lee el DPA';
+  ASSERT EXISTS (SELECT 1 FROM contratos_pendientes() WHERE tipo = 'DPA'), 'caso 144: DPA pendiente';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM politicas WHERE tipo IN ('DPA', 'TERMINOS_SERVICIO')) = 0, 'caso 144: GESTION no lee';
+  ASSERT (SELECT count(*) FROM politica_vigente('DPA')) = 0, 'caso 144: politica_vigente no lo entrega a GESTION';
+  BEGIN
+    PERFORM aceptar_contrato('DPA');
+    RAISE EXCEPTION 'caso 144: GESTION acepta debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT (SELECT count(*) FROM politica_vigente('DPA')) = 0, 'caso 144: sin contexto no lo entrega';
+  PERFORM test.ctx('a1', 'ADMIN');
+  v := aceptar_contrato('DPA');
+  ASSERT aceptar_contrato('DPA') = v, 'caso 144: idempotente';
+  ASSERT NOT EXISTS (SELECT 1 FROM contratos_pendientes() WHERE tipo = 'DPA'), 'caso 144: ya no pendiente';
+  ASSERT (SELECT count(*) FROM aceptaciones_contrato a JOIN politicas p ON p.id = a.politica_id
+          WHERE p.tipo = 'DPA' AND a.usuario_id = test.u('a1')) = 1, 'caso 144: una aceptacion con version y quien';
+  BEGIN
+    PERFORM aceptar_contrato('POLITICA_DATOS');
+    RAISE EXCEPTION 'caso 144: aceptar otro tipo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+
+\echo 145 Solicitudes de derechos (AUD-01 E2.3a) como app_user: dias habiles sin fines de semana ni feriados; solo ADMIN registra, lee y avanza; plazo 30 dias habiles fijado por la BD; cerrar exige respuesta; cerrada no se reabre; el formulario publico no se registra por aca
+DO $$ DECLARE v uuid := gen_random_uuid(); v_vence date; BEGIN
+  ASSERT dias_habiles_restantes('2000-01-01') = 0, 'caso 145: fecha pasada = 0';
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM registrar_solicitud_derecho(gen_random_uuid(), 'ACCESO', test.u('0a'), 'PRESENCIAL', NULL);
+    RAISE EXCEPTION 'caso 145: GESTION registra debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM registrar_solicitud_derecho(gen_random_uuid(), 'ACCESO', NULL, 'FORMULARIO_PUBLICO', NULL);
+    RAISE EXCEPTION 'caso 145: formulario publico por aca debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  v_vence := registrar_solicitud_derecho(v, 'RECTIFICACION', test.u('0a'), 'PRESENCIAL', test.cif('Corregir el telefono'));
+  ASSERT extract(isodow FROM v_vence) < 6 AND NOT EXISTS (SELECT 1 FROM feriados WHERE fecha = v_vence), 'caso 145: vence en dia habil';
+  ASSERT (SELECT count(*) FROM generate_series((now() AT TIME ZONE 'America/Santiago')::date + 1, v_vence, interval '1 day') d
+          WHERE extract(isodow FROM d) < 6 AND NOT EXISTS (SELECT 1 FROM feriados f WHERE f.fecha = d::date)) = 30,
+    'caso 145: 30 dias habiles';
+  BEGIN
+    PERFORM avanzar_solicitud_derecho(v, 'RESUELTA', NULL);
+    RAISE EXCEPTION 'caso 145: resolver sin respuesta debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM avanzar_solicitud_derecho(v, 'EN_CURSO', NULL);
+  PERFORM avanzar_solicitud_derecho(v, 'RESUELTA', test.cif('Telefono corregido en la ficha'));
+  ASSERT (SELECT estado = 'RESUELTA' AND resuelta_por_id = test.u('a1') FROM solicitudes_derechos WHERE id = v), 'caso 145: resuelta';
+  BEGIN
+    PERFORM avanzar_solicitud_derecho(v, 'EN_CURSO', NULL);
+    RAISE EXCEPTION 'caso 145: reabrir debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    UPDATE solicitudes_derechos SET tipo = 'ACCESO' WHERE id = v;
+    RAISE EXCEPTION 'caso 145: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM solicitudes_derechos) = 0, 'caso 145: GESTION no lee';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM solicitudes_derechos) = 0, 'caso 145: PACIENTE no lee';
+  BEGIN
+    PERFORM alertar_solicitudes_por_vencer();
+    RAISE EXCEPTION 'caso 145: el job con usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 
 \echo 94 Politica de cancelacion: a tiempo sin cobro; tardia devuelve menos la penalizacion o traslada el pago; inasistencia cobra el porcentaje; una decision por cita
@@ -2776,7 +2982,7 @@ BEGIN
     PERFORM anular_pago((SELECT p.id FROM pagos p JOIN citas c ON c.id = p.cita_id
                          WHERE c.profesional_id = test.u('b1') AND p.estado = 'REGISTRADO'
                            AND (c.inicio AT TIME ZONE 'America/Santiago')::date BETWEEN v_hoy - 1 AND v_hoy + 1
-                           AND NOT EXISTS (SELECT 1 FROM boletas b WHERE b.cita_id = c.id) LIMIT 1), 'tarde');
+                           AND NOT EXISTS (SELECT 1 FROM comprobantes_pago b WHERE b.cita_id = c.id) LIMIT 1), 'tarde');
     RAISE EXCEPTION 'caso 95: anular un pago liquidado debio fallar';
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
   BEGIN
@@ -2867,11 +3073,11 @@ DO $$ BEGIN
          = ARRAY['BANDEJA'], 'caso 97: operativo desactivado: solo bandeja';
   ASSERT (SELECT count(*) FROM notificaciones WHERE tipo IN ('CONSENTIMIENTO_SOLICITADO', 'DOCUMENTO_CLINICO')
           AND referencia_id = test.u('0e') AND canal = 'CORREO') = 2, 'caso 97: avisos legales siempre por correo';
-  UPDATE plantillas_mensaje SET activa = false WHERE evento = 'BOLETA_EMITIDA' AND canal = 'CORREO';
-  PERFORM notificar('BOLETA_EMITIDA', test.u('0a'), NULL, test.u('0a'));
-  ASSERT (SELECT array_agg(canal::text) FROM notificaciones WHERE tipo = 'BOLETA_EMITIDA' AND referencia_id = test.u('0a'))
+  UPDATE plantillas_mensaje SET activa = false WHERE evento = 'COMPROBANTE_EMITIDO' AND canal = 'CORREO';
+  PERFORM notificar('COMPROBANTE_EMITIDO', test.u('0a'), NULL, test.u('0a'));
+  ASSERT (SELECT array_agg(canal::text) FROM notificaciones WHERE tipo = 'COMPROBANTE_EMITIDO' AND referencia_id = test.u('0a'))
          = ARRAY['BANDEJA'], 'caso 97: plantilla de correo inactiva: solo bandeja';
-  UPDATE plantillas_mensaje SET activa = true WHERE evento = 'BOLETA_EMITIDA' AND canal = 'CORREO';
+  UPDATE plantillas_mensaje SET activa = true WHERE evento = 'COMPROBANTE_EMITIDO' AND canal = 'CORREO';
   PERFORM test.ctx('a4', 'PACIENTE');
   UPDATE preferencias_notificacion SET recordatorios = true WHERE paciente_id = test.u('0e');
   ASSERT (SELECT recordatorios AND NOT avisos_operativos FROM preferencias_notificacion), 'caso 97: el paciente cambia las suyas';
@@ -5138,7 +5344,7 @@ DO $$ DECLARE t text; BEGIN
                            'llaves_datos', 'evolucion_intervenciones', 'avisos_consentimiento', 'revisiones_retencion',
                            'consultas_retencion', 'alertas_internas', 'notificaciones', 'mensajes_paciente',
                            'solicitudes_epicrisis', 'documentos_clinicos', 'envios_documento', 'descargas_documento',
-                           'pagos', 'boletas', 'resoluciones_cita', 'liquidaciones', 'preferencias_notificacion',
+                           'pagos', 'comprobantes_pago', 'resoluciones_cita', 'liquidaciones', 'preferencias_notificacion',
                            'recordatorios_cita', 'adjuntos_ficha', 'politicas', 'aceptaciones_politica', 'resenas_eventos',
                            'altas_paciente', 'accesos_clinicos_temporales', 'imagenes_publicas', 'excepciones_morosidad'] LOOP
     BEGIN
@@ -5181,6 +5387,246 @@ DO $$ DECLARE t text; BEGIN
   EXCEPTION WHEN restrict_violation THEN NULL; END;
 END $$;
 
+\echo 139 Pasarela del centro (AUD-01 E1.3, dueño): con modelo DIRECTO no se habilita PASARELA; en MIXTO la hora de un profesional con cobro directo no ofrece ni acepta PASARELA (elegir el medio ni iniciar el cobro); la del centro sigue igual
+DO $$ DECLARE v_conf configuracion_centro%ROWTYPE; v uuid; r record; BEGIN
+  SELECT * INTO v_conf FROM configuracion_centro;
+  UPDATE configuracion_centro SET modelo_cobro = 'CENTRO', medios_pago_habilitados = '{PAGO_EN_CENTRO,TRANSFERENCIA,PASARELA}';
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b9'), test.u('1d'), test.dia(-9, 15), test.dia(-9, 16)) RETURNING id INTO v;
+  SELECT * INTO r FROM estado_pago_cita(v);
+  ASSERT r.estado = 'SALDO_PENDIENTE' AND r.medios = '{TRANSFERENCIA,PASARELA}', format('caso 139: cobra el centro %s', r);
+  -- MIXTO con el profesional en cobro directo: sin PASARELA.
+  UPDATE configuracion_centro SET modelo_cobro = 'MIXTO';
+  UPDATE profesionales SET cobro_directo = true WHERE usuario_id = test.u('b9');
+  SELECT * INTO r FROM estado_pago_cita(v);
+  ASSERT r.medios = '{TRANSFERENCIA}', format('caso 139: cobro directo sin pasarela %s', r);
+  BEGIN
+    PERFORM elegir_medio_cita(v, 'PASARELA', NULL);
+    RAISE EXCEPTION 'caso 139: elegir PASARELA en cobro directo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO cobros_pasarela (cita_id, monto) VALUES (v, 1000);
+    RAISE EXCEPTION 'caso 139: cobro de pasarela en cobro directo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- DIRECTO: todos cobran directo; PASARELA no se puede dejar habilitada.
+  BEGIN
+    UPDATE configuracion_centro SET modelo_cobro = 'DIRECTO';
+    RAISE EXCEPTION 'caso 139: DIRECTO con PASARELA debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE configuracion_centro SET modelo_cobro = 'DIRECTO', medios_pago_habilitados = '{PAGO_EN_CENTRO,TRANSFERENCIA}';
+  BEGIN
+    UPDATE configuracion_centro SET medios_pago_habilitados = '{PAGO_EN_CENTRO,PASARELA}';
+    RAISE EXCEPTION 'caso 139: habilitar PASARELA con DIRECTO debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- De vuelta el centro: la pasarela vuelve a ofrecerse.
+  UPDATE profesionales SET cobro_directo = false WHERE usuario_id = test.u('b9');
+  UPDATE configuracion_centro SET modelo_cobro = 'CENTRO', medios_pago_habilitados = '{PAGO_EN_CENTRO,TRANSFERENCIA,PASARELA}';
+  ASSERT (SELECT medios FROM estado_pago_cita(v)) = '{TRANSFERENCIA,PASARELA}', 'caso 139: vuelve la pasarela';
+  PERFORM elegir_medio_cita(v, 'PASARELA', NULL);
+  UPDATE configuracion_centro SET modelo_cobro = v_conf.modelo_cobro, medios_pago_habilitados = v_conf.medios_pago_habilitados;
+END $$;
+
+\echo 142 Soporte (AUD-01 E2.1, dueño con SET ROLE soporte_vinculos): sin autorizacion del centro nada; ninguna tabla legible (tampoco pacientes ni evoluciones); con autorizacion DIAGNOSTICO solo agregados y queda registrado; CONFIGURACION exige su alcance; revocada vuelve a cerrar
+DO $$ DECLARE v uuid; r jsonb; BEGIN
+  EXECUTE 'SET ROLE soporte_vinculos';
+  BEGIN
+    PERFORM soporte_resumen();
+    RAISE EXCEPTION 'caso 142: sin autorizacion debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM count(*) FROM pacientes;
+    RAISE EXCEPTION 'caso 142: leer pacientes debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM count(*) FROM evoluciones;
+    RAISE EXCEPTION 'caso 142: leer evoluciones debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM count(*) FROM autorizaciones_soporte;
+    RAISE EXCEPTION 'caso 142: leer sus autorizaciones debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  RESET ROLE;
+
+  PERFORM test.ctx('a1', 'ADMIN');
+  v := otorgar_soporte('Revisar correos que no salen', 'DIAGNOSTICO', 2);
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+
+  EXECUTE 'SET ROLE soporte_vinculos';
+  r := soporte_resumen();
+  ASSERT r ? 'migracion' AND r ? 'usuarios_activos_por_rol', format('caso 142: resumen %s', r);
+  ASSERT r::text NOT LIKE '%@%', 'caso 142: el resumen no trae correos';
+  PERFORM * FROM soporte_notificaciones_con_error(7);
+  BEGIN
+    PERFORM soporte_configuracion();
+    RAISE EXCEPTION 'caso 142: CONFIGURACION con alcance DIAGNOSTICO debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  RESET ROLE;
+  ASSERT (SELECT count(*) FROM registro_soporte WHERE autorizacion_id = v) = 2, 'caso 142: dos diagnosticos registrados';
+  ASSERT (SELECT bool_and(rol_bd = session_user) FROM registro_soporte WHERE autorizacion_id = v), 'caso 142: rol de la sesion';
+
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM revocar_soporte(v);
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  EXECUTE 'SET ROLE soporte_vinculos';
+  BEGIN
+    PERFORM soporte_resumen();
+    RAISE EXCEPTION 'caso 142: revocada debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  RESET ROLE;
+  BEGIN
+    UPDATE registro_soporte SET funcion = 'x' WHERE autorizacion_id = v;
+    RAISE EXCEPTION 'caso 142: registro append-only debio fallar';
+  EXCEPTION WHEN restrict_violation THEN NULL; END;
+END $$;
+
+\echo 146 Dias habiles y alerta de plazo (AUD-01 E2.3a, dueño): viernes 30-10-2026 + 1 = lunes 2-11 (sabado 31 feriado y domingo); 7-12 + 1 = 9-12 (8 feriado); el job alerta una vez por solicitud a 5 dias habiles o menos
+DO $$ DECLARE v uuid := gen_random_uuid(); BEGIN
+  ASSERT dias_habiles_desde('2026-10-30', 1) = '2026-11-02', 'caso 146: fin de semana con feriado';
+  ASSERT dias_habiles_desde('2026-12-07', 1) = '2026-12-09', 'caso 146: feriado entre semana';
+  INSERT INTO solicitudes_derechos (id, tipo, canal, vence_el)
+  VALUES (v, 'ACCESO', 'CORREO', dias_habiles_desde((now() AT TIME ZONE 'America/Santiago')::date, 3));
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT alertar_solicitudes_por_vencer() >= 1, 'caso 146: alerta creada';
+  ASSERT alertar_solicitudes_por_vencer() = 0, 'caso 146: una sola vez';
+  ASSERT EXISTS (SELECT 1 FROM alertas_internas WHERE tipo = 'SOLICITUD_DERECHO_POR_VENCER' AND referencia_id = v AND atendida_en IS NULL),
+    'caso 146: alerta de la solicitud';
+END $$;
+
+\echo 147 Bloqueo, cancelacion y WhatsApp (AUD-01 E2.3c, dueño con contexto): solo ADMIN bloquea (con motivo); bloqueado: sin citas, derivaciones ni ediciones nuevas, lo ya agendado sigue; levantar; cancelacion solo con solicitud abierta, borra lo periferico y conserva identificacion y ficha; WhatsApp: la fecha la fija la BD
+DO $$ DECLARE v_sol uuid := gen_random_uuid(); v_cita uuid; v_msg text; BEGIN
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+  VALUES ('ONLINE', test.u('b1'), test.u('15'), test.dia(70, 9), test.dia(70, 10)) RETURNING id INTO v_cita;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM bloquear_tratamiento(test.u('15'), 'Solicitud de bloqueo', NULL);
+    RAISE EXCEPTION 'caso 147: GESTION bloquea debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM bloquear_tratamiento(test.u('15'), ' ', NULL);
+    RAISE EXCEPTION 'caso 147: sin motivo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM bloquear_tratamiento(test.u('15'), 'Titular pidio bloqueo mientras revisamos su solicitud', NULL);
+  ASSERT (SELECT bloqueo_desde IS NOT NULL AND bloqueado_por_id = test.u('a1') FROM pacientes WHERE id = test.u('15')), 'caso 147: bloqueado';
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+    VALUES ('ONLINE', test.u('b1'), test.u('15'), test.dia(71, 9), test.dia(71, 10));
+    RAISE EXCEPTION 'caso 147: cita nueva bloqueada debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    UPDATE pacientes SET nombre = 'Otra' WHERE id = test.u('15');
+    RAISE EXCEPTION 'caso 147: editar bloqueado debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  ASSERT (SELECT estado FROM citas WHERE id = v_cita) = 'CONFIRMADA', 'caso 147: lo agendado se mantiene';
+  PERFORM levantar_bloqueo(test.u('15'));
+  UPDATE pacientes SET email = 'lia-147@x.cl', contacto_emergencia = NULL WHERE id = test.u('15');
+  -- Cancelacion de datos perifericos.
+  BEGIN
+    PERFORM cancelar_datos_perifericos(test.u('15'), gen_random_uuid());
+    RAISE EXCEPTION 'caso 147: cancelar sin solicitud debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO solicitudes_derechos (id, tipo, paciente_id, canal, vence_el) VALUES (v_sol, 'CANCELACION', test.u('15'), 'CORREO', current_date + 40);
+  INSERT INTO preferencias_notificacion (paciente_id, whatsapp) VALUES (test.u('15'), true);
+  ASSERT (SELECT whatsapp_consentido_en IS NOT NULL FROM preferencias_notificacion WHERE paciente_id = test.u('15')), 'caso 147: fecha del consentimiento';
+  v_msg := cancelar_datos_perifericos(test.u('15'), v_sol);
+  ASSERT v_msg LIKE '%15 años%', 'caso 147: explica el motivo legal';
+  ASSERT (SELECT email IS NULL AND telefono IS NULL AND nombre = 'Lia' AND fecha_nacimiento IS NOT NULL FROM pacientes WHERE id = test.u('15')),
+    'caso 147: borra contacto y conserva identificacion';
+  ASSERT (SELECT NOT whatsapp AND whatsapp_consentido_en IS NULL AND NOT recordatorios FROM preferencias_notificacion WHERE paciente_id = test.u('15')),
+    'caso 147: preferencias apagadas';
+  ASSERT EXISTS (SELECT 1 FROM fichas_clinicas WHERE paciente_id = test.u('15')) OR NOT EXISTS (SELECT 1 FROM evoluciones e JOIN fichas_clinicas f ON f.id = e.ficha_clinica_id WHERE f.paciente_id = test.u('15')),
+    'caso 147: la ficha no se toca';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+
+\echo 148 Deteccion (AUD-01 E2.4, dueño): lecturas de mas de 40 pacientes en una hora por una cuenta y 10 ingresos fallidos con un mismo identificador generan una alerta (una sola, sin nombres); el login fallido solo sin contexto y solo el HMAC
+DO $$ DECLARE i int; v_h bytea := sha256('identificador-148'); BEGIN
+  FOR i IN 1..41 LOOP
+    INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id)
+    VALUES (gen_random_uuid(), 'P148', 'N' || i, '1990-01-01', test.u('b1'));
+  END LOOP;
+  INSERT INTO accesos_ficha (usuario_id, rol, paciente_id, recurso, accion)
+  SELECT test.u('b1'), 'PROFESIONAL', id, 'fichas_clinicas', 'LECTURA' FROM pacientes WHERE nombre = 'P148';
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM registrar_login_fallido(v_h);
+    RAISE EXCEPTION 'caso 148: con contexto debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM detectar_anomalias();
+    RAISE EXCEPTION 'caso 148: el job con usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  FOR i IN 1..10 LOOP PERFORM registrar_login_fallido(v_h); END LOOP;
+  ASSERT detectar_anomalias() >= 2, 'caso 148: dos alertas';
+  ASSERT detectar_anomalias() = 0, 'caso 148: una sola vez';
+  ASSERT EXISTS (SELECT 1 FROM alertas_internas WHERE tipo = 'ACCESO_ANOMALO' AND referencia_id = test.u('b1') AND detalle NOT LIKE '%P148%'),
+    'caso 148: alerta de lecturas masivas sin nombres';
+  ASSERT EXISTS (SELECT 1 FROM alertas_internas WHERE tipo = 'LOGIN_FALLIDO_REPETIDO' AND referencia_id = md5(v_h)::uuid),
+    'caso 148: alerta de ingresos fallidos';
+END $$;
+
+\echo 149 Formulario publico de derechos (AUD-01 E2.3b, dueño): sin contexto registra solo si el RUT es de un paciente y devuelve su correo registrado; RUT desconocido no guarda nada; maximo 3 en 24 h por paciente; con contexto 42501
+DO $$ DECLARE v_correo text; n int; BEGIN
+  UPDATE pacientes SET rut_hmac = sha256('rut-149'), email = 'lia-149@x.cl' WHERE id = test.u('15');
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT registrar_solicitud_publica(gen_random_uuid(), 'ACCESO', sha256('no-existe-149'), NULL, false) IS NULL, 'caso 149: RUT desconocido';
+  v_correo := registrar_solicitud_publica(gen_random_uuid(), 'ACCESO', sha256('rut-149'), NULL, true);
+  ASSERT v_correo = 'lia-149@x.cl', 'caso 149: correo registrado';
+  ASSERT EXISTS (SELECT 1 FROM solicitudes_derechos WHERE paciente_id = test.u('15') AND canal = 'FORMULARIO_PUBLICO' AND pide_cambio_correo),
+    'caso 149: registrada con pedido de cambio de correo';
+  PERFORM registrar_solicitud_publica(gen_random_uuid(), 'ACCESO', sha256('rut-149'), NULL, false);
+  PERFORM registrar_solicitud_publica(gen_random_uuid(), 'ACCESO', sha256('rut-149'), NULL, false);
+  ASSERT registrar_solicitud_publica(gen_random_uuid(), 'ACCESO', sha256('rut-149'), NULL, false) IS NULL, 'caso 149: cuarta descartada';
+  SELECT count(*) INTO n FROM solicitudes_derechos WHERE paciente_id = test.u('15') AND canal = 'FORMULARIO_PUBLICO';
+  ASSERT n = 3, format('caso 149: tres registradas (%s)', n);
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM registrar_solicitud_publica(gen_random_uuid(), 'ACCESO', sha256('rut-149'), NULL, false);
+    RAISE EXCEPTION 'caso 149: con contexto debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+
+\echo 150 Exportaciones (AUD-01 Fase 3, dueño con contexto): parte administrativa solo ADMIN, clinica solo el tratante; sin hashes ni HMAC; la del centro excluye llaves y sesiones; descarga sin cuenta exige el codigo; vencida se purga
+DO $$ DECLARE v jsonb; v_sol uuid := gen_random_uuid(); v_exp uuid := gen_random_uuid(); BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM exportar_datos_paciente(test.u('15'), 'ADMINISTRATIVA');
+    RAISE EXCEPTION 'caso 150: GESTION exporta debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM exportar_datos_paciente(test.u('15'), 'CLINICA');
+    RAISE EXCEPTION 'caso 150: ADMIN exporta lo clinico debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  v := exportar_datos_paciente(test.u('15'), 'ADMINISTRATIVA');
+  ASSERT v ? 'pacientes' AND NOT (v -> 'pacientes' -> 0) ? 'rut_hmac', 'caso 150: administrativa sin rut_hmac';
+  BEGIN
+    PERFORM exportar_tabla_centro('llaves_datos');
+    RAISE EXCEPTION 'caso 150: exportar llaves debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  ASSERT NOT EXISTS (SELECT 1 FROM tablas_exportacion_centro() t WHERE t IN ('llaves_datos', 'sesiones', 'tokens_correo')), 'caso 150: sin llaves ni sesiones';
+  ASSERT NOT (exportar_tabla_centro('usuarios') -> 0) ? 'password_hash', 'caso 150: sin contraseñas';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  v := exportar_datos_paciente(test.u('15'), 'CLINICA');
+  ASSERT v ? 'evoluciones', 'caso 150: el tratante exporta lo clinico';
+  -- Descarga sin cuenta: exige el codigo; vencida se purga.
+  INSERT INTO solicitudes_derechos (id, tipo, paciente_id, canal, vence_el) VALUES (v_sol, 'ACCESO', test.u('15'), 'CORREO', current_date + 40);
+  INSERT INTO exportaciones_paciente (id, paciente_id, solicitud_id, datos_administrativos, requiere_clinica, creada_por_id,
+                                      token_hash, codigo_hash, enviada_en, vence_en)
+  VALUES (v_exp, test.u('15'), v_sol, test.cif('{}'), false, test.u('a1'), sha256('tok-150'), sha256('cod-150'), now(), now() + interval '72 hours');
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  BEGIN
+    PERFORM * FROM entregar_exportacion(sha256('tok-150'), sha256('otro'));
+    RAISE EXCEPTION 'caso 150: codigo incorrecto debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT id FROM entregar_exportacion(sha256('tok-150'), sha256('cod-150'))) = v_exp, 'caso 150: entrega con codigo';
+  UPDATE exportaciones_paciente SET vence_en = now() - interval '1 minute' WHERE id = v_exp;
+  ASSERT purgar_exportaciones_vencidas() >= 1, 'caso 150: purga';
+  ASSERT (SELECT datos_administrativos IS NULL AND purgada_en IS NOT NULL FROM exportaciones_paciente WHERE id = v_exp), 'caso 150: purgada';
+END $$;
+
 \echo 78 Sin texto plano: toda columna bytea cifrada tiene el formato; seed sin datos sensibles; copia de autoria intacta tras cerrar cuentas
 DO $$ DECLARE c record; n int; BEGIN
   FOR c IN SELECT table_name, column_name FROM information_schema.columns
@@ -5189,7 +5635,9 @@ DO $$ DECLARE c record; n int; BEGIN
              -- 03b-4.1: codigos de verificacion y de respaldo guardan HMAC-SHA256 (como tokens_correo).
              AND table_name NOT IN ('llaves_datos', 'sesiones', 'tokens_correo', 'imagenes_publicas', 'codigos_verificacion', 'codigos_respaldo')
              -- 03b-3.1: SHA-256 del token opaco de la reserva (como tokens_correo).
-             AND table_name || '.' || column_name <> 'solicitudes_hora.reserva_hash' LOOP
+             AND table_name || '.' || column_name NOT IN ('solicitudes_hora.reserva_hash',
+             -- AUD-01: SHA-256 del enlace y del codigo de una exportacion (como tokens_correo).
+                                                          'exportaciones_paciente.token_hash', 'exportaciones_paciente.codigo_hash') LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE %I IS NOT NULL AND (get_byte(%I, 0) <> 1 OR octet_length(%I) < 49)',
                    c.table_name, c.column_name, c.column_name, c.column_name) INTO n;
     ASSERT n = 0, format('caso 78: %s.%s con valores sin formato cifrado', c.table_name, c.column_name);

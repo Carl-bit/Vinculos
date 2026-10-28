@@ -37,13 +37,13 @@ transaccion.
 | Rol | Alcance |
 |---|---|
 | ADMIN | Configuracion, usuarios, reportes, derivaciones (redefine candidatos, reintegra, cancela; crea solo de oficio), supervisiones, accesos de practicantes, bajas y todo lo de GESTION. Clinico: solo metadata de fichas. |
-| GESTION | Agenda, datos administrativos de pacientes, pagos, boletas, arriendos, adultos responsables, consentimientos. Nunca clinico. Solo existe si `configuracion_centro.rol_gestion_habilitado`. |
+| GESTION | Agenda, datos administrativos de pacientes, pagos, comprobantes de pago, documentos tributarios, arriendos, adultos responsables, consentimientos. Nunca clinico. Solo existe si `configuracion_centro.rol_gestion_habilitado`. |
 | PROFESIONAL | Sus pacientes (tratante = `pacientes.profesional_id`), fichas y evoluciones; crea derivaciones. Como supervisor: casos seudonimizados de sus practicantes. |
 | PRACTICANTE | Solo pacientes recibidos por derivacion con consentimiento vigente (que lo nombra a el y a su supervisor vigente); acceso con expiracion y supervision vigente. |
-| PACIENTE | Su registro (`usuarios.paciente_id`), sus citas, pagos, boletas, adultos responsables y consentimientos; su equipo tratante. Nunca fichas ni evoluciones. 03a: de 14 a 17 años, cuenta restringida (sus citas, recordatorios y mensajes). |
+| PACIENTE | Su registro (`usuarios.paciente_id`), sus citas, pagos, comprobantes de pago y boletas del SII registradas, adultos responsables y consentimientos; su equipo tratante. Nunca fichas ni evoluciones. 03a: de 14 a 17 años, cuenta restringida (sus citas, recordatorios y mensajes). |
 | RESPONSABLE (03a) | Adulto responsable con cuenta (exclusiva): citas, pagos, documentos emitidos y consentimientos de sus pacientes menores (`adultos_responsables.usuario_id`); escribe mensajes por ellos y ve solo los suyos. Nunca fichas, evoluciones ni los mensajes del adolescente. |
 
-**Varios roles por cuenta (03a, C-1)**: una cuenta ADMIN o GESTION puede sumar PROFESIONAL (`roles_adicionales`). La sesion trabaja con un rol (`app.current_rol`); la matriz por rol no cambia. Cambio de rol sin cerrar sesion: `cambiar_rol_sesion` (token nuevo). Baja por rol: `iniciar_baja_rol` + `procesar_bajas`. TOTP obligatorio para cuentas con rol clinico (PROFESIONAL o PRACTICANTE).
+**Varios roles por cuenta (03a, C-1)**: una cuenta ADMIN o GESTION puede sumar PROFESIONAL (`roles_adicionales`). La sesion trabaja con un rol (`app.current_rol`); la matriz por rol no cambia. Cambio de rol sin cerrar sesion: `cambiar_rol_sesion` (token nuevo). Baja por rol: `iniciar_baja_rol` + `procesar_bajas`. Segundo factor por correo obligatorio para todo el equipo (ADMIN, GESTION, PROFESIONAL y PRACTICANTE, principal o adicional; 03b-4.1). TOTP apagado (`TOTP_HABILITADO=false`): no se usa en esta entrega (AUD-01, D10).
 
 **Acceso vigente** (`acceso_vigente()`, politica `RESTRICTIVE` `<tabla>_acceso_vigente`
 en toda tabla): el usuario del contexto existe, `activo = true`, su `rol` en BD
@@ -127,7 +127,7 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | todos | `pacientes` | INSERT/UPDATE con tratante PRACTICANTE | exige consentimiento vigente al COMMIT | constraint trigger diferido `pacientes_practicante_requiere_consentimiento` (23514) |
 | A | todos | `pacientes` | UPDATE de `profesional_id` | ninguna (solo via `responder_derivacion`) | trigger `pacientes_tratante_via_derivacion` (42501) |
 | A | todos | `pacientes` | UPDATE de `id`, `codigo_seudonimo`, `created_at` | ninguna | sin GRANT de columna |
-| A | todos | `pacientes`, `adultos_responsables`, `evoluciones`, `derivaciones`, `supervision_comentarios`, `boletas`, `usuarios` | INSERT | `id` lo da la API (AAD del cifrado) | sin DEFAULT de id |
+| A | todos | `pacientes`, `adultos_responsables`, `evoluciones`, `derivaciones`, `supervision_comentarios`, `comprobantes_pago`, `usuarios` | INSERT | `id` lo da la API (AAD del cifrado) | sin DEFAULT de id |
 | A | todos | `pacientes` | DELETE | ninguna | sin GRANT + trigger `pacientes_sin_delete` |
 | A | ADMIN | `fichas_clinicas` | SELECT, INSERT, UPDATE | todas (solo metadata) | GRANT + `fichas_clinicas_*` |
 | A | PROFESIONAL / PRACTICANTE | `fichas_clinicas` | SELECT, INSERT, UPDATE | tratante (PRACTICANTE: con consentimiento) | GRANT + `fichas_clinicas_*` + `_consentimiento_practicante` |
@@ -201,13 +201,17 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A+C | todos | `citas` | INSERT, UPDATE | paciente menor exige adulto responsable | trigger `citas_menor_requiere_adulto_responsable` (23514) |
 | A+C | todos | `citas` | DELETE | ninguna (cancelar = `estado`) | sin GRANT |
 | A+C | todos (autenticados) | `citas` (ocupacion) | lectura | espacio, inicio, fin de toda cita CONFIRMADA + bloqueos activos | `ocupacion_espacios(desde, hasta)` |
-| A | ADMIN / GESTION | `pagos`, `boletas` | SELECT | todos | GRANT + `pagos_select` / `boletas_select` |
-| A | todos | `pagos`, `boletas` | INSERT, UPDATE | ninguna directa (02h): `registrar_pago`, `anular_pago`, `resolver_cita`, `emitir_boleta` | sin GRANT de escritura |
+| A | ADMIN / GESTION | `pagos`, `comprobantes_pago` | SELECT | todos | GRANT + `pagos_select` / `comprobantes_pago_select` |
+| A | todos | `pagos`, `comprobantes_pago` | INSERT, UPDATE | ninguna directa (02h): `registrar_pago`, `anular_pago`, `resolver_cita`, `emitir_comprobante_pago` | sin GRANT de escritura |
 | A | todos (incluso dueño) | `pagos` | UPDATE, DELETE | solo anular una vez (REGISTRADO -> ANULADO con motivo); nunca DELETE | trigger `pagos_append_only` (23001) + CHECK `pagos_anulacion_coherente` |
-| A | todos (incluso dueño) | `boletas` | UPDATE, DELETE | solo `pdf_url` de nulo a generado; una por cita | trigger `boletas_append_only` (23001) + UNIQUE `cita_id` |
-| A | PROFESIONAL / PACIENTE | `pagos`, `boletas` | SELECT | de sus citas | `pagos_select` / `boletas_select` (subconsulta bajo su RLS) |
-| A | PRACTICANTE | `pagos`, `boletas` | todas | ninguna | politicas sin rama |
-| A | todos | `pagos`, `boletas` | DELETE | ninguna | sin GRANT |
+| A | todos (incluso dueño) | `comprobantes_pago` | UPDATE, DELETE | solo `pdf_url` de nulo a generado; una por cita | trigger `comprobantes_pago_append_only` (23001) + UNIQUE `cita_id` |
+| A | ADMIN / GESTION | `documentos_tributarios` (AUD-01) | SELECT | todos | GRANT SELECT + `documentos_tributarios_select` |
+| A | PROFESIONAL / PACIENTE / RESPONSABLE | `documentos_tributarios` (AUD-01) | SELECT | de sus citas (como el comprobante) | `documentos_tributarios_select` |
+| A | PRACTICANTE | `documentos_tributarios` (AUD-01) | todas | ninguna | politica sin rama |
+| A | todos (incluso dueño) | `documentos_tributarios` (AUD-01) | INSERT, UPDATE, DELETE | sin GRANT de escritura: `registrar_documento_tributario`, `anular_documento_tributario`; append-only (solo REGISTRADO -> ANULADO con motivo) | trigger `documentos_tributarios_append_only` (23001) + CHECK `documentos_tributarios_valores` (folio solo digitos, honorarios solo del profesional) + indice `documentos_tributarios_folio_unico` (23505) |
+| A | PROFESIONAL / PACIENTE | `pagos`, `comprobantes_pago` | SELECT | de sus citas | `pagos_select` / `comprobantes_pago_select` (subconsulta bajo su RLS) |
+| A | PRACTICANTE | `pagos`, `comprobantes_pago` | todas | ninguna | politicas sin rama |
+| A | todos | `pagos`, `comprobantes_pago` | DELETE | ninguna | sin GRANT |
 | A | ADMIN / GESTION / PROFESIONAL / PACIENTE | `estado_pago_citas` (vista, `security_invoker`) | SELECT | monto, exigible, pagado, devolucion, saldo y estado (SIN_COBRO, PENDIENTE, PARCIAL, PAGADO) de las citas que su RLS deja ver; PRACTICANTE 0 filas | GRANT + RLS de `citas`, `pagos` y `resoluciones_cita` |
 | A | todos (incluso dueño) | `citas` | INSERT, UPDATE | `monto` lo fija la BD al confirmar con la tarifa mas especifica vigente (sin tarifa = 0) y es inmutable; `cancelada_en` lo fija la BD | trigger `citas_monto_fijado` (23001) |
 | A | ADMIN / GESTION | `resoluciones_cita` | SELECT | todas; escritura solo `resolver_cita` | GRANT + `resoluciones_cita_select` |
@@ -231,6 +235,10 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | todos | `accesos_ficha` | INSERT | `usuario_id` = yo y `rol` = mi rol de contexto | GRANT + `accesos_ficha_insert` |
 | A | ADMIN | `accesos_ficha` | SELECT | todas | GRANT + `accesos_ficha_select` |
 | A | todos (incluso dueño) | `accesos_ficha` | UPDATE, DELETE | ninguna | sin GRANT + trigger `accesos_ficha_append_only` |
+| A | contexto de la edicion (AUD-01) | `accesos_ficha` via trigger `pacientes_auditar_edicion` / `adultos_responsables_auditar_edicion` | INSERT | toda edicion de datos personales con contexto: ESCRITURA, usuario, rol activo y `detalle` = nombres de los campos (nunca valores); sin contexto (jobs) no registra | `auditar_edicion_persona()` SECURITY DEFINER + CHECK `accesos_ficha_detalle_largo` |
+| A | todos | `registro_exportaciones` (AUD-01) | INSERT | `usuario_id` = yo y `rol` = mi rol (descargas sin paciente: PDF de reporte de cobros y de liquidaciones) | GRANT + `registro_exportaciones_insert` |
+| A | ADMIN | `registro_exportaciones` (AUD-01) | SELECT | todas | GRANT + `registro_exportaciones_select` |
+| A | todos (incluso dueño) | `registro_exportaciones` (AUD-01) | UPDATE, DELETE | ninguna | sin GRANT + trigger `registro_exportaciones_append_only` |
 | A | todos (app_user) | `llaves_datos`, `custodios_llave`, `eventos_llaves` | todas | ninguna directa (`llaves_vigentes()`, `registrar_evento_llaves()`) | sin GRANT (RLS sin politicas) |
 | A | ADMIN / GESTION / el propio | `roles_adicionales` (03a) | SELECT | todas / las suyas; escritura solo `otorgar_rol_adicional` / `iniciar_baja_rol` / `procesar_bajas` | GRANT SELECT + `roles_adicionales_select`; CHECK solo PROFESIONAL; trigger `roles_adicionales_validos` (23514 `roles_adicionales_combinacion`: principal ADMIN o GESTION) |
 | A | todos | `usuarios` (03a) | rol activo de la sesion | `acceso_vigente()` acepta el rol principal o un adicional activo; cambiar el principal a PROFESIONAL desactiva el adicional; un exclusivo (PRACTICANTE, PACIENTE, RESPONSABLE) no convive con adicionales | trigger `usuarios_roles_coherentes`; `roles_adicionales_revoca_sesiones` corta las sesiones del rol dado de baja |
@@ -271,9 +279,9 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | todos (app_user) | `correos_cuenta_pendientes` (03a-2) | todas | ninguna directa; destinatario y cuerpo cifrados | sin GRANT; `encolar_correo_cuenta`, `correos_cuenta_por_enviar`, `resultado_correo_cuenta` (solo sin contexto) |
 | A | todos (app_user) | `pacientes` (03a-2) | UPDATE (`posible_duplicado`) | ninguna directa: solo `resolver_posible_duplicado` (ADMIN/GESTION) | sin GRANT de la columna; trigger `pacientes_alerta_duplicado` (alerta + aviso a ADMIN/GESTION) |
 | A | todos | `evoluciones` (03a) | INSERT | `cita_id` de una cita del mismo paciente; paciente del portal: RUT registrado antes de su primera evolucion | trigger `evoluciones_cita_valida` (23514 `evoluciones_cita_del_paciente`, `evoluciones_paciente_requiere_rut`) |
-| A | RESPONSABLE (03a) | `pacientes`, `adultos_responsables`, `citas`, `pagos`, `boletas`, `resoluciones_cita`, `estado_pago_citas`, `documentos_clinicos`, `consentimientos`, `solicitudes_epicrisis`, `recordatorios_cita`, `notificaciones`, `preferencias_notificacion` | SELECT (epicrisis tambien INSERT) | de sus pacientes menores (`pacientes_a_cargo()`); nunca ficha ni evoluciones | politicas con `pacientes_a_cargo()` / `app_pacientes_plenos()` |
+| A | RESPONSABLE (03a) | `pacientes`, `adultos_responsables`, `citas`, `pagos`, `comprobantes_pago`, `resoluciones_cita`, `estado_pago_citas`, `documentos_clinicos`, `consentimientos`, `solicitudes_epicrisis`, `recordatorios_cita`, `notificaciones`, `preferencias_notificacion` | SELECT (epicrisis tambien INSERT) | de sus pacientes menores (`pacientes_a_cargo()`); nunca ficha ni evoluciones | politicas con `pacientes_a_cargo()` / `app_pacientes_plenos()` |
 | A | RESPONSABLE (03a) | `mensajes_paciente` | SELECT, INSERT | solo los que el escribio (`autor_id`), por un menor a cargo, a su equipo tratante; nunca los del adolescente | `mensajes_paciente_select` / `_insert` |
-| A | PACIENTE de 14 a 17 (03a) | `pagos`, `boletas`, `resoluciones_cita`, `estado_pago_citas`, `documentos_clinicos`, `consentimientos`, `solicitudes_epicrisis`, `aceptaciones_politica` | todas | ninguna (cuenta restringida: citas, recordatorios y mensajes) | `app_pacientes_plenos()` (solo adultos) |
+| A | PACIENTE de 14 a 17 (03a) | `pagos`, `comprobantes_pago`, `resoluciones_cita`, `estado_pago_citas`, `documentos_clinicos`, `consentimientos`, `solicitudes_epicrisis`, `aceptaciones_politica` | todas | ninguna (cuenta restringida: citas, recordatorios y mensajes) | `app_pacientes_plenos()` (solo adultos) |
 | A | PACIENTE | `pacientes` (03a) | UPDATE | solo telefono (`actualizar_telefono_paciente`) y correo verificado (`usar_token_cambio_correo`) | sin politica de UPDATE para PACIENTE |
 | A | todos (app_user) | `sesiones` | todas | ninguna directa (refresh tokens: solo el SHA-256) | sin GRANT; `crear_sesion` / `rotar_sesion` / `revocar_sesion` + trigger `usuarios_revoca_sesiones` |
 | A | ADMIN | `alertas_internas` | SELECT | todas | GRANT + `alertas_internas_select`; escritura solo via `alertar_bajas_sin_admin` / `alertar_fallo_canario` / `atender_alerta` |
@@ -328,7 +336,7 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | B | ADMIN (03b-3.3) | `configuracion_centro` | UPDATE de `horas_plazo_pago_equipo`, `dias_gracia_morosidad`, `bloquear_agenda_morosos` | 0 a 168 horas; 0 a 90 dias; `morosidad_desde` sin GRANT (lo fija la migracion) | GRANT por columna + CHECK `configuracion_centro_morosidad_valida` |
 | A | todos (03b-3.4) | `transferencias` | INSERT | varias por cita (la del saldo con `de_saldo`); a lo mas una abierta | indice unico parcial `transferencias_una_abierta` (23505) |
 | A | todos (app_user) (03b-3.4) | `citas` | `medio_saldo` | ninguna directa: `elegir_medio_cita` y el pago | trigger `citas_estado_pago_protegido` (42501) |
-| B | ADMIN | `configuracion_centro` (03b-3.1) | UPDATE de `medios_pago_habilitados`, `plazo_validacion_transferencia_horas`, `porcentaje_pago_confirmacion` | 1 a 3 medios; 1 a 168 horas; 1 a 100 %; transferencia exige la cuenta del centro (salvo modelo DIRECTO); pasarela exige un adaptador configurado (API, 422 `pasarela_sin_convenio`) | GRANT por columna + CHECK `configuracion_centro_medios_pago` + trigger `configuracion_centro_medios_pago_validos` (23514) |
+| B | ADMIN | `configuracion_centro` (03b-3.1) | UPDATE de `medios_pago_habilitados`, `plazo_validacion_transferencia_horas`, `porcentaje_pago_confirmacion` | 1 a 3 medios; 1 a 168 horas; 1 a 100 %; transferencia exige la cuenta del centro (salvo modelo DIRECTO); pasarela exige un adaptador configurado (API, 422 `pasarela_sin_convenio`); AUD-01: pasarela no se habilita con modelo DIRECTO | GRANT por columna + CHECK `configuracion_centro_medios_pago` + trigger `configuracion_centro_medios_pago_validos` (23514, `configuracion_centro_pasarela_cobro_directo`) |
 
 ## Funciones (EXECUTE solo `app_user`; `SECURITY DEFINER`, `search_path` fijo)
 
@@ -390,8 +398,9 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | PACIENTE | `registrar_descarga_documento(token_hash)` | documento del enlace si es suyo y vigente; registra la descarga (y `accesos_ficha` DESCARGA); vencido = `vencido` sin registrar | 42501, P0002 |
 | C | sin contexto (token en la URL) | `feed_calendario(token_hash)` | id, inicio, fin, modalidad, estado, box, enlace cifrado y SEQUENCE (02i) de citas CONFIRMADA/POR_REPROGRAMAR/CANCELADA del dueño del token (activo); nunca paciente ni motivo | P0002 |
 | A | ADMIN / GESTION / profesional de la cita con cobro directo | `registrar_pago(cita, monto, medio)` | bloquea la cita; monto > saldo -> 23514 `pagos_sin_sobrepago`; fija `cobrado_por` | 42501, P0002, 23514 |
-| A | ADMIN / GESTION | `anular_pago(pago, motivo)` | REGISTRADO -> ANULADO con motivo; no si la cita tiene boleta o el pago esta en una liquidacion emitida | 42501, P0002, 55000, 23514 |
-| A | ADMIN / GESTION / profesional con cobro directo | `emitir_boleta(id, cita, emisor_nombre, emisor_rut)` | una boleta por cita PAGADA (copia del emisor cifrada por la API, numero simulado); nulo si no corresponde | 42501 |
+| A | ADMIN / GESTION | `anular_pago(pago, motivo)` | REGISTRADO -> ANULADO con motivo; no si la cita tiene comprobante de pago o el pago esta en una liquidacion emitida | 42501, P0002, 55000, 23514 |
+| A | ADMIN / GESTION / profesional con cobro directo | `emitir_comprobante_pago(id, cita, emisor_nombre, emisor_rut)` | un comprobante de pago (no tributario) por cita PAGADA (copia del emisor cifrada por la API, numero simulado); nulo si no corresponde | 42501 |
+| A | quien cobro la cita (AUD-01): ADMIN / GESTION si cobro el centro; el profesional de la cita si cobro el | `registrar_documento_tributario(cita, tipo, folio, fecha, monto)`, `anular_documento_tributario(id, motivo)` | boleta o factura del SII emitida fuera; monto hasta lo pagado neto sin documentar; fecha no futura; anula quien la emitio, con motivo | 42501, 23514 (`documentos_tributarios_monto`, `_fecha`, `_valores`, `_anulacion_coherente`), 23505, 55000, P0002 |
 | A | ADMIN / GESTION | `resolver_cita(cita, decision, cita_nueva, motivo)` | politica de cancelacion (a tiempo o tardia segun `plazo_aviso_cancelacion_horas`; TRASLADO de pagos o DEVOLUCION menos `penalizacion_cancelacion_porcentaje`) e INASISTENCIA (`cobro_inasistencia_porcentaje`); una por cita | 42501, P0002, 55000, 23514 |
 | A | ADMIN / GESTION | `generar_liquidacion(profesional, desde, hasta)` | BORRADOR: cobrado por el centro - devoluciones - comision - arriendos; recalcula un BORRADOR del mismo periodo. 03b-4.2: comision = porcentaje general sobre pacientes propios + regla de derivacion sobre sesiones de pacientes `traido_por_centro` (`comision_derivacion`, `sesiones_derivadas`); con `GENERAL`, igual que antes | 42501, 23514, 55000, 23P01 |
 | A | ADMIN / GESTION | `marcar_origen_paciente(paciente, traido)` (03b-4.2) | origen del paciente para la comision (la BD lo fija al crear: solicitud publica o alta por ADMIN/GESTION; sin GRANT UPDATE de la columna) | 42501, 23514, P0002 |
@@ -455,7 +464,8 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | todos (portal, reserva, enlace) (03b-3.4) | `estado_pago_cita`, `elegir_medio_cita`, `datos_transferencia`, `guardar_comprobante`, `iniciar_cobro_pasarela` (via sus envoltorios) | ademas del pago para confirmar: el saldo de la sesion realizada (`SALDO_PENDIENTE`, monto = saldo, solo medios en linea, `medio_saldo`) | 23514, 55000 |
 | A | job de mensajes sin contexto (03b-3.4) | `emitir_enlace_pago(cita, hash)` | token PAGO_CITA (30 dias) solo si el paciente y su adulto responsable no tienen cuenta activa; si no, falso (el correo lleva al portal) | 42501 |
 | A | sin contexto (enlace del correo, 03b-3.4) | `resumen_enlace_pago(hash)`, `estado_pago_enlace(hash)`, `elegir_medio_enlace(hash, medio, id)`, `datos_transferencia_enlace(hash)`, `transferencia_de_enlace(hash)`, `subir_comprobante_enlace(hash, ...)`, `iniciar_cobro_enlace(hash)` | solo la cita del token (varios usos hasta vencer): sesion (fecha, hora, modalidad, profesional), estado y pago; sin datos del paciente | P0002, 55000, 23514 |
-| A | ADMIN / GESTION o profesional de la cita (03b-3.4) | `emitir_boleta` | la boleta automatica sale tambien cuando registra el pago el profesional (cualquier modelo) | 42501 |
+| A | ADMIN / GESTION o profesional de la cita (03b-3.4) | `emitir_comprobante_pago` | el comprobante automatico sale tambien cuando registra el pago el profesional (cualquier modelo) | 42501 |
+| — | interno (AUD-01 E1.3, sin EXECUTE) | `medios_de_profesional`, `rechazar_pasarela_cobro_directo` (triggers `citas_pasarela_cobro_directo`, `cobros_pasarela_cobro_directo`) | la pasarela del silo es la del centro: la hora de un profesional con cobro directo no ofrece PASARELA (`estado_pago_cita`) ni la acepta al elegir el medio o iniciar el cobro | 23514 `citas_pasarela_cobro_directo` |
 | — | interno (03b-3.1, sin EXECUTE) | `validar_medios_pago`, `proteger_estado_pago`, `plazo_pago`, `monto_confirmacion`, `decidir_confirmacion`, `cita_de_reserva`, `cuenta_transferencia_existe`, `elegir_medio_cita`, `estado_pago_cita`, `datos_transferencia`, `transferencia_de_cita`, `guardar_comprobante`, `puede_validar_transferencia`, `iniciar_cobro_pasarela`; `medios_confirmacion_vigentes`, `cita_del_portal` (EXECUTE `app_user`) | sin el modulo COBROS solo cuenta PAGO_EN_CENTRO; las funciones que tratan ('CONFIRMADA', 'SOLICITADA') como hora ocupada cuentan tambien PENDIENTE_PAGO; `estado_pago_citas` y `reporte_cobros` no cobran la LIBERADA | — |
 | — | interno / triggers (03b) | `validar_bloque_atencion`, `proteger_bloque_atencion`, `asignar_box_bloqueo_temporal` (sin EXECUTE); `en_horario_espacio`, `en_horario_centro`, `bloques_fuera_de_horario` (EXECUTE `app_user`) | la cita vigente cae en un bloque de su profesional y la presencial toma el box del bloque (`validar_agenda_cita`); `espacio_libre` se elimino | — |
 
@@ -472,3 +482,31 @@ resolucion de un duplicado la registra `resolver_posible_duplicado`. Los jobs no
 escriben ahi (no hay usuario): su rastro es `derivacion_candidatos.estado =
 EXPIRADA`, `historial_accesos_practicante.accion = EXPIRADO` y
 `bajas.procesada_en`.
+
+## AUD-01 Fase 2 (soporte, contrato, derechos, bloqueo, deteccion)
+
+| Categoria | Rol | Tabla o funcion | Operacion | Filas / regla | Mecanismo |
+|---|---|---|---|---|---|
+| A | rol de BD `soporte_vinculos` (NOLOGIN; el operador habilita el login solo durante una autorizacion) | ninguna tabla | todas | ninguna: solo `soporte_resumen()`, `soporte_notificaciones_con_error(dias)` y, con alcance CONFIGURACION, `soporte_configuracion()` (agregados, sin personas) | sin GRANT de tablas; cada funcion exige autorizacion vigente y escribe `registro_soporte` (42501 sin autorizacion) |
+| A | ADMIN | `autorizaciones_soporte` | SELECT; INSERT/UPDATE solo via `otorgar_soporte(motivo, alcance, horas 1-72)` y `revocar_soporte(id)` | todas | GRANT SELECT + `autorizaciones_soporte_select`; append-only (solo se revoca) |
+| A | ADMIN | `registro_soporte` | SELECT | todas | GRANT SELECT + `registro_soporte_select`; trigger append-only (incluso dueño) |
+| A | operador (dueño) | `politicas` tipo `TERMINOS_SERVICIO` / `DPA` | INSERT | el contrato lo publica Vinculos | `politicas_insert` ya no deja esos tipos al ADMIN (42501) |
+| A | ADMIN | `politicas` tipo `TERMINOS_SERVICIO` / `DPA` | SELECT | solo ADMIN; `politica_vigente()` no los entrega a nadie mas | `politicas_select` |
+| A | ADMIN | `aceptaciones_contrato` | SELECT; INSERT via `aceptar_contrato(tipo)` (version vigente, idempotente); `contratos_pendientes()` | todas | GRANT SELECT; trigger append-only |
+| B | todos | `feriados` | SELECT | todas; escribe solo el operador | GRANT SELECT; `dias_habiles_restantes(fecha)` (EXECUTE app_user), `dias_habiles_desde` (interna) |
+| A | ADMIN | `solicitudes_derechos` | SELECT; escritura via `registrar_solicitud_derecho` (plazo 30 dias habiles lo fija la BD) y `avanzar_solicitud_derecho` (cerrar exige respuesta) | todas; detalle y respuesta cifrados (CLINICO) | GRANT SELECT; trigger solo avanza el estado; leerlas registra `accesos_ficha` LECTURA |
+| A | job (sin contexto) | `alertar_solicitudes_por_vencer()` | alerta a 5 dias habiles o menos | una por solicitud | 42501 con usuario |
+| A | ADMIN | `bloquear_tratamiento(paciente, motivo, solicitud)`, `levantar_bloqueo(paciente)` | bloqueo visible en `pacientes` | gestiones nuevas sobre el bloqueado: citas, derivaciones, edicion de paciente o adulto responsable -> 55000 (409, `pacientes_tratamiento_bloqueado`); lo agendado se mantiene | triggers `citas_paciente_bloqueado`, `derivaciones_paciente_bloqueado`, `adultos_responsables_paciente_bloqueado`, `pacientes_bloqueado` |
+| A | ADMIN | `cancelar_datos_perifericos(paciente, solicitud)` | con solicitud de CANCELACION abierta | borra contacto, preferencias, respuestas del match y cuenta del portal; conserva identificacion y ficha; devuelve el motivo legal | 23514 sin solicitud |
+| A | PACIENTE / RESPONSABLE | `preferencias_notificacion.whatsapp` | INSERT/UPDATE | consentimiento propio, desmarcado; la fecha la fija la BD (`whatsapp_consentido_en`) | GRANT por columna + trigger `preferencias_notificacion_whatsapp` |
+| A | sin contexto (reserva) | `consentir_whatsapp_solicitud(id, hash de reserva)` | marca la solicitud; pasa al paciente al concretarse (trigger `solicitudes_hora_whatsapp`) | solo la solicitud de esa reserva | — |
+| A | login (sin contexto) | `intentos_login_fallidos` via `registrar_login_fallido(hmac)` | INSERT | solo el HMAC del correo o RUT | sin GRANT de tabla |
+| A | job (sin contexto) | `detectar_anomalias()` | alertas ACCESO_ANOMALO (>40 pacientes distintos en 1 h por cuenta) y LOGIN_FALLIDO_REPETIDO (>=10 en 1 h); purga intentos > 30 dias | sin nombres | 42501 con usuario |
+| A | sin contexto (formulario publico, AUD-01 E2.3b) | `registrar_solicitud_publica(id, tipo, rut_hmac, detalle, cambio_correo)` | INSERT en `solicitudes_derechos` | solo si el RUT es de un paciente; maximo 3 en 24 h por paciente; devuelve el correo registrado para el aviso; la API responde siempre igual | 42501 con contexto |
+| A | ADMIN | `exportar_datos_paciente(paciente, 'ADMINISTRATIVA')` | lectura para la copia de datos (AUD-01 Fase 3) | datos personales, citas, cobros, consentimientos y solicitudes; sin hashes; registra `accesos_ficha` EXPORTACION | 42501 |
+| A | PROFESIONAL tratante | `exportar_datos_paciente(paciente, 'CLINICA')` | lectura de la ficha para la copia (ADMIN nunca, CENS-S6) | ficha, ingreso, evoluciones, adjuntos y documentos; registra EXPORTACION | 42501 |
+| A | ADMIN | `exportar_tabla_centro(tabla)`, `tablas_exportacion_centro()` | salida del centro; la API cifra con la clave del ADMIN y registra `registro_exportaciones` | todas las tablas salvo llaves, sesiones, tokens, codigos, intentos, colas | 23514 tabla fuera de la lista |
+| A | ADMIN / tratante | `exportaciones_paciente` | SELECT de metadatos (GRANT por columna, sin los datos cifrados) | ADMIN todas; el tratante las de sus pacientes | `exportaciones_paciente_select` |
+| A | ADMIN / tratante | `crear_exportacion_paciente`, `agregar_clinica_exportacion`, `enviar_exportacion` | con solicitud abierta de ACCESO o PORTABILIDAD; enlace de 72 h | — | 23514, 23505, 55000 |
+| A | PACIENTE (sesion) o sin contexto (codigo) | `entregar_exportacion(token_hash, codigo_hash)` | con cuenta exige su sesion; sin cuenta el codigo | cuenta descargas | P0002, 42501 |
+| A | job (sin contexto) | `purgar_exportaciones_vencidas()` | borra los datos de las vencidas | — | 42501 con usuario |

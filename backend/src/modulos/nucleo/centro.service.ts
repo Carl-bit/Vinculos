@@ -61,6 +61,42 @@ export class CentroService {
     return this.bd.tx().politica.create({ data: { tipo, version: 0, texto } });
   }
 
+  /**
+   * AUD-01 (E2.2): terminos de servicio y DPA vigentes con Vinculos, y quien
+   * los acepto. Solo ADMIN (RLS). Los publica el operador, no el centro.
+   */
+  async contrato() {
+    const tx = this.bd.tx();
+    const [pendientes, vigentes, nombres] = await Promise.all([
+      tx.$queryRaw<{ tipo: 'TERMINOS_SERVICIO' | 'DPA' }[]>`SELECT tipo FROM contratos_pendientes()`,
+      tx.politica.findMany({
+        where: { tipo: { in: ['TERMINOS_SERVICIO', 'DPA'] } },
+        orderBy: { version: 'desc' },
+        distinct: ['tipo'],
+        include: { aceptacionesContrato: { orderBy: { aceptadaEn: 'asc' }, select: { usuarioId: true, aceptadaEn: true } } },
+      }),
+      tx.$queryRaw<{ id: string; nombre: string | null }[]>`SELECT id, nombre FROM directorio_interno()`,
+    ]);
+    const nombre = new Map(nombres.map((n) => [n.id, n.nombre]));
+    return {
+      pendientes: pendientes.map((p) => p.tipo),
+      vigentes: vigentes.map((v) => ({
+        tipo: v.tipo as 'TERMINOS_SERVICIO' | 'DPA',
+        politicaId: v.id,
+        version: v.version,
+        texto: v.texto,
+        vigenteDesde: v.vigenteDesde,
+        aceptaciones: v.aceptacionesContrato.map((a) => ({ por: nombre.get(a.usuarioId) ?? null, aceptadaEn: a.aceptadaEn })),
+      })),
+    };
+  }
+
+  /** Acepta la version vigente (idempotente por ADMIN y version). */
+  async aceptarContrato(tipo: 'TERMINOS_SERVICIO' | 'DPA') {
+    await this.bd.tx().$queryRaw`SELECT aceptar_contrato(${tipo}::tipo_politica)`;
+    return this.contrato();
+  }
+
   /** 03b-4.2: protocolo interno vigente y la lectura de la cuenta (equipo). */
   async protocoloEquipo() {
     const tx = this.bd.tx();

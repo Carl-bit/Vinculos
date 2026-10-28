@@ -485,3 +485,92 @@ sin editar las aplicadas:
   registran pagadas, tambien las que terminan despues del seed, para que no
   vuelvan morosos a sus pacientes; ya no hace falta `demo:reset` cada dia
   (si, pasados 2 dias habiles, antes de los tests que agendan).
+
+## AUD-01 Fase 1 (alineacion con las decisiones de cumplimiento, 2026-10-28)
+
+Roadmap: `docs/cumplimiento/roadmap_aud01.md`. Informe: `docs/cumplimiento/brechas_saas.md`.
+
+- E1.1 documentos: `docs/cumplimiento/subencargados.md`, `incidentes.md`,
+  `docs/api/correo_ses.md`; `matriz_permisos.md` y `requisitos_02_apis.md`
+  corregidos: segundo factor por correo, sin TOTP.
+- E1.2 correo: Reply-To = `contenido_publico.contacto_correo` (sin columna
+  nueva); `SES_CONFIGURATION_SET` (cabecera `X-SES-CONFIGURATION-SET`);
+  Traefik con TLS 1.2 minimo (`infra/traefik/dinamico.yml`).
+- E1.3 pasarela del centro (migracion `20261101000000_aud01_pasarela_cobrador`):
+  PASARELA no se habilita con modelo DIRECTO; en MIXTO la hora de un
+  profesional con cobro directo no la ofrece ni la acepta
+  (`medios_de_profesional`, triggers `citas_pasarela_cobro_directo` y
+  `cobros_pasarela_cobro_directo`). 422 con restriccion propia.
+- E1.4 comprobante y boleta SII (migracion
+  `20261101000100_aud01_comprobante_documento_tributario`): `boletas` ->
+  `comprobantes_pago` (numero `CP-`, no tributario; AAD fijo con `aadTabla`),
+  evento `COMPROBANTE_EMITIDO`, `emitir_comprobante_pago`. Tabla nueva
+  `documentos_tributarios` (A) con `registrar_documento_tributario` y
+  `anular_documento_tributario`. API: `DetalleCobroCita.comprobante` (antes
+  `boleta`) y `documentosTributarios`; `POST cobros/citas/:id/documentos-tributarios`,
+  `POST cobros/documentos-tributarios/:id/anulacion`.
+- E1.5 trazabilidad (migracion `20261101000200_aud01_trazabilidad`):
+  `accesos_ficha.detalle`; trigger de edicion de pacientes y adultos
+  responsables (campos, nunca valores); copia del tratante y adjunto bajado
+  = DESCARGA; `registro_exportaciones` (A) para los PDF de Cobros;
+  `GET auditoria/accesos` (ADMIN) y pestaña "Auditoria de accesos" en
+  Configuracion.
+- Tests: `seguridad_bd.sql` casos 139 (dueño), 140 y 141 (app_user);
+  integracion `aud01-cumplimiento.e2e-spec.ts`; unitarios `correo.spec.ts` y
+  `cifrado.spec.ts` (AAD fijo); Vitest `DocumentosTributarios.test.tsx`;
+  Playwright `e2e/cumplimiento.spec.ts`.
+
+## AUD-01 Fase 2 (soporte, contrato, derechos, continuidad, 2026-10-28)
+
+- E2.1 soporte (migracion `20261101000300_aud01_acceso_soporte`): rol
+  `soporte_vinculos` sin tablas; `autorizaciones_soporte`, `registro_soporte`;
+  API `soporte/autorizaciones` (GET, POST, `:id/revocacion`), `soporte/registro`.
+  Runbook `docs/cumplimiento/soporte.md`.
+- E2.2 contrato (migraciones `..0400_aud01_enums_contrato`, `..0500_aud01_contrato_centro`):
+  tipos `TERMINOS_SERVICIO` y `DPA` (los publica el operador), `aceptaciones_contrato`;
+  API `contrato-centro` (GET) y `contrato-centro/aceptacion`. Plantillas en
+  `docs/cumplimiento/plantillas/`; el seed demo las publica y la cuenta madre las acepta.
+- E2.3a derechos (`..0600_aud01_enums_derechos`, `..0700_aud01_solicitudes_derechos`):
+  `feriados` (2026), `solicitudes_derechos`, plazo de 30 dias habiles, alerta a
+  5 dias; API `derechos/solicitudes` (GET, POST, `:id/estado`); job
+  `alertar_solicitudes_por_vencer` (08:00).
+- E2.3b formulario publico por RUT: pendiente de decision (ver roadmap).
+- E2.3c (`..0800_aud01_bloqueo_cancelacion_canales`): bloqueo del tratamiento,
+  cancelacion de datos perifericos, WhatsApp con consentimiento propio; API
+  `derechos/pacientes/:id/bloqueo`, `.../bloqueo/levantamiento`,
+  `.../cancelacion`; `PacienteVista.bloqueoDesde/bloqueoMotivo`;
+  `Preferencias.whatsapp`; `SolicitudHoraDto.aceptaWhatsapp`.
+- E2.4 (`..0900_aud01_enums_deteccion`, `..1000_aud01_deteccion`):
+  `intentos_login_fallidos`, job `detectar_anomalias` (cada hora); scripts
+  `infra/scripts/continuidad/` (respaldo cifrado, descifrado, salud);
+  `docs/cumplimiento/continuidad.md` (RTO/RPO propuestos).
+- Tests: `seguridad_bd.sql` casos 142 a 148; `aud01-cumplimiento.e2e-spec.ts`
+  (10 tests); `jobs.spec.ts`; Vitest `ContratoCentro.test.tsx`; Playwright
+  `e2e/cumplimiento.spec.ts` (4).
+
+## AUD-01 cierre (Fase 0 y E2.3b, 2026-10-28)
+
+- Fase 0: `bcrypt@6`, `sharp@0.35.5` (tipos via `paths` a `dist/index.d.cts`),
+  overrides de `multer`, `deepmerge-ts` y `js-yaml` (backend) y de `postcss`
+  dentro de `next` (frontend); `npm run auditoria` en la raiz. Detalle:
+  `docs/seguridad/dependencias.md`.
+- E2.3b (migracion `20261101001100_aud01_derechos_publico`):
+  `POST publico/derechos` (sin sesion, rate limit publico, trampa para bots),
+  `registrar_solicitud_publica()`, `solicitudes_derechos.pide_cambio_correo`;
+  aviso solo al correo registrado (`CorreosCuenta.enviarAviso`). Pagina
+  `/derechos`. Tests: `seguridad_bd.sql` caso 149; e2e y Playwright.
+- `infra/scripts/continuidad/instalar.sh` y `feriados_2027.sql` (borrador).
+
+## AUD-01 Fase 3 (exportaciones, 2026-10-28)
+
+- Migracion `20261101001200_aud01_exportaciones`: funciones de lectura para
+  exportar, `exportaciones_paciente` (A), entrega con sesion o codigo, purga.
+- API: `POST derechos/solicitudes/:id/exportacion`, `GET exportaciones/pendientes`,
+  `POST exportaciones/:id/clinica`, `POST portal/exportacion/descarga`,
+  `POST publico/exportacion/descarga`, `POST exportacion-centro`.
+  `SolicitudDerechoVista.exportacion`. Job `purgar_exportaciones_vencidas`.
+- Front: "Preparar copia de datos", aviso en ficha e inicio del tratante,
+  `/exportacion`, `/portal/exportacion`, Configuracion > Exportar datos.
+- `infra/scripts/exportacion/descifrar.mjs`; runbook `docs/cumplimiento/baja_centro.md`.
+- Tests: `seguridad_bd.sql` caso 150; e2e (12 en `aud01-cumplimiento`);
+  `jobs.spec.ts`; Playwright.

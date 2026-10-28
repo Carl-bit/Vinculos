@@ -47,3 +47,21 @@ export async function descargarArchivo(ruta: string, nombrePorDefecto: string): 
     return 'error';
   }
 }
+
+/** Guarda un blob como archivo (descarga del navegador); el object URL se libera despues. */
+export function guardarBlob(blob: Blob, nombre: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** Igual que pedirArchivo, sin sesion (rutas publicas con token o codigo). */
+export async function pedirArchivoPublico(ruta: string, cuerpo: unknown): Promise<Blob> {
+  const r = await fetch(ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo), cache: 'no-store' });
+  if (!r.ok) throw new ApiError(r.status, (await r.json().catch(() => ({}))) as Partial<ErrorRespuesta>);
+  return r.blob();
+}
+

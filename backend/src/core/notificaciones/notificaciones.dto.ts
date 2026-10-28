@@ -34,6 +34,11 @@ export class PreferenciasDto {
   @IsOptional()
   @IsBoolean()
   avisosOperativos?: boolean;
+
+  /** AUD-01 (E2.3c): consentimiento propio del canal WhatsApp (la fecha la fija la BD). */
+  @IsOptional()
+  @IsBoolean()
+  whatsapp?: boolean;
 }
 
 /** Mensaje de la bandeja propia (registro oficial, ya armado con la plantilla). */
@@ -54,6 +59,10 @@ export class MensajeBandeja {
 export class Preferencias {
   recordatorios!: boolean;
   avisosOperativos!: boolean;
+  /** AUD-01: avisos por WhatsApp (el envio llega despues; hoy solo el consentimiento). */
+  whatsapp!: boolean;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  whatsappConsentidoEn!: Date | null;
 }
 
 /** Plantilla de mensaje por evento, destinatario y canal; *Ejemplo es el texto original para restaurar. */

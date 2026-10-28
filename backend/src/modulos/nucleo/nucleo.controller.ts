@@ -10,14 +10,17 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 
-import { TAGS } from '../../core/docs/openapi';
-import { Roles } from '../../core/auth/decoradores';
+import { RespuestaArchivo, TAGS } from '../../core/docs/openapi';
+import { Publico, Roles } from '../../core/auth/decoradores';
+import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { IMAGEN_MAX_BYTES } from '../../core/imagenes/imagenes';
 import { CentroService } from './centro.service';
 import {
@@ -63,7 +66,30 @@ import {
   PracticanteVista,
   TotpReiniciado,
   IntegranteEquipoTratante,
+  FiltroAuditoriaDto,
+  RegistroAuditoria,
+  AutorizacionSoporteVista,
+  OtorgarSoporteDto,
+  RegistroSoporteVista,
+  AceptarContratoDto,
+  ContratoCentroVista,
+  AvanzarSolicitudDerechoDto,
+  RegistrarSolicitudDerechoDto,
+  SolicitudDerechoVista,
+  BloquearTratamientoDto,
+  CancelarPerifericosDto,
+  CancelacionPerifericos,
+  EstadoBloqueoVista,
+  SolicitudDerechoPublicaDto,
+  SolicitudDerechoPublicaRecibida,
+  DescargaExportacionDto,
+  ExportacionPacienteVista,
+  ExportarCentroDto,
 } from './dto/nucleo.dto';
+import { ExportacionesService } from './exportaciones.service';
+import { DerechosService } from './derechos.service';
+import { AuditoriaService } from './auditoria.service';
+import { SoporteService } from './soporte.service';
 import { EquipoAccesoService } from './equipo-acceso.service';
 import { UsuariosService } from './usuarios.service';
 
@@ -243,6 +269,20 @@ export class CentroController {
     return this.centro.publicarPolitica(dto.tipo, dto.texto);
   }
 
+  /** AUD-01 (E2.2): contrato del centro con Vinculos (terminos y DPA) y sus aceptaciones. */
+  @Get('contrato-centro')
+  @Roles('ADMIN')
+  contrato(): Promise<ContratoCentroVista> {
+    return this.centro.contrato();
+  }
+
+  @Post('contrato-centro/aceptacion')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  aceptarContrato(@Body() dto: AceptarContratoDto): Promise<ContratoCentroVista> {
+    return this.centro.aceptarContrato(dto.tipo);
+  }
+
   /** 03b-4.2: protocolo interno del centro (version vigente) y si la cuenta ya lo leyo. */
   @Get('protocolo')
   @Roles(...EQUIPO)
@@ -375,5 +415,190 @@ export class DirectorioController {
   @Roles('PACIENTE', 'RESPONSABLE')
   miEquipo(): Promise<IntegranteEquipoTratante[]> {
     return this.equipo.miEquipoTratante();
+  }
+}
+
+/** AUD-01 (E1.5): quien vio, escribio, descargo o exporto, con su rol activo. Solo ADMIN (RLS). */
+@ApiTags(TAGS.nucleo)
+@Controller('auditoria')
+export class AuditoriaController {
+  constructor(private readonly auditoria: AuditoriaService) {}
+
+  @Get('accesos')
+  @Roles('ADMIN')
+  accesos(@Query() filtro: FiltroAuditoriaDto): Promise<RegistroAuditoria[]> {
+    return this.auditoria.registros(filtro);
+  }
+}
+
+/**
+ * AUD-01 (E2.1): el centro autoriza (plazo y alcance) al soporte de Vinculos,
+ * que nunca ve datos personales ni clinicos, y ve cada diagnostico ejecutado.
+ */
+@ApiTags(TAGS.nucleo)
+@Controller('soporte')
+export class SoporteController {
+  constructor(private readonly soporte: SoporteService) {}
+
+  @Get('autorizaciones')
+  @Roles('ADMIN')
+  autorizaciones(): Promise<AutorizacionSoporteVista[]> {
+    return this.soporte.autorizaciones();
+  }
+
+  @Post('autorizaciones')
+  @Roles('ADMIN')
+  otorgar(@Body() dto: OtorgarSoporteDto): Promise<AutorizacionSoporteVista> {
+    return this.soporte.otorgar(dto);
+  }
+
+  @Post('autorizaciones/:id/revocacion')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  revocar(@Param('id', Uuid) id: string): Promise<AutorizacionSoporteVista> {
+    return this.soporte.revocar(id);
+  }
+
+  @Get('registro')
+  @Roles('ADMIN')
+  registro(): Promise<RegistroSoporteVista[]> {
+    return this.soporte.registro();
+  }
+}
+
+/** AUD-01 (E2.3a): solicitudes de derechos de los titulares, con plazo en dias habiles. Solo ADMIN. */
+@ApiTags(TAGS.nucleo)
+@Controller('derechos')
+export class DerechosController {
+  constructor(private readonly derechos: DerechosService) {}
+
+  @Get('solicitudes')
+  @Roles('ADMIN')
+  solicitudes(): Promise<SolicitudDerechoVista[]> {
+    return this.derechos.solicitudes();
+  }
+
+  @Post('solicitudes')
+  @Roles('ADMIN')
+  registrar(@Body() dto: RegistrarSolicitudDerechoDto): Promise<SolicitudDerechoVista> {
+    return this.derechos.registrar(dto);
+  }
+
+  @Post('solicitudes/:id/estado')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  avanzar(@Param('id', Uuid) id: string, @Body() dto: AvanzarSolicitudDerechoDto): Promise<SolicitudDerechoVista> {
+    return this.derechos.avanzar(id, dto);
+  }
+
+  /** AUD-01 (E2.3c): bloqueo visible; impide gestiones nuevas (citas, derivaciones, edicion de datos). */
+  @Post('pacientes/:id/bloqueo')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  bloquear(@Param('id', Uuid) id: string, @Body() dto: BloquearTratamientoDto): Promise<EstadoBloqueoVista> {
+    return this.derechos.bloquear(id, dto);
+  }
+
+  @Post('pacientes/:id/bloqueo/levantamiento')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  levantar(@Param('id', Uuid) id: string): Promise<EstadoBloqueoVista> {
+    return this.derechos.levantar(id);
+  }
+
+  /** Cancelacion: borra lo periferico y conserva la ficha (responde el motivo legal). */
+  @Post('pacientes/:id/cancelacion')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  cancelar(@Param('id', Uuid) id: string, @Body() dto: CancelarPerifericosDto): Promise<CancelacionPerifericos> {
+    return this.derechos.cancelarPerifericos(id, dto.solicitudId);
+  }
+}
+
+/** AUD-01 (E2.3b): formulario publico de derechos por RUT; misma respuesta exista o no (rate limit publico). */
+@ApiTags(TAGS.nucleo)
+@Controller('publico/derechos')
+@Publico()
+@UseGuards(ThrottlerGuard)
+@SkipThrottle({ login: true })
+export class DerechosPublicoController {
+  constructor(private readonly derechos: DerechosService) {}
+
+  @Post()
+  @HttpCode(202)
+  solicitar(@Body() dto: SolicitudDerechoPublicaDto): Promise<SolicitudDerechoPublicaRecibida> {
+    return this.derechos.solicitudPublica(dto);
+  }
+}
+
+/** Respuesta binaria descargable (sin cache: datos personales). */
+const archivo = (contenido: Buffer, tipo: string, nombre: string) =>
+  new StreamableFile(contenido, { type: tipo, disposition: `attachment; filename="${encodeURIComponent(nombre)}"` });
+
+/**
+ * AUD-01 Fase 3: exportaciones. Paciente: ADMIN prepara desde la solicitud,
+ * el tratante agrega la parte clinica, el paciente descarga (sesion o
+ * codigo). Centro: ADMIN, cifrada con su clave.
+ */
+@ApiTags(TAGS.nucleo)
+@Controller()
+export class ExportacionesController {
+  constructor(private readonly exportaciones: ExportacionesService) {}
+
+  @Post('derechos/solicitudes/:id/exportacion')
+  @Roles('ADMIN')
+  preparar(@Param('id', Uuid) id: string): Promise<ExportacionPacienteVista> {
+    return this.exportaciones.preparar(id);
+  }
+
+  @Get('exportaciones/pendientes')
+  @Roles('PROFESIONAL')
+  pendientes(): Promise<ExportacionPacienteVista[]> {
+    return this.exportaciones.pendientesClinicas();
+  }
+
+  @Post('exportaciones/:id/clinica')
+  @HttpCode(200)
+  @Roles('PROFESIONAL')
+  clinica(@Param('id', Uuid) id: string): Promise<ExportacionPacienteVista> {
+    return this.exportaciones.agregarClinica(id);
+  }
+
+  /** Paciente con cuenta: descarga con su sesion. */
+  @Post('portal/exportacion/descarga')
+  @HttpCode(200)
+  @Roles('PACIENTE')
+  @RespuestaArchivo('application/json', 'application/pdf')
+  async descargarPortal(@Body() dto: DescargaExportacionDto) {
+    const a = await this.exportaciones.descargar(dto.token, null, dto.formato, true);
+    return archivo(a.contenido, a.tipo, a.nombre);
+  }
+
+  /** Exportacion completa del centro, cifrada con la clave del ADMIN (no se guarda). */
+  @Post('exportacion-centro')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  @RespuestaArchivo('application/octet-stream')
+  async centro(@Body() dto: ExportarCentroDto) {
+    const a = await this.exportaciones.exportarCentro(dto.clave);
+    return archivo(a.contenido, 'application/octet-stream', a.nombre);
+  }
+}
+
+/** Paciente sin cuenta: descarga con el codigo del segundo correo (rate limit publico). */
+@ApiTags(TAGS.nucleo)
+@Controller('publico/exportacion')
+@Publico()
+@UseGuards(ThrottlerGuard)
+@SkipThrottle({ login: true })
+export class ExportacionPublicaController {
+  constructor(private readonly exportaciones: ExportacionesService) {}
+
+  @Post('descarga')
+  @HttpCode(200)
+  @RespuestaArchivo('application/json', 'application/pdf')
+  async descargar(@Body() dto: DescargaExportacionDto) {
+    const a = await this.exportaciones.descargar(dto.token, dto.codigo ?? '', dto.formato, false);
+    return archivo(a.contenido, a.tipo, a.nombre);
   }
 }

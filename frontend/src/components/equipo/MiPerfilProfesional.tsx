@@ -467,7 +467,7 @@ function MisDatosPrivados({ usuarioId }: { usuarioId: string }) {
   return (
     <Panel
       titulo="Datos para pagos"
-      bajada="Tu RUT y cuenta bancaria, para liquidaciones y boletas. Se guardan cifrados y solo los ve administración."
+      bajada="Tu RUT y cuenta bancaria, para liquidaciones y comprobantes de pago. Se guardan cifrados y solo los ve administración."
       accion={
         <Button variant="secondary" icon={abierto ? 'visibility_off' : 'edit'} onClick={() => setAbierto((v) => !v)} className="!py-2.5">
           {abierto ? 'Cerrar' : 'Ver o editar'}

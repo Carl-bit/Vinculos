@@ -6,14 +6,23 @@ import { Modulo } from '../../core/modulos/modulos';
 import { Roles } from '../../core/auth/decoradores';
 import { CobrosService } from './cobros.service';
 import { ArriendoVista, DetalleCobroCita, DeudaPaciente, EstadoPagoCitaVista, LiquidacionVista, PagoVista, ReporteCobros } from './dto/cobros-respuestas.dto';
-import { AnularPagoDto, ArriendoDto, FiltroCobrosDto, LiquidacionDto, PeriodoDto, RegistrarPagoDto, ResolverCitaDto } from './dto/cobros.dto';
+import {
+  AnularPagoDto,
+  ArriendoDto,
+  FiltroCobrosDto,
+  LiquidacionDto,
+  PeriodoDto,
+  RegistrarDocumentoTributarioDto,
+  RegistrarPagoDto,
+  ResolverCitaDto,
+} from './dto/cobros.dto';
 
 const pdf = (contenido: Buffer, nombre: string) => new StreamableFile(contenido, { type: 'application/pdf', disposition: `attachment; filename="${nombre}"` });
 
 const Uuid = new ParseUUIDPipe();
 
 /**
- * Roles segun matriz_permisos.md (pagos, boletas, resoluciones_cita,
+ * Roles segun matriz_permisos.md (pagos, comprobantes_pago, documentos_tributarios, resoluciones_cita,
  * arriendos, liquidaciones). La BD aplica igual la RLS y las reglas de cada
  * funcion (p. ej. el profesional registra pagos solo con cobro directo).
  */
@@ -54,6 +63,20 @@ export class CobrosController {
   @Roles('ADMIN', 'GESTION')
   anular(@Param('id', Uuid) id: string, @Body() dto: AnularPagoDto): Promise<PagoVista> {
     return this.cobros.anularPago(id, dto.motivo);
+  }
+
+  /** AUD-01: boleta o factura del SII emitida fuera; la registra quien cobro (la BD decide: 403 si no). */
+  @Post('citas/:id/documentos-tributarios')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  registrarTributario(@Param('id', Uuid) id: string, @Body() dto: RegistrarDocumentoTributarioDto): Promise<DetalleCobroCita> {
+    return this.cobros.registrarTributario(id, dto);
+  }
+
+  @Post('documentos-tributarios/:id/anulacion')
+  @HttpCode(200)
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  anularTributario(@Param('id', Uuid) id: string, @Body() dto: AnularPagoDto): Promise<DetalleCobroCita> {
+    return this.cobros.anularTributario(id, dto.motivo);
   }
 
   /** Cancelacion (a tiempo o tardia) e inasistencia (03b-3.3: tambien justificada): decision registrada y auditada. */

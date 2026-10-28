@@ -55,7 +55,7 @@ compara ese registro con las columnas bytea reales de la BD.
 | Datos bancarios del profesional (banco, tipo y numero de cuenta, titular) | Financiero. |
 | `evoluciones.notas`, `supervision_comentarios.texto`, `derivaciones.motivo`/`detalle` | Contenido clinico en texto libre. |
 | `citas.enlace_online` | Da acceso a una sesion clinica en curso. `citas` conserva su DEFAULT de id: el enlace se genera con la cita ya creada. |
-| Copia de autoria (`evoluciones.autor_*`) y emisor de boletas | Identifican al profesional en documentos de retencion legal. |
+| Copia de autoria (`evoluciones.autor_*`) y emisor de comprobantes de pago (`comprobantes_pago`; AAD con el nombre anterior `boletas`, `aadTabla` en `registro.ts`) | Identifican al profesional en documentos de retencion legal. |
 | `mensajes_paciente.contenido`, `solicitudes_epicrisis.motivo` (02g) | Texto libre del paciente: puede traer datos de salud. |
 | `documentos_clinicos.contenido` (02h, CLINICO) | Archivo emitido por el tratante (epicrisis, receta...). Id generado por la API. |
 | `envios_documento.enlace` (02h, CLINICO) | URL con el token de descarga, solo para el job de correo. Para validar la descarga se guarda aparte su SHA-256 (`token_hash`, texto). |
@@ -116,7 +116,7 @@ La ficha clinica se conserva al menos 15 años desde la ultima atencion
 - **Simulacro trimestral** de recuperacion desde un respaldo con 2 partes
   (runbook): un procedimiento que no se practica no existe a los 15 años.
 - Al cerrar la cuenta de un profesional sus datos personales se vacian, pero
-  las copias de autoria cifradas en evoluciones y boletas se conservan
+  las copias de autoria cifradas en evoluciones y comprobantes de pago se conservan
   (`retencion_datos.md`).
 
 ## Por que estas piezas

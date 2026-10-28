@@ -632,6 +632,11 @@ export class PacienteVista {
   posibleDuplicado!: boolean;
   /** 03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion. */
   traidoPorCentro!: boolean;
+  /** AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular; impide gestiones nuevas. */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  bloqueoDesde!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  bloqueoMotivo!: string | null;
   createdAt!: Date;
   updatedAt!: Date;
 }

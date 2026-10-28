@@ -1,10 +1,11 @@
 /**
  * Registro unico de campos cifrados. Toda columna bytea cifrada de la BD esta
  * aqui (y solo aqui): la extension de Prisma (02) cifra/descifra segun esta
- * lista, y el test de "sin texto plano" la recorre. AAD = tabla:columna:id.
+ * lista, y el test de "sin texto plano" la recorre. AAD = tabla:columna:id
+ * (con `aadTabla` si la tabla se renombro despues de cifrar: ver aadDe).
  * Campos `*_hmac` no van aqui: son indices ciegos (Llavero.hmacRut).
  */
-import type { CategoriaLlave } from './cifrado';
+import { aad, type CategoriaLlave } from './cifrado';
 
 export interface CampoCifrado {
   modelo: string;
@@ -14,6 +15,17 @@ export interface CampoCifrado {
   categoria: Exclude<CategoriaLlave, 'HMAC'>;
   /** Columna de la fila usada como id en el AAD. */
   id: string;
+  /**
+   * Nombre de la tabla con que se cifro, si la tabla se renombro despues
+   * (AUD-01: boletas -> comprobantes_pago). El AAD queda fijo: renombrar no
+   * obliga a recifrar.
+   */
+  aadTabla?: string;
+}
+
+/** AAD de una fila: el nombre de cifrado de la tabla (aadTabla) o el actual. */
+export function aadDe(c: CampoCifrado, idFila: string): string {
+  return aad(c.aadTabla ?? c.tabla, c.columna, idFila);
 }
 
 export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
@@ -31,8 +43,24 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Derivacion', campo: 'detalle', tabla: 'derivaciones', columna: 'detalle', categoria: 'CLINICO', id: 'id' },
   // citas conserva DEFAULT de id: el enlace se genera con la cita ya creada (id conocido).
   { modelo: 'Cita', campo: 'enlaceOnline', tabla: 'citas', columna: 'enlace_online', categoria: 'CLINICO', id: 'id' },
-  { modelo: 'Boleta', campo: 'emisorNombre', tabla: 'boletas', columna: 'emisor_nombre', categoria: 'IDENTIFICACION', id: 'id' },
-  { modelo: 'Boleta', campo: 'emisorRut', tabla: 'boletas', columna: 'emisor_rut', categoria: 'IDENTIFICACION', id: 'id' },
+  {
+    modelo: 'ComprobantePago',
+    campo: 'emisorNombre',
+    tabla: 'comprobantes_pago',
+    columna: 'emisor_nombre',
+    categoria: 'IDENTIFICACION',
+    id: 'id',
+    aadTabla: 'boletas',
+  },
+  {
+    modelo: 'ComprobantePago',
+    campo: 'emisorRut',
+    tabla: 'comprobantes_pago',
+    columna: 'emisor_rut',
+    categoria: 'IDENTIFICACION',
+    id: 'id',
+    aadTabla: 'boletas',
+  },
   { modelo: 'ProfesionalDatosPrivados', campo: 'rut', tabla: 'profesional_datos_privados', columna: 'rut', categoria: 'IDENTIFICACION', id: 'usuario_id' },
   { modelo: 'ProfesionalDatosPrivados', campo: 'banco', tabla: 'profesional_datos_privados', columna: 'banco', categoria: 'FINANCIERO', id: 'usuario_id' },
   {
@@ -105,6 +133,19 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'CuentaBancariaCentro', campo: 'numeroCuenta', tabla: 'cuenta_bancaria_centro', columna: 'numero_cuenta', categoria: 'FINANCIERO', id: 'id' },
   { modelo: 'CuentaBancariaCentro', campo: 'titular', tabla: 'cuenta_bancaria_centro', columna: 'titular', categoria: 'FINANCIERO', id: 'id' },
   { modelo: 'Transferencia', campo: 'comprobante', tabla: 'transferencias', columna: 'comprobante', categoria: 'FINANCIERO', id: 'id' },
+  // AUD-01 (E2.3a): solicitudes de derechos (pueden traer datos de salud).
+  { modelo: 'SolicitudDerecho', campo: 'detalle', tabla: 'solicitudes_derechos', columna: 'detalle', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'SolicitudDerecho', campo: 'respuesta', tabla: 'solicitudes_derechos', columna: 'respuesta', categoria: 'CLINICO', id: 'id' },
+  // AUD-01 Fase 3: exportacion de un paciente (JSON con datos personales y clinicos).
+  {
+    modelo: 'ExportacionPaciente',
+    campo: 'datosAdministrativos',
+    tabla: 'exportaciones_paciente',
+    columna: 'datos_administrativos',
+    categoria: 'CLINICO',
+    id: 'id',
+  },
+  { modelo: 'ExportacionPaciente', campo: 'datosClinicos', tabla: 'exportaciones_paciente', columna: 'datos_clinicos', categoria: 'CLINICO', id: 'id' },
 ];
 
 /**

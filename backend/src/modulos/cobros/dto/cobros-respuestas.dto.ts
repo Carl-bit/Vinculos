@@ -4,7 +4,16 @@
  * estado_pago_citas (RLS de quien consulta: el paciente ve lo suyo).
  */
 import { ApiProperty } from '@nestjs/swagger';
-import { CobradoPor, DecisionCita, EstadoLiquidacion, EstadoPago, MedioPago, OrigenPago } from '@prisma/client';
+import {
+  CobradoPor,
+  DecisionCita,
+  EstadoDocumentoTributario,
+  EstadoLiquidacion,
+  EstadoPago,
+  MedioPago,
+  OrigenPago,
+  TipoDocumentoTributario,
+} from '@prisma/client';
 
 export const ESTADOS_PAGO = ['SIN_COBRO', 'PENDIENTE', 'PARCIAL', 'PAGADO'] as const;
 
@@ -79,10 +88,11 @@ export class DeudaPaciente {
   citas!: string[];
 }
 
-export class BoletaVista {
+/** AUD-01: comprobante de pago interno, no tributario (numero "CP-"; los antiguos "SIM-"). */
+export class ComprobantePagoVista {
   id!: string;
   citaId!: string;
-  /** Numero simulado (sin SII). */
+  /** Numero interno del comprobante (no es un folio del SII). */
   numero!: string;
   monto!: number;
   @ApiProperty({ type: String, nullable: true })
@@ -92,12 +102,35 @@ export class BoletaVista {
   createdAt!: Date;
 }
 
+/** AUD-01 (E1.4): documento tributario emitido fuera del sistema. */
+export class DocumentoTributarioVista {
+  id!: string;
+  citaId!: string;
+  @ApiProperty({ enum: TipoDocumentoTributario, enumName: 'TipoDocumentoTributario' })
+  tipo!: TipoDocumentoTributario;
+  folio!: string;
+  @ApiProperty({ enum: CobradoPor, enumName: 'CobradoPor', description: 'Quien lo emitio: el centro o el profesional con cobro directo' })
+  emisor!: CobradoPor;
+  @ApiProperty({ type: String, format: 'date', description: 'AAAA-MM-DD' })
+  fechaEmision!: string;
+  monto!: number;
+  @ApiProperty({ enum: EstadoDocumentoTributario, enumName: 'EstadoDocumentoTributario' })
+  estado!: EstadoDocumentoTributario;
+  registradoEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  anuladoEn!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  motivoAnulacion!: string | null;
+}
+
 export class DetalleCobroCita extends EstadoPagoCitaVista {
   pagos!: PagoVista[];
   @ApiProperty({ type: ResolucionCitaVista, nullable: true })
   resolucion!: ResolucionCitaVista | null;
-  @ApiProperty({ type: BoletaVista, nullable: true })
-  boleta!: BoletaVista | null;
+  @ApiProperty({ type: ComprobantePagoVista, nullable: true })
+  comprobante!: ComprobantePagoVista | null;
+  /** AUD-01: boletas o facturas del SII registradas (vigentes y anuladas). */
+  documentosTributarios!: DocumentoTributarioVista[];
 }
 
 /** Fila de reporte_cobros(): sesiones realizadas del periodo y montos por profesional (sin datos clinicos). */

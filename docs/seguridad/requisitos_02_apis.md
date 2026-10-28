@@ -110,7 +110,7 @@ que se inicializa antes que cualquier otro que toque datos:
 
 Filas con columnas cifradas no tienen DEFAULT de id (el id es parte del AAD):
 `usuarios`, `pacientes`, `adultos_responsables`, `evoluciones`,
-`supervision_comentarios`, `derivaciones`, `boletas`, `documentos_clinicos`,
+`supervision_comentarios`, `derivaciones`, `comprobantes_pago`, `documentos_clinicos`,
 `envios_documento` (02h). La API genera
 `randomUUID()` antes de cifrar y lo pasa en el `create`. Prisma lo exige por
 tipo (el campo `id` no es opcional).
@@ -218,7 +218,7 @@ DTOs (`class-validator`), antes de cifrar:
     PENDIENTE, PARCIAL, PAGADO. "Pago pendiente" = saldo > 0, tambien en
     `datos_pago_profesional`.
   - Boleta: una por cita, emitida en la misma transaccion en que queda PAGADA
-    (`emitir_boleta`), con copia cifrada del emisor (el profesional si cobro
+    (`emitir_comprobante_pago`; AUD-01: comprobante de pago, no tributario), con copia cifrada del emisor (el profesional si cobro
     directo, si no el centro; sin RUT se cifra "sin RUT"). No se anula un pago
     de una cita con boleta.
   - Politica de cancelacion (`configuracion_centro`): `plazo_aviso_cancelacion_horas`
@@ -435,10 +435,12 @@ Decisiones: `docs/front/brechas.md` (seccion 6). Migraciones
   recibiendo un unico `app.current_rol` y `acceso_vigente()` exige que el
   usuario tenga ese rol (`tiene_rol`). `auth/cambio-rol` emite un token
   nuevo; la auditoria guarda el rol de la sesion.
-- **Login en dos pasos**: contraseña -> desafio; TOTP obligatorio para
-  cuentas con acceso clinico (PROFESIONAL, PRACTICANTE, o PROFESIONAL como rol
-  adicional; secreto cifrado en `usuarios.totp_secreto`), opcional para el
-  resto. Solo ADMIN reinicia un TOTP.
+- **Login en dos pasos**: contraseña -> desafio. Desde 03b-4.1 el segundo
+  factor es un codigo por correo para todo el equipo (ADMIN, GESTION,
+  PROFESIONAL, PRACTICANTE); TOTP queda apagado (ver "TOTP (03a)" mas abajo y
+  AUD-01, D10). Texto original de 03a: TOTP obligatorio para cuentas con
+  acceso clinico, secreto cifrado en `usuarios.totp_secreto`; solo ADMIN
+  reinicia un TOTP.
 - **Tokens por correo** (`tokens_correo`): invitacion, verificacion,
   recuperacion, acceso del paciente (C-6), cambio de correo (C-9) y
   consentimiento; solo el SHA-256, un solo uso, vencimiento. Solo funciones

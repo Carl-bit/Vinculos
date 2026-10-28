@@ -47,6 +47,9 @@ export async function LayoutPublico({ children }: { children: ReactNode }) {
         <Link href="/politicas/POLITICA_DATOS" className="text-neutral-700 hover:text-accent-2-800">
           Privacidad
         </Link>
+        <Link href="/derechos" className="text-neutral-700 hover:text-accent-2-800">
+          Derechos sobre tus datos
+        </Link>
         {centro?.instagram && (
           <a
             href={`https://instagram.com/${centro.instagram.replace(/^@/, '')}`}

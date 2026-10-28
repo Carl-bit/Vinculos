@@ -21,7 +21,7 @@ const DESTINO = process.env.INSTANTANEAS;
 const ANCHO = Number(process.env.ANCHO ?? 1280);
 
 const VISTAS: { usuario: string | null; zona?: 'admin' | 'portal'; rutas: string[] }[] = [
-  { usuario: null, rutas: ['/', '/equipo', '/match', '/pedir-hora', '/ingreso'] },
+  { usuario: null, rutas: ['/', '/equipo', '/match', '/pedir-hora', '/ingreso', '/derechos', '/exportacion?token=prueba-de-instantanea'] },
   {
     usuario: 'admin',
     zona: 'admin',
@@ -34,6 +34,10 @@ const VISTAS: { usuario: string | null; zona?: 'admin' | 'portal'; rutas: string
       '/admin/configuracion',
       '/admin/configuracion?vista=politicas',
       '/admin/configuracion?vista=reglas',
+      '/admin/configuracion?vista=auditoria',
+      '/admin/configuracion?vista=derechos',
+      '/admin/configuracion?vista=soporte',
+      '/admin/configuracion?vista=exportacion',
       '/admin/match',
       '/admin/fichas',
       '/admin/mensajes',
@@ -43,7 +47,7 @@ const VISTAS: { usuario: string | null; zona?: 'admin' | 'portal'; rutas: string
   {
     usuario: 'paciente',
     zona: 'portal',
-    rutas: ['/portal', '/portal/pedir-hora', '/portal/pagos', '/portal/documentos', '/portal/seguridad', '/portal/consentimientos'],
+    rutas: ['/portal', '/portal/pedir-hora', '/portal/pagos', '/portal/documentos', '/portal/seguridad', '/portal/consentimientos', '/portal/avisos'],
   },
 ];
 

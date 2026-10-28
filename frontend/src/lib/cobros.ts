@@ -16,6 +16,8 @@ import { inicioDiaChile, sumarDias } from './panel';
 export type EstadoPagoCitaVista = components['schemas']['EstadoPagoCitaVista'];
 export type MedioPago = components['schemas']['MedioPago'];
 export type LiquidacionVista = components['schemas']['LiquidacionVista'];
+export type DocumentoTributarioVista = components['schemas']['DocumentoTributarioVista'];
+export type TipoDocumentoTributario = components['schemas']['TipoDocumentoTributario'];
 
 export const ESTADO_PAGO: Record<EstadoPagoCitaVista['estado_pago'], { texto: string; tono: TonoBadge }> = {
   PAGADO: { texto: 'Pagada', tono: 'positivo' },
@@ -31,6 +33,14 @@ export const MEDIO_PAGO: Record<MedioPago, string> = {
   TARJETA_CREDITO: 'Tarjeta de crédito',
   CONVENIO: 'Convenio o bono',
   PASARELA: 'Pago en línea',
+};
+
+/** AUD-01: documentos del SII emitidos fuera del sistema (el comprobante de pago no es uno de ellos). */
+export const TIPO_DOCUMENTO_TRIBUTARIO: Record<TipoDocumentoTributario, string> = {
+  BOLETA_ELECTRONICA: 'Boleta electrónica',
+  BOLETA_HONORARIOS: 'Boleta de honorarios',
+  FACTURA_ELECTRONICA: 'Factura electrónica',
+  OTRO: 'Otro documento',
 };
 
 export const ESTADO_LIQUIDACION: Record<LiquidacionVista['estado'], { texto: string; tono: TonoBadge }> = {

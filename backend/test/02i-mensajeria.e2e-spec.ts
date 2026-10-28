@@ -130,7 +130,7 @@ describe('02i mensajeria, recordatorios y documentos', () => {
           .get('/api/notificaciones/preferencias')
           .set(await tk(pac))
       ).body,
-    ).toEqual({ recordatorios: true, avisosOperativos: true });
+    ).toEqual({ recordatorios: true, avisosOperativos: true, whatsapp: false, whatsappConsentidoEn: null });
     expect(
       (
         await t
@@ -154,7 +154,7 @@ describe('02i mensajeria, recordatorios y documentos', () => {
       .put('/api/notificaciones/preferencias')
       .set(await tk(pac))
       .send({ recordatorios: false, avisosOperativos: false });
-    expect(r.body).toEqual({ recordatorios: false, avisosOperativos: false });
+    expect(r.body).toEqual({ recordatorios: false, avisosOperativos: false, whatsapp: false, whatsappConsentidoEn: null });
 
     await t.dueno.configuracionCentro.update({ where: { id: true }, data: { recordatorioHorasAntes: 48 } });
     const cita = await nuevaCita(p.id, pac.pacienteId, 20);
@@ -436,7 +436,7 @@ describe('02i mensajeria, recordatorios y documentos', () => {
       expect(bajada.body).toEqual(PDF);
       expect(
         await t.dueno.accesoFicha.findMany({ where: { usuarioId: p.id, recurso: 'adjuntos_ficha' }, select: { accion: true }, orderBy: { ocurridoEn: 'asc' } }),
-      ).toEqual([{ accion: 'ESCRITURA' }, { accion: 'ESCRITURA' }, { accion: 'LECTURA' }]);
+      ).toEqual([{ accion: 'ESCRITURA' }, { accion: 'ESCRITURA' }, { accion: 'DESCARGA' }]);
       expect(
         (
           await t

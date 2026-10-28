@@ -3696,6 +3696,192 @@
         ]
       }
     },
+    "/api/contrato-centro": {
+      "get": {
+        "description": "Roles: ADMIN",
+        "operationId": "CentroController_contrato",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoCentroVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "AUD-01 (E2.2): contrato del centro con Vinculos (terminos y DPA) y sus aceptaciones.",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/contrato-centro/aceptacion": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "CentroController_aceptarContrato",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AceptarContratoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratoCentroVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
     "/api/protocolo": {
       "get": {
         "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
@@ -5107,6 +5293,1761 @@
           }
         ],
         "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/auditoria/accesos": {
+      "get": {
+        "description": "Roles: ADMIN",
+        "operationId": "AuditoriaController_accesos",
+        "parameters": [
+          {
+            "name": "desde",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasta",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "pacienteId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "usuarioId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accion",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LECTURA",
+                "ESCRITURA",
+                "DESCARGA",
+                "EXPORTACION",
+                "ENVIO",
+                "DERIVACION",
+                "SUPERVISION",
+                "RETENCION",
+                "ACCESO_TEMPORAL"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RegistroAuditoria"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/soporte/autorizaciones": {
+      "get": {
+        "description": "Roles: ADMIN",
+        "operationId": "SoporteController_autorizaciones",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AutorizacionSoporteVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      },
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "SoporteController_otorgar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtorgarSoporteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutorizacionSoporteVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/soporte/autorizaciones/{id}/revocacion": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "SoporteController_revocar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutorizacionSoporteVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/soporte/registro": {
+      "get": {
+        "description": "Roles: ADMIN",
+        "operationId": "SoporteController_registro",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RegistroSoporteVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/derechos/solicitudes": {
+      "get": {
+        "description": "Roles: ADMIN",
+        "operationId": "DerechosController_solicitudes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudDerechoVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      },
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "DerechosController_registrar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrarSolicitudDerechoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudDerechoVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/derechos/solicitudes/{id}/estado": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "DerechosController_avanzar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvanzarSolicitudDerechoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudDerechoVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/derechos/pacientes/{id}/bloqueo": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "DerechosController_bloquear",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BloquearTratamientoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoBloqueoVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "AUD-01 (E2.3c): bloqueo visible; impide gestiones nuevas (citas, derivaciones, edicion de datos).",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/derechos/pacientes/{id}/bloqueo/levantamiento": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "DerechosController_levantar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoBloqueoVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/derechos/pacientes/{id}/cancelacion": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "DerechosController_cancelar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelarPerifericosDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelacionPerifericos"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Cancelacion: borra lo periferico y conserva la ficha (responde el motivo legal).",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/publico/derechos": {
+      "post": {
+        "operationId": "DerechosPublicoController_solicitar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudDerechoPublicaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudDerechoPublicaRecibida"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/derechos/solicitudes/{id}/exportacion": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "ExportacionesController_preparar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportacionPacienteVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/exportaciones/pendientes": {
+      "get": {
+        "description": "Roles: PROFESIONAL",
+        "operationId": "ExportacionesController_pendientes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExportacionPacienteVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/exportaciones/{id}/clinica": {
+      "post": {
+        "description": "Roles: PROFESIONAL",
+        "operationId": "ExportacionesController_clinica",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportacionPacienteVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/portal/exportacion/descarga": {
+      "post": {
+        "description": "Roles: PACIENTE",
+        "operationId": "ExportacionesController_descargarPortal",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescargaExportacionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Paciente con cuenta: descarga con su sesion.",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/exportacion-centro": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "ExportacionesController_centro",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportarCentroDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Exportacion completa del centro, cifrada con la clave del ADMIN (no se guarda).",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/publico/exportacion/descarga": {
+      "post": {
+        "operationId": "ExportacionPublicaController_descargar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescargaExportacionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parametros invalidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limite de consultas por minuto e IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
         "tags": [
           "Nucleo"
         ]
@@ -21919,7 +23860,9 @@
                 "TERMINOS_AGENDAMIENTO",
                 "CONSENTIMIENTO_PRACTICANTE",
                 "PROTOCOLO_EQUIPO",
-                "PROTOCOLO_PACIENTE"
+                "PROTOCOLO_PACIENTE",
+                "TERMINOS_SERVICIO",
+                "DPA"
               ],
               "type": "string"
             }
@@ -26249,6 +28192,220 @@
         ]
       }
     },
+    "/api/cobros/citas/{id}/documentos-tributarios": {
+      "post": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "CobrosController_registrarTributario",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrarDocumentoTributarioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleCobroCita"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "AUD-01: boleta o factura del SII emitida fuera; la registra quien cobro (la BD decide: 403 si no).",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
+    "/api/cobros/documentos-tributarios/{id}/anulacion": {
+      "post": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "CobrosController_anularTributario",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnularPagoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetalleCobroCita"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
     "/api/cobros/citas/{id}/resolucion": {
       "post": {
         "description": "Roles: ADMIN, GESTION",
@@ -29671,7 +31828,7 @@
           "RECORDATORIO_CITA",
           "CONSENTIMIENTO_POR_VENCER",
           "PAGO_REGISTRADO",
-          "BOLETA_EMITIDA",
+          "COMPROBANTE_EMITIDO",
           "HORA_LIBERADA",
           "ACCESO_CLINICO_TEMPORAL",
           "SOLICITUD_HORA",
@@ -29815,16 +31972,27 @@
       "Preferencias": {
         "type": "object",
         "properties": {
+          "whatsappConsentidoEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
           "recordatorios": {
             "type": "boolean"
           },
           "avisosOperativos": {
             "type": "boolean"
+          },
+          "whatsapp": {
+            "type": "boolean",
+            "description": "AUD-01: avisos por WhatsApp (el envio llega despues; hoy solo el consentimiento)."
           }
         },
         "required": [
+          "whatsappConsentidoEn",
           "recordatorios",
-          "avisosOperativos"
+          "avisosOperativos",
+          "whatsapp"
         ]
       },
       "PreferenciasDto": {
@@ -29835,6 +32003,10 @@
           },
           "avisosOperativos": {
             "type": "boolean"
+          },
+          "whatsapp": {
+            "type": "boolean",
+            "description": "AUD-01 (E2.3c): consentimiento propio del canal WhatsApp (la fecha la fija la BD)."
           }
         }
       },
@@ -30849,7 +33021,9 @@
           "TERMINOS_AGENDAMIENTO",
           "CONSENTIMIENTO_PRACTICANTE",
           "PROTOCOLO_EQUIPO",
-          "PROTOCOLO_PACIENTE"
+          "PROTOCOLO_PACIENTE",
+          "TERMINOS_SERVICIO",
+          "DPA"
         ]
       },
       "PoliticaVista": {
@@ -30900,7 +33074,9 @@
               "TERMINOS_AGENDAMIENTO",
               "CONSENTIMIENTO_PRACTICANTE",
               "PROTOCOLO_EQUIPO",
-              "PROTOCOLO_PACIENTE"
+              "PROTOCOLO_PACIENTE",
+              "TERMINOS_SERVICIO",
+              "DPA"
             ]
           },
           "texto": {
@@ -30912,6 +33088,103 @@
         "required": [
           "tipo",
           "texto"
+        ]
+      },
+      "AceptacionContratoVista": {
+        "type": "object",
+        "properties": {
+          "por": {
+            "type": "string",
+            "nullable": true
+          },
+          "aceptadaEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "por",
+          "aceptadaEn"
+        ]
+      },
+      "ContratoVigenteVista": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "enum": [
+              "TERMINOS_SERVICIO",
+              "DPA"
+            ],
+            "type": "string"
+          },
+          "aceptaciones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AceptacionContratoVista"
+            }
+          },
+          "politicaId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "vigenteDesde": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "aceptaciones",
+          "politicaId",
+          "version",
+          "texto",
+          "vigenteDesde"
+        ]
+      },
+      "ContratoCentroVista": {
+        "type": "object",
+        "properties": {
+          "pendientes": {
+            "type": "array",
+            "description": "Tipos cuya version vigente nadie del centro ha aceptado.",
+            "items": {
+              "type": "string",
+              "enum": [
+                "TERMINOS_SERVICIO",
+                "DPA"
+              ]
+            }
+          },
+          "vigentes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContratoVigenteVista"
+            }
+          }
+        },
+        "required": [
+          "pendientes",
+          "vigentes"
+        ]
+      },
+      "AceptarContratoDto": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "TERMINOS_SERVICIO",
+              "DPA"
+            ]
+          }
+        },
+        "required": [
+          "tipo"
         ]
       },
       "PoliticaVigenteVista": {
@@ -31504,7 +33777,10 @@
           "BAJA_SIN_ADMIN",
           "FALLO_CANARIO",
           "BAJA_CON_BORRADORES",
-          "POSIBLE_DUPLICADO"
+          "POSIBLE_DUPLICADO",
+          "SOLICITUD_DERECHO_POR_VENCER",
+          "ACCESO_ANOMALO",
+          "LOGIN_FALLIDO_REPETIDO"
         ]
       },
       "AlertaInternaVista": {
@@ -31564,6 +33840,601 @@
         "required": [
           "id",
           "atendida"
+        ]
+      },
+      "RegistroAuditoria": {
+        "type": "object",
+        "properties": {
+          "origen": {
+            "enum": [
+              "ACCESO_FICHA",
+              "EXPORTACION"
+            ],
+            "type": "string"
+          },
+          "usuarioNombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "rol": {
+            "description": "Rol activo al momento del acceso",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "pacienteId": {
+            "type": "string",
+            "nullable": true
+          },
+          "pacienteNombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "detalle": {
+            "type": "string",
+            "nullable": true,
+            "description": "Campos que cambiaron u otro detalle; nunca valores"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ocurridoEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "usuarioId": {
+            "type": "string"
+          },
+          "recurso": {
+            "type": "string"
+          },
+          "accion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "origen",
+          "usuarioNombre",
+          "rol",
+          "pacienteId",
+          "pacienteNombre",
+          "detalle",
+          "id",
+          "ocurridoEn",
+          "usuarioId",
+          "recurso",
+          "accion"
+        ]
+      },
+      "AlcanceSoporte": {
+        "type": "string",
+        "enum": [
+          "DIAGNOSTICO",
+          "CONFIGURACION"
+        ]
+      },
+      "AutorizacionSoporteVista": {
+        "type": "object",
+        "properties": {
+          "alcance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlcanceSoporte"
+              }
+            ]
+          },
+          "otorgadaPor": {
+            "type": "string",
+            "nullable": true
+          },
+          "revocadaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "revocadaPor": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "desde": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hasta": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "vigente": {
+            "type": "boolean"
+          },
+          "usos": {
+            "type": "number",
+            "description": "Diagnosticos ejecutados con esta autorizacion."
+          }
+        },
+        "required": [
+          "alcance",
+          "otorgadaPor",
+          "revocadaEn",
+          "revocadaPor",
+          "id",
+          "motivo",
+          "desde",
+          "hasta",
+          "vigente",
+          "usos"
+        ]
+      },
+      "OtorgarSoporteDto": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500
+          },
+          "alcance": {
+            "type": "string",
+            "enum": [
+              "DIAGNOSTICO",
+              "CONFIGURACION"
+            ]
+          },
+          "horas": {
+            "type": "number",
+            "description": "Entre 1 y 72 horas desde ahora.",
+            "minimum": 1,
+            "maximum": 72
+          }
+        },
+        "required": [
+          "motivo",
+          "alcance",
+          "horas"
+        ]
+      },
+      "RegistroSoporteVista": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "autorizacionId": {
+            "type": "string"
+          },
+          "funcion": {
+            "type": "string",
+            "description": "Funcion de diagnostico ejecutada (p. ej. soporte_resumen)."
+          },
+          "rolBd": {
+            "type": "string",
+            "description": "Rol de BD con que se conecto el soporte."
+          },
+          "ocurridoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "autorizacionId",
+          "funcion",
+          "rolBd",
+          "ocurridoEn"
+        ]
+      },
+      "TipoDerecho": {
+        "type": "string",
+        "enum": [
+          "ACCESO",
+          "RECTIFICACION",
+          "CANCELACION",
+          "OPOSICION",
+          "PORTABILIDAD",
+          "BLOQUEO"
+        ]
+      },
+      "CanalSolicitudDerecho": {
+        "type": "string",
+        "enum": [
+          "PRESENCIAL",
+          "CORREO",
+          "PORTAL",
+          "FORMULARIO_PUBLICO"
+        ]
+      },
+      "EstadoSolicitudDerecho": {
+        "type": "string",
+        "enum": [
+          "RECIBIDA",
+          "EN_CURSO",
+          "RESUELTA",
+          "RECHAZADA"
+        ]
+      },
+      "ExportacionPacienteVista": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "enum": [
+              "ESPERANDO_TRATANTE",
+              "LISTA",
+              "ENVIADA",
+              "VENCIDA"
+            ],
+            "type": "string"
+          },
+          "clinicaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "enviadaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "venceEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "purgadaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "pacienteId": {
+            "type": "string"
+          },
+          "solicitudId": {
+            "type": "string"
+          },
+          "requiereClinica": {
+            "type": "boolean",
+            "description": "El paciente tiene ficha: falta (o ya esta) la parte clinica del tratante."
+          },
+          "creadaEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "descargas": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "estado",
+          "clinicaEn",
+          "enviadaEn",
+          "venceEn",
+          "purgadaEn",
+          "id",
+          "pacienteId",
+          "solicitudId",
+          "requiereClinica",
+          "creadaEn",
+          "descargas"
+        ]
+      },
+      "SolicitudDerechoVista": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoDerecho"
+              }
+            ]
+          },
+          "pacienteId": {
+            "type": "string",
+            "nullable": true
+          },
+          "pacienteNombre": {
+            "type": "string",
+            "nullable": true
+          },
+          "canal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CanalSolicitudDerecho"
+              }
+            ]
+          },
+          "estado": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoSolicitudDerecho"
+              }
+            ]
+          },
+          "venceEl": {
+            "type": "string",
+            "description": "AAAA-MM-DD: 30 dias habiles desde la recepcion.",
+            "format": "date"
+          },
+          "diasHabilesRestantes": {
+            "type": "number",
+            "nullable": true,
+            "description": "Dias habiles que quedan (solo abiertas)."
+          },
+          "detalle": {
+            "type": "string",
+            "nullable": true
+          },
+          "respuesta": {
+            "type": "string",
+            "nullable": true
+          },
+          "resueltaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "exportacion": {
+            "nullable": true,
+            "description": "Fase 3: exportacion en curso o enviada de esta solicitud.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExportacionPacienteVista"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "pacienteBloqueado": {
+            "type": "boolean",
+            "description": "AUD-01 (E2.3c): el tratamiento del paciente esta bloqueado."
+          },
+          "recibidaEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "pideCambioCorreo": {
+            "type": "boolean",
+            "description": "E2.3b: pidio actualizar su correo (verificar identidad antes de cambiarlo)."
+          }
+        },
+        "required": [
+          "tipo",
+          "pacienteId",
+          "pacienteNombre",
+          "canal",
+          "estado",
+          "venceEl",
+          "diasHabilesRestantes",
+          "detalle",
+          "respuesta",
+          "resueltaEn",
+          "exportacion",
+          "id",
+          "pacienteBloqueado",
+          "recibidaEn",
+          "pideCambioCorreo"
+        ]
+      },
+      "RegistrarSolicitudDerechoDto": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "ACCESO",
+              "RECTIFICACION",
+              "CANCELACION",
+              "OPOSICION",
+              "PORTABILIDAD",
+              "BLOQUEO"
+            ]
+          },
+          "pacienteId": {
+            "type": "string",
+            "description": "Titular identificado como paciente (opcional: puede no serlo).",
+            "format": "uuid"
+          },
+          "canal": {
+            "type": "string",
+            "enum": [
+              "PRESENCIAL",
+              "CORREO",
+              "PORTAL"
+            ]
+          },
+          "detalle": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "tipo",
+          "canal"
+        ]
+      },
+      "AvanzarSolicitudDerechoDto": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string",
+            "enum": [
+              "EN_CURSO",
+              "RESUELTA",
+              "RECHAZADA"
+            ]
+          },
+          "respuesta": {
+            "type": "string",
+            "description": "Respuesta al titular: obligatoria al resolver o rechazar (la BD lo exige).",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "estado"
+        ]
+      },
+      "BloquearTratamientoDto": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "solicitudId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "motivo"
+        ]
+      },
+      "EstadoBloqueoVista": {
+        "type": "object",
+        "properties": {
+          "bloqueoDesde": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "bloqueoMotivo": {
+            "type": "string",
+            "nullable": true
+          },
+          "pacienteId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bloqueoDesde",
+          "bloqueoMotivo",
+          "pacienteId"
+        ]
+      },
+      "CancelarPerifericosDto": {
+        "type": "object",
+        "properties": {
+          "solicitudId": {
+            "type": "string",
+            "description": "Solicitud de cancelacion abierta del paciente.",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "solicitudId"
+        ]
+      },
+      "CancelacionPerifericos": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "description": "Que se borro y que se conserva, con el motivo legal."
+          }
+        },
+        "required": [
+          "mensaje"
+        ]
+      },
+      "SolicitudDerechoPublicaDto": {
+        "type": "object",
+        "properties": {
+          "rut": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "ACCESO",
+              "RECTIFICACION",
+              "CANCELACION",
+              "OPOSICION",
+              "PORTABILIDAD",
+              "BLOQUEO"
+            ]
+          },
+          "detalle": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "cambiarCorreo": {
+            "type": "boolean",
+            "description": "Quiere actualizar el correo registrado: el centro lo hace tras verificar su identidad."
+          },
+          "sitioWeb": {
+            "type": "string",
+            "description": "Trampa para bots: debe venir vacio.",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "rut",
+          "tipo"
+        ]
+      },
+      "SolicitudDerechoPublicaRecibida": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "description": "Siempre el mismo texto, exista o no el RUT."
+          }
+        },
+        "required": [
+          "mensaje"
+        ]
+      },
+      "DescargaExportacionDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 200
+          },
+          "codigo": {
+            "type": "string",
+            "pattern": "^\\d{8}$"
+          },
+          "formato": {
+            "enum": [
+              "json",
+              "pdf"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "formato"
+        ]
+      },
+      "ExportarCentroDto": {
+        "type": "object",
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "clave"
         ]
       },
       "MiembroDirectorio": {
@@ -31717,6 +34588,16 @@
             "type": "string",
             "nullable": true
           },
+          "bloqueoDesde": {
+            "type": "string",
+            "nullable": true,
+            "description": "AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular; impide gestiones nuevas.",
+            "format": "date-time"
+          },
+          "bloqueoMotivo": {
+            "type": "string",
+            "nullable": true
+          },
           "fichaId": {
             "type": "string",
             "nullable": true,
@@ -31759,6 +34640,8 @@
           "codigoSeudonimo",
           "tipoAtencionId",
           "contactoEmergencia",
+          "bloqueoDesde",
+          "bloqueoMotivo",
           "fichaId",
           "id",
           "nombre",
@@ -31807,6 +34690,16 @@
             "type": "string",
             "nullable": true
           },
+          "bloqueoDesde": {
+            "type": "string",
+            "nullable": true,
+            "description": "AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular; impide gestiones nuevas.",
+            "format": "date-time"
+          },
+          "bloqueoMotivo": {
+            "type": "string",
+            "nullable": true
+          },
           "id": {
             "type": "string"
           },
@@ -31844,6 +34737,8 @@
           "codigoSeudonimo",
           "tipoAtencionId",
           "contactoEmergencia",
+          "bloqueoDesde",
+          "bloqueoMotivo",
           "id",
           "nombre",
           "apellido",
@@ -37459,6 +40354,10 @@
             "description": "Version de los terminos de agendamiento aceptada.",
             "format": "uuid"
           },
+          "aceptaWhatsapp": {
+            "type": "boolean",
+            "description": "AUD-01 (E2.3c): acepta avisos por WhatsApp (casilla propia, desmarcada por defecto)."
+          },
           "sitioWeb": {
             "type": "string",
             "description": "Trampa para bots: debe venir vacio (campo oculto del formulario).",
@@ -39051,7 +41950,7 @@
           "decididoEn"
         ]
       },
-      "BoletaVista": {
+      "ComprobantePagoVista": {
         "type": "object",
         "properties": {
           "emisorNombre": {
@@ -39070,7 +41969,7 @@
           },
           "numero": {
             "type": "string",
-            "description": "Numero simulado (sin SII)."
+            "description": "Numero interno del comprobante (no es un folio del SII)."
           },
           "monto": {
             "type": "number"
@@ -39190,6 +42089,92 @@
           "fecha"
         ]
       },
+      "TipoDocumentoTributario": {
+        "type": "string",
+        "enum": [
+          "BOLETA_ELECTRONICA",
+          "BOLETA_HONORARIOS",
+          "FACTURA_ELECTRONICA",
+          "OTRO"
+        ]
+      },
+      "EstadoDocumentoTributario": {
+        "type": "string",
+        "enum": [
+          "REGISTRADO",
+          "ANULADO"
+        ]
+      },
+      "DocumentoTributarioVista": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoDocumentoTributario"
+              }
+            ]
+          },
+          "emisor": {
+            "description": "Quien lo emitio: el centro o el profesional con cobro directo",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CobradoPor"
+              }
+            ]
+          },
+          "fechaEmision": {
+            "type": "string",
+            "format": "date",
+            "description": "AAAA-MM-DD"
+          },
+          "estado": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoDocumentoTributario"
+              }
+            ]
+          },
+          "anuladoEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "motivoAnulacion": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "citaId": {
+            "type": "string"
+          },
+          "folio": {
+            "type": "string"
+          },
+          "monto": {
+            "type": "number"
+          },
+          "registradoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "emisor",
+          "fechaEmision",
+          "estado",
+          "anuladoEn",
+          "motivoAnulacion",
+          "id",
+          "citaId",
+          "folio",
+          "monto",
+          "registradoEn"
+        ]
+      },
       "DetalleCobroCita": {
         "type": "object",
         "properties": {
@@ -39217,12 +42202,12 @@
               }
             ]
           },
-          "boleta": {
+          "comprobante": {
             "nullable": true,
             "type": "object",
             "allOf": [
               {
-                "$ref": "#/components/schemas/BoletaVista"
+                "$ref": "#/components/schemas/ComprobantePagoVista"
               }
             ]
           },
@@ -39230,6 +42215,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PagoVista"
+            }
+          },
+          "documentosTributarios": {
+            "description": "AUD-01: boletas o facturas del SII registradas (vigentes y anuladas).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentoTributarioVista"
             }
           },
           "cita_id": {
@@ -39267,8 +42259,9 @@
           "monto",
           "estado_pago",
           "resolucion",
-          "boleta",
+          "comprobante",
           "pagos",
+          "documentosTributarios",
           "cita_id",
           "profesional_id",
           "paciente_id",
@@ -39316,6 +42309,41 @@
         },
         "required": [
           "motivo"
+        ]
+      },
+      "RegistrarDocumentoTributarioDto": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "OTRO",
+              "BOLETA_ELECTRONICA",
+              "BOLETA_HONORARIOS",
+              "FACTURA_ELECTRONICA"
+            ]
+          },
+          "folio": {
+            "type": "string",
+            "description": "Folio del SII: solo digitos (hasta 12).",
+            "pattern": "^\\d{1,12}$"
+          },
+          "fechaEmision": {
+            "type": "string",
+            "description": "AAAA-MM-DD (fecha de Chile), no futura.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "monto": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100000000
+          }
+        },
+        "required": [
+          "tipo",
+          "folio",
+          "fechaEmision",
+          "monto"
         ]
       },
       "ResolverCitaDto": {

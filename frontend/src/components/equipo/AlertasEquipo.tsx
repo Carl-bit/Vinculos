@@ -18,6 +18,9 @@ const TIPO = {
   FALLO_CANARIO: 'Alerta de seguridad',
   BAJA_CON_BORRADORES: 'Baja con borradores sin confirmar',
   POSIBLE_DUPLICADO: 'Posible paciente duplicado',
+  SOLICITUD_DERECHO_POR_VENCER: 'Solicitud de datos por vencer',
+  ACCESO_ANOMALO: 'Acceso inusual a fichas',
+  LOGIN_FALLIDO_REPETIDO: 'Ingresos fallidos repetidos',
 } as const;
 
 /**

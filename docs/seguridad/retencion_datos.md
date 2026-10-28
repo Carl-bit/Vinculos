@@ -55,7 +55,7 @@ borrado.** No hay purga automatica:
 ## Cobros y documentos (02h)
 
 - `pagos` no se borra ni se modifica: un error se **anula** con motivo
-  (`anular_pago`) y queda el registro. `boletas`, `resoluciones_cita` y las
+  (`anular_pago`) y queda el registro. `comprobantes_pago`, `documentos_tributarios` (AUD-01: boleta del SII registrada; se anula con motivo), `resoluciones_cita` y las
   liquidaciones emitidas tampoco cambian (respaldo tributario). Un traslado de
   pagos entre citas anula el original y crea uno nuevo que lo referencia.
 - `documentos_clinicos`, `envios_documento` y `descargas_documento` son
@@ -92,3 +92,17 @@ borrado.** No hay purga automatica:
 
 Las versiones de llaves que cifraron datos tampoco se destruyen mientras
 esos datos existan (`cifrado.md`, `runbooks_llaves.md`).
+
+## Cumplimiento (AUD-01)
+
+- `solicitudes_derechos`, `autorizaciones_soporte`, `registro_soporte`,
+  `aceptaciones_contrato`, `registro_exportaciones` y `documentos_tributarios`:
+  append-only, sin purga (evidencia de cumplimiento del centro).
+- `intentos_login_fallidos`: solo HMAC del identificador; se borran a los 30
+  dias (`detectar_anomalias`).
+- Cancelacion de datos perifericos (`cancelar_datos_perifericos`): borra
+  contacto, preferencias, respuestas del match y cuenta del portal; la ficha
+  y la identificacion se conservan al menos 15 años (Ley 20.584, Decreto 41).
+- `exportaciones_paciente`: los datos (cifrados) se borran al vencer el
+  enlace (72 h) o a los 30 dias si nunca se envio; el registro queda.
+- La exportacion del centro no se guarda en el silo (solo su registro).

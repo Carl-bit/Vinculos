@@ -12,6 +12,7 @@ import { Field, Input, Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Panel } from '@/components/ui/Panel';
 import { LecturasProtocolo } from '@/components/nucleo/ProtocoloEquipo';
+import { ContratoCentroPanel } from '@/components/nucleo/ContratoCentro';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { useHorarioCentro, usePoliticas, type HorarioCentro, type PoliticaVista } from '@/lib/centro';
@@ -186,6 +187,7 @@ export function PoliticasCentro() {
           </>
         )}
       </EstadoConsulta>
+      <ContratoCentroPanel />
       <Panel titulo="Reglas del sistema" bajada="Vienen de la normativa: el centro no las cambia.">
         <ul className="m-0 mt-4 flex list-none flex-col gap-3 p-0">
           {[

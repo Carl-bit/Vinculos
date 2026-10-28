@@ -166,6 +166,33 @@ export class JobsService implements OnApplicationBootstrap {
    * mas de 24 horas y codigos de respaldo usados o anulados hace mas de 90
    * dias (minimizacion de credenciales). Los vigentes no se tocan.
    */
+  /** AUD-01 Fase 3: borra los datos de las exportaciones de pacientes vencidas (queda el registro). */
+  @Cron('15 4 * * *', { name: 'purgar_exportaciones_vencidas', timeZone: 'America/Santiago' })
+  purgarExportacionesVencidas(): Promise<ResultadoJob> {
+    return this.conLock('purgar_exportaciones_vencidas', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT purgar_exportaciones_vencidas() AS n`;
+      return n;
+    });
+  }
+
+  /** AUD-01 (E2.4): alertas por lecturas masivas de fichas e ingresos fallidos repetidos (sin nombres). */
+  @Cron(CronExpression.EVERY_HOUR, { name: 'detectar_anomalias' })
+  detectarAnomalias(): Promise<ResultadoJob> {
+    return this.conLock('detectar_anomalias', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT detectar_anomalias() AS n`;
+      return n;
+    });
+  }
+
+  /** AUD-01 (E2.3a): alerta interna cuando una solicitud de derechos esta a 5 dias habiles o menos de vencer. */
+  @Cron('0 8 * * *', { name: 'alertar_solicitudes_por_vencer', timeZone: 'America/Santiago' })
+  alertarSolicitudesPorVencer(): Promise<ResultadoJob> {
+    return this.conLock('alertar_solicitudes_por_vencer', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT alertar_solicitudes_por_vencer() AS n`;
+      return n;
+    });
+  }
+
   @Cron('45 3 * * *', { name: 'purgar_codigos_verificacion', timeZone: 'America/Santiago' })
   purgarCodigosVerificacion(): Promise<ResultadoJob> {
     return this.conLock('purgar_codigos_verificacion', async (tx) => {

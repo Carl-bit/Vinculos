@@ -11,7 +11,7 @@ import { Interruptor } from '@/components/ui/Interruptor';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { formatoFechaHora } from '@/lib/formato';
+import { formatoFecha, formatoFechaHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
 import { clavesPortal, useBandeja, usePreferencias, type MensajeBandeja, type Preferencias } from '@/lib/portal';
 
@@ -28,7 +28,7 @@ const DESTINO: Partial<Record<MensajeBandeja['tipo'], { icono: Icono; href: stri
   ACCESO_CLINICO_TEMPORAL: { icono: 'shield_person', href: '/portal/avisos', accion: '' },
   DOCUMENTO_CLINICO: { icono: 'description', href: '/portal/documentos', accion: 'Ver documentos' },
   PAGO_REGISTRADO: { icono: 'payments', href: '/portal/pagos', accion: 'Ver pagos' },
-  BOLETA_EMITIDA: { icono: 'receipt_long', href: '/portal/pagos', accion: 'Ver pagos' },
+  COMPROBANTE_EMITIDO: { icono: 'receipt_long', href: '/portal/pagos', accion: 'Ver pagos' },
 };
 
 /**
@@ -109,10 +109,21 @@ function PreferenciasCorreo() {
             />
             <Interruptor
               etiqueta="Avisos operativos"
-              descripcion="Confirmaciones, cambios de hora, pagos, boletas y documentos disponibles."
+              descripcion="Confirmaciones, cambios de hora, pagos, comprobantes y documentos disponibles."
               activo={p.avisosOperativos}
               deshabilitado={guardar.isPending}
               onChange={(v) => guardar.mutate({ avisosOperativos: v })}
+            />
+            <Interruptor
+              etiqueta="Avisos por WhatsApp"
+              descripcion={
+                p.whatsapp && p.whatsappConsentidoEn
+                  ? `Lo aceptaste el ${formatoFecha(p.whatsappConsentidoEn)}. Puedes retirarlo cuando quieras.`
+                  : 'Opcional. Si lo activas, aceptas recibir avisos de tus horas por WhatsApp al número que registraste.'
+              }
+              activo={p.whatsapp}
+              deshabilitado={guardar.isPending}
+              onChange={(v) => guardar.mutate({ whatsapp: v })}
             />
             {guardar.error && (
               <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">

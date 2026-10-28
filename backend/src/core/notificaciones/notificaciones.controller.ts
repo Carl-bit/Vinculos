@@ -8,7 +8,7 @@ import { ContextoBd, encontrado, type UsuarioActual } from '../bd/contexto-bd.se
 import { EditarPlantillaDto, MensajeBandeja, NotificacionRegistro, Preferencias, PreferenciasDto, PlantillaMensajeVista } from './notificaciones.dto';
 
 const Uuid = new ParseUUIDPipe();
-const PREFERENCIAS = { recordatorios: true, avisosOperativos: true } as const;
+const PREFERENCIAS = { recordatorios: true, avisosOperativos: true, whatsapp: true, whatsappConsentidoEn: true } as const;
 
 /**
  * Mensajeria (02i). Registro (metadatos): ADMIN/GESTION todos; cada
@@ -61,7 +61,14 @@ export class NotificacionesController {
   @Get('preferencias')
   @Roles('PACIENTE')
   async preferencias(): Promise<Preferencias> {
-    return (await this.bd.tx().preferenciaNotificacion.findFirst({ select: PREFERENCIAS })) ?? { recordatorios: true, avisosOperativos: true };
+    return (
+      (await this.bd.tx().preferenciaNotificacion.findFirst({ select: PREFERENCIAS })) ?? {
+        recordatorios: true,
+        avisosOperativos: true,
+        whatsapp: false,
+        whatsappConsentidoEn: null,
+      }
+    );
   }
 
   @Put('preferencias')
@@ -85,6 +92,8 @@ export class NotificacionesController {
       (await this.bd.tx().preferenciaNotificacion.findUnique({ where: { pacienteId }, select: PREFERENCIAS })) ?? {
         recordatorios: true,
         avisosOperativos: true,
+        whatsapp: false,
+        whatsappConsentidoEn: null,
       }
     );
   }

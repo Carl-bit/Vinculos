@@ -144,6 +144,11 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   // 03b-3.1: confirmacion por medio de pago
   configuracion_centro_medios_pago: 'Medios de pago: al menos uno; plazo de validacion entre 1 y 168 horas; porcentaje entre 1 y 100',
   configuracion_centro_transferencia_sin_cuenta: 'Para habilitar transferencia, registre primero la cuenta bancaria del centro',
+  // AUD-01 (E1.3): la pasarela del silo es la del centro.
+  configuracion_centro_pasarela_cobro_directo: 'Con cobro directo cada profesional necesita su propia pasarela de pago: por ahora no se puede habilitar',
+  citas_pasarela_cobro_directo: 'Esta hora la cobra directamente el profesional: elija otro medio de pago',
+  pacientes_tratamiento_bloqueado: 'El tratamiento de datos de este paciente esta bloqueado por una solicitud del titular: no se pueden hacer gestiones nuevas',
+  solicitudes_derechos_cancelacion: 'Se aplica con una solicitud de cancelacion abierta de este paciente',
   citas_medio_no_habilitado: 'Ese medio de pago no esta habilitado en el centro',
   citas_transferencia_sin_cuenta: 'No hay una cuenta registrada para transferir: elija otro medio de pago',
   citas_pago_coherente: 'Una cita pendiente de pago necesita su plazo de pago',
@@ -179,6 +184,11 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/Ese medio de pago no esta habilitado/, 'citas_medio_no_habilitado'],
   [/No hay una cuenta registrada para transferir/, 'citas_transferencia_sin_cuenta'],
   [/registre primero la cuenta bancaria del centro/, 'configuracion_centro_transferencia_sin_cuenta'],
+  // AUD-01
+  [/necesita su propia pasarela de pago/, 'configuracion_centro_pasarela_cobro_directo'],
+  [/la cobra directamente el profesional/, 'citas_pasarela_cobro_directo'],
+  [/esta bloqueado por una solicitud del titular/, 'pacientes_tratamiento_bloqueado'],
+  [/solicitud de cancelacion abierta/, 'solicitudes_derechos_cancelacion'],
   // 03b-3.3
   [/sesiones anteriores con pago pendiente/, 'citas_paciente_moroso'],
   [/Autorizar con deuda exige motivo/, 'excepciones_morosidad_coherente'],

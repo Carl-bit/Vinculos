@@ -55,7 +55,7 @@ const desde = (c: ConfiguracionCentro, p: ContenidoPublico): Formulario => ({
 
 /**
  * Datos del centro (diseño "Configuracion", pestaña Identidad): nombre y RUT
- * (remitente de correos y emisor de boletas del modelo CENTRO), contacto,
+ * (remitente de correos y emisor de comprobantes del modelo CENTRO), contacto,
  * mision y vision, portada, servicios, logo y color de marca de la pagina
  * publica. Un campo vacio se borra (null). Solo ADMIN.
  */
@@ -140,7 +140,7 @@ function Formulario({ c, p }: { c: ConfiguracionCentro; p: ContenidoPublico }) {
 
   return (
     <form onSubmit={enviar} noValidate className="flex flex-col gap-6">
-      <Panel titulo="Identidad del centro" bajada="El nombre y el RUT salen en los correos y en las boletas cuando cobra el centro.">
+      <Panel titulo="Identidad del centro" bajada="El nombre y el RUT salen en los correos y en los comprobantes de pago cuando cobra el centro.">
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Nombre del centro" required>
             {(x) => <Input {...x} value={f.nombreCentro} maxLength={120} onChange={cambiar('nombreCentro')} />}
@@ -180,7 +180,7 @@ function Formulario({ c, p }: { c: ConfiguracionCentro; p: ContenidoPublico }) {
 
       <Panel titulo="Contacto" bajada="Lo que se edita acá se refleja en la página pública.">
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Correo de contacto" error={formato.errores.contactoCorreo}>
+          <Field label="Correo de contacto" hint="También recibe las respuestas a los correos que envía el sistema." error={formato.errores.contactoCorreo}>
             {(x) => <Input {...x} type="email" value={f.contactoCorreo} onChange={cambiar('contactoCorreo')} onBlur={salir('contactoCorreo')} />}
           </Field>
           <Field label="Teléfono" hint="+56XXXXXXXXX" error={formato.errores.contactoTelefono}>

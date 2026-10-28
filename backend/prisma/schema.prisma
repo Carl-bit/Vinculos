@@ -72,7 +72,7 @@ model ConfiguracionCentro {
   diasGraciaCierre                  Int                    @default(30) @map("dias_gracia_cierre")
   /// Minutos minimos entre citas de distinta modalidad del mismo profesional.
   margenTrasladoMin                 Int                    @default(30) @map("margen_traslado_min")
-  /// Remitente visible de los correos y emisor de boletas del modelo CENTRO.
+  /// Remitente visible de los correos y emisor de comprobantes del modelo CENTRO.
   nombreCentro                      String                 @default("Centro") @map("nombre_centro")
   rutCentro                         String?                @map("rut_centro")
   /// Cobros (02h). Los porcentajes quedan pendientes de definir con el caso de estudio.
@@ -278,6 +278,18 @@ model Usuario {
   feedCalendario             FeedCalendario?
   pagosRegistrados           Pago[]                       @relation("PagoRegistradoPor")
   pagosAnulados              Pago[]                       @relation("PagoAnuladoPor")
+  tributariosEmitidos        DocumentoTributario[]        @relation("DocumentoTributarioEmisor")
+  tributariosRegistrados     DocumentoTributario[]        @relation("DocumentoTributarioRegistradoPor")
+  tributariosAnulados        DocumentoTributario[]        @relation("DocumentoTributarioAnuladoPor")
+  exportaciones              RegistroExportacion[]
+  soportesOtorgados          AutorizacionSoporte[]        @relation("SoporteOtorgadoPor")
+  soportesRevocados          AutorizacionSoporte[]        @relation("SoporteRevocadoPor")
+  contratosAceptados         AceptacionContrato[]
+  exportacionesCreadas       ExportacionPaciente[]        @relation("ExportacionCreadaPor")
+  exportacionesClinicas      ExportacionPaciente[]        @relation("ExportacionClinicaPor")
+  derechosRegistrados        SolicitudDerecho[]           @relation("DerechoRegistradoPor")
+  derechosResueltos          SolicitudDerecho[]           @relation("DerechoResueltoPor")
+  pacientesBloqueados        Paciente[]                   @relation("PacienteBloqueadoPor")
   transferenciasResueltas    Transferencia[]
   resolucionesCita           ResolucionCita[]
   liquidaciones              Liquidacion[]                @relation("LiquidacionProfesional")
@@ -440,6 +452,12 @@ enum TipoAlerta {
   BAJA_CON_BORRADORES
   /// 03a-2: paciente creado con RUT o correo de otro paciente; lo resuelve administracion.
   POSIBLE_DUPLICADO
+  /// AUD-01: solicitud de derechos a 5 dias habiles o menos de vencer.
+  SOLICITUD_DERECHO_POR_VENCER
+  /// AUD-01 (E2.4): lecturas masivas de fichas por una cuenta.
+  ACCESO_ANOMALO
+  /// AUD-01 (E2.4): ingresos fallidos repetidos con un mismo identificador.
+  LOGIN_FALLIDO_REPETIDO
 
   @@map("tipo_alerta")
 }
@@ -458,7 +476,7 @@ enum TipoNotificacion {
   RECORDATORIO_CITA
   CONSENTIMIENTO_POR_VENCER
   PAGO_REGISTRADO
-  BOLETA_EMITIDA
+  COMPROBANTE_EMITIDO
   /// 03a: acceso clinico temporal (aviso legal al paciente), solicitud por aprobar
   /// y cierre requerido (al equipo). HORA_LIBERADA: desde 03b-3.1, hora liberada
   /// por vencimiento del plazo de pago (antes, lista de espera, retirada).
@@ -571,10 +589,13 @@ model PlantillaMensaje {
 /// legales (consentimientos, cambio de supervisor, documentos emitidos) no
 /// tienen columna: nunca se desactivan.
 model PreferenciaNotificacion {
-  pacienteId       String   @id @map("paciente_id") @db.Uuid
-  recordatorios    Boolean  @default(true)
-  avisosOperativos Boolean  @default(true) @map("avisos_operativos")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pacienteId           String    @id @map("paciente_id") @db.Uuid
+  recordatorios        Boolean   @default(true)
+  avisosOperativos     Boolean   @default(true) @map("avisos_operativos")
+  /// AUD-01 (E2.3c): consentimiento propio del canal WhatsApp (desmarcado por defecto; la fecha la fija la BD).
+  whatsapp             Boolean   @default(false)
+  whatsappConsentidoEn DateTime? @map("whatsapp_consentido_en") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   paciente Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
 
@@ -691,8 +712,15 @@ model Paciente {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(6)
+  /// AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular (impide gestiones nuevas).
+  bloqueoDesde       DateTime? @map("bloqueo_desde") @db.Timestamptz(6)
+  bloqueoMotivo      String?   @map("bloqueo_motivo")
+  bloqueoSolicitudId String?   @map("bloqueo_solicitud_id") @db.Uuid
+  bloqueadoPorId     String?   @map("bloqueado_por_id") @db.Uuid
 
   profesional          Usuario                  @relation("PacienteProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  bloqueoSolicitud     SolicitudDerecho?        @relation("PacienteBloqueo", fields: [bloqueoSolicitudId], references: [id], onDelete: Restrict)
+  bloqueadoPor         Usuario?                 @relation("PacienteBloqueadoPor", fields: [bloqueadoPorId], references: [id], onDelete: Restrict)
   usuario              Usuario?                 @relation("UsuarioPaciente")
   tipoAtencion         TipoAtencion?            @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
   adultosResponsables  AdultoResponsable[]
@@ -713,6 +741,8 @@ model Paciente {
   accesosTemporales    AccesoClinicoTemporal[]
   hilosInternos        HiloInterno[]
   excepcionesMorosidad ExcepcionMorosidad[]
+  solicitudesDerechos  SolicitudDerecho[]
+  exportaciones        ExportacionPaciente[]
 
   @@index([profesionalId])
   @@map("pacientes")
@@ -956,6 +986,8 @@ model AccesoFicha {
   fichaId    String?  @map("ficha_id") @db.Uuid
   recurso    String
   accion     String
+  /// AUD-01: campos que cambiaron u otro detalle corto; nunca valores.
+  detalle    String?
   ocurridoEn DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
 
   usuario  Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
@@ -965,6 +997,24 @@ model AccesoFicha {
   @@index([pacienteId, ocurridoEn])
   @@index([usuarioId, ocurridoEn])
   @@map("accesos_ficha")
+}
+
+/// AUD-01 (E1.5, A): descargas y exportaciones sin paciente (reportes,
+/// liquidaciones, exportacion del centro). Append-only; solo ADMIN lee.
+model RegistroExportacion {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  rol          Rol
+  recurso      String
+  referenciaId String?  @map("referencia_id") @db.Uuid
+  detalle      String?
+  ocurridoEn   DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([ocurridoEn])
+  @@index([usuarioId, ocurridoEn])
+  @@map("registro_exportaciones")
 }
 
 enum TipoConsentimiento {
@@ -1285,15 +1335,16 @@ model Cita {
 
   transferencias        Transferencia[]
   cobrosPasarela        CobroPasarela[]
-  espacio               Espacio?            @relation(fields: [espacioId], references: [id], onDelete: Restrict)
-  profesional           Usuario             @relation("CitaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  liberadaPor           Usuario?            @relation("CitaLiberadaPor", fields: [liberadaPorId], references: [id], onDelete: Restrict)
-  paciente              Paciente?           @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  espacio               Espacio?              @relation(fields: [espacioId], references: [id], onDelete: Restrict)
+  profesional           Usuario               @relation("CitaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  liberadaPor           Usuario?              @relation("CitaLiberadaPor", fields: [liberadaPorId], references: [id], onDelete: Restrict)
+  paciente              Paciente?             @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
   pagos                 Pago[]
   excepcionMorosidad    ExcepcionMorosidad?
-  boleta                Boleta?
-  resolucion            ResolucionCita?     @relation("ResolucionCita")
-  resolucionesComoNueva ResolucionCita[]    @relation("ResolucionCitaNueva")
+  comprobantePago       ComprobantePago?
+  documentosTributarios DocumentoTributario[]
+  resolucion            ResolucionCita?       @relation("ResolucionCita")
+  resolucionesComoNueva ResolucionCita[]      @relation("ResolucionCitaNueva")
   recordatorios         RecordatorioCita[]
   evoluciones           Evolucion[]
   borradores            BorradorEvolucion[]
@@ -1757,10 +1808,12 @@ model CobroPasarela {
   @@map("cobros_pasarela")
 }
 
-/// Una boleta por cita, emitida al quedar PAGADA (emitir_boleta). Copia del
-/// emisor (cifrada): documento tributario de retencion, sobrevive al cierre
-/// de cuenta. pdf_url nulo = aun no generada (SII simulado).
-model Boleta {
+/// AUD-01 (E1.4): comprobante de pago interno, NO tributario (antes "boletas").
+/// Uno por cita, emitido al quedar PAGADA (emitir_comprobante_pago), numero
+/// "CP-". Copia del emisor (cifrada; AAD con el nombre anterior "boletas",
+/// registro.ts): respaldo del pago, sobrevive al cierre de cuenta. La boleta
+/// del SII se registra en documentos_tributarios.
+model ComprobantePago {
   id           String   @id @db.Uuid
   citaId       String   @unique @map("cita_id") @db.Uuid
   numero       String   @unique
@@ -1774,7 +1827,52 @@ model Boleta {
 
   cita Cita @relation(fields: [citaId], references: [id], onDelete: Restrict)
 
-  @@map("boletas")
+  @@map("comprobantes_pago")
+}
+
+enum TipoDocumentoTributario {
+  BOLETA_ELECTRONICA
+  /// Solo la emite el profesional (persona natural).
+  BOLETA_HONORARIOS
+  FACTURA_ELECTRONICA
+  OTRO
+
+  @@map("tipo_documento_tributario")
+}
+
+enum EstadoDocumentoTributario {
+  REGISTRADO
+  ANULADO
+
+  @@map("estado_documento_tributario")
+}
+
+/// AUD-01 (E1.4, A): boleta o factura emitida FUERA del sistema por quien
+/// cobro la cita (el centro o el profesional con cobro directo). Solo via
+/// registrar_documento_tributario / anular_documento_tributario; append-only.
+model DocumentoTributario {
+  id                  String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  citaId              String                    @map("cita_id") @db.Uuid
+  tipo                TipoDocumentoTributario
+  folio               String
+  emisor              CobradoPor
+  emisorProfesionalId String?                   @map("emisor_profesional_id") @db.Uuid
+  fechaEmision        DateTime                  @map("fecha_emision") @db.Date
+  monto               Int
+  estado              EstadoDocumentoTributario @default(REGISTRADO)
+  registradoPorId     String                    @map("registrado_por_id") @db.Uuid
+  registradoEn        DateTime                  @default(now()) @map("registrado_en") @db.Timestamptz(6)
+  anuladoEn           DateTime?                 @map("anulado_en") @db.Timestamptz(6)
+  anuladoPorId        String?                   @map("anulado_por_id") @db.Uuid
+  motivoAnulacion     String?                   @map("motivo_anulacion")
+
+  cita              Cita     @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  emisorProfesional Usuario? @relation("DocumentoTributarioEmisor", fields: [emisorProfesionalId], references: [id], onDelete: Restrict)
+  registradoPor     Usuario  @relation("DocumentoTributarioRegistradoPor", fields: [registradoPorId], references: [id], onDelete: Restrict)
+  anuladoPor        Usuario? @relation("DocumentoTributarioAnuladoPor", fields: [anuladoPorId], references: [id], onDelete: Restrict)
+
+  @@index([citaId])
+  @@map("documentos_tributarios")
 }
 
 /// Decision de cobro sobre una cita cancelada o con inasistencia (A,
@@ -2108,6 +2206,9 @@ enum TipoPolitica {
   PROTOCOLO_EQUIPO
   /// 03b-4.2: protocolo para el paciente (acuse en el portal, aceptaciones_politica).
   PROTOCOLO_PACIENTE
+  /// AUD-01: contrato del centro con Vinculos (lo publica el operador; acepta ADMIN; solo ADMIN lo lee).
+  TERMINOS_SERVICIO
+  DPA
 
   @@map("tipo_politica")
 }
@@ -2147,11 +2248,12 @@ model Politica {
   vigenteDesde DateTime     @default(now()) @map("vigente_desde") @db.Timestamptz(6)
   creadaPorId  String?      @map("creada_por_id") @db.Uuid
 
-  creadaPor    Usuario?             @relation(fields: [creadaPorId], references: [id], onDelete: Restrict)
-  aceptaciones AceptacionPolitica[]
-  lecturas     LecturaProtocolo[]
-  solicitudes  SolicitudHora[]      @relation("SolicitudPolitica")
-  solicitudesT SolicitudHora[]      @relation("SolicitudTerminos")
+  creadaPor            Usuario?             @relation(fields: [creadaPorId], references: [id], onDelete: Restrict)
+  aceptaciones         AceptacionPolitica[]
+  lecturas             LecturaProtocolo[]
+  aceptacionesContrato AceptacionContrato[]
+  solicitudes          SolicitudHora[]      @relation("SolicitudPolitica")
+  solicitudesT         SolicitudHora[]      @relation("SolicitudTerminos")
 
   @@unique([tipo, version])
   @@map("politicas")
@@ -2235,6 +2337,8 @@ model SolicitudHora {
   expiraEn         DateTime            @map("expira_en") @db.Timestamptz(6)
   pacienteId       String?             @map("paciente_id") @db.Uuid
   citaId           String?             @unique @map("cita_id") @db.Uuid
+  /// AUD-01 (E2.3c): acepto avisos por WhatsApp al reservar (pasa al paciente al concretarse).
+  aceptaWhatsappEn DateTime?           @map("acepta_whatsapp_en") @db.Timestamptz(6)
   creadaEn         DateTime            @default(now()) @map("creada_en") @db.Timestamptz(6)
   concretadaEn     DateTime?           @map("concretada_en") @db.Timestamptz(6)
   /// 03b-3.1: SHA-256 del token opaco de la reserva (estado consultable sin datos personales).
@@ -2828,4 +2932,171 @@ model CodigoRespaldo {
 
   @@index([usuarioId])
   @@map("codigos_respaldo")
+}
+
+enum AlcanceSoporte {
+  DIAGNOSTICO
+  /// Incluye DIAGNOSTICO y la configuracion del centro (sin personas).
+  CONFIGURACION
+
+  @@map("alcance_soporte")
+}
+
+/// AUD-01 (E2.1, A): autorizacion del centro (ADMIN) para el soporte de
+/// Vinculos, maximo 72 horas. Solo via otorgar_soporte / revocar_soporte.
+model AutorizacionSoporte {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  motivo        String
+  alcance       AlcanceSoporte
+  desde         DateTime       @default(now()) @db.Timestamptz(6)
+  hasta         DateTime       @db.Timestamptz(6)
+  otorgadaPorId String         @map("otorgada_por_id") @db.Uuid
+  revocadaEn    DateTime?      @map("revocada_en") @db.Timestamptz(6)
+  revocadaPorId String?        @map("revocada_por_id") @db.Uuid
+
+  otorgadaPor Usuario           @relation("SoporteOtorgadoPor", fields: [otorgadaPorId], references: [id], onDelete: Restrict)
+  revocadaPor Usuario?          @relation("SoporteRevocadoPor", fields: [revocadaPorId], references: [id], onDelete: Restrict)
+  registros   RegistroSoporte[]
+
+  @@map("autorizaciones_soporte")
+}
+
+/// AUD-01 (E2.1, A): cada diagnostico que ejecuto el soporte. Append-only; ADMIN lee.
+model RegistroSoporte {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  autorizacionId String   @map("autorizacion_id") @db.Uuid
+  funcion        String
+  rolBd          String   @map("rol_bd")
+  ocurridoEn     DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  autorizacion AutorizacionSoporte @relation(fields: [autorizacionId], references: [id], onDelete: Restrict)
+
+  @@index([ocurridoEn])
+  @@map("registro_soporte")
+}
+
+/// AUD-01 (E2.2, A): aceptacion de terminos de servicio o DPA (version vigente)
+/// por un ADMIN del centro. Solo via aceptar_contrato(); append-only.
+model AceptacionContrato {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  politicaId String   @map("politica_id") @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  aceptadaEn DateTime @default(now()) @map("aceptada_en") @db.Timestamptz(6)
+
+  politica Politica @relation(fields: [politicaId], references: [id], onDelete: Restrict)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@unique([politicaId, usuarioId])
+  @@map("aceptaciones_contrato")
+}
+
+/// AUD-01 (E2.3a, B): feriados de Chile; los carga el operador por año.
+model Feriado {
+  fecha  DateTime @id @db.Date
+  nombre String
+
+  @@map("feriados")
+}
+
+enum TipoDerecho {
+  ACCESO
+  RECTIFICACION
+  CANCELACION
+  OPOSICION
+  PORTABILIDAD
+  BLOQUEO
+
+  @@map("tipo_derecho")
+}
+
+enum CanalSolicitudDerecho {
+  PRESENCIAL
+  CORREO
+  PORTAL
+  FORMULARIO_PUBLICO
+
+  @@map("canal_solicitud_derecho")
+}
+
+enum EstadoSolicitudDerecho {
+  RECIBIDA
+  EN_CURSO
+  RESUELTA
+  RECHAZADA
+
+  @@map("estado_solicitud_derecho")
+}
+
+/// AUD-01 (E2.3a, A): solicitud de derechos de un titular (Ley 21.719). Plazo
+/// en dias habiles (vence_el lo fija la BD). Solo ADMIN, solo via funciones.
+model SolicitudDerecho {
+  id               String                 @id @db.Uuid
+  tipo             TipoDerecho
+  pacienteId       String?                @map("paciente_id") @db.Uuid
+  canal            CanalSolicitudDerecho
+  estado           EstadoSolicitudDerecho @default(RECIBIDA)
+  recibidaEn       DateTime               @default(now()) @map("recibida_en") @db.Timestamptz(6)
+  venceEl          DateTime               @map("vence_el") @db.Date
+  /// cifrado (CLINICO)
+  detalle          Bytes?
+  /// cifrado (CLINICO)
+  respuesta        Bytes?
+  registradaPorId  String?                @map("registrada_por_id") @db.Uuid
+  resueltaEn       DateTime?              @map("resuelta_en") @db.Timestamptz(6)
+  resueltaPorId    String?                @map("resuelta_por_id") @db.Uuid
+  /// AUD-01 (E2.3b): el titular pidio actualizar el correo (lo cambia el centro tras verificar identidad).
+  pideCambioCorreo Boolean                @default(false) @map("pide_cambio_correo")
+
+  paciente      Paciente?             @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  registradaPor Usuario?              @relation("DerechoRegistradoPor", fields: [registradaPorId], references: [id], onDelete: Restrict)
+  resueltaPor   Usuario?              @relation("DerechoResueltoPor", fields: [resueltaPorId], references: [id], onDelete: Restrict)
+  bloqueos      Paciente[]            @relation("PacienteBloqueo")
+  exportaciones ExportacionPaciente[]
+
+  @@index([estado, venceEl])
+  @@index([pacienteId])
+  @@map("solicitudes_derechos")
+}
+
+/// AUD-01 (E2.4, A): ingreso fallido; solo el HMAC del correo o RUT. Sin GRANT (funcion del login).
+model IntentoLoginFallido {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identificadorHmac Bytes    @map("identificador_hmac")
+  ocurridoEn        DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  @@index([ocurridoEn])
+  @@map("intentos_login_fallidos")
+}
+
+/// AUD-01 Fase 3 (A): exportacion de los datos de un paciente. Parte
+/// administrativa (ADMIN) y clinica (tratante) cifradas; enlace de un solo uso
+/// (72 h). Solo via funciones; la API lee solo los metadatos (GRANT por columna).
+model ExportacionPaciente {
+  id                   String    @id @db.Uuid
+  pacienteId           String    @map("paciente_id") @db.Uuid
+  solicitudId          String    @map("solicitud_id") @db.Uuid
+  /// cifrado (CLINICO)
+  datosAdministrativos Bytes?    @map("datos_administrativos")
+  /// cifrado (CLINICO)
+  datosClinicos        Bytes?    @map("datos_clinicos")
+  requiereClinica      Boolean   @map("requiere_clinica")
+  creadaPorId          String    @map("creada_por_id") @db.Uuid
+  creadaEn             DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
+  clinicaPorId         String?   @map("clinica_por_id") @db.Uuid
+  clinicaEn            DateTime? @map("clinica_en") @db.Timestamptz(6)
+  tokenHash            Bytes?    @unique @map("token_hash")
+  codigoHash           Bytes?    @map("codigo_hash")
+  enviadaEn            DateTime? @map("enviada_en") @db.Timestamptz(6)
+  venceEn              DateTime? @map("vence_en") @db.Timestamptz(6)
+  descargas            Int       @default(0)
+  ultimaDescargaEn     DateTime? @map("ultima_descarga_en") @db.Timestamptz(6)
+  purgadaEn            DateTime? @map("purgada_en") @db.Timestamptz(6)
+
+  paciente   Paciente         @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  solicitud  SolicitudDerecho @relation(fields: [solicitudId], references: [id], onDelete: Restrict)
+  creadaPor  Usuario          @relation("ExportacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  clinicaPor Usuario?         @relation("ExportacionClinicaPor", fields: [clinicaPorId], references: [id], onDelete: Restrict)
+
+  @@index([pacienteId])
+  @@map("exportaciones_paciente")
 }

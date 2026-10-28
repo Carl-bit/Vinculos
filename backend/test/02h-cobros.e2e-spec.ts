@@ -1,4 +1,4 @@
-/** 02h parte B: cobros (monto, pagos, boleta, politica de cancelacion, liquidacion). Por rol. */
+/** 02h parte B: cobros (monto, pagos, comprobante de pago, politica de cancelacion, liquidacion). Por rol. */
 import { randomInt } from 'node:crypto';
 
 import { dvRut } from '../src/core/validacion/validadores';
@@ -128,13 +128,13 @@ describe('02h cobros', () => {
     await expect(t.dueno.cita.update({ where: { id: presencial.id }, data: { monto: 1 } })).rejects.toThrow(/inmutable/);
   });
 
-  it('pagos: sobrepago rechazado, pago parcial, anulacion con motivo (nunca borrado) y boleta unica solo al completar', async () => {
+  it('pagos: sobrepago rechazado, pago parcial, anulacion con motivo (nunca borrado) y comprobante de pago unico solo al completar', async () => {
     const c = await cita(prof, paciente.pacienteId, 51);
     const sobrepago = await pagar(c.id, c.monto + 1);
     expect([sobrepago.status, sobrepago.body.restriccion]).toEqual([422, 'pagos_sin_sobrepago']);
     const parcial = await pagar(c.id, 15000);
     expect(parcial.status).toBe(201);
-    expect(parcial.body).toEqual(expect.objectContaining({ estado_pago: 'PARCIAL', pagado: 15000, saldo: c.monto - 15000, boleta: null }));
+    expect(parcial.body).toEqual(expect.objectContaining({ estado_pago: 'PARCIAL', pagado: 15000, saldo: c.monto - 15000, comprobante: null }));
     const pagoId = parcial.body.pagos[0].id as string;
 
     expect(
@@ -178,19 +178,19 @@ describe('02h cobros', () => {
     await pagar(c.id, c.monto - 10000);
     const completo = await pagar(c.id, 10000, admin);
     expect(completo.body).toEqual(expect.objectContaining({ estado_pago: 'PAGADO', saldo: 0 }));
-    expect(completo.body.boleta).toEqual(
-      expect.objectContaining({ numero: expect.stringMatching(/^SIM-\d{8}$/), monto: c.monto, emisorNombre: expect.any(String) }),
+    expect(completo.body.comprobante).toEqual(
+      expect.objectContaining({ numero: expect.stringMatching(/^CP-\d{8}$/), monto: c.monto, emisorNombre: expect.any(String) }),
     );
-    expect(await t.dueno.boleta.count({ where: { citaId: c.id } })).toBe(1);
-    const fila = await t.dueno.boleta.findUniqueOrThrow({ where: { citaId: c.id } });
-    expect(Buffer.from(fila.emisorNombre).toString('latin1')).not.toContain(completo.body.boleta.emisorNombre);
+    expect(await t.dueno.comprobantePago.count({ where: { citaId: c.id } })).toBe(1);
+    const fila = await t.dueno.comprobantePago.findUniqueOrThrow({ where: { citaId: c.id } });
+    expect(Buffer.from(fila.emisorNombre).toString('latin1')).not.toContain(completo.body.comprobante.emisorNombre);
     expect((await pagar(c.id, 1)).status).toBe(422);
-    const conBoleta = completo.body.pagos.find((p: { estado: string }) => p.estado === 'REGISTRADO').id;
+    const conComprobante = completo.body.pagos.find((p: { estado: string }) => p.estado === 'REGISTRADO').id;
     expect(
       (
         await t
           .http()
-          .post(`/api/cobros/pagos/${conBoleta}/anulacion`)
+          .post(`/api/cobros/pagos/${conComprobante}/anulacion`)
           .set(await tk(gestion))
           .send({ motivo: 'tarde' })
       ).status,
@@ -200,7 +200,7 @@ describe('02h cobros', () => {
     const otra = await cita(prof, paciente.pacienteId, 52);
     expect((await pagar(otra.id, 1000, await t.datos.usuario('PROFESIONAL'))).status).toBe(403);
     expect((await pagar(otra.id, 1000, paciente)).status).toBe(403);
-    expect((await estado(c.id, paciente)).boleta.numero).toBe(completo.body.boleta.numero);
+    expect((await estado(c.id, paciente)).comprobante.numero).toBe(completo.body.comprobante.numero);
     expect((await estado(c.id, prof)).estado_pago).toBe('PAGADO');
     expect(
       (
@@ -225,7 +225,7 @@ describe('02h cobros', () => {
     expect(lista.body.every((e: { paciente_id: string }) => e.paciente_id === paciente.pacienteId)).toBe(true);
   });
 
-  it('cobro directo: el profesional registra; la boleta lleva su nombre y RUT; los datos de pago solo con saldo', async () => {
+  it('cobro directo: el profesional registra; el comprobante lleva su nombre y RUT; los datos de pago solo con saldo', async () => {
     const directo = await t.datos.usuario('PROFESIONAL', { nombre: 'Ps. Directo' });
     await t.datos.disponibleSiempre(directo.id);
     const pac = await t.datos.usuarioPaciente(directo.id);
@@ -260,7 +260,7 @@ describe('02h cobros', () => {
       const r = await pagar(c.id, 20000, directo);
       expect(r.status).toBe(201);
       expect(r.body.pagos[0].cobradoPor).toBe('PROFESIONAL');
-      expect(r.body.boleta).toEqual(expect.objectContaining({ emisorNombre: 'Ps. Directo', emisorRut: `${cuerpo}${dvRut(cuerpo)}` }));
+      expect(r.body.comprobante).toEqual(expect.objectContaining({ emisorNombre: 'Ps. Directo', emisorRut: `${cuerpo}${dvRut(cuerpo)}` }));
       expect(
         (
           await t
@@ -350,7 +350,9 @@ describe('02h cobros', () => {
     const cobro = Math.round(pasada.monto! * 0.6);
     expect(r4.body).toEqual(expect.objectContaining({ estado_pago: 'PENDIENTE', saldo: cobro }));
     expect(r4.body.resolucion).toEqual(expect.objectContaining({ decision: 'INASISTENCIA', porcentaje: '60', montoExigible: cobro }));
-    expect((await pagar(pasada.id, cobro)).body).toEqual(expect.objectContaining({ estado_pago: 'PAGADO', boleta: expect.objectContaining({ monto: cobro }) }));
+    expect((await pagar(pasada.id, cobro)).body).toEqual(
+      expect.objectContaining({ estado_pago: 'PAGADO', comprobante: expect.objectContaining({ monto: cobro }) }),
+    );
 
     // Solo ADMIN/GESTION deciden; el profesional y el paciente ven la decision.
     const otra = await cita(prof, paciente.pacienteId, 160);

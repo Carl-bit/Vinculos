@@ -89,6 +89,11 @@ export class AuthService {
       }
     }
     if (!fila || !fila.activo) {
+      // AUD-01 (E2.4): solo el HMAC del identificador, para detectar intentos repetidos (nunca el valor).
+      const clave = identificador.rut
+        ? `rut:${Buffer.from(this.llavero.hmacRut(identificador.rut)).toString('hex')}`
+        : `correo:${(identificador.email ?? '').trim().toLowerCase()}`;
+      await db.$executeRaw`SELECT registrar_login_fallido(${this.llavero.hmacIdentificador(clave)})`.catch(() => undefined);
       throw new UnauthorizedException(NO_AUTORIZADO);
     }
     return this.segundoPaso(fila.id, rolPedido);

@@ -11,6 +11,7 @@ import { Icon } from '@/components/ui/Icon';
 import { useProfesionales } from '@/lib/consultas';
 import { formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
+import { useExportacionesPendientes } from '@/lib/exportaciones';
 import { MENU, type ModuloCentro } from '@/lib/navegacion';
 import { hoyChile, nombreDeCita, nombresPacientes, useCitas, useDashboard, useEspacios, usePacientes, type ReporteDashboard } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
@@ -27,7 +28,7 @@ const MODULOS: { id: ModuloCentro; nombre: string; descripcion: string; icono: I
   { id: 'AGENDA', nombre: 'Agenda y Espacios', descripcion: 'Citas, boxes y horas apartadas del equipo.', icono: 'calendar_month', href: '/admin/agenda' },
   { id: 'EQUIPO', nombre: 'Equipo', descripcion: 'Perfiles, practicantes, supervisión y accesos.', icono: 'groups', href: '/admin/equipo' },
   { id: 'MATCH', nombre: 'Match Terapéutico', descripcion: 'Cuestionario público y recomendación explicada.', icono: 'join', href: '/admin/match' },
-  { id: 'COBROS', nombre: 'Cobros', descripcion: 'Pagos, boletas y liquidaciones del equipo.', icono: 'payments', href: '/admin/cobros' },
+  { id: 'COBROS', nombre: 'Cobros', descripcion: 'Pagos, comprobantes y liquidaciones del equipo.', icono: 'payments', href: '/admin/cobros' },
   { id: 'PAGINA_PUBLICA', nombre: 'Página pública', descripcion: 'Landing, equipo y reseñas del centro.', icono: 'public', href: '/' },
 ];
 
@@ -39,6 +40,7 @@ const MODULOS: { id: ModuloCentro; nombre: string; descripcion: string; icono: I
 export function InicioPanel({ rol }: { rol: Rol }) {
   const reporte = useDashboard();
   const admin = esAdministracion(rol);
+  const exportaciones = useExportacionesPendientes(rol === 'PROFESIONAL');
   return (
     <EstadoConsulta consulta={reporte}>
       {(r) => (
@@ -49,7 +51,26 @@ export function InicioPanel({ rol }: { rol: Rol }) {
           <ModulosCentro rol={rol} activos={r.modulos} />
           <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
             <SesionesHoy rol={rol} />
-            <Pendientes items={admin ? pendientesCentro(r, rol) : pendientesPropios(r)} />
+            <Pendientes
+              items={
+                admin
+                  ? pendientesCentro(r, rol)
+                  : [
+                      ...((exportaciones.data?.length ?? 0) > 0
+                        ? [
+                            {
+                              icono: 'description' as Icono,
+                              titulo: plural(exportaciones.data!.length, 'copia de datos por completar', 'copias de datos por completar'),
+                              meta: 'Un paciente pidió sus datos: falta la parte clínica (ábrela en su ficha)',
+                              href: `/admin/fichas/${exportaciones.data![0].pacienteId}/ficha`,
+                              tono: 'atencion' as const,
+                            },
+                          ]
+                        : []),
+                      ...pendientesPropios(r),
+                    ]
+              }
+            />
           </div>
         </div>
       )}

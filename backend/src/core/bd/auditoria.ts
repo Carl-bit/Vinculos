@@ -1,6 +1,7 @@
 import type { Tx, UsuarioActual } from './contexto-bd.service';
 
-export type AccionAcceso = 'LECTURA' | 'ESCRITURA' | 'ENVIO';
+/** AUD-01: DESCARGA = copia o archivo bajado; EXPORTACION = salida estructurada de datos. */
+export type AccionAcceso = 'LECTURA' | 'ESCRITURA' | 'ENVIO' | 'DESCARGA' | 'EXPORTACION';
 
 /**
  * Registra un acceso a datos clinicos en accesos_ficha, en la misma
@@ -11,7 +12,7 @@ export type AccionAcceso = 'LECTURA' | 'ESCRITURA' | 'ENVIO';
 export async function registrarAcceso(
   tx: Tx,
   usuario: UsuarioActual,
-  filas: { pacienteId: string; fichaId?: string | null; recurso: string; accion: AccionAcceso }[],
+  filas: { pacienteId: string; fichaId?: string | null; recurso: string; accion: AccionAcceso; detalle?: string }[],
 ): Promise<void> {
   if (filas.length === 0) {
     return;
@@ -24,6 +25,22 @@ export async function registrarAcceso(
       fichaId: f.fichaId ?? null,
       recurso: f.recurso,
       accion: f.accion,
+      detalle: f.detalle ?? null,
     })),
+  });
+}
+
+/**
+ * AUD-01 (E1.5): descarga o exportacion que no es de un paciente (PDF de
+ * cobros y liquidaciones, exportacion del centro). Misma transaccion; solo
+ * ADMIN lo lee (createMany por la misma razon que registrarAcceso).
+ */
+export async function registrarExportacion(
+  tx: Tx,
+  usuario: UsuarioActual,
+  fila: { recurso: string; referenciaId?: string | null; detalle?: string },
+): Promise<void> {
+  await tx.registroExportacion.createMany({
+    data: [{ usuarioId: usuario.id, rol: usuario.rol, recurso: fila.recurso, referenciaId: fila.referenciaId ?? null, detalle: fila.detalle ?? null }],
   });
 }

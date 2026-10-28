@@ -470,7 +470,8 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
         .post('/api/documentos-clinicos')
         .set(await tk(prof))
         .send({ ...cuerpo, contenido: CONTENIDO });
-      const lecturas = () => t.dueno.accesoFicha.count({ where: { usuarioId: prof.id, recurso: 'documentos_clinicos', accion: 'LECTURA' } });
+      // AUD-01 (E1.5): la copia queda como DESCARGA.
+      const lecturas = () => t.dueno.accesoFicha.count({ where: { usuarioId: prof.id, recurso: 'documentos_clinicos', accion: 'DESCARGA' } });
       const previas = await lecturas();
       const copia = await t
         .http()

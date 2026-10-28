@@ -18,12 +18,15 @@ services:
       - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      # TLS 1.2 minimo para todos los silos (dinamico.yml, AUD-01 CENS-S1).
+      - --providers.file.filename=/etc/traefik/dinamico.yml
     ports:
       - '80:80'
       - '443:443'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt:/letsencrypt
+      - ./dinamico.yml:/etc/traefik/dinamico.yml:ro
     networks:
       - proxy
 

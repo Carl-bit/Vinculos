@@ -26,6 +26,7 @@ import { AdjuntosFicha } from './AdjuntosFicha';
 import { AltaPaciente } from './AltaPaciente';
 import { DocumentosFicha } from './DocumentosFicha';
 import { EditorEvolucion } from './EditorEvolucion';
+import { ExportacionClinicaPendiente } from './ExportacionClinicaPendiente';
 import { FichaClinicaTimeline } from './FichaClinicaTimeline';
 import { IngresoFicha } from './IngresoFicha';
 import { SolicitudesEpicrisis } from './SolicitudesEpicrisis';
@@ -91,6 +92,16 @@ export function FichaClinica({ pacienteId, rol }: { pacienteId: string; rol: Rol
               </p>
             </div>
           </div>
+          <div className="mb-4 empty:hidden">
+            <ExportacionClinicaPendiente pacienteId={p.id} tratante={rol === 'PROFESIONAL' && p.profesionalId === cuenta.data?.id} />
+          </div>
+          {p.bloqueoDesde && (
+            <div className="mb-4">
+              <Aviso tono="advertencia" icono="lock" titulo="Tratamiento bloqueado por solicitud del titular">
+                Desde el {formatoFecha(p.bloqueoDesde)}. Se registra la atención de las horas ya agendadas; no se pueden hacer gestiones nuevas.
+              </Aviso>
+            </div>
+          )}
           {ficha.isPending ? (
             <EstadoVista estado="carga" />
           ) : ficha.error || !ficha.data ? (

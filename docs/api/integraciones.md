@@ -41,7 +41,7 @@ crea los que origina ella (triggers y jobs). La categoria
 | `AVISO_CAMBIO_SUPERVISOR` | paciente | API (Equipo) | **legal** |
 | `DOCUMENTO_CLINICO` (documento emitido) | paciente | API (Fichas) | **legal** |
 | `PAGO_REGISTRADO` | paciente | API (Cobros) | operativo |
-| `BOLETA_EMITIDA` | paciente | API (Cobros) | operativo |
+| `COMPROBANTE_EMITIDO` (AUD-01, antes `BOLETA_EMITIDA`) | paciente: comprobante de pago, no tributario | API (Cobros) | operativo |
 | `MENSAJE_PACIENTE` | profesional destinatario | API (Portal) | operativo (equipo) |
 | `INSTRUCCIONES_TRANSFERENCIA` (03b-3.1) | paciente (solo si ya existe: la reserva sin cuenta ve los datos en pantalla) | BD (`elegir_medio_*`) | operativo |
 | `COMPROBANTE_RECIBIDO` (03b-3.1) | paciente (solo si ya existe) | BD (`subir_comprobante_*`) | operativo |
@@ -108,6 +108,10 @@ tienen campo (un campo extra es 400): nunca se desactivan.
 - Remitente: la direccion de la plataforma (`CORREO_REMITENTE`, por defecto
   `no-responder@vinculos.cl`) con el **nombre del centro** como nombre visible
   (`configuracion_centro.nombre_centro`, lo edita ADMIN).
+- **Reply-To** (AUD-01): el correo de contacto publico del centro
+  (`contenido_publico.contacto_correo`, Configuracion > Centro > Contacto).
+  Sin el, el correo sale sin Reply-To. SES por silo: `SES_CONFIGURATION_SET`
+  (`docs/api/correo_ses.md`).
 - **Futuro: dominio propio por centro** (p. ej. `avisos@centro.cl`). Requiere
   que el centro publique SPF (incluir al proveedor de envio), firme con DKIM
   (llaves del proveedor en su DNS) y, idealmente, DMARC; la plataforma
@@ -286,6 +290,20 @@ terceros); la pasarela es **solo visual y simulada**.
 - **Produccion:** con `NODE_ENV=production` la API **no arranca** con
   `PASARELA_PROVEEDOR=simulada`. Sin adaptador (`PASARELA_PROVEEDOR` vacio) el
   centro no puede habilitar el medio PASARELA (422 `pasarela_sin_convenio`).
+- **Pasarela del centro, no del profesional (AUD-01, E1.3):** la pasarela
+  del silo cobra a la cuenta del centro. Mientras no exista la pasarela por
+  cobrador, PASARELA no se habilita con modelo DIRECTO (422
+  `configuracion_centro_pasarela_cobro_directo`) y, en MIXTO, la hora de un
+  profesional con cobro directo no la ofrece ni la acepta (422
+  `citas_pasarela_cobro_directo`). Asi un profesional nunca cobra con la
+  cuenta del centro.
+- **Pasarela por cobrador (post-MVP, diseño):** configuracion en BD por
+  cobrador (el centro, o cada profesional con cobro directo): proveedor y
+  credenciales cifradas (categoria FINANCIERO, `registro.ts`, nunca en logs).
+  `ProveedorPasarela.crearCobro` recibe las credenciales del cobrador de la
+  cita (`cobro_directo(profesional)`); el webhook identifica al cobrador por
+  la referencia del intento y verifica la firma con su secreto. Al existir,
+  se retira la restriccion de arriba.
 - **Adaptador real, por centro:** cada centro negocia su propio convenio
   (proveedor y comisiones, p. ej. Webpay Plus de Transbank, Flow, Mercado
   Pago o Khipu). Para habilitarlo en un silo:

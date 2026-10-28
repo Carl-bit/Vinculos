@@ -116,7 +116,7 @@ const MODULOS: { id: ConfiguracionCentro['modulosActivos'][number]; nombre: stri
   { id: 'AGENDA', nombre: 'Agenda y Espacios', icono: 'calendar_month', nota: 'Reservas por box y disponibilidad del equipo' },
   { id: 'EQUIPO', nombre: 'Equipo', icono: 'groups', nota: 'Perfiles, especialidades y roles del centro' },
   { id: 'MATCH', nombre: 'Match Terapéutico', icono: 'join', nota: 'Cuestionario público que recomienda profesionales' },
-  { id: 'COBROS', nombre: 'Cobros', icono: 'payments', nota: 'Pagos, boletas y liquidaciones por profesional' },
+  { id: 'COBROS', nombre: 'Cobros', icono: 'payments', nota: 'Pagos, comprobantes y liquidaciones por profesional' },
 ];
 
 /** 03b-4.2 (C-10): comision de las sesiones de pacientes que llegaron por el centro. */
@@ -220,7 +220,10 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
             ))}
             {g.id === 'cobros' && (
               <>
-                <Field label="Quién cobra las sesiones">
+                <Field
+                  label="Quién cobra las sesiones"
+                  hint="La pasarela de pago es la cuenta del centro: con cobro directo no se ofrece en las horas que cobra cada profesional."
+                >
                   {(x) => (
                     <Select {...x} value={modelo} onChange={(e) => setModelo(e.target.value as typeof modelo)}>
                       {MODELOS.map((m) => (

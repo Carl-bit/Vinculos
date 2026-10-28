@@ -100,7 +100,9 @@ export class CoreModule {
           inject: [ConfigService],
           useFactory: (config: ConfigService) => {
             const url = config.get<string>('SMTP_URL');
-            return url ? new ProveedorCorreoSmtp(url, config.getOrThrow<string>('CORREO_REMITENTE')) : new ProveedorCorreoSimulado();
+            return url
+              ? new ProveedorCorreoSmtp(url, config.getOrThrow<string>('CORREO_REMITENTE'), config.get<string>('SES_CONFIGURATION_SET') || undefined)
+              : new ProveedorCorreoSimulado();
           },
         },
         {

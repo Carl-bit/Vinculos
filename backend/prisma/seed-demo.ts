@@ -19,6 +19,8 @@
  * llegan a Mailpit (http://localhost:8025).
  */
 import { randomBytes, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -137,6 +139,17 @@ async function main(): Promise<void> {
       plazoAvisoCancelacionHoras: 24,
       recordatorioHorasAntes: 48,
     });
+    // AUD-01 (E2.2): contrato con Vinculos. Lo publica el operador como dueño (docs/cumplimiento/contrato_centro.md);
+    // la cuenta madre del demo ya lo acepto, para que el aviso no tape el panel (la API lo acepta con aceptar_contrato()).
+    const adminId = (await dueno.usuario.findUniqueOrThrow({ where: { email: `admin@${DOMINIO}` } })).id;
+    for (const [tipo, archivo] of [
+      ['TERMINOS_SERVICIO', 'terminos_servicio.md'],
+      ['DPA', 'dpa.md'],
+    ] as const) {
+      const texto = readFileSync(join(__dirname, '../../docs/cumplimiento/plantillas', archivo), 'utf8');
+      const politica = await dueno.politica.create({ data: { tipo, version: 0, texto } });
+      await dueno.aceptacionContrato.create({ data: { politicaId: politica.id, usuarioId: adminId } });
+    }
     const crearUsuario = (cuerpo: Cuerpo) => llamar(admin, 'POST', '/usuarios', { password: PASSWORD, ...cuerpo });
     const yo = async (token: string) => (await llamar(token, 'GET', '/usuarios/yo')).id;
     // 03b-4.1: el ADMIN del demo tambien atiende (selector de rol activo).

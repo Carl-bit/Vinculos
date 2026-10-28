@@ -29,6 +29,8 @@ const VISTA_PACIENTE = {
   creadoPorSolicitud: true,
   posibleDuplicado: true,
   traidoPorCentro: true,
+  bloqueoDesde: true,
+  bloqueoMotivo: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.PacienteSelect;

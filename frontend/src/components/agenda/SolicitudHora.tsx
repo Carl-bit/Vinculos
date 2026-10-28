@@ -48,6 +48,8 @@ interface Datos {
   adultoTelefono: string;
   aceptaDatos: boolean;
   aceptaTerminos: boolean;
+  /** AUD-01: consentimiento propio del canal, opcional y desmarcado. */
+  aceptaWhatsapp: boolean;
   sitioWeb: string;
 }
 
@@ -64,6 +66,7 @@ const VACIO: Datos = {
   adultoTelefono: '',
   aceptaDatos: false,
   aceptaTerminos: false,
+  aceptaWhatsapp: false,
   sitioWeb: '',
 };
 
@@ -182,6 +185,7 @@ export function SolicitudHora({
             ...(match ? { respuestas: match.respuestas, recomendadoId: match.recomendadoId ?? undefined } : {}),
             politicaId: politicaDatos.id,
             terminosId: terminos?.id,
+            aceptaWhatsapp: d.aceptaWhatsapp || undefined,
             sitioWeb: d.sitioWeb || undefined,
           },
         }),
@@ -415,6 +419,9 @@ export function SolicitudHora({
                     (versión {terminos.version}).
                   </Casilla>
                 )}
+                <Casilla checked={d.aceptaWhatsapp} onChange={(v) => cambiar('aceptaWhatsapp', v)}>
+                  Opcional: quiero recibir avisos de mis horas por WhatsApp. Puedes cambiarlo cuando quieras en tu portal.
+                </Casilla>
               </div>
             </section>
 

@@ -97,6 +97,12 @@ export function DetallePaciente({ id, rol }: { id: string; rol: Rol }) {
             </div>
 
             <div className="mb-4 flex flex-col gap-3">
+              {p.bloqueoDesde && (
+              <Aviso tono="advertencia" icono="lock" titulo="Tratamiento bloqueado por solicitud del titular">
+                Desde el {formatoFecha(p.bloqueoDesde)}: {p.bloqueoMotivo}. No se pueden agendar horas nuevas, derivar ni editar sus datos hasta
+                que administración levante el bloqueo. Las horas ya agendadas se mantienen.
+              </Aviso>
+            )}
               {!p.rut && <RegistroRut paciente={p} />}
               {p.posibleDuplicado && <Duplicado paciente={p} admin={admin} />}
             </div>

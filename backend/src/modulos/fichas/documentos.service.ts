@@ -129,11 +129,11 @@ export class DocumentosService {
     return generarPdfDocumento({ centro: nombreCentro, titulo: tipo.nombre, texto, emitidoEn: new Date() });
   }
 
-  /** Copia del tratante (03b-5): el PDF de un documento ya emitido; la lectura queda en accesos_ficha. */
+  /** Copia del tratante (03b-5): el PDF de un documento ya emitido; queda en accesos_ficha como DESCARGA (AUD-01). */
   async copia(id: string): Promise<{ nombreArchivo: string; pdf: Buffer }> {
     const tx = this.bd.tx();
     const doc = encontrado(await tx.documentoClinico.findUnique({ where: { id }, select: { pacienteId: true } }), 'Documento');
-    await registrarAcceso(tx, this.bd.usuario(), [{ pacienteId: doc.pacienteId, recurso: 'documentos_clinicos', accion: 'LECTURA' }]);
+    await registrarAcceso(tx, this.bd.usuario(), [{ pacienteId: doc.pacienteId, recurso: 'documentos_clinicos', accion: 'DESCARGA' }]);
     return this.pdf(id);
   }
 

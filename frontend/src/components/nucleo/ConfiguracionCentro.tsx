@@ -6,12 +6,16 @@ import { Encabezado } from '@/components/shared/Encabezado';
 import { Icon } from '@/components/ui/Icon';
 import { Pestanas } from '@/components/ui/Pestanas';
 
+import { AuditoriaAccesos } from './AuditoriaAccesos';
 import { DatosCentro } from './DatosCentro';
+import { ExportacionCentro } from './ExportacionCentro';
 import { HorarioCentroEditor, PoliticasCentro } from './HorarioPoliticasCentro';
 import { PlantillasMensaje } from './PlantillasMensaje';
 import { ReglasCentro } from './ReglasCentro';
+import { SolicitudesDerechos } from './SolicitudesDerechos';
+import { SoporteCentro } from './SoporteCentro';
 
-type Vista = 'datos' | 'modulos' | 'horario' | 'politicas' | 'notificaciones' | 'reglas' | 'roles';
+type Vista = 'datos' | 'modulos' | 'horario' | 'politicas' | 'notificaciones' | 'reglas' | 'roles' | 'auditoria' | 'derechos' | 'exportacion' | 'soporte';
 const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'datos', etiqueta: 'Datos del centro' },
   { valor: 'modulos', etiqueta: 'Módulos contratados' },
@@ -20,6 +24,10 @@ const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'notificaciones', etiqueta: 'Notificaciones' },
   { valor: 'reglas', etiqueta: 'Reglas y plazos' },
   { valor: 'roles', etiqueta: 'Roles y accesos' },
+  { valor: 'auditoria', etiqueta: 'Auditoría de accesos' },
+  { valor: 'derechos', etiqueta: 'Solicitudes de datos' },
+  { valor: 'exportacion', etiqueta: 'Exportar datos' },
+  { valor: 'soporte', etiqueta: 'Soporte' },
 ];
 
 /**
@@ -59,6 +67,10 @@ export function ConfiguracionCentro() {
           {vista === 'politicas' && <PoliticasCentro />}
           {vista === 'notificaciones' && <PlantillasMensaje />}
           {(vista === 'reglas' || vista === 'modulos' || vista === 'roles') && <ReglasCentro seccion={vista} />}
+          {vista === 'auditoria' && <AuditoriaAccesos />}
+          {vista === 'derechos' && <SolicitudesDerechos />}
+          {vista === 'exportacion' && <ExportacionCentro />}
+          {vista === 'soporte' && <SoporteCentro />}
         </div>
       </div>
     </>

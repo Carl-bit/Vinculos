@@ -71,6 +71,9 @@ export class SolicitudesService {
         ${dto.adultoParentesco ?? null}, ${c(dto.adultoTelefono, 'adulto_telefono')},
         ${dto.respuestas ? c(JSON.stringify(dto.respuestas), 'respuestas') : null}, ${dto.recomendadoId ?? null}::uuid,
         ${dto.politicaId}::uuid, ${dto.terminosId ?? null}::uuid, ${hash}, ${reserva.hash})`;
+    if (dto.aceptaWhatsapp) {
+      await this.bd.sinContexto('publico').$executeRaw`SELECT consentir_whatsapp_solicitud(${id}::uuid, ${reserva.hash})`;
+    }
     if (verificar_correo) {
       await this.correos.enviar('VERIFICACION_SOLICITUD', dto.email, token, expira);
     }

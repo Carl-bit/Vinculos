@@ -29,6 +29,8 @@ const SENSIBLES = [
     'kek',
     'dek',
     'motivoCierre',
+    // AUD-01: clave de la exportacion del centro.
+    'clave',
     'enlace',
   ]),
 ];

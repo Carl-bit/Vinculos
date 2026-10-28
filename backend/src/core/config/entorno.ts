@@ -124,6 +124,14 @@ export class Entorno {
   @IsString()
   CORREO_REMITENTE: string = 'no-responder@vinculos.cl';
 
+  /**
+   * AUD-01 (LEG-02): configuration set de Amazon SES del silo (metricas,
+   * rebotes y quejas separados por centro). Vacio = sin cabecera.
+   */
+  @IsOptional()
+  @IsString()
+  SES_CONFIGURATION_SET: string = '';
+
   /** true = videollamada simulada (tests); false = modo de cada profesional. */
   @IsOptional()
   @Transform(aBooleano)

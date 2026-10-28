@@ -13,6 +13,8 @@ export interface Correo {
   texto: string;
   /** Nombre visible del remitente (el del centro); la direccion es la de la plataforma. */
   remitente?: string;
+  /** AUD-01 (COM-02): Reply-To = correo de contacto del centro (contenido_publico.contacto_correo). */
+  responderA?: string | null;
   adjuntos?: Adjunto[];
 }
 
@@ -48,7 +50,8 @@ export class ProveedorCorreoSimulado extends ProveedorCorreo {
 /**
  * SMTP generico, configurado a nivel de plataforma (SMTP_URL, CORREO_REMITENTE).
  * El remitente visible es el nombre del centro con la direccion de la
- * plataforma. Nunca loguea destinatarios ni contenido.
+ * plataforma; las respuestas van al correo de contacto del centro (Reply-To,
+ * docs/api/correo_ses.md). Nunca loguea destinatarios ni contenido.
  */
 export class ProveedorCorreoSmtp extends ProveedorCorreo {
   private readonly transporte: Transporter;
@@ -56,6 +59,8 @@ export class ProveedorCorreoSmtp extends ProveedorCorreo {
   constructor(
     url: string,
     private readonly direccion: string,
+    /** Configuration set de SES del silo (docs/api/correo_ses.md); sin el, no va la cabecera. */
+    private readonly configuracionSes?: string,
   ) {
     super();
     this.transporte = createTransport(url);
@@ -64,6 +69,8 @@ export class ProveedorCorreoSmtp extends ProveedorCorreo {
   async enviar(correo: Correo): Promise<void> {
     await this.transporte.sendMail({
       from: { name: correo.remitente ?? 'Vinculos', address: this.direccion },
+      ...(correo.responderA ? { replyTo: correo.responderA } : {}),
+      ...(this.configuracionSes ? { headers: { 'X-SES-CONFIGURATION-SET': this.configuracionSes } } : {}),
       to: correo.para,
       subject: correo.asunto,
       text: correo.texto,

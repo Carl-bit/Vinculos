@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { DocumentosTributarios } from '@/components/cobros/DocumentosTributarios';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Aviso } from '@/components/ui/Aviso';
 import { Badge } from '@/components/ui/Badge';
@@ -33,8 +34,9 @@ const MEDIOS: { valor: MedioPago; icono: Icono }[] = [
  * Cobros): el monto lo fijo la BD al confirmar la cita y no se edita. Si el
  * paciente asistio se registra el pago (total o parcial; el sobrepago lo
  * rechaza la BD); si no, la inasistencia aplica el porcentaje del centro. Una
- * cita cancelada se resuelve con devolucion o traslado a otra cita. La boleta
- * sale sola cuando la cita queda pagada. 03b-3.3: la inasistencia justificada
+ * cita cancelada se resuelve con devolucion o traslado a otra cita. El
+ * comprobante de pago (no tributario) sale solo cuando la cita queda pagada;
+ * la boleta del SII la emite fuera quien cobro y se anota aca (AUD-01). 03b-3.3: la inasistencia justificada
  * (con motivo) se reagenda trasladando lo pagado, sin penalizacion, o se
  * devuelve con la penalizacion de la cancelacion tardia.
  */
@@ -150,7 +152,9 @@ export function RegistrarAsistenciaPago({
                   </Badge>
                 )}
                 {c.resolucion?.inasistenciaJustificada && <Badge tono="neutro">Inasistencia justificada</Badge>}
-                {c.boleta && <span className="text-[12.5px] font-bold text-neutral-800">Boleta N° {c.boleta.numero} (simulada, sin SII)</span>}
+                {c.comprobante && (
+                  <span className="text-[12.5px] font-bold text-neutral-800">Comprobante de pago {c.comprobante.numero} (no es boleta del SII)</span>
+                )}
               </div>
 
               {c.pagos.length > 0 && (
@@ -166,7 +170,7 @@ export function RegistrarAsistenciaPago({
                         {MEDIO_PAGO[p.medioPago]} · {formatoFechaLarga(p.fecha)}
                         {p.estado === 'ANULADO' && ` · anulado${p.motivoAnulacion ? `: ${p.motivoAnulacion}` : ''}`}
                       </span>
-                      {admin && p.estado !== 'ANULADO' && !c.boleta && (
+                      {admin && p.estado !== 'ANULADO' && !c.comprobante && (
                         <button
                           type="button"
                           onClick={() => setAnulando(p.id)}
@@ -194,6 +198,17 @@ export function RegistrarAsistenciaPago({
                   )}
                 </div>
               )}
+
+              <DocumentosTributarios
+                key={`${c.cita_id}-${c.documentosTributarios.length}`}
+                citaId={c.cita_id}
+                documentos={c.documentosTributarios}
+                emiteProfesional={c.pagos.some((p) => p.estado === 'REGISTRADO' && p.cobradoPor === 'PROFESIONAL')}
+                pagadoSinDocumentar={
+                  c.pagado - c.devolucion - c.documentosTributarios.filter((t) => t.estado === 'REGISTRADO').reduce((s, t) => s + t.monto, 0)
+                }
+                rol={rol}
+              />
 
               {c.estado_cita !== 'CANCELADA' && !resuelta && c.saldo > 0 && (
                 <div className="flex flex-col gap-4 rounded-lg border border-divider px-[18px] py-4">

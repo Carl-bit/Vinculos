@@ -20,6 +20,7 @@ export function Modal({
   children,
   acciones,
   ancho = 'md',
+  cerrable = true,
 }: {
   abierto: boolean;
   onCerrar: () => void;
@@ -28,6 +29,8 @@ export function Modal({
   children?: ReactNode;
   acciones?: ReactNode;
   ancho?: 'md' | 'lg';
+  /** false = sin boton de cerrar ni Escape (p. ej. una aceptacion obligatoria). */
+  cerrable?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -49,7 +52,7 @@ export function Modal({
       onClose={onCerrar}
       onCancel={(e) => {
         e.preventDefault();
-        onCerrar();
+        if (cerrable) onCerrar();
       }}
       className={`m-auto w-[calc(100%-32px)] rounded-lg border border-divider bg-bg p-0 text-text shadow-lg backdrop:bg-neutral-900/40 open:entrada ${
         ancho === 'lg' ? 'max-w-[680px]' : 'max-w-[480px]'
@@ -61,6 +64,7 @@ export function Modal({
             <h2 id={`${id}-titulo`} className="m-0 flex-1 text-[20px] leading-tight font-black tracking-[-0.025em] text-balance">
               {titulo}
             </h2>
+            {cerrable && (
             <button
               type="button"
               onClick={onCerrar}
@@ -69,6 +73,7 @@ export function Modal({
             >
               <Icon name="close" size={20} />
             </button>
+            )}
           </div>
           {descripcion && (
             <div id={`${id}-desc`} className="m-0 text-[14px] leading-relaxed font-semibold text-pretty text-neutral-700">

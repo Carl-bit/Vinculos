@@ -13,14 +13,15 @@ import { Icon } from '@/components/ui/Icon';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { ESTADO_PAGO, MEDIO_PAGO } from '@/lib/cobros';
-import { formatoClp, formatoFechaLarga, formatoHora } from '@/lib/formato';
+import { ESTADO_PAGO, MEDIO_PAGO, TIPO_DOCUMENTO_TRIBUTARIO } from '@/lib/cobros';
+import { formatoClp, formatoFecha, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import { nombresDe, useCobrosPortal, useEquipoPortal, type EstadoPagoCita } from '@/lib/portal';
 
 /**
  * Pagos del portal (paciente adulto o adulto responsable): estado de cada
  * cita (monto fijado al confirmar, pagado, saldo), detalle de pagos y
- * boleta, y los datos para transferir cuando el profesional cobra directo y
+ * comprobante de pago (no tributario) y la boleta del SII si quien cobro la
+ * registro, y los datos para transferir cuando el profesional cobra directo y
  * queda saldo. 03b-3.4: el saldo de una sesion ya realizada se paga en linea
  * con los medios del centro ("Pagar en línea"); si no, en el centro.
  */
@@ -134,12 +135,21 @@ function FilaPago({ c, profesional }: { c: EstadoPagoCita; profesional: string }
                         : `Cancelación: corresponde devolver ${formatoClp(d.resolucion.montoDevolucion)}.`}
                   </p>
                 )}
-                {d.boleta && (
+                {d.comprobante && (
                   <p className="m-0 flex items-center gap-2 text-[13px] font-bold">
                     <Icon name="receipt_long" size={17} className="text-accent-2-700" />
-                    Boleta n.º {d.boleta.numero} por {formatoClp(d.boleta.monto)}
+                    Comprobante de pago {d.comprobante.numero} por {formatoClp(d.comprobante.monto)}
+                    <span className="font-semibold text-neutral-700">(no es boleta del SII)</span>
                   </p>
                 )}
+                {d.documentosTributarios
+                  .filter((t) => t.estado === 'REGISTRADO')
+                  .map((t) => (
+                    <p key={t.id} className="m-0 flex items-center gap-2 text-[13px] font-bold">
+                      <Icon name="description" size={17} className="text-accent-2-700" />
+                      {TIPO_DOCUMENTO_TRIBUTARIO[t.tipo]} folio {t.folio} · {formatoFecha(t.fechaEmision)} · {formatoClp(t.monto)}
+                    </p>
+                  ))}
                 {c.saldo > 0 && c.estado_cita === 'CONFIRMADA' && <DatosTransferencia citaId={c.cita_id} />}
               </>
             )}

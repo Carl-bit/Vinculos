@@ -39,7 +39,7 @@
     "@nestjs/swagger": "^11.4.7",
     "@nestjs/throttler": "^6.7.1",
     "@prisma/client": "^6.0.0",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "nestjs-cls": "^7.0.1",
@@ -54,7 +54,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "shamir-secret-sharing": "0.0.4",
-    "sharp": "^0.34.5"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -95,5 +95,12 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "multer": "^2.5.0",
+    "deepmerge-ts": "^8.0.2",
+    "@nestjs/swagger": {
+      "js-yaml": "^5.5.0"
+    }
   }
 }

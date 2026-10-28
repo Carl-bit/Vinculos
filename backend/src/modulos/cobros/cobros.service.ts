@@ -4,12 +4,13 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma, type MedioPago, type TipoNotificacion } from '@prisma/client';
 
+import { registrarExportacion } from '../../core/bd/auditoria';
 import { texto } from '../../core/bd/claro';
 import { generarPdfTabla } from '../../core/documentos/pdf';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
-import type { ArriendoDto, FiltroCobrosDto, LiquidacionDto, RegistrarPagoDto, ResolverCitaDto } from './dto/cobros.dto';
+import type { ArriendoDto, FiltroCobrosDto, LiquidacionDto, RegistrarDocumentoTributarioDto, RegistrarPagoDto, ResolverCitaDto } from './dto/cobros.dto';
 
 export interface EstadoPagoCita {
   cita_id: string;
@@ -46,16 +47,18 @@ export interface ReporteCobros {
 
 /**
  * Cobros (02h). Toda escritura con reglas de estado va por funciones de la BD
- * (registrar_pago, anular_pago, resolver_cita, emitir_boleta,
+ * (registrar_pago, anular_pago, resolver_cita, emitir_comprobante_pago,
+ * registrar_documento_tributario, anular_documento_tributario,
  * generar_liquidacion, avanzar_liquidacion). El saldo lo calcula la vista
  * estado_pago_citas bajo la RLS de quien consulta (ADMIN/GESTION todo;
  * PROFESIONAL y PACIENTE lo suyo; PRACTICANTE nada).
  *
  * El monto de la cita lo fija la BD al confirmar (tarifa mas especifica
- * vigente) y no cambia. Pasarela de pago, medios reales y SII: fuera de
- * alcance (la boleta lleva un numero simulado).
+ * vigente) y no cambia. AUD-01: el sistema emite un comprobante de pago
+ * (no tributario); la boleta del SII la emite fuera quien cobro y aqui solo
+ * se registra (folio, tipo, fecha y monto).
  *
- * 02i: avisa al paciente cada pago registrado y cada boleta emitida
+ * 02i: avisa al paciente cada pago registrado y cada comprobante emitido
  * (despues del COMMIT; bandeja y, segun sus preferencias, correo).
  */
 @Injectable()
@@ -84,16 +87,30 @@ export class CobrosService {
   async detalle(citaId: string) {
     const tx = this.bd.tx();
     const estado = await this.estado(citaId);
-    const [pagos, resolucion, boleta] = await Promise.all([
+    const [pagos, resolucion, comprobante, tributarios] = await Promise.all([
       tx.pago.findMany({ where: { citaId }, orderBy: { createdAt: 'asc' } }),
       tx.resolucionCita.findUnique({ where: { citaId } }),
-      tx.boleta.findUnique({ where: { citaId } }),
+      tx.comprobantePago.findUnique({ where: { citaId } }),
+      tx.documentoTributario.findMany({ where: { citaId }, orderBy: { registradoEn: 'asc' } }),
     ]);
     return {
       ...estado,
       pagos,
       resolucion,
-      boleta: boleta && { ...boleta, emisorNombre: texto(boleta.emisorNombre), emisorRut: texto(boleta.emisorRut) },
+      comprobante: comprobante && { ...comprobante, emisorNombre: texto(comprobante.emisorNombre), emisorRut: texto(comprobante.emisorRut) },
+      documentosTributarios: tributarios.map((d) => ({
+        id: d.id,
+        citaId: d.citaId,
+        tipo: d.tipo,
+        folio: d.folio,
+        emisor: d.emisor,
+        fechaEmision: d.fechaEmision.toISOString().slice(0, 10),
+        monto: d.monto,
+        estado: d.estado,
+        registradoEn: d.registradoEn,
+        anuladoEn: d.anuladoEn,
+        motivoAnulacion: d.motivoAnulacion,
+      })),
     };
   }
 
@@ -102,16 +119,16 @@ export class CobrosService {
     return this.bd.tx().$queryRaw<DeudaPaciente[]>`SELECT * FROM deudas_pacientes()`;
   }
 
-  /** Sobrepago -> 422. Si la cita queda PAGADA se emite su boleta en la misma transaccion. */
+  /** Sobrepago -> 422. Si la cita queda PAGADA se emite su comprobante en la misma transaccion. */
   async registrarPago(citaId: string, dto: RegistrarPagoDto) {
     const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
       SELECT registrar_pago(${citaId}::uuid, ${dto.monto}::int, ${dto.medioPago}::medio_pago) AS id`;
     this.avisar('PAGO_REGISTRADO', (await this.estado(citaId)).paciente_id, id);
-    await this.emitirBoleta(citaId);
+    await this.emitirComprobante(citaId);
     return this.detalle(citaId);
   }
 
-  /** Con motivo; nunca borra. Con boleta emitida o ya liquidado -> 409. */
+  /** Con motivo; nunca borra. Con comprobante emitido o ya liquidado -> 409. */
   async anularPago(pagoId: string, motivo: string) {
     await this.bd.tx().$executeRaw`SELECT anular_pago(${pagoId}::uuid, ${motivo})`;
     return encontrado(await this.bd.tx().pago.findUnique({ where: { id: pagoId } }), 'Pago');
@@ -128,20 +145,38 @@ export class CobrosService {
     await this.bd.tx().$queryRaw`
       SELECT resolver_cita(${citaId}::uuid, ${dto.decision}::decision_cita, ${nueva}::uuid, ${dto.motivo ?? null})`;
     if (nueva) {
-      await this.emitirBoleta(nueva);
+      await this.emitirComprobante(nueva);
     }
     return this.detalle(citaId);
   }
 
   /**
-   * Boleta unica al quedar PAGADA, con copia del emisor (cifrada con el id
-   * que genera la API): el profesional si cobro directo, si no el centro.
-   * Sin RUT registrado se guarda un valor explicito ("sin RUT").
+   * AUD-01 (E1.4): boleta o factura del SII emitida fuera por quien cobro.
+   * La BD decide el emisor y quien puede (registrar_documento_tributario).
    */
-  private async emitirBoleta(citaId: string) {
+  async registrarTributario(citaId: string, dto: RegistrarDocumentoTributarioDto) {
+    await this.bd.tx().$queryRaw`
+      SELECT registrar_documento_tributario(${citaId}::uuid, ${dto.tipo}::tipo_documento_tributario, ${dto.folio},
+                                            ${dto.fechaEmision}::date, ${dto.monto}::int)`;
+    return this.detalle(citaId);
+  }
+
+  /** Anula con motivo (quien lo emitio); el documento queda registrado. */
+  async anularTributario(id: string, motivo: string) {
+    await this.bd.tx().$executeRaw`SELECT anular_documento_tributario(${id}::uuid, ${motivo})`;
+    const d = encontrado(await this.bd.tx().documentoTributario.findUnique({ where: { id }, select: { citaId: true } }), 'Documento');
+    return this.detalle(d.citaId);
+  }
+
+  /**
+   * Comprobante de pago (no tributario) unico al quedar PAGADA, con copia del
+   * emisor (cifrada con el id que genera la API): el profesional si cobro
+   * directo, si no el centro. Sin RUT registrado se guarda "sin RUT".
+   */
+  private async emitirComprobante(citaId: string) {
     const tx = this.bd.tx();
     const estado = await this.estado(citaId);
-    if (estado.estado_pago !== 'PAGADO' || (await tx.boleta.count({ where: { citaId } })) > 0) {
+    if (estado.estado_pago !== 'PAGADO' || (await tx.comprobantePago.count({ where: { citaId } })) > 0) {
       return;
     }
     const directo = (await tx.pago.count({ where: { citaId, estado: 'REGISTRADO', cobradoPor: 'PROFESIONAL' } })) > 0;
@@ -159,11 +194,11 @@ export class CobrosService {
     }
     const id = randomUUID();
     const [{ numero }] = await tx.$queryRaw<[{ numero: string | null }]>`
-      SELECT emitir_boleta(${id}::uuid, ${citaId}::uuid,
-                           ${this.llavero.cifrarCampo(nombre, 'boletas', 'emisor_nombre', id)},
-                           ${this.llavero.cifrarCampo(rut ?? 'sin RUT', 'boletas', 'emisor_rut', id)}) AS numero`;
+      SELECT emitir_comprobante_pago(${id}::uuid, ${citaId}::uuid,
+                           ${this.llavero.cifrarCampo(nombre, 'comprobantes_pago', 'emisor_nombre', id)},
+                           ${this.llavero.cifrarCampo(rut ?? 'sin RUT', 'comprobantes_pago', 'emisor_rut', id)}) AS numero`;
     if (numero) {
-      this.avisar('BOLETA_EMITIDA', estado.paciente_id, id);
+      this.avisar('COMPROBANTE_EMITIDO', estado.paciente_id, id);
     }
   }
 
@@ -199,8 +234,10 @@ export class CobrosService {
     return r;
   }
 
+  /** AUD-01: la descarga queda en registro_exportaciones (sin datos de pacientes: agregados por profesional). */
   async reportePdf(desde: Date, hasta: Date): Promise<Buffer> {
     const r = await this.reporte(desde, hasta);
+    await registrarExportacion(this.bd.tx(), this.bd.usuario(), { recurso: 'reporte_cobros', detalle: `periodo ${r.desde} a ${r.hasta}` });
     const pesos = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`;
     const t = r.profesionales.reduce((a, p) => ({ s: a.s + p.sesiones, c: a.c + p.cobrado, p: a.p + p.pendiente, m: a.m + p.comision_estimada }), {
       s: 0,
@@ -224,6 +261,7 @@ export class CobrosService {
   /** PDF de una liquidacion (ADMIN/GESTION; el profesional las suyas emitidas, RLS). */
   async liquidacionPdf(id: string): Promise<Buffer> {
     const l = encontrado(await this.bd.tx().liquidacion.findUnique({ where: { id } }), 'Liquidacion');
+    await registrarExportacion(this.bd.tx(), this.bd.usuario(), { recurso: 'liquidaciones', referenciaId: l.id });
     const pesos = (n: number) => `$${n.toLocaleString('es-CL')}`;
     return generarPdfTabla({
       centro: await this.nombreCentro(),

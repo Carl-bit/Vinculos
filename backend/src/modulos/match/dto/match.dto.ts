@@ -206,6 +206,11 @@ export class SolicitudHoraDto {
   @IsUUID()
   terminosId?: string;
 
+  /** AUD-01 (E2.3c): acepta avisos por WhatsApp (casilla propia, desmarcada por defecto). */
+  @IsOptional()
+  @IsBoolean()
+  aceptaWhatsapp?: boolean;
+
   /** Trampa para bots: debe venir vacio (campo oculto del formulario). */
   @IsOptional()
   @IsString()

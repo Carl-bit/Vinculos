@@ -4,8 +4,8 @@ import { notFound } from 'next/navigation';
 import { DocumentoPolitica } from '@/components/shared/DocumentoPolitica';
 import { politica, type TipoPolitica } from '@/lib/api/servidor';
 
-/** El protocolo interno del equipo no es publico (la API responde 404). */
-type TipoPublico = Exclude<TipoPolitica, 'PROTOCOLO_EQUIPO'>;
+/** El protocolo interno del equipo y el contrato con Vinculos (AUD-01) no son publicos (la API responde 404). */
+type TipoPublico = Exclude<TipoPolitica, 'PROTOCOLO_EQUIPO' | 'TERMINOS_SERVICIO' | 'DPA'>;
 
 const TITULOS: Record<TipoPublico, string> = {
   POLITICA_DATOS: 'Política de datos personales',
