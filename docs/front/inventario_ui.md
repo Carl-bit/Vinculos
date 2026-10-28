@@ -40,6 +40,8 @@ del diseño. Se sube un tono:
 | Texto secundario `neutral-600` sobre `bg` | 3.6:1 | `neutral-700` | 5.5:1 |
 | Placeholder | 3.1:1 | `neutral-700` | 5.5:1 |
 | Texto secundario `neutral-700` sobre el fondo del panel `neutral-300` | 4.4:1 | `neutral-800` (bajada, volver, ayuda de campo, opciones; 03b-5.1) | 6.9:1 |
+| Token `neutral-700` (#645c50) sobre `neutral-300` donde quedaba | 4.4:1 | token oscurecido a #5f574b (03b-4.1) | 4.8:1 |
+| Token `accent-2-700` (#56633f) sobre `neutral-300` | 4.35:1 | token oscurecido a #515e3b (03b-4.1) | 4.7:1 |
 
 El punto de la marca y los bordes siguen con `-600` (son decorativos, no son texto).
 

@@ -23,6 +23,14 @@ describe('menuVisible', () => {
     expect(etiquetas(menuVisible('admin', 'GESTION', todos))).toContain('Cobros');
   });
 
+  it('la seccion Centro es solo de la cuenta madre (ADMIN)', () => {
+    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
+    expect(menuVisible('admin', 'ADMIN', todos).filter((i) => i.grupo === 'centro')).toHaveLength(2);
+    for (const rol of ['GESTION', 'PROFESIONAL', 'PRACTICANTE'] as const) {
+      expect(menuVisible('admin', rol, todos).filter((i) => i.grupo === 'centro')).toEqual([]);
+    }
+  });
+
   it('el portal no muestra opciones del backoffice', () => {
     const principal = (activos: Parameters<typeof menuVisible>[2]) => menuVisible('portal', 'PACIENTE', activos).filter((i) => i.grupo === 'principal');
     expect(etiquetas(principal(['AGENDA']))).toEqual(['Mi cuenta', 'Pedir una hora']);

@@ -10,7 +10,7 @@
 -- aprovisionamiento de llaves (infra/scripts/llaves/aprovisionar.sh).
 --
 -- Casos 1-17: los 17 del prompt 01. 18-27: prompt 01b. 28-44: prompt 01c.
--- 134: prompt 03b-4.1 (segundo factor por correo, login por RUT, presupuesto del match). 127-128: prompt 03b-3.1 (confirmacion por medio de pago; 128 como dueño). 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 101-115: prompt 03a-1 (roles por cuenta, cuentas y tokens, politicas, menores, agenda, solicitudes sin cuenta, acceso temporal (lista de espera retirada en 107 y 124), borradores, alta, reseñas, reportes, contenido publico, liquidacion por cita realizada); 03a agrega a 67 las tablas append-only nuevas y a 78 excluye imagenes_publicas (publicas, sin cifrar). 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
+-- 134: prompt 03b-4.1 (segundo factor por correo, login por RUT, presupuesto del match); 135-136: pendientes de 03b-4.1 (retenciones ajenas, purga de codigos como dueño). 127-128: prompt 03b-3.1 (confirmacion por medio de pago; 128 como dueño). 45-67: prompt 01d. 68-78: prompt 01e. 79-84: prompt 01f. 85: prompt 01g. 101-115: prompt 03a-1 (roles por cuenta, cuentas y tokens, politicas, menores, agenda, solicitudes sin cuenta, acceso temporal (lista de espera retirada en 107 y 124), borradores, alta, reseñas, reportes, contenido publico, liquidacion por cita realizada); 03a agrega a 67 las tablas append-only nuevas y a 78 excluye imagenes_publicas (publicas, sin cifrar). 86-87: prompt 02a (sesiones, alertas). 88-89: 02f/02g (notificaciones, portal). 90-95: 02h (documentos clinicos, avisos de derivacion, videollamada y feed, cobros). 96-99: 02i (plantillas, preferencias, adjuntos de la ficha, recordatorios y SEQUENCE); 02i redefinio 88 (mensajes solo via notificar(), un canal por fila, cola con backoff) y 91 (un aviso pendiente por canal); 02h redefinio 32, 52, 53 (pagos y boletas solo via funciones, arriendos por periodo), 51 (el profesional propone tipos de atencion) y 71 (pago pendiente = saldo > 0). 01c redefinio 12, 14 y 27 (aceptar una
 -- derivacion traspasa el paciente); 01d redefinio 36, 37 y 42 (tipo de
 -- atencion por catalogo, oferta con citas en conflicto, el origen cancela en
 -- SIN_ASIGNAR); 01e redefinio 19 (tablas sin GRANT), 50 (perfil
@@ -4515,6 +4515,117 @@ DO $$ DECLARE h1 bytea := sha256(convert_to('t134-uno', 'UTF8')); h2 bytea := sh
   UPDATE match_opciones SET etiqueta = 'Hasta $36.000', objetivo = '36000' WHERE valor = 'hasta_35000';
   UPDATE match_opciones SET etiqueta = 'Hasta $35.000', objetivo = '35000' WHERE valor = 'hasta_35000';
 END $$;
+
+\echo 135 retenciones_en_curso (03b-4.1, categoria C): soft-locks ajenos solo con box y rango; ADMIN/GESTION todos o los de un profesional; el profesional solo los de su agenda; los propios no; paciente sin acceso; rango maximo 62 dias
+DO $$ BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  INSERT INTO bloqueos_temporales (espacio_id, usuario_id, profesional_id, inicio, fin, expira_en) VALUES
+    (test.u('e2'), test.u('a1'), test.u('b1'), test.dia(2, 14), test.dia(2, 15), now() + interval '5 minutes');
+  ASSERT NOT EXISTS (SELECT 1 FROM retenciones_en_curso(test.dia(2, 0), test.dia(3, 0))), 'caso 135: los propios no figuran';
+  ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'retenciones_en_curso') = '{desde,hasta,p_profesional,espacio_id,inicio,fin}',
+    'caso 135: solo box y rango (sin quien ni profesional)';
+END $$;
+DO $$ BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) = 1 AND bool_and(inicio = test.dia(2, 14) AND fin = test.dia(2, 15))
+          FROM retenciones_en_curso(test.dia(2, 0), test.dia(3, 0))), 'caso 135: el profesional ve la de su agenda';
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM retenciones_en_curso(test.dia(2, 0), test.dia(3, 0))), 'caso 135: no ve agendas ajenas';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM retenciones_en_curso(test.dia(2, 0), test.dia(3, 0))) = 1, 'caso 135: GESTION ve todas';
+  ASSERT (SELECT count(*) FROM retenciones_en_curso(test.dia(2, 0), test.dia(3, 0), test.u('b1'))) = 1, 'caso 135: filtro por profesional';
+  ASSERT NOT EXISTS (SELECT 1 FROM retenciones_en_curso(test.dia(2, 0), test.dia(3, 0), test.u('b2'))), 'caso 135: otro profesional';
+  BEGIN
+    PERFORM count(*) FROM retenciones_en_curso(test.dia(0, 0), test.dia(70, 0));
+    RAISE EXCEPTION 'caso 135: rango mayor a 62 dias';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('a2', 'PACIENTE');
+  BEGIN
+    PERFORM count(*) FROM retenciones_en_curso(test.dia(2, 0), test.dia(3, 0));
+    RAISE EXCEPTION 'caso 135: el paciente no ve retenciones';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM purgar_codigos_verificacion();
+    RAISE EXCEPTION 'caso 135: la purga de codigos es solo del job';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+DO $$ BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  DELETE FROM bloqueos_temporales;
+END $$;
+
+\echo 137 Protocolo del centro y origen del paciente (03b-4.2) como app_user: el protocolo interno solo lo ve el equipo (ni el paciente ni sin contexto); leido idempotente y solo via funcion; ADMIN/GESTION ven las lecturas, el profesional la suya; el paciente adulto acusa el protocolo de paciente; traido_por_centro lo fija la BD y solo lo cambia ADMIN/GESTION; regla de comision valida y solo ADMIN
+DO $$ DECLARE v_t timestamptz; v_pac uuid := gen_random_uuid(); BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT EXISTS (SELECT 1 FROM politica_vigente('PROTOCOLO_EQUIPO')), 'caso 137: el equipo ve el protocolo interno';
+  v_t := marcar_protocolo_leido();
+  ASSERT v_t IS NOT NULL AND marcar_protocolo_leido() = v_t, 'caso 137: leido idempotente';
+  ASSERT (SELECT count(*) FROM lecturas_protocolo) = 1, 'caso 137: el profesional ve su lectura';
+  BEGIN
+    INSERT INTO lecturas_protocolo (politica_id, usuario_id, rol)
+    VALUES ((SELECT id FROM politica_vigente('PROTOCOLO_EQUIPO')), test.u('b2'), 'PROFESIONAL');
+    RAISE EXCEPTION 'caso 137: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM comision_derivacion_cita(10000);
+    RAISE EXCEPTION 'caso 137: la funcion interna de comision no es de la API';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- Alta por el propio profesional: no es traido por el centro aunque lo pida.
+  INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id, traido_por_centro)
+  VALUES (v_pac, 'Paz', 'Propia', '1990-01-01', test.u('b1'), true);
+  ASSERT NOT (SELECT traido_por_centro FROM pacientes WHERE id = v_pac), 'caso 137: alta del profesional = propio';
+  BEGIN
+    PERFORM marcar_origen_paciente(v_pac, true);
+    RAISE EXCEPTION 'caso 137: el profesional no marca el origen';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM lecturas_protocolo), 'caso 137: no ve lecturas ajenas';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT EXISTS (SELECT 1 FROM lecturas_protocolo WHERE usuario_id = test.u('b1')), 'caso 137: GESTION ve quien lo leyo';
+  PERFORM marcar_origen_paciente(v_pac, true);
+  ASSERT (SELECT traido_por_centro FROM pacientes WHERE id = v_pac), 'caso 137: GESTION marca traido por el centro';
+  BEGIN
+    UPDATE pacientes SET traido_por_centro = false WHERE id = v_pac;
+    RAISE EXCEPTION 'caso 137: UPDATE directo del origen debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM marcar_origen_paciente(gen_random_uuid(), true);
+    RAISE EXCEPTION 'caso 137: paciente inexistente';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  UPDATE configuracion_centro SET comision_derivacion_tipo = 'MONTO_FIJO', comision_derivacion_valor = 5000;
+  ASSERT (SELECT comision_derivacion_tipo FROM configuracion_centro) = 'GENERAL', 'caso 137: GESTION no cambia la regla';
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    UPDATE configuracion_centro SET comision_derivacion_tipo = 'PORCENTAJE', comision_derivacion_valor = 150;
+    RAISE EXCEPTION 'caso 137: porcentaje mayor a 100';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE configuracion_centro SET comision_derivacion_tipo = 'MONTO_FIJO', comision_derivacion_valor = 1000.5;
+    RAISE EXCEPTION 'caso 137: monto fijo con decimales';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM marcar_origen_paciente(v_pac, false);
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT NOT EXISTS (SELECT 1 FROM politica_vigente('PROTOCOLO_EQUIPO')), 'caso 137: el paciente no ve el protocolo interno';
+  ASSERT NOT EXISTS (SELECT 1 FROM politicas WHERE tipo = 'PROTOCOLO_EQUIPO'), 'caso 137: ni por la tabla';
+  BEGIN
+    PERFORM marcar_protocolo_leido();
+    RAISE EXCEPTION 'caso 137: el paciente no marca el protocolo interno';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM registrar_aceptacion('PROTOCOLO_EQUIPO', test.u('0a'), NULL, NULL);
+    RAISE EXCEPTION 'caso 137: el paciente no acusa el protocolo interno';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM registrar_aceptacion('PROTOCOLO_PACIENTE', test.u('0a'), NULL, NULL);
+  ASSERT EXISTS (SELECT 1 FROM aceptaciones_politica a JOIN politicas p ON p.id = a.politica_id
+                 WHERE p.tipo = 'PROTOCOLO_PACIENTE' AND a.paciente_id = test.u('0a') AND a.canal = 'PORTAL'),
+    'caso 137: acuse del protocolo del paciente';
+  PERFORM test.ctx('b2', 'PROFESIONAL');  -- tratante de Ana desde el caso 43
+  ASSERT EXISTS (SELECT 1 FROM aceptaciones_politica a JOIN politicas p ON p.id = a.politica_id
+                 WHERE p.tipo = 'PROTOCOLO_PACIENTE' AND a.paciente_id = test.u('0a')), 'caso 137: el tratante ve el acuse';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT NOT EXISTS (SELECT 1 FROM politica_vigente('PROTOCOLO_EQUIPO')), 'caso 137: sin contexto no hay protocolo interno';
+  ASSERT EXISTS (SELECT 1 FROM politica_vigente('PROTOCOLO_PACIENTE')), 'caso 137: el del paciente es publico';
+END $$;
 \connect :owner_url
 \set ON_ERROR_STOP 1
 
@@ -4897,6 +5008,48 @@ DO $$ BEGIN
     UPDATE configuracion_centro SET modulos_activos = ARRAY['MATCH']::modulo_centro[];
     RAISE EXCEPTION 'caso 115: Match requiere Equipo';
   EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+
+\echo 136 Job de codigos (03b-4.1): borra codigos de correo vencidos o usados hace mas de 24 h y respaldo usados o anulados hace mas de 90 dias; los vigentes quedan
+DO $$ DECLARE h text := 't136-'; n int; BEGIN
+  INSERT INTO codigos_verificacion (usuario_id, codigo_hash, expira_en, creado_en) VALUES
+    (test.u('b1'), sha256(convert_to(h || 'viejo', 'UTF8')), now() - interval '2 days', now() - interval '2 days 10 minutes'),
+    (test.u('b1'), sha256(convert_to(h || 'vigente', 'UTF8')), now() + interval '10 minutes', now());
+  INSERT INTO codigos_respaldo (usuario_id, codigo_hash, usado_en, anulado_en) VALUES
+    (test.u('b1'), sha256(convert_to(h || 'r-usado', 'UTF8')), now() - interval '100 days', NULL),
+    (test.u('b1'), sha256(convert_to(h || 'r-anulado', 'UTF8')), NULL, now() - interval '100 days'),
+    (test.u('b1'), sha256(convert_to(h || 'r-reciente', 'UTF8')), NULL, now() - interval '10 days'),
+    (test.u('b1'), sha256(convert_to(h || 'r-vigente', 'UTF8')), NULL, NULL);
+  n := purgar_codigos_verificacion();
+  ASSERT n >= 3, 'caso 136: borra los vencidos';
+  ASSERT NOT EXISTS (SELECT 1 FROM codigos_verificacion WHERE codigo_hash = sha256(convert_to(h || 'viejo', 'UTF8'))), 'caso 136: codigo viejo';
+  ASSERT EXISTS (SELECT 1 FROM codigos_verificacion WHERE codigo_hash = sha256(convert_to(h || 'vigente', 'UTF8'))), 'caso 136: codigo vigente';
+  ASSERT (SELECT count(*) FROM codigos_respaldo
+          WHERE codigo_hash IN (sha256(convert_to(h || 'r-usado', 'UTF8')), sha256(convert_to(h || 'r-anulado', 'UTF8')))) = 0,
+    'caso 136: respaldo antiguos';
+  ASSERT (SELECT count(*) FROM codigos_respaldo
+          WHERE codigo_hash IN (sha256(convert_to(h || 'r-reciente', 'UTF8')), sha256(convert_to(h || 'r-vigente', 'UTF8')))) = 2,
+    'caso 136: respaldo recientes y vigentes';
+  ASSERT purgar_codigos_verificacion() = 0, 'caso 136: idempotente';
+  DELETE FROM codigos_verificacion WHERE usuario_id = test.u('b1');
+  DELETE FROM codigos_respaldo WHERE usuario_id = test.u('b1');
+END $$;
+
+\echo 138 Comision por derivacion (03b-4.2, dueño): GENERAL = porcentaje general (como antes); PORCENTAJE y MONTO_FIJO solo para sesiones de pacientes traidos por el centro, monto fijo con tope en lo cobrado; el alta sin contexto respeta el origen
+DO $$ DECLARE v_conf configuracion_centro%ROWTYPE; v_pac uuid := gen_random_uuid(); BEGIN
+  SELECT * INTO v_conf FROM configuracion_centro;
+  UPDATE configuracion_centro SET comision_centro_porcentaje = 10, comision_derivacion_tipo = 'GENERAL', comision_derivacion_valor = 0;
+  ASSERT comision_derivacion_cita(20000) = 2000, 'caso 138: GENERAL usa el porcentaje general';
+  UPDATE configuracion_centro SET comision_derivacion_tipo = 'PORCENTAJE', comision_derivacion_valor = 25;
+  ASSERT comision_derivacion_cita(20000) = 5000, 'caso 138: porcentaje de derivacion';
+  UPDATE configuracion_centro SET comision_derivacion_tipo = 'MONTO_FIJO', comision_derivacion_valor = 8000;
+  ASSERT comision_derivacion_cita(20000) = 8000 AND comision_derivacion_cita(5000) = 5000 AND comision_derivacion_cita(0) = 0,
+    'caso 138: monto fijo con tope en lo cobrado';
+  INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id, traido_por_centro)
+  VALUES (v_pac, 'Teo', 'Centro', '1990-01-01', test.u('b1'), true);
+  ASSERT (SELECT traido_por_centro FROM pacientes WHERE id = v_pac), 'caso 138: sin contexto respeta el origen';
+  UPDATE configuracion_centro SET comision_centro_porcentaje = v_conf.comision_centro_porcentaje,
+    comision_derivacion_tipo = v_conf.comision_derivacion_tipo, comision_derivacion_valor = v_conf.comision_derivacion_valor;
 END $$;
 
 \echo 122 03a-2 como dueño: plantilla publicada e ingreso inmutables; mensajes sin edicion; duplicado con alerta y aviso; purga y reintento de correos (jobs)

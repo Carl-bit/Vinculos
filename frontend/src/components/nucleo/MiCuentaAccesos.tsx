@@ -44,13 +44,15 @@ function Desplegable({ icono, titulo, nota, children }: { icono: Icono; titulo: 
  * verificacion en dos pasos, avisos y, si cobra, liquidaciones. Cada fila se
  * despliega o lleva a su seccion.
  */
-export function MiCuentaAccesos({ liquidaciones }: { liquidaciones: boolean }) {
+export function MiCuentaAccesos({ liquidaciones, contacto = true }: { liquidaciones: boolean; contacto?: boolean }) {
   return (
     <Panel titulo="Mi cuenta">
       <div className="mt-4 flex flex-col gap-2.5">
-        <Desplegable icono="badge" titulo="Mis datos de contacto" nota="Nombre, correo de ingreso y teléfono">
-          <MiCuentaEquipo enPanel={false} />
-        </Desplegable>
+        {contacto && (
+          <Desplegable icono="badge" titulo="Mis datos de contacto" nota="Nombre, correo de ingreso y teléfono">
+            <MiCuentaEquipo enPanel={false} />
+          </Desplegable>
+        )}
         <Desplegable icono="key" titulo="Cambiar mi contraseña" nota="Te pediremos la actual">
           <CambioPassword tono="team" enPanel={false} />
         </Desplegable>

@@ -55,7 +55,7 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
   useEffect(() => setMenuAbierto(false), [ruta]);
 
   return (
-    <ProveedorEquipoActivo key={sesion.rol}>
+    <ProveedorEquipoActivo key={sesion.rol} habilitado={esAdministracion(sesion.rol)}>
       <div className="min-h-screen bg-neutral-300 md:grid md:grid-cols-[246px_1fr]">
         <aside className="z-[2] flex flex-col gap-[26px] border-r border-divider bg-bg px-4 pt-[22px] pb-6 shadow-md md:sticky md:top-0 md:h-screen md:overflow-y-auto">
           <div className="flex items-center justify-between gap-3 px-2">

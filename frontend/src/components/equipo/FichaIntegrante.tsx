@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { ChoiceGroup } from '@/components/ui/ChoiceGroup';
 import { Estrellas } from '@/components/ui/Estrellas';
 import { Field, Input } from '@/components/ui/Field';
+import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
@@ -42,9 +43,21 @@ const hoy = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sa
  * tipos de atencion y especialidades (ADMIN aprueba), trayectoria (ADMIN
  * verifica), tarifas, datos privados a pedido, agenda y pacientes (solo
  * estado administrativo), reseñas publicadas y la cuenta (ADMIN).
+ * propio: "Mi perfil" de la cuenta madre (2026-10-27): sin aprobar ni
+ * verificar lo propio y sin la cabecera (la pone Mi perfil).
  */
-export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: string; nombre: string; roles: Rol[] }; cuenta?: Cuenta; rol: Rol }) {
-  const admin = rol === 'ADMIN';
+export function FichaIntegrante({
+  miembro,
+  cuenta,
+  rol,
+  propio = false,
+}: {
+  miembro: { id: string; nombre: string; roles: Rol[] };
+  cuenta?: Cuenta;
+  rol: Rol;
+  propio?: boolean;
+}) {
+  const admin = rol === 'ADMIN' && !propio;
   const yo = useMiCuenta();
   const profesional = miembro.roles.includes('PROFESIONAL') || miembro.roles.includes('PRACTICANTE');
   const perfil = usePerfilProfesional(profesional ? miembro.id : undefined);
@@ -56,7 +69,7 @@ export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: strin
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-4 rounded-lg border border-divider bg-bg px-6 py-5 shadow-sm">
+      <div className={`flex flex-wrap items-center gap-4 rounded-lg border border-divider bg-bg px-6 py-5 shadow-sm ${propio ? 'hidden' : ''}`}>
         {perfil.data?.fotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- imagen publica servida por la API
           <img src={perfil.data.fotoUrl} alt="" className="size-16 rounded-full object-cover" />
@@ -80,7 +93,10 @@ export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: strin
       </div>
 
       {profesional && (
-        <Panel titulo="Descripción y datos del perfil" bajada="Se muestran en el perfil público del centro. Publicarlo lo decide cada profesional.">
+        <Panel
+          titulo={propio ? 'Mi perfil profesional' : 'Descripción y datos del perfil'}
+          bajada="Se muestran en el perfil público del centro. Publicarlo lo decide cada profesional."
+        >
           <div className="mt-4">
             <EstadoConsulta consulta={perfil}>
               {(p) =>
@@ -103,11 +119,12 @@ export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: strin
             <Dato etiqueta="Próxima sesión" valor={proxima ? `${formatoFechaLarga(proxima)}, ${formatoHora(proxima)}` : 'Sin horas agendadas'} />
           </div>
           <div className="mt-3 flex flex-wrap gap-3 text-[13px] font-extrabold">
-            <Link href="/admin/agenda" className="text-accent-700 underline underline-offset-2">
-              Ver agenda
+            {/* La agenda y los pacientes de este integrante (selector de equipo por la URL). */}
+            <Link href={`/admin/agenda?equipo=${miembro.id}`} className="text-accent-700 underline underline-offset-2">
+              {propio ? 'Ver mi agenda' : 'Ver su agenda'}
             </Link>
-            <Link href="/admin/fichas" className="text-accent-700 underline underline-offset-2">
-              Ver pacientes
+            <Link href={`/admin/fichas?equipo=${miembro.id}`} className="text-accent-700 underline underline-offset-2">
+              {propio ? 'Ver mis pacientes' : 'Ver sus pacientes'}
             </Link>
           </div>
         </Panel>
@@ -455,6 +472,52 @@ function ResenasPublicas({ profesionalId }: { profesionalId: string }) {
 }
 
 /** Cuenta (solo ADMIN): activar, invitacion, segundo factor, rol PROFESIONAL adicional y baja. */
+const PASTILLAS_ROL = [
+  { rol: 'ADMIN', etiqueta: 'Cuenta madre', icono: 'shield_person' },
+  { rol: 'GESTION', etiqueta: 'Gestión', icono: 'admin_panel_settings' },
+  { rol: 'PROFESIONAL', etiqueta: 'Profesional', icono: 'person' },
+  { rol: 'PRACTICANTE', etiqueta: 'Practicante', icono: 'school' },
+] as const;
+
+/**
+ * "Rol dentro del centro" (diseño "Perfil Profesional", 03b-4.1 pendiente 2):
+ * pastillas de solo lectura con el rol principal y los adicionales activos.
+ * El principal no se cambia (regla de la BD); el rol profesional adicional se
+ * agrega o se da de baja con los botones de la cuenta.
+ */
+function RolesCentro({ cuenta }: { cuenta: Cuenta }) {
+  const adicionales = cuenta.rolesAdicionales.filter((r) => r.activo).map((r) => r.rol);
+  const visibles = PASTILLAS_ROL.filter((p) => p.rol !== 'GESTION' || cuenta.rol === 'GESTION');
+  return (
+    <div className="flex flex-col gap-2">
+      <span id={`roles-${cuenta.id}`} className="text-[12px] font-extrabold text-neutral-800">
+        Rol dentro del centro
+      </span>
+      <ul aria-labelledby={`roles-${cuenta.id}`} className="m-0 flex list-none flex-wrap gap-2 p-0">
+        {visibles.map((p) => {
+          const principal = cuenta.rol === p.rol;
+          const tiene = principal || adicionales.includes(p.rol);
+          return (
+            <li
+              key={p.rol}
+              aria-current={tiene ? 'true' : undefined}
+              className={`flex items-center gap-[7px] rounded-full border-[1.5px] px-4 py-[9px] text-[12.5px] font-extrabold ${
+                tiene ? 'border-accent-2-600 bg-accent-2-200 text-accent-2-900' : 'border-neutral-400 bg-neutral-100 text-neutral-800'
+              }`}
+            >
+              <Icon name={p.icono} size={16} />
+              {p.etiqueta}
+              {principal && <span className="font-bold">· principal</span>}
+              {!principal && tiene && <span className="font-bold">· adicional</span>}
+              {!tiene && <span className="sr-only">(no tiene este rol)</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean }) {
   const cliente = useQueryClient();
   const [aviso, setAviso] = useState<{ error?: string; ok?: string }>({});
@@ -501,6 +564,7 @@ function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean 
   return (
     <Panel titulo="Cuenta" bajada={`${cuenta.email ?? 'Sin correo'}${cuenta.totpActivo ? ' · segundo factor activo' : ''}`}>
       <div className="mt-4 flex flex-col gap-4">
+        <RolesCentro cuenta={cuenta} />
         {propia ? (
           <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
             Es tu propia cuenta: tus datos y tu contraseña se cambian en «Mi perfil». Otra cuenta madre administra tu acceso.

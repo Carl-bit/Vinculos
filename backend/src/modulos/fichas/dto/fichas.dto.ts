@@ -583,6 +583,12 @@ export class CrearIngresoDto {
 }
 
 /** Resolucion de un posible duplicado (solo administracion). */
+/** 03b-4.2 (C-10): el paciente llego por el centro (sitio publico o alta por administracion). */
+export class OrigenPacienteDto {
+  @IsBoolean()
+  traidoPorCentro!: boolean;
+}
+
 export class ResolverDuplicadoDto {
   @IsIn(['DISTINTO', 'MISMO_PACIENTE'])
   resolucion!: 'DISTINTO' | 'MISMO_PACIENTE';
@@ -624,6 +630,8 @@ export class PacienteVista {
   contactoEmergencia!: string | null;
   creadoPorSolicitud!: boolean;
   posibleDuplicado!: boolean;
+  /** 03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion. */
+  traidoPorCentro!: boolean;
   createdAt!: Date;
   updatedAt!: Date;
 }

@@ -30,7 +30,8 @@ function Shell({ sesion, children }: { sesion: SesionActiva; children: ReactNode
   const cuenta = useMiCuenta();
   const portal = usePortal();
   const activos = modulos.data?.activos ?? [];
-  const items = menuVisible('portal', sesion.rol, activos, { restringida: portal.restringida });
+  // Mientras no se sabe si la cuenta es restringida (adolescente), no se muestran sus secciones vedadas.
+  const items = menuVisible('portal', sesion.rol, activos, { restringida: portal.restringida || portal.cargando });
   const header = items.filter((i) => i.grupo === 'principal' && i.href !== '/portal');
   const secciones = items.filter((i) => i.grupo === 'secciones');
   const nombre = cuenta.data?.nombre ?? NOMBRE_ROL[sesion.rol];

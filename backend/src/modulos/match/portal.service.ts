@@ -257,13 +257,32 @@ export class PortalService {
    * ultima que acepto el paciente (RLS: adulto o adulto responsable; el
    * adolescente no ve aceptaciones y recibe aceptada = null).
    */
-  async estadoConsentimientoAtencion(pacienteDelPortal?: string) {
+  estadoConsentimientoAtencion(pacienteDelPortal?: string) {
+    return this.estadoAceptacion('CONSENTIMIENTO_ATENCION', pacienteDelPortal);
+  }
+
+  /** Consentimiento informado de atencion aceptado en el portal (D-3): el paciente adulto o el adulto responsable. */
+  aceptarConsentimientoAtencion(pacienteDelPortal?: string) {
+    return this.aceptar('CONSENTIMIENTO_ATENCION', pacienteDelPortal);
+  }
+
+  /** 03b-4.2: protocolo del centro para pacientes (version vigente y el ultimo acuse). */
+  estadoProtocolo(pacienteDelPortal?: string) {
+    return this.estadoAceptacion('PROTOCOLO_PACIENTE', pacienteDelPortal);
+  }
+
+  /** 03b-4.2: "Lo lei": acuse del protocolo (queda en aceptaciones_politica, canal PORTAL). */
+  aceptarProtocolo(pacienteDelPortal?: string) {
+    return this.aceptar('PROTOCOLO_PACIENTE', pacienteDelPortal);
+  }
+
+  private async estadoAceptacion(tipo: 'CONSENTIMIENTO_ATENCION' | 'PROTOCOLO_PACIENTE', pacienteDelPortal?: string) {
     const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
     const tx = this.bd.tx();
     const [vigente] = await tx.$queryRaw<{ id: string; version: number; texto: string; vigente_desde: Date }[]>`
-      SELECT * FROM politica_vigente('CONSENTIMIENTO_ATENCION'::tipo_politica)`;
+      SELECT * FROM politica_vigente(${tipo}::tipo_politica)`;
     const ultima = await tx.aceptacionPolitica.findFirst({
-      where: { pacienteId, politica: { tipo: 'CONSENTIMIENTO_ATENCION' } },
+      where: { pacienteId, politica: { tipo } },
       orderBy: { aceptadaEn: 'desc' },
       select: { aceptadaEn: true, canal: true, politica: { select: { version: true } } },
     });
@@ -274,8 +293,7 @@ export class PortalService {
     };
   }
 
-  /** Consentimiento informado de atencion aceptado en el portal (D-3): el paciente adulto o el adulto responsable. */
-  async aceptarConsentimientoAtencion(pacienteDelPortal?: string) {
+  private async aceptar(tipo: 'CONSENTIMIENTO_ATENCION' | 'PROTOCOLO_PACIENTE', pacienteDelPortal?: string) {
     const actor = this.bd.usuario();
     const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
     const adulto =
@@ -283,7 +301,7 @@ export class PortalService {
         ? (await this.bd.tx().adultoResponsable.findFirst({ where: { pacienteId, usuarioId: actor.id }, select: { id: true } }))?.id
         : undefined;
     const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
-      SELECT registrar_aceptacion('CONSENTIMIENTO_ATENCION', ${pacienteId}::uuid, ${adulto ?? null}::uuid, NULL) AS id`;
+      SELECT registrar_aceptacion(${tipo}::tipo_politica, ${pacienteId}::uuid, ${adulto ?? null}::uuid, NULL) AS id`;
     return { id, pacienteId };
   }
 

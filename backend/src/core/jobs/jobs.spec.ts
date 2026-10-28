@@ -88,6 +88,12 @@ describe('programacion de jobs (reloj simulado)', () => {
     expect(purga[0].en.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour12: false })).toBe('03:30:00');
   });
 
+  it('una vez al dia a las 03:45 de Chile: purgar codigos de verificacion', () => {
+    const purga = de('purgar_codigos_verificacion');
+    expect(purga).toHaveLength(1);
+    expect(purga[0].en.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour12: false })).toBe('03:45:00');
+  });
+
   it('una vez al dia a las 03:00 de Chile: verificar canarios', () => {
     const canarios = de('verificar_canarios');
     expect(canarios).toHaveLength(1);
@@ -109,6 +115,7 @@ describe('programacion de jobs (reloj simulado)', () => {
         'avisar_pagos_pendientes',
         'avisar_deudas',
         'purgar_mensajes_internos',
+        'purgar_codigos_verificacion',
         'verificar_canarios',
       ]),
     );

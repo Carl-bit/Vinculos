@@ -94,7 +94,11 @@ test('paciente: pide hora con su tratante sin repetir datos y descarga su docume
   await expect(page.getByText('Para reservar, acepta la política de datos')).toBeVisible();
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Reservar esta hora' }).click();
-  await expect(page.getByRole('heading', { name: /Tu hora quedó confirmada|Enviamos tu solicitud|Falta el pago para confirmar tu hora/ })).toBeVisible();
+  // Seed demo: medios en linea habilitados y 50% para confirmar (03b-3.1): la hora espera el pago (confirmado 2026-10-27).
+  await expect(page.getByRole('heading', { name: 'Falta el pago para confirmar tu hora' })).toBeVisible();
+  await page.getByRole('radio', { name: /^Pago en el centro/ }).check();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page.getByText('Tu hora quedó confirmada')).toBeVisible();
 
   await page.goto('/portal/documentos');
   const descarga = page.waitForEvent('download');

@@ -103,9 +103,21 @@ test('Configuracion (ADMIN): politicas versionadas y plantillas de mensaje', asy
 test('Equipo: ficha de un profesional con revisiones y cuenta; practicantes con fecha de acceso', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/equipo');
+  // 03b-4.1 (pendientes 1 y 2): tira agrupada por rol y "Rol dentro del centro" en pastillas.
+  await expect(page.getByRole('group', { name: 'Profesional', exact: true })).toBeVisible();
+  // La tira se desplaza dentro de su caja: la pagina no queda con scroll horizontal.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole('button', { name: /Profesional Uno/ }).click();
   await expect(page.getByRole('heading', { name: 'Tipos de atención y especialidades' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Cuenta' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Rol dentro del centro' })).toContainText('Profesional· principal');
+  await page
+    .locator('label')
+    .filter({ hasText: /Ver lista$/ })
+    .click();
+  await expect(page.getByRole('group', { name: 'Profesional', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Profesional Uno/ })).toBeVisible();
+  await page.locator('label').filter({ hasText: /Tira$/ }).click();
   await page.getByRole('tab', { name: 'Practicantes' }).click();
   await expect(page.getByRole('table', { name: 'Practicantes' })).toBeVisible();
 });
@@ -167,6 +179,31 @@ test('selector de equipo: "Viendo a" con volver a todo el equipo', async ({ page
   await page.goto('/admin/agenda');
   await page.getByLabel('Equipo').selectOption({ label: 'Profesional Uno' });
   await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
+  // 03b-4.1 (pendiente 19): va en la URL, sobrevive a recargar y a navegar por el menu.
+  await expect(page).toHaveURL(/[?&]equipo=[0-9a-f-]{36}/);
+  await page.reload();
+  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
+  await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Cobros' }).click();
+  await expect(page).toHaveURL(/\/admin\/cobros\?equipo=/);
+  await expect(page.getByLabel('Equipo')).not.toHaveValue('');
   await page.getByRole('button', { name: 'Volver a todo el equipo' }).click();
   await expect(page.getByLabel('Equipo')).toHaveValue('');
+  await expect(page).not.toHaveURL(/equipo=/);
+});
+
+test('Mi perfil de la cuenta madre (punto 22): su perfil profesional con ADMIN activo y "Trabajar como Profesional"', async ({ page }) => {
+  await ingresarAdmin(page);
+  await page.goto('/admin/perfil');
+  await expect(page.getByRole('heading', { name: 'Mi perfil profesional' })).toBeVisible();
+  await expect(page.getByText('Ps. Admin Centro Prueba (Demo)').first()).toBeVisible();
+  // Con ADMIN activo no aprueba ni verifica lo propio.
+  await expect(page.getByRole('button', { name: 'Asignar tipos' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Ver mi agenda' }).click();
+  await expect(page).toHaveURL(/\/admin\/agenda\?equipo=/);
+  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Admin');
+  await page.goto('/admin/perfil');
+  await page.getByRole('button', { name: 'Trabajar como Profesional' }).click();
+  await expect(page.getByLabel('Rol activo')).toHaveValue('PROFESIONAL');
+  await expect(page).toHaveURL(/\/admin\/perfil$/);
+  await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Configuración' })).toHaveCount(0);
 });

@@ -26,6 +26,7 @@ import {
   OcupacionBox,
   RecordatorioConsulta,
   RecordatorioRespuesta,
+  RetencionEnCurso,
   VerificacionHorario,
   FeedCalendario,
   SalaVideollamadaVista,
@@ -44,6 +45,7 @@ import {
   HorarioDto,
   LiberarHoraDto,
   RangoDto,
+  RangoRetencionesDto,
   ReprogramarCitaDto,
   SalaDto,
 } from './dto/agenda.dto';
@@ -203,6 +205,13 @@ export class HorariosTomadosController {
   @Roles(...EQUIPO_AGENDA)
   mios(): Promise<HorarioTomado[]> {
     return this.agenda.misHorariosTomados();
+  }
+
+  /** 03b-4.1: "Reservando..." de otras personas en el calendario (box y rango; sin quien). Max. 62 dias. */
+  @Get('ajenos')
+  @Roles(...EQUIPO_AGENDA)
+  ajenos(@Query() rango: RangoRetencionesDto): Promise<RetencionEnCurso[]> {
+    return this.agenda.retencionesEnCurso(rango.desde, rango.hasta, rango.profesionalId);
   }
 
   @Delete(':id')

@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Aviso } from '@/components/ui/Aviso';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Field, Input, Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Panel } from '@/components/ui/Panel';
+import { LecturasProtocolo } from '@/components/nucleo/ProtocoloEquipo';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { useHorarioCentro, usePoliticas, type HorarioCentro, type PoliticaVista } from '@/lib/centro';
@@ -153,6 +154,16 @@ const TIPOS: { tipo: PoliticaVista['tipo']; titulo: string; bajada: string }[] =
     titulo: 'Consentimiento de atención con practicante',
     bajada: 'Lo acepta el paciente (o su adulto responsable) antes de que lo atienda un practicante supervisado.',
   },
+  {
+    tipo: 'PROTOCOLO_PACIENTE',
+    titulo: 'Protocolo para pacientes',
+    bajada: 'Puntualidad, cancelaciones, sesiones online y emergencias. El paciente confirma en su portal que lo leyó.',
+  },
+  {
+    tipo: 'PROTOCOLO_EQUIPO',
+    titulo: 'Protocolo interno del equipo',
+    bajada: 'Solo lo ve el equipo. Cada integrante lo marca como leído en Mi perfil; una versión nueva vuelve a quedar pendiente.',
+  },
 ];
 
 /**
@@ -168,7 +179,9 @@ export function PoliticasCentro() {
         {(l) => (
           <>
             {TIPOS.map((t) => (
-              <PoliticaTipo key={t.tipo} {...t} versiones={l.filter((p) => p.tipo === t.tipo)} />
+              <PoliticaTipo key={t.tipo} {...t} versiones={l.filter((p) => p.tipo === t.tipo)}>
+                {t.tipo === 'PROTOCOLO_EQUIPO' && l.some((p) => p.tipo === t.tipo) && <LecturasProtocolo />}
+              </PoliticaTipo>
             ))}
           </>
         )}
@@ -191,7 +204,19 @@ export function PoliticasCentro() {
   );
 }
 
-function PoliticaTipo({ tipo, titulo, bajada, versiones }: { tipo: PoliticaVista['tipo']; titulo: string; bajada: string; versiones: PoliticaVista[] }) {
+function PoliticaTipo({
+  tipo,
+  titulo,
+  bajada,
+  versiones,
+  children,
+}: {
+  tipo: PoliticaVista['tipo'];
+  titulo: string;
+  bajada: string;
+  versiones: PoliticaVista[];
+  children?: ReactNode;
+}) {
   const cliente = useQueryClient();
   const vigente = versiones[0];
   const [editando, setEditando] = useState(false);
@@ -276,6 +301,7 @@ function PoliticaTipo({ tipo, titulo, bajada, versiones }: { tipo: PoliticaVista
             </div>
           </>
         )}
+        {children}
       </div>
     </Panel>
   );

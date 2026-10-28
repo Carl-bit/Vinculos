@@ -455,7 +455,7 @@ function Metricas() {
                   ].map(([k, v]) => (
                     <div key={k} className="rounded-[14px] border border-divider bg-bg px-3 py-3">
                       <div className="text-[24px] font-black tracking-[-0.03em] tabular-nums">{v}</div>
-                      <div className="text-[11.5px] font-bold text-neutral-800">{k}</div>
+                      <div className="text-[12px] font-bold text-neutral-800">{k}</div>
                     </div>
                   ))}
                 </div>

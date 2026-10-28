@@ -675,6 +675,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/protocolo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 03b-4.2: protocolo interno del centro (version vigente) y si la cuenta ya lo leyo.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        get: operations["CentroController_protocolo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/protocolo/lectura": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE */
+        post: operations["CentroController_marcarProtocoloLeido"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/protocolo/lecturas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Registro para la direccion: quien leyo la version vigente.
+         * @description Roles: ADMIN, GESTION
+         */
+        get: operations["CentroController_lecturasProtocolo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/configuracion/horario": {
         parameters: {
             query?: never;
@@ -1006,6 +1063,26 @@ export interface paths {
          * @description Roles: ADMIN, GESTION
          */
         post: operations["PacientesController_duplicadoRevisado"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pacientes/{id}/origen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 03b-4.2 (C-10): origen del paciente para la comision (lo fija la BD al crear; administracion lo corrige).
+         * @description Roles: ADMIN, GESTION
+         */
+        put: operations["PacientesController_marcarOrigen"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2005,6 +2082,26 @@ export interface paths {
         put?: never;
         /** @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE */
         post: operations["HorariosTomadosController_tomar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agenda/horarios-tomados/ajenos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 03b-4.1: "Reservando..." de otras personas en el calendario (box y rango; sin quien). Max. 62 dias.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        get: operations["HorariosTomadosController_ajenos"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3655,6 +3752,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portal/protocolo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 03b-4.2: protocolo del centro para pacientes (vigente y ultimo acuse).
+         * @description Roles: PACIENTE, RESPONSABLE
+         */
+        get: operations["PortalController_estadoProtocolo"];
+        put?: never;
+        /**
+         * "Lo lei" del paciente adulto o del adulto responsable (no del adolescente con cuenta restringida).
+         * @description Roles: PACIENTE, RESPONSABLE
+         */
+        post: operations["PortalController_aceptarProtocolo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portal/resenas": {
         parameters: {
             query?: never;
@@ -4848,6 +4969,8 @@ export interface components {
         /** @enum {string} */
         ModeloCobro: "CENTRO" | "DIRECTO" | "MIXTO";
         /** @enum {string} */
+        TipoComisionDerivacion: "GENERAL" | "PORCENTAJE" | "MONTO_FIJO";
+        /** @enum {string} */
         ModuloCentro: "PAGINA_PUBLICA" | "FICHAS" | "AGENDA" | "EQUIPO" | "MATCH" | "COBROS";
         /** @enum {string} */
         MedioConfirmacion: "PAGO_EN_CENTRO" | "TRANSFERENCIA" | "PASARELA";
@@ -4860,6 +4983,9 @@ export interface components {
             cobroInasistenciaPorcentaje: string;
             /** @description Decimal (0 a 100): comision del centro sobre lo cobrado en la liquidacion */
             comisionCentroPorcentaje: string;
+            comisionDerivacionTipo: components["schemas"]["TipoComisionDerivacion"];
+            /** @description Decimal: porcentaje (PORCENTAJE) o CLP por sesion (MONTO_FIJO); sin uso con GENERAL */
+            comisionDerivacionValor: string;
             modulosActivos: components["schemas"]["ModuloCentro"][];
             mediosPagoHabilitados: components["schemas"]["MedioConfirmacion"][];
             rolGestionHabilitado: boolean;
@@ -4907,6 +5033,14 @@ export interface components {
             penalizacionCancelacionPorcentaje?: number;
             cobroInasistenciaPorcentaje?: number;
             comisionCentroPorcentaje?: number;
+            /**
+             * @description 03b-4.2 (C-10): comision de las sesiones de pacientes traidos por el
+             *     centro. GENERAL = el porcentaje general; PORCENTAJE (0 a 100) o
+             *     MONTO_FIJO en CLP por sesion (entero, tope: lo cobrado de la sesion).
+             * @enum {string}
+             */
+            comisionDerivacionTipo?: "GENERAL" | "PORCENTAJE" | "MONTO_FIJO";
+            comisionDerivacionValor?: number;
             /** @description Recordatorio de citas (02i): horas antes del inicio; 0 = desactivado. */
             recordatorioHorasAntes?: number;
             /** @description 03a (C-11): liquidar solo citas realizadas con evolucion registrada. */
@@ -4983,7 +5117,7 @@ export interface components {
             url: string;
         };
         /** @enum {string} */
-        TipoPolitica: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE";
+        TipoPolitica: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE" | "PROTOCOLO_EQUIPO" | "PROTOCOLO_PACIENTE";
         PoliticaVista: {
             tipo: components["schemas"]["TipoPolitica"];
             creadaPorId: string | null;
@@ -4995,8 +5129,30 @@ export interface components {
         };
         PoliticaDto: {
             /** @enum {string} */
-            tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE";
+            tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE" | "PROTOCOLO_EQUIPO" | "PROTOCOLO_PACIENTE";
             texto: string;
+        };
+        PoliticaVigenteVista: {
+            id: string;
+            version: number;
+            texto: string;
+            /** Format: date-time */
+            vigenteDesde: string;
+        };
+        ProtocoloEquipoVista: {
+            vigente: components["schemas"]["PoliticaVigenteVista"] | null;
+            /** Format: date-time */
+            leidoEn: string | null;
+        };
+        ProtocoloLeido: {
+            /** Format: date-time */
+            leidoEn: string;
+        };
+        LecturaProtocoloVista: {
+            rol: components["schemas"]["Rol"];
+            usuarioId: string;
+            /** Format: date-time */
+            leidoEn: string;
         };
         HorarioCentroVista: {
             id: string;
@@ -5215,6 +5371,8 @@ export interface components {
             apellido: string;
             creadoPorSolicitud: boolean;
             posibleDuplicado: boolean;
+            /** @description 03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion. */
+            traidoPorCentro: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -5237,6 +5395,8 @@ export interface components {
             apellido: string;
             creadoPorSolicitud: boolean;
             posibleDuplicado: boolean;
+            /** @description 03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion. */
+            traidoPorCentro: boolean;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -5303,6 +5463,9 @@ export interface components {
         ResolverDuplicadoDto: {
             /** @enum {string} */
             resolucion: "DISTINTO" | "MISMO_PACIENTE";
+        };
+        OrigenPacienteDto: {
+            traidoPorCentro: boolean;
         };
         /** @enum {string} */
         CanalAceptacion: "SOLICITUD" | "PORTAL" | "TOKEN" | "PRESENCIAL";
@@ -5923,6 +6086,13 @@ export interface components {
             expiraEn: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        RetencionEnCurso: {
+            espacioId: string | null;
+            /** Format: date-time */
+            inicio: string;
+            /** Format: date-time */
+            fin: string;
         };
         /** @enum {string} */
         EstadoCita: "CONFIRMADA" | "CANCELADA" | "POR_REPROGRAMAR" | "SOLICITADA" | "PENDIENTE_PAGO" | "LIBERADA" | "RETENIDA";
@@ -7382,7 +7552,11 @@ export interface components {
             id: string;
             profesionalId: string;
             totalCobrado: number;
+            /** @description Comision total del centro (general + derivacion). */
             comision: number;
+            /** @description 03b-4.2 (C-10): parte de la comision por sesiones de pacientes traidos por el centro (0 con regla GENERAL). */
+            comisionDerivacion: number;
+            sesionesDerivadas: number;
             arriendos: number;
             total: number;
             creadaPorId: string;
@@ -10476,6 +10650,225 @@ export interface operations {
             };
         };
     };
+    CentroController_protocolo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocoloEquipoVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CentroController_marcarProtocoloLeido: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtocoloLeido"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CentroController_lecturasProtocolo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LecturaProtocoloVista"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
     CentroController_horario: {
         parameters: {
             query?: never;
@@ -12240,6 +12633,85 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ResolverDuplicadoDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PacienteVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    PacientesController_marcarOrigen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrigenPacienteDto"];
             };
         };
         responses: {
@@ -17871,6 +18343,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HorarioTomado"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    HorariosTomadosController_ajenos: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+                profesionalId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetencionEnCurso"][];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -23867,7 +24416,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE";
+                tipo: "POLITICA_DATOS" | "CONSENTIMIENTO_ATENCION" | "TERMINOS_AGENDAMIENTO" | "CONSENTIMIENTO_PRACTICANTE" | "PROTOCOLO_EQUIPO" | "PROTOCOLO_PACIENTE";
             };
             cookie?: never;
         };
@@ -25302,6 +25851,159 @@ export interface operations {
         };
     };
     PortalController_consentimientoAtencion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PacienteDelPortalDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AceptacionPortal"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    PortalController_estadoProtocolo: {
+        parameters: {
+            query?: {
+                /** @description Adulto responsable: el menor a cargo (el paciente adulto no lo indica). */
+                pacienteId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstadoConsentimientoAtencion"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    PortalController_aceptarProtocolo: {
         parameters: {
             query?: never;
             header?: never;

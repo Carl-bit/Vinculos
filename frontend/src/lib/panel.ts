@@ -8,6 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { api, datos } from './api/cliente';
+import { ApiError } from './api/errores';
 import type { components } from './api/esquema';
 
 export type CitaVista = components['schemas']['CitaVista'];
@@ -22,14 +23,49 @@ export function useDashboard() {
   return useQuery({ queryKey: ['panel', 'dashboard'], queryFn: () => datos(api.GET('/api/reportes/dashboard')), refetchInterval: 5 * MINUTO });
 }
 
+/**
+ * Calendario del panel (2026-10-27, estandar_polling.md): se refresca cada 2
+ * minutos solo con la pestaña visible y al volver a ella.
+ */
+export const SONDEO_AGENDA_MS = 120_000;
+const SONDEO_MAXIMO_MS = 300_000;
+
+/**
+ * Regla 3 del estandar: 429 o 5xx (o sin red) duplican el intervalo por cada
+ * error hasta 5 minutos; 401/403/404 detienen el sondeo (la sesion o el
+ * permiso cambiaron). Una respuesta correcta vuelve al intervalo base.
+ */
+export function intervaloSondeo(error: unknown, errores: number, base = SONDEO_AGENDA_MS): number | false {
+  if (!error) return base;
+  if (error instanceof ApiError && error.status !== 429 && error.status < 500) return false;
+  return Math.min(base * 2 ** Math.max(1, errores), SONDEO_MAXIMO_MS);
+}
+
+const sondeoAgenda = {
+  refetchInterval: (q: { state: { error: unknown; errorUpdateCount: number } }) => intervaloSondeo(q.state.error, q.state.errorUpdateCount),
+  refetchIntervalInBackground: false,
+  refetchOnWindowFocus: true,
+} as const;
+
 export function useCitas(
   filtro: { desde?: string; hasta?: string; profesionalId?: string; pacienteId?: string; estado?: CitaVista['estado'] },
   habilitado = true,
+  opciones: { sondeo?: boolean } = {},
 ) {
   return useQuery({
     queryKey: ['panel', 'citas', filtro],
     queryFn: () => datos(api.GET('/api/citas', { params: { query: filtro } })),
     enabled: habilitado,
+    ...(opciones.sondeo ? sondeoAgenda : {}),
+  });
+}
+
+/** "Reservando..." de otras personas: solo box y rango (la BD filtra por rol). Max. 62 dias. */
+export function useRetencionesAjenas(filtro: { desde: string; hasta: string; profesionalId?: string }) {
+  return useQuery({
+    queryKey: ['panel', 'retenciones-ajenas', filtro],
+    queryFn: () => datos(api.GET('/api/agenda/horarios-tomados/ajenos', { params: { query: filtro } })),
+    ...sondeoAgenda,
   });
 }
 

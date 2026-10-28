@@ -131,6 +131,17 @@ export class OcupacionBox {
   fin!: Date;
 }
 
+/**
+ * 03b-4.1: horario que otra persona tiene abierto en pantalla ("Reservando..."),
+ * categoria C: solo el box (nulo si es online) y el rango, sin quien ni profesional.
+ */
+export class RetencionEnCurso {
+  @ApiProperty({ type: String, nullable: true })
+  espacioId!: string | null;
+  inicio!: Date;
+  fin!: Date;
+}
+
 /** Soft-lock con TTL (solo UX: el EXCLUDE de citas sigue siendo la fuente de verdad). */
 export class HorarioTomado {
   id!: string;

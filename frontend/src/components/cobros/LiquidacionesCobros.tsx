@@ -100,6 +100,12 @@ export function LiquidacionesCobros({ periodo, rol }: { periodo: Periodo; rol: R
                         <Td className="text-right font-bold tabular-nums">{formatoClp(q.totalCobrado)}</Td>
                         <Td className="text-right font-bold tabular-nums">
                           {formatoClp(q.comision)} <span className="text-[12px] text-neutral-700">({String(q.comisionPorcentaje)}%)</span>
+                          {q.comisionDerivacion > 0 && (
+                            <span className="block text-[12px] font-semibold text-neutral-700">
+                              incluye {formatoClp(q.comisionDerivacion)} por {q.sesionesDerivadas} {q.sesionesDerivadas === 1 ? 'sesión' : 'sesiones'} de
+                              pacientes del centro
+                            </span>
+                          )}
                         </Td>
                         <Td className="text-right font-bold tabular-nums">{formatoClp(q.arriendos)}</Td>
                         <Td className="text-right font-black tabular-nums">{formatoClp(q.total)}</Td>

@@ -28,12 +28,14 @@ import {
   AccesoFicha,
   AdultosResponsables,
   ConsentimientoPaciente,
+  OrigenPaciente,
   CuentaPaciente,
   DerivacionRecibida,
   HistorialSesiones,
   IndicacionesPaciente,
 } from './SeccionesPaciente';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { reglaCorreo, reglaTelefono, useValidacionCampos } from '@/lib/validacion';
 import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
 
 /**
@@ -71,6 +73,7 @@ export function DetallePaciente({ id, rol }: { id: string; rol: Rol }) {
                     {p.nombre} {p.apellido}
                   </h1>
                   {edad < 18 && <Badge tono="atencion">Menor de edad</Badge>}
+                  {p.traidoPorCentro && <Badge>Llegó por el centro</Badge>}
                 </div>
                 <p className="m-0 mt-1.5 text-[14px] font-semibold text-neutral-800">
                   {edad} años · {formatoFecha(p.fechaNacimiento.slice(0, 10))}
@@ -111,6 +114,7 @@ export function DetallePaciente({ id, rol }: { id: string; rol: Rol }) {
                 <ConsentimientoPaciente paciente={p} rol={rol} />
                 {rol === 'ADMIN' && <AccesosPaciente pacienteId={p.id} tratanteId={p.profesionalId} puedeOtorgar />}
                 {admin && <CuentaPaciente paciente={p} />}
+                {admin && <OrigenPaciente paciente={p} />}
               </div>
             </div>
             {tratante && <CrearDerivacion paciente={p} abierto={derivar} onCerrar={cerrarDerivar} />}
@@ -233,7 +237,11 @@ function EditarPaciente({ paciente, onListo }: { paciente: PacienteVista; onList
     contactoEmergencia: paciente.contactoEmergencia ?? '',
   });
   const [error, setError] = useState<string>();
-  const cambiar = (k: keyof typeof d, v: string) => setD((x) => ({ ...x, [k]: v }));
+  const formato = useValidacionCampos({ email: reglaCorreo(), telefono: reglaTelefono });
+  const cambiar = (k: keyof typeof d, v: string) => {
+    if (k === 'email' || k === 'telefono') formato.limpiar(k);
+    setD((x) => ({ ...x, [k]: v }));
+  };
   const guardar = useMutation({
     mutationFn: () =>
       datos(
@@ -262,10 +270,7 @@ function EditarPaciente({ paciente, onListo }: { paciente: PacienteVista; onList
       setError('Nombre, apellido y fecha de nacimiento son obligatorios.');
       return;
     }
-    if (d.telefono && !/^\+56\d{9}$/.test(d.telefono.replace(/[\s()-]/g, ''))) {
-      setError('Teléfono con código de país: +56 9 1234 5678.');
-      return;
-    }
+    if (!formato.validarTodo({ email: d.email, telefono: d.telefono })) return;
     setError(undefined);
     guardar.mutate();
   };
@@ -286,8 +291,22 @@ function EditarPaciente({ paciente, onListo }: { paciente: PacienteVista; onList
           onChange={(v) => cambiar('fechaNacimiento', v)}
           avisoMenor="Con esta fecha es menor de edad: necesita un adulto responsable registrado para agendar."
         />
-        <Field label="Correo">{(p) => <Input {...p} type="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} />}</Field>
-        <Field label="Teléfono">{(p) => <Input {...p} type="tel" value={d.telefono} onChange={(e) => cambiar('telefono', e.target.value)} />}</Field>
+        <Field label="Correo" error={formato.errores.email}>
+          {(p) => (
+            <Input {...p} type="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} onBlur={() => formato.alSalir('email', d.email)} />
+          )}
+        </Field>
+        <Field label="Teléfono" error={formato.errores.telefono} hint="Con código de país, por ejemplo +56 9 1234 5678.">
+          {(p) => (
+            <Input
+              {...p}
+              type="tel"
+              value={d.telefono}
+              onChange={(e) => cambiar('telefono', e.target.value)}
+              onBlur={() => formato.alSalir('telefono', d.telefono)}
+            />
+          )}
+        </Field>
       </div>
       <Field label="Contacto de emergencia" hint="Nombre, relación y teléfono. Se guarda cifrado.">
         {(p) => <Textarea {...p} rows={2} value={d.contactoEmergencia} onChange={(e) => cambiar('contactoEmergencia', e.target.value)} className="!min-h-16" />}

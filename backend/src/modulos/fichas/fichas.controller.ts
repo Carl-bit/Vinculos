@@ -36,6 +36,7 @@ import {
   EditarPlantillaClinicaDto,
   ListarPlantillasDto,
   ProponerPlantillaDto,
+  OrigenPacienteDto,
   ResolverDuplicadoDto,
   InvitarPacienteDto,
   ListarBorradoresDto,
@@ -169,6 +170,13 @@ export class PacientesController {
   @Roles('ADMIN', 'GESTION')
   duplicadoRevisado(@Param('id', Uuid) id: string, @Body() dto: ResolverDuplicadoDto): Promise<PacienteVista> {
     return this.pacientes.duplicadoRevisado(id, dto.resolucion);
+  }
+
+  /** 03b-4.2 (C-10): origen del paciente para la comision (lo fija la BD al crear; administracion lo corrige). */
+  @Put(':id/origen')
+  @Roles('ADMIN', 'GESTION')
+  marcarOrigen(@Param('id', Uuid) id: string, @Body() dto: OrigenPacienteDto): Promise<PacienteVista> {
+    return this.pacientes.marcarOrigen(id, dto.traidoPorCentro);
   }
 
   /** Politicas y consentimientos aceptados (version, canal, otorgante). */

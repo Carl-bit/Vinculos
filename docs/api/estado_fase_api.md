@@ -431,3 +431,57 @@ sin editar las aplicadas:
   `test/03b41-correctivo.e2e-spec.ts` (nuevo) y `02a`, `02b`, `03a`
   ajustados al codigo por correo (el helper lee el codigo del proveedor
   simulado); unitario `reglas-match.spec.ts` (tramos).
+
+### 03b-4.1, pendientes aprobados (2026-10-27)
+
+- Migracion `20261030000000_03b41_reservando_purga_codigos`:
+  `retenciones_en_curso()` (C) y `purgar_codigos_verificacion()` (job).
+- API: `GET agenda/horarios-tomados/ajenos` (`RetencionEnCurso`); job
+  `purgar_codigos_verificacion` (03:45). OpenAPI y cliente del front
+  regenerados.
+- Seed demo: horas hoy y el proximo dia habil para profesional1,
+  profesional2 y practicante (las de hoy que ya empezaron, como dueño y sin
+  evolucion: "fichas por cerrar").
+- Desarrollo: `LOGIN_LIMITE_POR_MINUTO=120` en `backend/.env.example` (cuenta
+  login, segundo paso y refresh; los silos siguen con 10).
+- Tests: `seguridad_bd.sql` casos 135 y 136; integracion
+  `03b41-correctivo.e2e-spec.ts` ("Reservando..." por rol); unitario
+  `jobs.spec.ts` (programacion del job nuevo).
+
+### 03b-4.1, cierre (2026-10-28)
+
+- Sin cambios de API ni de BD. Seed demo: perfil profesional (sin publicar)
+  de `admin`, horas hoy y mañana para profesional3 a profesional6 (paciente
+  nuevo Ignacio para profesional3). Como `morosidad_desde` es la hora del
+  seed y el centro bloquea a morosos, las horas impagas que terminan despues
+  vuelven moroso al paciente: para los tests que agendan, `npm run
+  demo:reset` cada dia.
+
+### 03b-4.2, protocolo del centro, comision por derivacion y moroso del demo (2026-10-28)
+
+- Migraciones `20261031000000_03b42_enums` y
+  `20261031000100_03b42_protocolos_comision`: politicas `PROTOCOLO_EQUIPO`
+  (no publica) y `PROTOCOLO_PACIENTE` con textos iniciales; tabla
+  `lecturas_protocolo` (A); `pacientes.traido_por_centro` (trigger
+  `pacientes_origen`, `marcar_origen_paciente()`); regla
+  `comision_derivacion_tipo/_valor` en `configuracion_centro`;
+  `liquidaciones.comision_derivacion` y `sesiones_derivadas`;
+  `generar_liquidacion` y `reporte_cobros` con la comision por origen.
+- API: `GET protocolo`, `POST protocolo/lectura`, `GET protocolo/lecturas`,
+  `GET|POST portal/protocolo`, `PUT pacientes/:id/origen`; campos nuevos en
+  configuracion, paciente y liquidacion. OpenAPI y cliente del front
+  regenerados.
+- Seed demo: paciente moroso Rodrigo (`moroso@`, llego por el centro) con
+  una sesion realizada impaga hace 2 dias habiles; `morosidad_desde` se
+  adelanta como dueño a justo antes de esa sesion y las sesiones de hoy que
+  ya terminaron se registran pagadas, asi que solo el queda moroso. GESTION
+  autoriza con motivo su proxima hora (`excepciones_morosidad`) y el job
+  envia el aviso de deuda. Profesional Uno marca leido el protocolo interno y
+  Paciente Prueba acusa el de pacientes. Regla de comision: 20 % general y
+  $5.000 por sesion de pacientes del centro.
+- Tests: `seguridad_bd.sql` casos 137 (app_user) y 138 (dueño); integracion
+  `03b42-protocolo-comision.e2e-spec.ts`.
+- Seed demo (ajuste): todas las horas de hoy y del proximo dia habil se
+  registran pagadas, tambien las que terminan despues del seed, para que no
+  vuelvan morosos a sus pacientes; ya no hace falta `demo:reset` cada dia
+  (si, pasados 2 dias habiles, antes de los tests que agendan).

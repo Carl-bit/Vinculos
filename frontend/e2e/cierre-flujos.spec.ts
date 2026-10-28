@@ -20,13 +20,18 @@ test('Match publico: "Prefiero filtrar yo mismo" busca sin cuestionario y ofrece
 
 test('Perfil publico: una valoracion se puede reportar (el formulario exige el motivo; no se envia)', async ({ page }) => {
   // Seed: la valoracion publicada es de Profesional Uno.
-  await page.goto('/equipo');
-  await page
-    .getByRole('article')
-    .filter({ hasText: 'Profesional Uno' })
-    .getByRole('link', { name: /Ver perfil/ })
-    .first()
-    .click();
+  // El sitio publico es ISR (60 s, sirve la version en cache mientras regenera): justo despues de
+  // `npm run demo:reset` la primera visita puede traer los ids del seed anterior (perfil 404).
+  await expect(async () => {
+    await page.goto('/equipo');
+    await page
+      .getByRole('article')
+      .filter({ hasText: 'Profesional Uno' })
+      .getByRole('link', { name: /Ver perfil/ })
+      .first()
+      .click();
+    await expect(page.getByRole('button', { name: 'Reportar valoración' }).first()).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
   await page.getByRole('button', { name: 'Reportar valoración' }).first().click();
   await expect(page.getByRole('button', { name: 'Enviar reporte' })).toBeDisabled();
   await page.getByLabel('¿Qué problema tiene?').fill('Prueba');

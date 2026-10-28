@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AccionAcceso, MedioConfirmacion, ModeloCobro, ModuloCentro, Rol, TipoAlerta, TipoPolitica } from '@prisma/client';
+import { AccionAcceso, MedioConfirmacion, ModeloCobro, ModuloCentro, Rol, TipoAlerta, TipoComisionDerivacion, TipoPolitica } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -201,6 +201,21 @@ export class EditarConfiguracionDto {
   @Min(0)
   @Max(100)
   comisionCentroPorcentaje?: number;
+
+  /**
+   * 03b-4.2 (C-10): comision de las sesiones de pacientes traidos por el
+   * centro. GENERAL = el porcentaje general; PORCENTAJE (0 a 100) o
+   * MONTO_FIJO en CLP por sesion (entero, tope: lo cobrado de la sesion).
+   */
+  @IsOptional()
+  @IsEnum(TipoComisionDerivacion)
+  comisionDerivacionTipo?: TipoComisionDerivacion;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(1_000_000)
+  comisionDerivacionValor?: number;
 
   /** Recordatorio de citas (02i): horas antes del inicio; 0 = desactivado. */
   @IsOptional()
@@ -580,6 +595,10 @@ export class ConfiguracionCentroVista {
   cobroInasistenciaPorcentaje!: unknown;
   @ApiProperty({ type: String, description: 'Decimal (0 a 100): comision del centro sobre lo cobrado en la liquidacion' })
   comisionCentroPorcentaje!: unknown;
+  @ApiProperty({ enum: TipoComisionDerivacion, enumName: 'TipoComisionDerivacion' })
+  comisionDerivacionTipo!: TipoComisionDerivacion;
+  @ApiProperty({ type: String, description: 'Decimal: porcentaje (PORCENTAJE) o CLP por sesion (MONTO_FIJO); sin uso con GENERAL' })
+  comisionDerivacionValor!: unknown;
   recordatorioHorasAntes!: number;
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
   modulosActivos!: ModuloCentro[];
@@ -652,6 +671,34 @@ export class PoliticaVista {
   vigenteDesde!: Date;
   @ApiProperty({ type: String, nullable: true })
   creadaPorId!: string | null;
+}
+
+/** 03b-4.2: version vigente de una politica (sin quien la publico). */
+export class PoliticaVigenteVista {
+  id!: string;
+  version!: number;
+  texto!: string;
+  vigenteDesde!: Date;
+}
+
+/** 03b-4.2: protocolo interno del equipo y si la cuenta ya leyo la version vigente. */
+export class ProtocoloEquipoVista {
+  @ApiProperty({ type: PoliticaVigenteVista, nullable: true })
+  vigente!: PoliticaVigenteVista | null;
+  @ApiProperty({ type: Date, nullable: true })
+  leidoEn!: Date | null;
+}
+
+export class ProtocoloLeido {
+  leidoEn!: Date;
+}
+
+/** Lectura de la version vigente (ADMIN/GESTION). El nombre lo pone el panel con el directorio. */
+export class LecturaProtocoloVista {
+  usuarioId!: string;
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  leidoEn!: Date;
 }
 
 export class HorarioCentroVista {

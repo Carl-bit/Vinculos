@@ -2,10 +2,12 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Icon } from '@/components/ui/Icon';
@@ -15,7 +17,7 @@ import { formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
 import { fechaHoyChile, nombreDeCita, nombresPacientes, sumarDias, useCitas, useDashboard, useEspacios, usePacientes, inicioDiaChile } from '@/lib/panel';
 import { NOMBRE_ROL } from '@/lib/roles';
-import type { Rol } from '@/lib/sesion';
+import { cambiarRol, type Rol } from '@/lib/sesion';
 import { subirArchivo } from '@/lib/subidas';
 
 /**
@@ -121,7 +123,7 @@ export function CabeceraMiPerfil({ usuarioId, nombre, roles, rolActivo }: { usua
           <ul aria-label="Mis indicadores" className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-4 md:col-span-2 xl:col-span-1 xl:grid-cols-3">
             {indicadores.map((i) => (
               <li key={i.etiqueta} className="flex min-w-[118px] flex-col gap-2.5 rounded-[18px] border border-divider bg-neutral-100 px-4 py-3.5">
-                <span className="flex items-start gap-1.5 text-[10.5px] leading-tight font-extrabold tracking-[0.12em] text-neutral-700 uppercase">
+                <span className="flex items-start gap-1.5 text-[11px] leading-tight font-extrabold tracking-[0.12em] text-neutral-700 uppercase">
                   <Icon name={i.icono} size={15} />
                   {i.etiqueta}
                 </span>
@@ -132,12 +134,43 @@ export function CabeceraMiPerfil({ usuarioId, nombre, roles, rolActivo }: { usua
         )}
       </div>
       {clinico && <ProximaSesion />}
-      {!clinico && atiende && (
-        <p className="m-0 mt-6 border-t border-divider pt-5 text-[13.5px] font-semibold text-neutral-800">
-          Estás trabajando como {NOMBRE_ROL[rolActivo]}. Cambia a tu rol de profesional (selector de rol del menú) para ver tus indicadores y tu agenda.
-        </p>
-      )}
+      {!clinico && atiende && <CambiarAProfesional rolActivo={rolActivo} />}
     </section>
+  );
+}
+
+/**
+ * Cuenta madre con rol Profesional trabajando como ADMIN/GESTION: su perfil
+ * profesional se ve abajo; indicadores, agenda propia, tarifas y trayectoria
+ * se editan con el rol Profesional (la API los entrega por rol activo). El
+ * cambio emite token nuevo, vacia la cache y se queda en Mi perfil.
+ */
+function CambiarAProfesional({ rolActivo }: { rolActivo: Rol }) {
+  const router = useRouter();
+  const cliente = useQueryClient();
+  const [error, setError] = useState<string>();
+  const cambiar = useMutation({
+    mutationFn: () => cambiarRol('PROFESIONAL'),
+    onSuccess: () => {
+      cliente.clear();
+      router.replace('/admin/perfil');
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos cambiar el rol.'),
+  });
+  return (
+    <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-divider pt-5">
+      <p className="m-0 min-w-0 flex-1 text-[13.5px] font-semibold text-neutral-800">
+        Estás trabajando como {NOMBRE_ROL[rolActivo]}. Tus indicadores, tu agenda, tus tarifas y tu trayectoria se ven y se editan con tu rol de profesional.
+        {error && (
+          <span role="alert" className="mt-1 block font-bold text-accent-700">
+            {error}
+          </span>
+        )}
+      </p>
+      <Button variant="secondary" icon="swap_horiz" loading={cambiar.isPending} onClick={() => cambiar.mutate()} className="!py-2.5">
+        Trabajar como Profesional
+      </Button>
+    </div>
   );
 }
 

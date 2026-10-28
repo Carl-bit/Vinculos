@@ -232,7 +232,12 @@ export class CobrosService {
       columnas: ['Concepto', 'Monto'],
       filas: [
         ['Cobrado por el centro (citas realizadas)', pesos(l.totalCobrado)],
-        [`Comision del centro (${l.comisionPorcentaje.toString()}%)`, `-${pesos(l.comision)}`],
+        ...(l.comisionDerivacion > 0 || l.sesionesDerivadas > 0
+          ? [
+              [`Comision del centro (${l.comisionPorcentaje.toString()}%)`, `-${pesos(l.comision - l.comisionDerivacion)}`],
+              [`Comision por derivacion (${l.sesionesDerivadas} sesiones de pacientes del centro)`, `-${pesos(l.comisionDerivacion)}`],
+            ]
+          : [[`Comision del centro (${l.comisionPorcentaje.toString()}%)`, `-${pesos(l.comision)}`]]),
         ['Arriendos del periodo', `-${pesos(l.arriendos)}`],
         ['Total a pagar', pesos(l.total)],
       ],

@@ -61,6 +61,44 @@ export class CentroService {
     return this.bd.tx().politica.create({ data: { tipo, version: 0, texto } });
   }
 
+  /** 03b-4.2: protocolo interno vigente y la lectura de la cuenta (equipo). */
+  async protocoloEquipo() {
+    const tx = this.bd.tx();
+    const vigente = await this.protocoloVigente();
+    const lectura = vigente
+      ? await tx.lecturaProtocolo.findUnique({
+          where: { politicaId_usuarioId: { politicaId: vigente.id, usuarioId: this.bd.usuario().id } },
+          select: { leidoEn: true },
+        })
+      : null;
+    return { vigente, leidoEn: lectura?.leidoEn ?? null };
+  }
+
+  /** "Lo lei" de la version vigente (idempotente: devuelve la primera lectura). */
+  async marcarProtocoloLeido() {
+    const [{ leido }] = await this.bd.tx().$queryRaw<[{ leido: Date }]>`SELECT marcar_protocolo_leido() AS leido`;
+    return { leidoEn: leido };
+  }
+
+  /** ADMIN/GESTION: quien leyo la version vigente (los que faltan los cruza el panel con el directorio). */
+  async lecturasProtocolo() {
+    const vigente = await this.protocoloVigente();
+    if (!vigente) {
+      return [];
+    }
+    return this.bd.tx().lecturaProtocolo.findMany({
+      where: { politicaId: vigente.id },
+      orderBy: { leidoEn: 'asc' },
+      select: { usuarioId: true, rol: true, leidoEn: true },
+    });
+  }
+
+  private async protocoloVigente() {
+    const [v] = await this.bd.tx().$queryRaw<{ id: string; version: number; texto: string; vigente_desde: Date }[]>`
+      SELECT * FROM politica_vigente('PROTOCOLO_EQUIPO'::tipo_politica)`;
+    return v ? { id: v.id, version: v.version, texto: v.texto, vigenteDesde: v.vigente_desde } : null;
+  }
+
   horario() {
     return this.bd.tx().horarioCentro.findMany({ orderBy: [{ diaSemana: 'asc' }, { inicioMin: 'asc' }] });
   }

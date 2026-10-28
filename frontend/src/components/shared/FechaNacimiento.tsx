@@ -60,7 +60,7 @@ export function FechaNacimiento({ label, value, onChange, hint, error, required,
   const describedBy = [hint && `${id}-ayuda`, error && `${id}-error`, menor && avisoMenor && `${id}-menor`].filter(Boolean).join(' ') || undefined;
   const control = (campo: 'dia' | 'mes' | 'anio', etiqueta: string, opciones: { v: string; t: string }[], ancho: string) => (
     <label className={`flex min-w-0 flex-col gap-1 ${ancho}`}>
-      <span className="text-[11.5px] font-bold text-neutral-800">{etiqueta}</span>
+      <span className="text-[12px] font-bold text-neutral-800">{etiqueta}</span>
       <Select
         value={p[campo]}
         onChange={(e) => cambiar(campo, e.target.value)}

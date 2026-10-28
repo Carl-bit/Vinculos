@@ -28,6 +28,7 @@ const VISTA_PACIENTE = {
   contactoEmergencia: true,
   creadoPorSolicitud: true,
   posibleDuplicado: true,
+  traidoPorCentro: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.PacienteSelect;
@@ -162,6 +163,13 @@ export class PacientesService {
   async duplicadoRevisado(id: string, resolucion: 'DISTINTO' | 'MISMO_PACIENTE') {
     await this.obtener(id);
     await this.bd.tx().$executeRaw`SELECT resolver_posible_duplicado(${id}::uuid, ${resolucion})`;
+    return this.obtener(id);
+  }
+
+  /** 03b-4.2 (C-10): ADMIN/GESTION marcan si el paciente llego por el centro (define la comision de sus sesiones). */
+  async marcarOrigen(id: string, traidoPorCentro: boolean) {
+    await this.obtener(id);
+    await this.bd.tx().$executeRaw`SELECT marcar_origen_paciente(${id}::uuid, ${traidoPorCentro})`;
     return this.obtener(id);
   }
 

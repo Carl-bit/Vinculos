@@ -17,6 +17,7 @@ import { useTiposAtencion, type PacienteVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { MENSAJE_CORREO, MENSAJE_TELEFONO, reglaCorreo, reglaTelefono } from '@/lib/validacion';
 import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
 
 const vacio = {
@@ -38,8 +39,8 @@ type Datos = typeof vacio;
 type Errores = Partial<Record<keyof Datos, string>>;
 
 const telefono = (t: string) => t.replace(/[\s()-]/g, '');
-const telefonoValido = (t: string) => !t || /^\+56\d{9}$/.test(telefono(t));
-const correoValido = (c: string) => !c || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.trim());
+const telefonoValido = (t: string) => !reglaTelefono(t);
+const correoValido = (c: string) => !reglaCorreo()(c);
 
 /**
  * Alta de paciente (datos administrativos). PROFESIONAL lo crea como propio;
@@ -103,7 +104,7 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
   /** 03b-4.1: formato al salir del campo (no al final). */
   const alSalir = (k: 'email' | 'telefono' | 'adultoTelefono' | 'adultoEmail') => () => {
     const ok = k.toLowerCase().includes('email') ? correoValido(d[k]) : telefonoValido(d[k]);
-    setErrores((e) => ({ ...e, [k]: ok ? undefined : k.toLowerCase().includes('email') ? 'Revisa el correo.' : 'Con código de país: +56 9 1234 5678.' }));
+    setErrores((e) => ({ ...e, [k]: ok ? undefined : k.toLowerCase().includes('email') ? MENSAJE_CORREO : MENSAJE_TELEFONO }));
   };
 
   const enviar = (e: FormEvent) => {
@@ -114,13 +115,13 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
     if (!d.fechaNacimiento) err.fechaNacimiento = 'La fecha de nacimiento es obligatoria (define si es menor de edad).';
     else if (new Date(d.fechaNacimiento) > new Date()) err.fechaNacimiento = 'La fecha no puede ser futura.';
     if (d.rut && !rutValido(d.rut)) err.rut = 'El RUT no es válido. Revisa el dígito verificador.';
-    if (!correoValido(d.email)) err.email = 'Revisa el correo.';
-    if (!telefonoValido(d.telefono)) err.telefono = 'Con código de país: +56 9 1234 5678.';
+    if (!correoValido(d.email)) err.email = MENSAJE_CORREO;
+    if (!telefonoValido(d.telefono)) err.telefono = MENSAJE_TELEFONO;
     if (admin && !d.profesionalId) err.profesionalId = 'Elige el profesional tratante.';
     if (menor) {
       if (!d.adultoNombre.trim()) err.adultoNombre = 'Un menor necesita un adulto responsable para agendar.';
-      if (!telefonoValido(d.adultoTelefono)) err.adultoTelefono = 'Con código de país: +56 9 1234 5678.';
-      if (!correoValido(d.adultoEmail)) err.adultoEmail = 'Revisa el correo.';
+      if (!telefonoValido(d.adultoTelefono)) err.adultoTelefono = MENSAJE_TELEFONO;
+      if (!correoValido(d.adultoEmail)) err.adultoEmail = MENSAJE_CORREO;
     }
     setErrores(err);
     if (Object.keys(err).length === 0) crear.mutate();
@@ -234,7 +235,9 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
               )}
             </Field>
             <Field label="Correo" hint="Recibe los avisos y consentimientos del menor." error={errores.adultoEmail}>
-              {(p) => <Input {...p} type="email" value={d.adultoEmail} onChange={(e) => cambiar('adultoEmail', e.target.value)} />}
+              {(p) => (
+                <Input {...p} type="email" value={d.adultoEmail} onChange={(e) => cambiar('adultoEmail', e.target.value)} onBlur={alSalir('adultoEmail')} />
+              )}
             </Field>
           </div>
         </fieldset>

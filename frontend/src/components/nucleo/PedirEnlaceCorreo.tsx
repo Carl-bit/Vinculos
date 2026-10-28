@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Field, Input } from '@/components/ui/Field';
 import { ApiError } from '@/lib/api/errores';
 
+import { reglaCorreo } from '@/lib/validacion';
 import { ResultadoCuenta } from './ResultadoCuenta';
 
 /**
@@ -73,7 +74,20 @@ export function PedirEnlaceCorreo({
   return (
     <form onSubmit={(e) => void enviar(e)} className="flex flex-col gap-4" noValidate>
       <Field label="Correo">
-        {(p) => <Input {...p} type="email" autoComplete="email" placeholder="tu@correo.cl" value={email} onChange={(e) => setEmail(e.target.value)} />}
+        {(p) => (
+          <Input
+            {...p}
+            type="email"
+            autoComplete="email"
+            placeholder="tu@correo.cl"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError(undefined);
+            }}
+            onBlur={() => setError(reglaCorreo()(email))}
+          />
+        )}
       </Field>
       {error && (
         <p ref={alerta} tabIndex={-1} role="alert" className="m-0 text-[13.5px] font-bold text-accent-700">

@@ -26,6 +26,7 @@ import { nombreCorto, nombrePerfil } from '@/lib/perfiles';
 import { CuentaRegresiva } from './CuentaRegresiva';
 import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { reglaTelefono } from '@/lib/validacion';
 import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
 
 type Centro = components['schemas']['CentroPublico'];
@@ -33,7 +34,6 @@ type Perfil = components['schemas']['PerfilPublico'];
 type Politica = { id: string; version: number };
 
 const PASOS = ['Horario', 'Tus datos', 'Pago', 'Confirmada'] as const;
-const TELEFONO = /^\+56\d{9}$/;
 
 interface Datos {
   nombre: string;
@@ -121,8 +121,8 @@ export function SolicitudHora({
   };
   const alSalir = (k: 'email' | 'telefono' | 'adultoTelefono') => () => {
     const v = d[k].trim();
-    const malo = k === 'email' ? v !== '' && !CORREO.test(v) : v !== '' && !TELEFONO.test(v.replace(/\s/g, ''));
-    if (malo) setErrores((e) => ({ ...e, [k]: k === 'email' ? MENSAJE_CORREO : 'Formato +56 9 1234 5678.' }));
+    const mensaje = k === 'email' ? (v !== '' && !CORREO.test(v) ? MENSAJE_CORREO : undefined) : reglaTelefono(v);
+    if (mensaje) setErrores((e) => ({ ...e, [k]: mensaje }));
   };
 
   useEffect(() => {
@@ -140,17 +140,17 @@ export function SolicitudHora({
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fechaNacimiento) || new Date(d.fechaNacimiento) > new Date())
       e.fechaNacimiento = 'Indica una fecha de nacimiento válida.';
     if (!CORREO.test(d.email.trim())) e.email = MENSAJE_CORREO;
-    if (d.telefono && !TELEFONO.test(d.telefono.replace(/\s/g, ''))) e.telefono = 'Formato +56 9 1234 5678.';
+    e.telefono = reglaTelefono(d.telefono);
     if (d.rut && !rutValido(d.rut)) e.rut = 'El RUT no es válido. Revisa el dígito verificador.';
     if (menor) {
       if (!d.adultoNombre.trim()) e.adultoNombre = 'Falta el nombre del adulto responsable.';
       if (!d.adultoParentesco.trim()) e.adultoParentesco = 'Indica la relación con el paciente.';
-      if (d.adultoTelefono && !TELEFONO.test(d.adultoTelefono.replace(/\s/g, ''))) e.adultoTelefono = 'Formato +56 9 1234 5678.';
+      e.adultoTelefono = reglaTelefono(d.adultoTelefono);
     }
     if (!d.aceptaDatos) e.aceptaDatos = 'Para pedir hora debes aceptar la política de datos.';
     if (terminos && !d.aceptaTerminos) e.aceptaTerminos = 'Debes aceptar los términos de agendamiento.';
     setErrores(e);
-    return Object.keys(e).length === 0;
+    return Object.values(e).every((x) => !x);
   };
 
   const enviar = async (ev: FormEvent) => {

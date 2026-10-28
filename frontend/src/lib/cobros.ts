@@ -99,6 +99,6 @@ export function useLiquidaciones(profesionalId?: string) {
 export type DeudaPaciente = components['schemas']['DeudaPaciente'];
 
 /** 03b-3.3: pacientes con sesiones terminadas impagas (ADMIN/GESTION todos; el profesional los de sus citas). */
-export function useDeudas() {
-  return useQuery({ queryKey: ['panel', 'cobros', 'deudas'], queryFn: () => datos(api.GET('/api/cobros/deudas')) });
+export function useDeudas(habilitado = true) {
+  return useQuery({ queryKey: ['panel', 'cobros', 'deudas'], queryFn: () => datos(api.GET('/api/cobros/deudas')), enabled: habilitado });
 }

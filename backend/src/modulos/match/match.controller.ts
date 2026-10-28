@@ -303,6 +303,20 @@ export class PortalController {
     return this.portal.aceptarConsentimientoAtencion(dto.pacienteId);
   }
 
+  /** 03b-4.2: protocolo del centro para pacientes (vigente y ultimo acuse). */
+  @Get('protocolo')
+  @Roles(...PORTAL)
+  estadoProtocolo(@Query() filtro: PacienteDelPortalDto): Promise<EstadoConsentimientoAtencion> {
+    return this.portal.estadoProtocolo(filtro.pacienteId);
+  }
+
+  /** "Lo lei" del paciente adulto o del adulto responsable (no del adolescente con cuenta restringida). */
+  @Post('protocolo')
+  @Roles(...PORTAL)
+  aceptarProtocolo(@Body() dto: PacienteDelPortalDto): Promise<AceptacionPortal> {
+    return this.portal.aceptarProtocolo(dto.pacienteId);
+  }
+
   /** Reseñas escritas por la cuenta (con su estado de moderacion). */
   @Get('resenas')
   @Roles(...PORTAL)

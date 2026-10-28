@@ -767,5 +767,67 @@ decidir.
 |---|---|---|
 | 03b-2 (sitio publico) | Completa | — |
 | 03b-3 (cuentas y portal, con 3.1 a 3.4) | Completa | Lista de espera retirada (implementacion futura, seccion 16); pantalla de transferencias por validar dentro de Cobros ya existe como pendiente del inicio |
-| 03b-4 (backoffice segun diseño) | Con pendientes | Equipo: tira de avatares del diseño (lista vertical hoy); "Reservando..." ajeno y protocolo del centro fuera de la API; `impeccable detect` marca `border-l-4` en las sesiones de la vista semanal (de 03b-4, no de este correctivo) |
+| 03b-4 (backoffice segun diseño) | Completa (2026-10-28: ver seccion 22) | 8 (avisos del equipo) pasa a la auditoria de flujos; 15 sin decidir |
 | 03b-5 | En pausa | No se avanza hasta cerrar 03b-4 |
+
+## 22. Pendientes de 03b-4.1 aprobados (2026-10-27)
+
+Lista y decisiones en `prompts/correcciones`. Hechos:
+
+| N° | Pendiente | Resolución |
+|---|---|---|
+| 3 | `border-l-4` en la semana | Punto de color junto al nombre, como la vista mensual (`impeccable detect` ya no lo marca) |
+| 4A | "Reservando…" de otras personas | `retenciones_en_curso()` (C: solo box y rango) y `GET agenda/horarios-tomados/ajenos`; en gris con borde punteado en semana y mes, y en la leyenda |
+| 10 | Calendario sin actualización | Sondeo cada 2 min con la pestaña visible (`estandar_polling.md`) |
+| 11 | Playwright con fallas intermitentes | Causa probable: el límite de login (30/min) cuenta login, segundo paso y refresh. Desarrollo sube a 120 (`.env.example`). `storageState` descartado: el refresh rota y su reuso revoca la familia. Dos corridas completas seguidas sin fallas de límite |
+| 13 | portal.spec | "Falta el pago para confirmar tu hora" es lo esperado: el test sigue con pago en el centro hasta "Tu hora quedó confirmada" |
+| 14 | Validar al salir del campo | `lib/validacion.ts` (`useValidacionCampos`) en Mi cuenta del equipo, Mis datos del portal, Editar paciente y Datos del centro |
+| 17 | Semana actual casi vacía | Seed: horas hoy y el próximo día hábil (las de hoy ya empezadas, sin evolución) |
+| 18 | Códigos vencidos se acumulan | Job `purgar_codigos_verificacion` (03:45) |
+| 19 | Selector de equipo se pierde al recargar | Va en la URL (`?equipo=<id>`) y se conserva al navegar |
+| 21 | impeccable con sesión | `e2e/zz-instantaneas.spec.ts` guarda el HTML renderizado; con los estilos en línea, el detector corrió contraste y texto chico. Corregido: `neutral-700` y `accent-2-700` un tono más oscuros (AA sobre el fondo del panel), texto de 10,5 y 11,5 px a 11 y 12 px en las vistas revisadas |
+| 22 | Mi perfil de la cuenta madre | Su perfil profesional (lecturas de ADMIN, sin aprobar ni verificar lo propio) y "Trabajar como Profesional" para indicadores, agenda, tarifas y trayectoria |
+| 23 | Sección Centro | Solo ADMIN (Página pública oculta para el resto) |
+
+### Cierre de lo hecho y pendientes medianos (2026-10-28)
+
+Decisiones: 12 (TOTP) pasa a 03b-5, el segundo factor sigue solo por correo;
+16 no: ninguna captura al repo hasta una versión final (por eso tampoco el
+20, capturas a 390 px; las capturas solo se usan para verificar, fuera del
+repo).
+
+| N° | Resolución |
+|---|---|
+| 3 | Además del punto, la sesión confirmada toma un fondo suave del tono del profesional o box |
+| 11 | 3 corridas completas seguidas sin fallas y 1 más tras reseed (54/54). Dos fallas intermitentes resueltas: el menú del portal mostraba por un instante las secciones vedadas al adolescente mientras cargaba la cuenta (ahora se ocultan hasta saberlo), y el test de reseñas fallaba en la primera corrida tras `demo:reset` porque el sitio público (ISR, 60 s) servía la lista con los ids del seed anterior (el test reintenta). Una vez falló el test de inactividad y no se repitió en 5 corridas; no se encontró la causa |
+| 10 | Regla 3 del estándar: 429, 5xx o sin red duplican el intervalo hasta 5 min; 401/403/404 lo detienen (`intervaloSondeo`) |
+| 14 | También en Agregar adulto responsable, Nueva cuenta del equipo, correo de "ya soy paciente" y enlace de acceso; Pedir hora y Nuevo paciente usan las reglas compartidas |
+| 17 | Horas hoy y mañana también para profesional3 a profesional6 (paciente nuevo para profesional3) |
+| 19 | El selector escribe la URL al elegir y la URL manda al navegar: "Ver su agenda" / "Ver sus pacientes" de un perfil abren con ese integrante |
+| 21 | `e2e/zz-instantaneas.spec.ts` deja el HTML autónomo (estilos en línea); impeccable sobre 50 vistas (público, panel y portal, 1280 y 390 px): 0 contraste, 0 texto chico. Tokens documentados en `MASTER.md` e `inventario_ui.md` |
+| 22 | El `admin` del seed tiene perfil profesional (sin publicar); "Ver mi agenda" abre su agenda |
+| 1 | Equipo: tira horizontal agrupada por rol principal (avatar, nombre, roles, punto de estado), búsqueda con más de 8 integrantes y "Ver lista" (preferencia en localStorage, sin datos sensibles) |
+| 2 | "Rol dentro del centro": pastillas de solo lectura (principal y adicionales); el rol profesional adicional se agrega o se da de baja con los botones existentes |
+| 7 | Mi perfil del profesional: nombre, correo y teléfono en "Mis datos y descripción"; "Guardar mi perfil" guarda la cuenta y después el perfil (si la cuenta falla, el perfil no se envía y el error queda en su parte); barra fija con "Descartar cambios", activa solo con cambios. "Mis datos de contacto" sale de Mi cuenta en esa vista |
+| 9 | Mis pacientes: "Con deuda · $saldo" (sesión realizada impaga) y "Pago pendiente" (hora futura esperando el pago), con Cobros activo. "Por confirmar" ya no existe (03b-3.2). El seed trae un moroso (03b-4.2, abajo) |
+
+### 03b-4.2: moroso del demo, protocolo y comisión (2026-10-28)
+
+| N° | Resolución |
+|---|---|
+| Moroso | Seed: Rodrigo (`moroso@`, llegó por el centro) con una sesión realizada impaga; figura en Deudas, "Con deuda" en Mis pacientes de profesional1 y el portal le ofrece pagarla. Su próxima hora la autorizó GESTION con motivo (queda en `excepciones_morosidad`) y el job envió el aviso de deuda |
+| 5 | Protocolo del centro, equipo y paciente. Interno: versionado (Configuración > Políticas, solo ADMIN publica), "Marcar como leído" en Mi perfil y registro de quién lo leyó y quién falta para la dirección; no es público. Pacientes: "Lo leí" en Consentimientos del portal (adulto o adulto responsable); el tratante y administración lo ven en la ficha. Seed: textos de ejemplo, profesional1 leído, Paciente Prueba con acuse |
+| 6 | Comisión por paciente traído por el centro (no la derivación clínica entre profesionales). El paciente "llegó por el centro" si viene del sitio público (Match o Pedir hora) o lo dio de alta administración; administración lo corrige en la ficha. El centro elige: misma comisión general, otro porcentaje o monto fijo por sesión (tope: lo cobrado). Va en la liquidación (línea aparte en el PDF) y en el panel de Cobros. Con la regla general, la liquidación da lo mismo que antes |
+| 8 | Avisos y recordatorios del equipo: se mantienen por correo; la proyección queda para la auditoría de flujos (siguiente avance) |
+
+15 último rol activo: se deja como está (sin recordar el rol entre sesiones; se entra con el rol por defecto y el selector cambia en un clic).
+
+Seed demo: las horas de hoy y del próximo día hábil quedan todas pagadas en el centro (también las que terminan después del seed), así que ya no hace falta `demo:reset` cada día para que no aparezcan morosos; solo Rodrigo debe. La siguiente hora impaga del seed es a 2 días hábiles. Verificado tras `demo:reset`: `deudas_vencidas()` solo devuelve a Rodrigo y Playwright 59/59 (4 omitidos: instantáneas sin `INSTANTANEAS`).
+
+impeccable sigue marcando
+`nested-cards`, `cramped-padding`, `cream-palette` (paleta Organic) y
+`kicker-above-heading` (eyebrow del diseño): reglas de composición del
+diseño, no de accesibilidad; no se tocaron. En 03b-4.2 aparecen además
+`repeated-container-text` ("Profesional" en el menú lateral de
+profesional1) y `em-dash-overuse` (celdas vacías de Cobros): no son de esta
+fase.

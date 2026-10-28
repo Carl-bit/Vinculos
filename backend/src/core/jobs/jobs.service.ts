@@ -161,6 +161,19 @@ export class JobsService implements OnApplicationBootstrap {
     });
   }
 
+  /**
+   * 03b-4.1: borra codigos de verificacion por correo vencidos o usados hace
+   * mas de 24 horas y codigos de respaldo usados o anulados hace mas de 90
+   * dias (minimizacion de credenciales). Los vigentes no se tocan.
+   */
+  @Cron('45 3 * * *', { name: 'purgar_codigos_verificacion', timeZone: 'America/Santiago' })
+  purgarCodigosVerificacion(): Promise<ResultadoJob> {
+    return this.conLock('purgar_codigos_verificacion', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT purgar_codigos_verificacion() AS n`;
+      return n;
+    });
+  }
+
   @Cron('0 3 * * *', { name: 'verificar_canarios', timeZone: 'America/Santiago' })
   async verificarCanarios(): Promise<ResultadoJob> {
     return this.conLock('verificar_canarios', async () => ((await this.llavero.verificarYRegistrar()) ? 1 : 0));

@@ -5,12 +5,23 @@ import { useState } from 'react';
 import { useEquipoActivo } from '@/components/shared/EquipoActivo';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { dia } from '@/lib/horarios';
-import { mesChile, nombreDeCita, nombresPacientes, semanaChile, useCitas, useEquipoAgenda, useEspacios, usePacientes, type CitaVista } from '@/lib/panel';
+import {
+  mesChile,
+  nombreDeCita,
+  nombresPacientes,
+  semanaChile,
+  useCitas,
+  useEquipoAgenda,
+  useEspacios,
+  usePacientes,
+  useRetencionesAjenas,
+  type CitaVista,
+} from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
 import { SelectorPeriodo, type VistaAgenda } from './SelectorPeriodo';
-import { NOMBRE_ESTADO_CITA, TONOS, tonoDe } from './tonosAgenda';
+import { NOMBRE_ESTADO_CITA, TONOS, tonoDe, type Tono } from './tonosAgenda';
 
 /** Preferencia sin datos sensibles: la ultima vista elegida (semana o mes). */
 const CLAVE_VISTA = 'vinculos_vista_agenda';
@@ -49,14 +60,17 @@ const TEXTO_ESTADO: Record<CitaVista['estado'], string> = {
   RETENIDA: 'text-accent-800',
 };
 
+/** Confirmada: el fondo lo pone el tono del profesional o box; los demas estados se ven por su estado. */
+const estiloCita = (estado: CitaVista['estado'], tono: Tono) => (estado === 'CONFIRMADA' ? `border-divider ${tono.suave}` : ESTILO_ESTADO[estado]);
+
 /**
  * Calendario consolidado (diseño "Agenda y Espacios"): semana de lunes a
  * viernes (sabado si hay citas), una fila por hora y las sesiones coloreadas
  * por profesional o por box. ADMIN/GESTION ven todas las agendas (o la del
  * profesional elegido en el selector de equipo); el profesional, la suya.
- * Sin polling (estandar_polling.md): se recarga al volver a la pestaña o tras
- * una accion propia. Las retenciones ajenas ("Reservando...") no se muestran:
- * la API solo expone las propias.
+ * Se refresca cada 2 minutos con la pestaña visible (estandar_polling.md).
+ * "Reservando..." = horario que otra persona tiene abierto en pantalla: solo
+ * box y rango, sin quien (la BD filtra por rol).
  */
 export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: CitaVista) => void }) {
   const admin = esAdministracion(rol);
@@ -67,7 +81,9 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
   const rango = semanaChile(semana);
   const mes = mesChile(semana);
   const periodo = vista === 'semana' ? rango : mes;
-  const citas = useCitas({ desde: periodo.desde, hasta: periodo.hasta, profesionalId: admin ? (profesionalId ?? undefined) : undefined });
+  const filtroProfesional = admin ? (profesionalId ?? undefined) : undefined;
+  const citas = useCitas({ desde: periodo.desde, hasta: periodo.hasta, profesionalId: filtroProfesional }, true, { sondeo: true });
+  const reservando = useRetencionesAjenas({ desde: periodo.desde, hasta: periodo.hasta, profesionalId: filtroProfesional }).data ?? [];
   const setVista = (v: VistaAgenda) => {
     setVistaEstado(v);
     setSemana(0);
@@ -139,6 +155,12 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
               {l.nombre}
             </li>
           ))}
+          {reservando.length > 0 && (
+            <li className="inline-flex items-center gap-[7px] text-[12.5px] font-bold text-neutral-800">
+              <span className="size-[11px] rounded-[4px] border border-dashed border-neutral-600 bg-neutral-200" aria-hidden />
+              Reservando
+            </li>
+          )}
         </ul>
       </div>
 
@@ -176,7 +198,7 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
                             key={c.id}
                             type="button"
                             onClick={() => onElegir(c)}
-                            className={`flex min-w-0 cursor-pointer items-center gap-1 rounded-lg border px-1.5 py-1 text-left text-[11.5px] font-bold focus-visible:outline-2 focus-visible:outline-accent-700 ${ESTILO_ESTADO[c.estado]}`}
+                            className={`flex min-w-0 cursor-pointer items-center gap-1 rounded-lg border px-1.5 py-1 text-left text-[12px] font-bold focus-visible:outline-2 focus-visible:outline-accent-700 ${estiloCita(c.estado, tono)}`}
                           >
                             <span className={`size-2 flex-none rounded-full border ${tono.muestra}`} aria-hidden />
                             <span className="tabular-nums">{String(hora(c.inicio)).padStart(2, '0')}h</span>
@@ -184,6 +206,17 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
                           </button>
                         );
                       })}
+                      {reservando
+                        .filter((r) => dia(new Date(r.inicio)) === d)
+                        .map((r) => (
+                          <span
+                            key={`${r.espacioId}-${r.inicio}`}
+                            className="flex min-w-0 items-center gap-1 rounded-lg border border-dashed border-neutral-500 bg-neutral-200 px-1.5 py-1 text-[12px] font-bold text-neutral-700"
+                          >
+                            <span className="tabular-nums">{String(hora(r.inicio)).padStart(2, '0')}h</span>
+                            <span className="truncate">Reservando…</span>
+                          </span>
+                        ))}
                       {enDia.length > MAX_EN_DIA && (
                         <button
                           type="button"
@@ -194,7 +227,7 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
                             setVistaEstado('semana');
                             setSemana(Math.floor(dias / 7));
                           }}
-                          className="cursor-pointer self-start rounded-full px-1.5 text-[11.5px] font-extrabold text-accent-700 hover:bg-accent-200"
+                          className="cursor-pointer self-start rounded-full px-1.5 text-[12px] font-extrabold text-accent-700 hover:bg-accent-200"
                         >
                           +{enDia.length - MAX_EN_DIA} más
                         </button>
@@ -228,8 +261,12 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
                     <span className="bg-neutral-100 p-2.5 text-[12px] font-extrabold text-neutral-700 tabular-nums">{String(h).padStart(2, '0')}:00</span>
                     {dias.map((d) => {
                       const enCelda = visibles.filter((c) => dia(new Date(c.inicio)) === d && hora(c.inicio) === h);
+                      const ajenas = reservando.filter((r) => dia(new Date(r.inicio)) === d && hora(r.inicio) === h);
                       return (
-                        <div key={d} className={`flex min-w-0 flex-col gap-[5px] border-l border-divider p-[5px] ${enCelda.length ? '' : 'bg-neutral-100'}`}>
+                        <div
+                          key={d}
+                          className={`flex min-w-0 flex-col gap-[5px] border-l border-divider p-[5px] ${enCelda.length || ajenas.length ? '' : 'bg-neutral-100'}`}
+                        >
                           {enCelda.map((c) => {
                             const tono =
                               modo === 'profesional' ? tonoDe(ordenEquipo, c.profesionalId) : c.espacioId ? tonoDe(ordenBox, c.espacioId) : TONOS[3]!;
@@ -240,10 +277,12 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
                                 key={c.id}
                                 type="button"
                                 onClick={() => onElegir(c)}
-                                className={`flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-xl border-[1.5px] border-l-4 px-[9px] py-[7px] text-left transition-transform duration-200 ease-out hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-accent-700 motion-reduce:hover:translate-y-0 ${ESTILO_ESTADO[c.estado]} ${tono.borde}`}
+                                className={`flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-xl border-[1.5px] px-[9px] py-[7px] text-left transition-transform duration-200 ease-out hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-accent-700 motion-reduce:hover:translate-y-0 ${estiloCita(c.estado, tono)}`}
                               >
-                                <span className={`max-w-full truncate text-[12px] font-black tracking-[-0.01em] ${tono.texto}`}>
-                                  {nombreDeCita(nombres, c)}
+                                {/* Color del profesional o box: punto junto al nombre (sin borde lateral grueso, como la vista mensual). */}
+                                <span className={`flex max-w-full min-w-0 items-center gap-1.5 text-[12px] font-black tracking-[-0.01em] ${tono.texto}`}>
+                                  <span className={`size-2 flex-none rounded-full border ${tono.muestra}`} aria-hidden />
+                                  <span className="truncate">{nombreDeCita(nombres, c)}</span>
                                 </span>
                                 <span className="max-w-full truncate text-[11px] font-bold text-neutral-800">
                                   {modo === 'profesional' ? `${pro} · ${box}` : `${box} · ${pro}`}
@@ -254,7 +293,18 @@ export function CalendarioAgenda({ rol, onElegir }: { rol: Rol; onElegir: (c: Ci
                               </button>
                             );
                           })}
-                          {enCelda.length === 0 && <span className="px-1.5 py-1 text-[11px] font-semibold text-neutral-700">Libre</span>}
+                          {ajenas.map((r) => (
+                            <span
+                              key={`${r.espacioId}-${r.inicio}`}
+                              className="flex min-w-0 flex-col gap-0.5 rounded-xl border-[1.5px] border-dashed border-neutral-500 bg-neutral-200 px-[9px] py-[7px]"
+                            >
+                              <span className="text-[12px] font-black tracking-[-0.01em] text-neutral-800">Reservando…</span>
+                              <span className="max-w-full truncate text-[11px] font-bold text-neutral-700">
+                                {r.espacioId ? (nombreBox.get(r.espacioId) ?? 'Box') : 'Online'} · otra persona está eligiendo este horario
+                              </span>
+                            </span>
+                          ))}
+                          {enCelda.length === 0 && ajenas.length === 0 && <span className="px-1.5 py-1 text-[11px] font-semibold text-neutral-700">Libre</span>}
                         </div>
                       );
                     })}

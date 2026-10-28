@@ -47,6 +47,9 @@ import {
   HorarioCentroVista,
   LogoSubido,
   PoliticaVista,
+  LecturaProtocoloVista,
+  ProtocoloEquipoVista,
+  ProtocoloLeido,
   AccesoPracticanteOtorgado,
   AccesoPracticanteRevocado,
   AlertaAtendida,
@@ -238,6 +241,26 @@ export class CentroController {
   @Roles('ADMIN')
   publicarPolitica(@Body() dto: PoliticaDto): Promise<PoliticaVista> {
     return this.centro.publicarPolitica(dto.tipo, dto.texto);
+  }
+
+  /** 03b-4.2: protocolo interno del centro (version vigente) y si la cuenta ya lo leyo. */
+  @Get('protocolo')
+  @Roles(...EQUIPO)
+  protocolo(): Promise<ProtocoloEquipoVista> {
+    return this.centro.protocoloEquipo();
+  }
+
+  @Post('protocolo/lectura')
+  @Roles(...EQUIPO)
+  marcarProtocoloLeido(): Promise<ProtocoloLeido> {
+    return this.centro.marcarProtocoloLeido();
+  }
+
+  /** Registro para la direccion: quien leyo la version vigente. */
+  @Get('protocolo/lecturas')
+  @Roles('ADMIN', 'GESTION')
+  lecturasProtocolo(): Promise<LecturaProtocoloVista[]> {
+    return this.centro.lecturasProtocolo();
   }
 
   @Get('configuracion/horario')

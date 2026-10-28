@@ -839,3 +839,49 @@ Migraciones `20261029000000_03b41_enums` y
   por tramo y, dentro de cada uno, el de siempre (necesidad y
   disponibilidad). Con presupuesto se devuelve el equipo completo en `otros`.
 
+### 03b-4.1, pendientes aprobados (2026-10-27)
+
+Migracion `20261030000000_03b41_reservando_purga_codigos`.
+
+- **"Reservando..." de otras personas** (pendiente 4, opcion A):
+  `GET agenda/horarios-tomados/ajenos?desde&hasta[&profesionalId]`
+  (ADMIN, GESTION, PROFESIONAL, PRACTICANTE) llama a
+  `retenciones_en_curso()`, categoria C: devuelve solo `espacioId` (nulo si
+  es online), `inicio` y `fin` de los soft-locks activos de otras personas.
+  ADMIN/GESTION ven todos o los del profesional pedido; PROFESIONAL y
+  PRACTICANTE, solo los que alguien tiene abiertos sobre su agenda (el
+  filtro lo hace la BD; `profesionalId` lo ignora para ellos). Rango mayor a
+  62 dias: 422; PACIENTE/RESPONSABLE: 403 (guard) y 42501 (BD). El soft-lock
+  sigue siendo solo UX: el EXCLUDE de `citas` es la fuente de verdad.
+- **Limpieza de codigos** (pendiente 18): job `purgar_codigos_verificacion`
+  (diario 03:45 de Chile, `pg_try_advisory_xact_lock`, idempotente).
+- **Calendario con sondeo** (pendiente 10): `GET citas` y el endpoint
+  anterior se consultan cada 2 minutos con la pestaña visible
+  (`docs/front/estandar_polling.md`).
+
+### 03b-4.2, protocolo del centro y comision por derivacion (2026-10-28)
+
+Migraciones `20261031000000_03b42_enums` (valores `PROTOCOLO_EQUIPO` y
+`PROTOCOLO_PACIENTE` de `tipo_politica`) y
+`20261031000100_03b42_protocolos_comision`.
+
+- **Protocolo interno del equipo** (pendiente 5): `GET protocolo` (equipo:
+  version vigente y `leidoEn` de la cuenta), `POST protocolo/lectura`
+  (`marcar_protocolo_leido()`, idempotente) y `GET protocolo/lecturas`
+  (ADMIN/GESTION: `usuarioId`, `rol`, `leidoEn` de la version vigente; los
+  nombres y los pendientes los cruza el panel con `directorio_interno`).
+  Publicar una version nueva usa `POST politicas` (solo ADMIN) y deja a todos
+  pendientes. `GET publico/politicas/PROTOCOLO_EQUIPO` responde 404.
+- **Protocolo para pacientes**: `GET portal/protocolo` y `POST
+  portal/protocolo` (paciente adulto o adulto responsable; el adolescente con
+  cuenta restringida recibe 403), sobre `registrar_aceptacion` como el
+  consentimiento de atencion (canal PORTAL). El tratante y ADMIN/GESTION lo
+  ven en `GET pacientes/:id/aceptaciones`.
+- **Comision por derivacion** (pendiente 6, C-10): `PATCH configuracion`
+  acepta `comisionDerivacionTipo` (`GENERAL`, `PORCENTAJE`, `MONTO_FIJO`) y
+  `comisionDerivacionValor` (DTO 0 a 1.000.000; la BD exige 0-100 para
+  porcentaje y entero para monto fijo: 422). `PacienteVista` trae
+  `traidoPorCentro`; `PUT pacientes/:id/origen` (ADMIN/GESTION) lo corrige.
+  `LiquidacionVista` trae `comisionDerivacion` y `sesionesDerivadas`; el PDF
+  separa la comision general de la de derivacion. `reporte_cobros` estima la
+  comision con la misma regla (mismas columnas de salida).

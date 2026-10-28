@@ -152,7 +152,11 @@ export class LiquidacionVista {
   totalCobrado!: number;
   @ApiProperty({ type: String, description: 'Decimal (porcentaje de comision del centro)' })
   comisionPorcentaje!: unknown;
+  /** Comision total del centro (general + derivacion). */
   comision!: number;
+  /** 03b-4.2 (C-10): parte de la comision por sesiones de pacientes traidos por el centro (0 con regla GENERAL). */
+  comisionDerivacion!: number;
+  sesionesDerivadas!: number;
   arriendos!: number;
   total!: number;
   @ApiProperty({ enum: EstadoLiquidacion, enumName: 'EstadoLiquidacion' })

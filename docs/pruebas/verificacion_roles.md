@@ -7,6 +7,12 @@ exactamente lo de la tabla, entrar por URL a una ruta no permitida muestra
 responsable") y la API responde 403 a la acción indicada. Roles según
 `docs/seguridad/matriz_permisos.md`.
 
+Actualización 2026-10-27: la sección Centro (Configuración y Página pública)
+queda solo para la cuenta madre (ADMIN); el resto de los roles ya no ve
+"Página pública" en el menú (el sitio público sigue abierto para todos).
+Resultado: **8 de 8 casos OK** en dos corridas completas de Playwright
+(53/53 la segunda).
+
 Resultado (2026-10-21): **8 de 8 casos OK** (dos corridas seguidas de
 `roles.spec.ts` + `sesion.spec.ts`: 18/18). En una corrida previa un caso
 falló por leer el menú antes de que llegaran los módulos activos; el test
@@ -28,7 +34,7 @@ con el rol activo"); — = no aplica.
 | Match Terapéutico | P | B (probado) | B (probado) | B (probado) | B |
 | Cobros | P | P | P | P | B (probado) |
 | Configuración | P | B (probado) | B (probado) | B (probado) | B (probado) |
-| Página pública | P | P | P | P | P |
+| Página pública | P | — (oculta) | — (oculta) | — (oculta) | — (oculta) |
 | API 403 probada | `GET portal/citas` | `GET usuarios` | `PATCH configuracion` | `GET usuarios` | `GET cobros/liquidaciones` |
 | Resultado | OK | OK | OK | OK | OK |
 

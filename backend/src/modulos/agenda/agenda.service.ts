@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { DisponibilidadProfesional, ModalidadAtencion } from '@prisma/client';
 
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
-import type { BloqueAtencionVista, BloquesLiberados, HoraLibreBox } from './dto/agenda-respuestas.dto';
+import type { BloqueAtencionVista, BloquesLiberados, HoraLibreBox, RetencionEnCurso } from './dto/agenda-respuestas.dto';
 import type {
   BloqueAtencionDto,
   BloqueEspacioDto,
@@ -194,6 +194,12 @@ export class AgendaService {
 
   misHorariosTomados() {
     return this.bd.tx().bloqueoTemporal.findMany({ where: { expiraEn: { gt: new Date() } }, orderBy: { inicio: 'asc' } });
+  }
+
+  /** 03b-4.1: soft-locks ajenos sobre las agendas que el rol puede ver (solo box y rango; la BD filtra). */
+  retencionesEnCurso(desde: Date, hasta: Date, profesionalId?: string): Promise<RetencionEnCurso[]> {
+    return this.bd.tx().$queryRaw<RetencionEnCurso[]>`
+      SELECT espacio_id AS "espacioId", inicio, fin FROM retenciones_en_curso(${desde}, ${hasta}, ${profesionalId ?? null}::uuid)`;
   }
 
   async soltarHorario(id: string) {

@@ -26,6 +26,7 @@ import {
   type Trayectoria,
 } from '@/lib/equipo';
 import { formatoClp, formatoFecha, rutValido } from '@/lib/formato';
+import { useMiCuenta } from '@/lib/consultas';
 import { useTiposAtencion } from '@/lib/panel';
 
 import { FormularioPerfil } from './FormularioPerfil';
@@ -65,6 +66,7 @@ const ESTADO_RESENA = { PENDIENTE: 'Por moderar', PUBLICADA: 'Publicada', OCULTA
  */
 export function MisDatosDescripcion({ usuarioId }: { usuarioId: string }) {
   const perfil = usePerfilProfesional(usuarioId);
+  const yo = useMiCuenta().data;
   const trayectoria = useTrayectoria(usuarioId).data ?? [];
   const verificada = trayectoria.filter((t) => t.verificado);
   const primerAnio = Math.min(...verificada.filter((t) => t.tipo === 'TITULO').map((t) => t.anio));
@@ -81,7 +83,7 @@ export function MisDatosDescripcion({ usuarioId }: { usuarioId: string }) {
       bajada={
         <span className="inline-flex items-center gap-1.5">
           <Icon name="public" size={16} />
-          Estos datos se muestran en mi perfil público del centro.
+          Lo de abajo se muestra en mi perfil público del centro; mis datos de contacto, no.
         </span>
       }
     >
@@ -91,7 +93,18 @@ export function MisDatosDescripcion({ usuarioId }: { usuarioId: string }) {
       </div>
       <div className="mt-4">
         <EstadoConsulta consulta={perfil}>
-          {(p) => <FormularioPerfil key={p?.updatedAt ?? 'nuevo'} modo="propio" profesionalId={usuarioId} perfil={p} puedeFoto={false} />}
+          {(p) =>
+            yo && (
+              <FormularioPerfil
+                key={p?.updatedAt ?? 'nuevo'}
+                modo="propio"
+                profesionalId={usuarioId}
+                perfil={p}
+                puedeFoto={false}
+                cuenta={{ nombre: yo.nombre ?? '', email: yo.email ?? '', telefono: yo.telefono ?? '' }}
+              />
+            )
+          }
         </EstadoConsulta>
       </div>
     </Panel>

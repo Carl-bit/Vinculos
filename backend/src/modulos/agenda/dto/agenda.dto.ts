@@ -80,6 +80,13 @@ export class RangoDto {
   hasta!: Date;
 }
 
+/** 03b-4.1: rango del calendario y, para ADMIN/GESTION, el profesional elegido en el selector de equipo. */
+export class RangoRetencionesDto extends RangoDto {
+  @IsOptional()
+  @IsUUID()
+  profesionalId?: string;
+}
+
 /** Minutos desde la medianoche de Chile: 0 <= inicio < fin <= 1440 (1440 = fin del dia). */
 export class CrearDisponibilidadDto {
   @IsInt()

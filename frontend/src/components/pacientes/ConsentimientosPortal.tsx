@@ -130,6 +130,7 @@ export function ConsentimientosPortal() {
         </Aviso>
       )}
       <ConsentimientoAtencion />
+      <ProtocoloPaciente />
 
       <Panel
         titulo="Atención con practicante supervisado"
@@ -297,6 +298,91 @@ export function ConsentimientosPortal() {
         )}
       </Modal>
     </div>
+  );
+}
+
+/**
+ * Protocolo del centro para pacientes (03b-4.2): puntualidad, cancelaciones,
+ * sesiones online y emergencias. "Lo lei" queda registrado con la version
+ * (el centro y el profesional tratante lo ven en la ficha).
+ */
+function ProtocoloPaciente() {
+  const portal = usePortal();
+  const cliente = useQueryClient();
+  const estado = useQuery({
+    queryKey: ['portal', 'protocolo', portal.pacienteId ?? 'propio'],
+    queryFn: () => datos(api.GET('/api/portal/protocolo', { params: { query: { pacienteId: portal.pacienteParam } } })),
+    enabled: !portal.cargando && !!portal.pacienteId,
+  });
+  const [leer, setLeer] = useState(false);
+  const leido = useMutation({
+    mutationFn: () => datos(api.POST('/api/portal/protocolo', { body: { pacienteId: portal.pacienteParam } })),
+    onSuccess: () => {
+      setLeer(false);
+      void cliente.invalidateQueries({ queryKey: ['portal', 'protocolo'] });
+    },
+  });
+
+  return (
+    <Panel titulo="Protocolo del centro" bajada="Cómo funcionan las horas, los atrasos, las cancelaciones y qué hacer en una emergencia.">
+      <EstadoConsulta consulta={estado}>
+        {(e) => {
+          if (!e.vigente) return <p className="m-0 text-[13.5px] font-semibold text-neutral-700">El centro todavía no publica su protocolo.</p>;
+          const alDia = e.aceptada && e.aceptada.version >= e.vigente.version;
+          return (
+            <div className="flex flex-col gap-3.5">
+              {alDia ? (
+                <Aviso tono="exito" icono="task_alt">
+                  Leíste la versión {e.aceptada!.version} el {formatoFechaLarga(e.aceptada!.aceptadaEn)}.
+                </Aviso>
+              ) : (
+                <Aviso tono="advertencia" titulo={e.aceptada ? 'Hay una versión nueva' : 'Pendiente de leer'}>
+                  {e.aceptada
+                    ? `Leíste la versión ${e.aceptada.version}; el centro publicó la versión ${e.vigente.version}.`
+                    : 'El centro te pide leer su protocolo y confirmar que lo leíste.'}
+                </Aviso>
+              )}
+              <div>
+                <Button variant={alDia ? 'secondary' : 'primary'} icon="description" onClick={() => setLeer(true)}>
+                  {alDia ? 'Ver el protocolo' : 'Leer el protocolo'}
+                </Button>
+              </div>
+              <Modal
+                abierto={leer}
+                onCerrar={() => setLeer(false)}
+                ancho="lg"
+                titulo={`Protocolo del centro (versión ${e.vigente.version})`}
+                acciones={
+                  alDia ? (
+                    <Button variant="secondary" onClick={() => setLeer(false)}>
+                      Cerrar
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="ghost" onClick={() => setLeer(false)}>
+                        Ahora no
+                      </Button>
+                      <Button icon="check" loading={leido.isPending} onClick={() => leido.mutate()}>
+                        Lo leí
+                      </Button>
+                    </>
+                  )
+                }
+              >
+                <div className="max-h-[50vh] overflow-y-auto rounded-[16px] border border-divider bg-neutral-100 px-5 py-4 text-[14.5px] leading-[1.7] whitespace-pre-line text-pretty">
+                  {e.vigente.texto}
+                </div>
+                {leido.error && (
+                  <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+                    {leido.error instanceof ApiError ? leido.error.message : 'No pudimos registrar tu lectura.'}
+                  </p>
+                )}
+              </Modal>
+            </div>
+          );
+        }}
+      </EstadoConsulta>
+    </Panel>
   );
 }
 

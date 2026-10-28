@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { Icon } from '@/components/ui/Icon';
 
@@ -12,6 +13,8 @@ import { useProfesionales } from '@/lib/consultas';
  * Contexto de equipo del backoffice (ADMIN/GESTION): "todo el equipo" o un
  * profesional. Solo filtra lo que se muestra (agenda, pacientes); no cambia
  * permisos ni el token. Vive en memoria y se reinicia al cambiar de rol.
+ * 03b-4.1: tambien va en la URL (?equipo=<id>, sin datos clinicos), asi
+ * sobrevive a recargar la pagina y el enlace se puede compartir.
  */
 interface EquipoActivoValor {
   profesionalId: string | null;
@@ -20,9 +23,47 @@ interface EquipoActivoValor {
 
 const Contexto = createContext<EquipoActivoValor>({ profesionalId: null, setProfesionalId: () => {} });
 
-export function ProveedorEquipoActivo({ children }: { children: ReactNode }) {
-  const [profesionalId, setProfesionalId] = useState<string | null>(null);
+const PARAMETRO = 'equipo';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Integrante en la URL al cargar (solo un id con formato valido; la API decide si existe). */
+const desdeUrl = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const id = new URLSearchParams(window.location.search).get(PARAMETRO);
+  return id && UUID.test(id) ? id : null;
+};
+
+export function ProveedorEquipoActivo({ habilitado, children }: { habilitado: boolean; children: ReactNode }) {
+  const [profesionalId, setEstado] = useState<string | null>(() => (habilitado ? desdeUrl() : null));
+  const ruta = usePathname();
+  const parametros = useSearchParams();
+  /** Elegir (o volver a todo el equipo) escribe la URL en el momento. */
+  const setProfesionalId = useCallback((id: string | null) => {
+    setEstado(id);
+    escribirUrl(id);
+  }, []);
+  useEffect(() => {
+    if (!habilitado) return;
+    const enUrl = parametros.get(PARAMETRO);
+    if (enUrl && UUID.test(enUrl)) {
+      // Un enlace con ?equipo=<id> (por ejemplo "Ver mi agenda" de un perfil) elige a ese integrante.
+      setEstado(enUrl);
+    } else if (profesionalId) {
+      // Una vista sin el parametro (menu, ?vista= de una pagina) conserva el integrante elegido.
+      escribirUrl(profesionalId);
+    }
+    // profesionalId fuera a proposito: solo reacciona a la navegacion; el setter ya escribe la URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [habilitado, ruta, parametros]);
   return <Contexto.Provider value={{ profesionalId, setProfesionalId }}>{children}</Contexto.Provider>;
+}
+
+/** null como estado del historial: asi el router de Next sincroniza useSearchParams. */
+function escribirUrl(id: string | null) {
+  const url = new URL(window.location.href);
+  if (id) url.searchParams.set(PARAMETRO, id);
+  else url.searchParams.delete(PARAMETRO);
+  if (url.href !== window.location.href) window.history.replaceState(null, '', url);
 }
 
 export const useEquipoActivo = () => useContext(Contexto);

@@ -27,7 +27,7 @@
   --color-neutral-400: #c0b6a5;
   --color-neutral-500: #a19786;
   --color-neutral-600: #82796a;
-  --color-neutral-700: #645c50;
+  --color-neutral-700: #5f574b; /* 03b-4.1: AA sobre neutral-300 (4.8:1; antes #645c50, 4.4:1) */
   --color-neutral-800: #474238;
   --color-neutral-900: #2e2b25;
   --color-accent-100: #fff2eb;
@@ -45,7 +45,7 @@
   --color-accent-2-400: #aebf92;
   --color-accent-2-500: #8fa073;
   --color-accent-2-600: #728157;
-  --color-accent-2-700: #56633f;
+  --color-accent-2-700: #515e3b; /* 03b-4.1: AA sobre neutral-300 (4.7:1; antes #56633f, 4.35:1) */
   --color-accent-2-800: #3d472b;
   --color-accent-2-900: #272e1b;
   --radius-sm: 8px;

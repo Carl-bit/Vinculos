@@ -13,6 +13,7 @@ import { ApiError } from '@/lib/api/errores';
 import { useConfiguracionCentro, useContenidoPublico, type ConfiguracionCentro, type ContenidoPublico } from '@/lib/centro';
 import { rutValido } from '@/lib/formato';
 import { subirArchivo } from '@/lib/subidas';
+import { reglaCorreo, reglaTelefono, useValidacionCampos, type Regla } from '@/lib/validacion';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
 
 interface Servicio {
@@ -68,6 +69,8 @@ export function DatosCentro() {
   );
 }
 
+const COLOR: Regla = (v) => (!v || /^#[0-9a-fA-F]{6}$/.test(v) ? undefined : 'El color de marca debe tener el formato #RRGGBB.');
+
 function Formulario({ c, p }: { c: ConfiguracionCentro; p: ContenidoPublico }) {
   const cliente = useQueryClient();
   const [f, setF] = useState<Formulario>(desde(c, p));
@@ -76,10 +79,18 @@ function Formulario({ c, p }: { c: ConfiguracionCentro; p: ContenidoPublico }) {
   const [guardado, setGuardado] = useState(false);
   const [logo, setLogo] = useState(p.logoImagenId);
   const archivo = useRef<HTMLInputElement>(null);
+  const formato = useValidacionCampos<'contactoCorreo' | 'contactoTelefono' | 'whatsapp' | 'colorMarca'>({
+    contactoCorreo: reglaCorreo(),
+    contactoTelefono: reglaTelefono,
+    whatsapp: reglaTelefono,
+    colorMarca: COLOR,
+  });
   const cambiar = (k: keyof Formulario) => (e: { target: { value: string } }) => {
     setGuardado(false);
+    if (k === 'contactoCorreo' || k === 'contactoTelefono' || k === 'whatsapp' || k === 'colorMarca') formato.limpiar(k);
     setF((x) => ({ ...x, [k]: e.target.value }));
   };
+  const salir = (k: 'contactoCorreo' | 'contactoTelefono' | 'whatsapp') => () => formato.alSalir(k, f[k]);
   const o = (v: string) => (v.trim() ? v.trim() : null);
 
   const guardar = useMutation({
@@ -123,7 +134,7 @@ function Formulario({ c, p }: { c: ConfiguracionCentro; p: ContenidoPublico }) {
     e.preventDefault();
     if (!f.nombreCentro.trim()) return setError('El nombre del centro es obligatorio.');
     if (f.rutCentro.trim() && !rutValido(f.rutCentro)) return setError('El RUT del centro no es válido (revisa el dígito verificador).');
-    if (f.colorMarca && !/^#[0-9a-fA-F]{6}$/.test(f.colorMarca)) return setError('El color de marca debe tener el formato #RRGGBB.');
+    if (!formato.validarTodo(f)) return setError('Revisa los campos marcados.');
     guardar.mutate();
   };
 
@@ -169,13 +180,15 @@ function Formulario({ c, p }: { c: ConfiguracionCentro; p: ContenidoPublico }) {
 
       <Panel titulo="Contacto" bajada="Lo que se edita acá se refleja en la página pública.">
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Correo de contacto">{(x) => <Input {...x} type="email" value={f.contactoCorreo} onChange={cambiar('contactoCorreo')} />}</Field>
-          <Field label="Teléfono" hint="+56XXXXXXXXX">
-            {(x) => <Input {...x} type="tel" value={f.contactoTelefono} onChange={cambiar('contactoTelefono')} />}
+          <Field label="Correo de contacto" error={formato.errores.contactoCorreo}>
+            {(x) => <Input {...x} type="email" value={f.contactoCorreo} onChange={cambiar('contactoCorreo')} onBlur={salir('contactoCorreo')} />}
+          </Field>
+          <Field label="Teléfono" hint="+56XXXXXXXXX" error={formato.errores.contactoTelefono}>
+            {(x) => <Input {...x} type="tel" value={f.contactoTelefono} onChange={cambiar('contactoTelefono')} onBlur={salir('contactoTelefono')} />}
           </Field>
           <Field label="Dirección">{(x) => <Input {...x} value={f.direccion} maxLength={300} onChange={cambiar('direccion')} />}</Field>
-          <Field label="WhatsApp" hint="+56XXXXXXXXX">
-            {(x) => <Input {...x} type="tel" value={f.whatsapp} onChange={cambiar('whatsapp')} />}
+          <Field label="WhatsApp" hint="+56XXXXXXXXX" error={formato.errores.whatsapp}>
+            {(x) => <Input {...x} type="tel" value={f.whatsapp} onChange={cambiar('whatsapp')} onBlur={salir('whatsapp')} />}
           </Field>
           <Field label="Instagram">{(x) => <Input {...x} value={f.instagram} maxLength={31} onChange={cambiar('instagram')} placeholder="@centro" />}</Field>
         </div>

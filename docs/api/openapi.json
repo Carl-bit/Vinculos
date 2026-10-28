@@ -3696,6 +3696,273 @@
         ]
       }
     },
+    "/api/protocolo": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "CentroController_protocolo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocoloEquipoVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b-4.2: protocolo interno del centro (version vigente) y si la cuenta ya lo leyo.",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/protocolo/lectura": {
+      "post": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "CentroController_marcarProtocoloLeido",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocoloLeido"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/protocolo/lecturas": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION",
+        "operationId": "CentroController_lecturasProtocolo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LecturaProtocoloVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Registro para la direccion: quien leyo la version vigente.",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
     "/api/configuracion/horario": {
       "get": {
         "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
@@ -6119,6 +6386,113 @@
           }
         ],
         "summary": "Posible duplicado (D-2: nunca se fusiona por nombre): solo administracion\nlo resuelve (DISTINTO o MISMO_PACIENTE), atiende la alerta y queda auditado.",
+        "tags": [
+          "Fichas y pacientes"
+        ]
+      }
+    },
+    "/api/pacientes/{id}/origen": {
+      "put": {
+        "description": "Roles: ADMIN, GESTION",
+        "operationId": "PacientesController_marcarOrigen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrigenPacienteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PacienteVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b-4.2 (C-10): origen del paciente para la comision (lo fija la BD al crear; administracion lo corrige).",
         "tags": [
           "Fichas y pacientes"
         ]
@@ -13608,6 +13982,125 @@
           }
         ],
         "summary": "",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
+    "/api/agenda/horarios-tomados/ajenos": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "HorariosTomadosController_ajenos",
+        "parameters": [
+          {
+            "name": "desde",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasta",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "profesionalId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RetencionEnCurso"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b-4.1: \"Reservando...\" de otras personas en el calendario (box y rango; sin quien). Max. 62 dias.",
         "tags": [
           "Agenda y espacios"
         ]
@@ -21424,7 +21917,9 @@
                 "POLITICA_DATOS",
                 "CONSENTIMIENTO_ATENCION",
                 "TERMINOS_AGENDAMIENTO",
-                "CONSENTIMIENTO_PRACTICANTE"
+                "CONSENTIMIENTO_PRACTICANTE",
+                "PROTOCOLO_EQUIPO",
+                "PROTOCOLO_PACIENTE"
               ],
               "type": "string"
             }
@@ -23451,6 +23946,201 @@
           }
         ],
         "summary": "",
+        "tags": [
+          "Portal del paciente"
+        ]
+      }
+    },
+    "/api/portal/protocolo": {
+      "get": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "PortalController_estadoProtocolo",
+        "parameters": [
+          {
+            "name": "pacienteId",
+            "required": false,
+            "in": "query",
+            "description": "Adulto responsable: el menor a cargo (el paciente adulto no lo indica).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoConsentimientoAtencion"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "03b-4.2: protocolo del centro para pacientes (vigente y ultimo acuse).",
+        "tags": [
+          "Portal del paciente"
+        ]
+      },
+      "post": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "PortalController_aceptarProtocolo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PacienteDelPortalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AceptacionPortal"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "\"Lo lei\" del paciente adulto o del adulto responsable (no del adolescente con cuenta restringida).",
         "tags": [
           "Portal del paciente"
         ]
@@ -29592,6 +30282,14 @@
           "MIXTO"
         ]
       },
+      "TipoComisionDerivacion": {
+        "type": "string",
+        "enum": [
+          "GENERAL",
+          "PORCENTAJE",
+          "MONTO_FIJO"
+        ]
+      },
       "ModuloCentro": {
         "type": "string",
         "enum": [
@@ -29636,6 +30334,17 @@
           "comisionCentroPorcentaje": {
             "type": "string",
             "description": "Decimal (0 a 100): comision del centro sobre lo cobrado en la liquidacion"
+          },
+          "comisionDerivacionTipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoComisionDerivacion"
+              }
+            ]
+          },
+          "comisionDerivacionValor": {
+            "type": "string",
+            "description": "Decimal: porcentaje (PORCENTAJE) o CLP por sesion (MONTO_FIJO); sin uso con GENERAL"
           },
           "modulosActivos": {
             "type": "array",
@@ -29725,6 +30434,8 @@
           "penalizacionCancelacionPorcentaje",
           "cobroInasistenciaPorcentaje",
           "comisionCentroPorcentaje",
+          "comisionDerivacionTipo",
+          "comisionDerivacionValor",
           "modulosActivos",
           "mediosPagoHabilitados",
           "rolGestionHabilitado",
@@ -29819,6 +30530,20 @@
             "type": "number",
             "minimum": 0,
             "maximum": 100
+          },
+          "comisionDerivacionTipo": {
+            "type": "string",
+            "description": "03b-4.2 (C-10): comision de las sesiones de pacientes traidos por el\ncentro. GENERAL = el porcentaje general; PORCENTAJE (0 a 100) o\nMONTO_FIJO en CLP por sesion (entero, tope: lo cobrado de la sesion).",
+            "enum": [
+              "GENERAL",
+              "PORCENTAJE",
+              "MONTO_FIJO"
+            ]
+          },
+          "comisionDerivacionValor": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
           },
           "recordatorioHorasAntes": {
             "type": "number",
@@ -30122,7 +30847,9 @@
           "POLITICA_DATOS",
           "CONSENTIMIENTO_ATENCION",
           "TERMINOS_AGENDAMIENTO",
-          "CONSENTIMIENTO_PRACTICANTE"
+          "CONSENTIMIENTO_PRACTICANTE",
+          "PROTOCOLO_EQUIPO",
+          "PROTOCOLO_PACIENTE"
         ]
       },
       "PoliticaVista": {
@@ -30171,7 +30898,9 @@
               "POLITICA_DATOS",
               "CONSENTIMIENTO_ATENCION",
               "TERMINOS_AGENDAMIENTO",
-              "CONSENTIMIENTO_PRACTICANTE"
+              "CONSENTIMIENTO_PRACTICANTE",
+              "PROTOCOLO_EQUIPO",
+              "PROTOCOLO_PACIENTE"
             ]
           },
           "texto": {
@@ -30183,6 +30912,89 @@
         "required": [
           "tipo",
           "texto"
+        ]
+      },
+      "PoliticaVigenteVista": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "vigenteDesde": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "texto",
+          "vigenteDesde"
+        ]
+      },
+      "ProtocoloEquipoVista": {
+        "type": "object",
+        "properties": {
+          "vigente": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PoliticaVigenteVista"
+              }
+            ]
+          },
+          "leidoEn": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "vigente",
+          "leidoEn"
+        ]
+      },
+      "ProtocoloLeido": {
+        "type": "object",
+        "properties": {
+          "leidoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "leidoEn"
+        ]
+      },
+      "LecturaProtocoloVista": {
+        "type": "object",
+        "properties": {
+          "rol": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "usuarioId": {
+            "type": "string"
+          },
+          "leidoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rol",
+          "usuarioId",
+          "leidoEn"
         ]
       },
       "HorarioCentroVista": {
@@ -30925,6 +31737,10 @@
           "posibleDuplicado": {
             "type": "boolean"
           },
+          "traidoPorCentro": {
+            "type": "boolean",
+            "description": "03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -30949,6 +31765,7 @@
           "apellido",
           "creadoPorSolicitud",
           "posibleDuplicado",
+          "traidoPorCentro",
           "createdAt",
           "updatedAt"
         ]
@@ -31005,6 +31822,10 @@
           "posibleDuplicado": {
             "type": "boolean"
           },
+          "traidoPorCentro": {
+            "type": "boolean",
+            "description": "03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -31028,6 +31849,7 @@
           "apellido",
           "creadoPorSolicitud",
           "posibleDuplicado",
+          "traidoPorCentro",
           "createdAt",
           "updatedAt"
         ]
@@ -31219,6 +32041,17 @@
         },
         "required": [
           "resolucion"
+        ]
+      },
+      "OrigenPacienteDto": {
+        "type": "object",
+        "properties": {
+          "traidoPorCentro": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "traidoPorCentro"
         ]
       },
       "CanalAceptacion": {
@@ -33320,6 +34153,28 @@
           "fin",
           "expiraEn",
           "createdAt"
+        ]
+      },
+      "RetencionEnCurso": {
+        "type": "object",
+        "properties": {
+          "espacioId": {
+            "type": "string",
+            "nullable": true
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "espacioId",
+          "inicio",
+          "fin"
         ]
       },
       "EstadoCita": {
@@ -38699,6 +39554,14 @@
             "type": "number"
           },
           "comision": {
+            "type": "number",
+            "description": "Comision total del centro (general + derivacion)."
+          },
+          "comisionDerivacion": {
+            "type": "number",
+            "description": "03b-4.2 (C-10): parte de la comision por sesiones de pacientes traidos por el centro (0 con regla GENERAL)."
+          },
+          "sesionesDerivadas": {
             "type": "number"
           },
           "arriendos": {
@@ -38726,6 +39589,8 @@
           "profesionalId",
           "totalCobrado",
           "comision",
+          "comisionDerivacion",
+          "sesionesDerivadas",
           "arriendos",
           "total",
           "creadaPorId",

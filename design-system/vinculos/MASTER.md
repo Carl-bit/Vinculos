@@ -19,6 +19,14 @@ oliva, crema: calza con Organic), con el checklist de "Accessible & Ethical".
   (`neutral-700` da 4.4:1). Por eso la bajada de `Encabezado`,
   `EnlaceVolver`, la ayuda de `Field` y las opciones de `ChoiceGroup` van en
   `neutral-800` (03b-5.1).
+- 03b-4.1 (2026-10-28): `impeccable detect` sobre el panel con sesion iniciada
+  seguia encontrando `neutral-700` y `accent-2-700` directo sobre
+  `neutral-300` (4.4:1 y 4.35:1). Se oscurecen los dos tokens un tono:
+  `neutral-700` #645c50 -> #5f574b (4.8:1) y `accent-2-700` #56633f ->
+  #515e3b (4.7:1). La regla de arriba sigue (preferir `neutral-800` sobre el
+  fondo del panel); el token mas oscuro es la red para lo que se escape.
+- Texto minimo: 12 px para texto de lectura y 11 px para etiquetas en
+  mayusculas (impeccable `tiny-text` / `undersized-ui-text`).
 - Verde (`accent-2`) = paciente y público. Terracota (`accent`) = equipo.
 - Textura: grano de papel (SVG fractalNoise, opacidad 0.06, multiply) fijo
   sobre todo el sitio. Le quita la planitud de plantilla generada.

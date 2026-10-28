@@ -119,6 +119,13 @@ const MODULOS: { id: ConfiguracionCentro['modulosActivos'][number]; nombre: stri
   { id: 'COBROS', nombre: 'Cobros', icono: 'payments', nota: 'Pagos, boletas y liquidaciones por profesional' },
 ];
 
+/** 03b-4.2 (C-10): comision de las sesiones de pacientes que llegaron por el centro. */
+const DERIVACION: { valor: ConfiguracionCentro['comisionDerivacionTipo']; texto: string }[] = [
+  { valor: 'GENERAL', texto: 'La misma comisión general' },
+  { valor: 'PORCENTAJE', texto: 'Un porcentaje distinto' },
+  { valor: 'MONTO_FIJO', texto: 'Un monto fijo por sesión' },
+];
+
 const MODELOS: { valor: ConfiguracionCentro['modeloCobro']; texto: string }[] = [
   { valor: 'CENTRO', texto: 'Cobra el centro (boleta del centro)' },
   { valor: 'DIRECTO', texto: 'Cobra cada profesional (boleta del profesional)' },
@@ -162,6 +169,8 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
   const [modelo, setModelo] = useState(c.modeloCobro);
   const [exigeEvolucion, setExigeEvolucion] = useState(c.liquidarExigeEvolucion);
   const [bloquearMorosos, setBloquearMorosos] = useState(c.bloquearAgendaMorosos);
+  const [derivTipo, setDerivTipo] = useState(c.comisionDerivacionTipo);
+  const [derivValor, setDerivValor] = useState(String(Number(c.comisionDerivacionValor)));
   const [guardado, setGuardado] = useState(false);
   const guardar = useGuardarConfiguracion(() => setGuardado(true));
   const enviar = () => {
@@ -171,7 +180,14 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
       return valores[f.k] === '' || Number.isNaN(n) || n < f.min || n > f.max;
     });
     if (malo) return guardar.setError(`${malo.etiqueta}: entre ${malo.min} y ${malo.max} ${malo.unidad}.`);
+    const valorDeriv = derivTipo === 'GENERAL' ? 0 : Number(derivValor);
+    if (derivTipo === 'PORCENTAJE' && (derivValor === '' || Number.isNaN(valorDeriv) || valorDeriv > 100))
+      return guardar.setError('Comisión de pacientes del centro: entre 0 y 100 %.');
+    if (derivTipo === 'MONTO_FIJO' && (derivValor === '' || !Number.isInteger(valorDeriv) || valorDeriv > 1_000_000))
+      return guardar.setError('Comisión de pacientes del centro: un monto en pesos, sin decimales, hasta $1.000.000.');
     guardar.mutate({
+      comisionDerivacionTipo: derivTipo,
+      comisionDerivacionValor: valorDeriv,
       ...(Object.fromEntries(campos.map((f) => [f.k, Number(valores[f.k])])) as Record<Numerico, number>),
       modeloCobro: modelo,
       liquidarExigeEvolucion: exigeEvolucion,
@@ -215,6 +231,50 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
                     </Select>
                   )}
                 </Field>
+                <Field
+                  label="Comisión de pacientes que llegaron por el centro"
+                  hint="Pacientes del sitio público (Match o Pedir hora) o dados de alta por administración. Se marca en la ficha del paciente."
+                >
+                  {(x) => (
+                    <Select
+                      {...x}
+                      value={derivTipo}
+                      onChange={(e) => {
+                        setGuardado(false);
+                        setDerivTipo(e.target.value as typeof derivTipo);
+                      }}
+                    >
+                      {DERIVACION.map((d) => (
+                        <option key={d.valor} value={d.valor}>
+                          {d.texto}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                </Field>
+                {derivTipo !== 'GENERAL' && (
+                  <Field
+                    label={derivTipo === 'PORCENTAJE' ? 'Porcentaje por sesión' : 'Monto por sesión'}
+                    hint={derivTipo === 'PORCENTAJE' ? 'Sobre lo cobrado de cada sesión, entre 0 y 100 %.' : 'En pesos. Nunca más que lo cobrado de la sesión.'}
+                  >
+                    {(x) => (
+                      <span className="flex items-center gap-2">
+                        {derivTipo === 'MONTO_FIJO' && <span className="text-[13px] font-bold text-neutral-700">$</span>}
+                        <Input
+                          {...x}
+                          inputMode={derivTipo === 'PORCENTAJE' ? 'decimal' : 'numeric'}
+                          value={derivValor}
+                          onChange={(e) => {
+                            setGuardado(false);
+                            setDerivValor(e.target.value.replace(derivTipo === 'PORCENTAJE' ? /[^\d.]/g : /\D/g, ''));
+                          }}
+                          className="!w-[120px]"
+                        />
+                        {derivTipo === 'PORCENTAJE' && <span className="text-[13px] font-bold text-neutral-700">%</span>}
+                      </span>
+                    )}
+                  </Field>
+                )}
                 <div className="sm:col-span-2">
                   <Interruptor
                     tono="team"

@@ -14,6 +14,7 @@ import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { formatoFechaHora, formatoTelefono } from '@/lib/formato';
 import { clavesPortal, useMisDatos } from '@/lib/portal';
+import { reglaCorreo, reglaTelefono } from '@/lib/validacion';
 
 const fecha = (iso: string) => {
   const [a, m, d] = iso.slice(0, 10).split('-');
@@ -66,13 +67,13 @@ export function MisDatos() {
     const err: typeof errores = {};
     const tel = telefonoApi(telefono);
     if (tel && tel !== d.telefono) {
-      if (!/^\+56\d{9}$/.test(tel)) err.telefono = 'Escribe el teléfono con código de país: +56 9 1234 5678.';
-      else nuevos.telefono = tel;
+      err.telefono = reglaTelefono(tel);
+      if (!err.telefono) nuevos.telefono = tel;
     }
     const mail = correo.trim().toLowerCase();
     if (mail && mail !== (d.email ?? '')) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) err.correo = 'Revisa el correo: falta la @ o el dominio.';
-      else nuevos.email = mail;
+      err.correo = reglaCorreo()(mail);
+      if (!err.correo) nuevos.email = mail;
     }
     setErrores(err);
     if (err.telefono || err.correo) return;
@@ -120,10 +121,36 @@ export function MisDatos() {
             {editando ? (
               <>
                 <Field label="Teléfono" error={errores.telefono} hint="Con código de país, por ejemplo +56 9 1234 5678.">
-                  {(p) => <Input {...p} type="tel" autoComplete="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} className="!py-3" />}
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="tel"
+                      autoComplete="tel"
+                      value={telefono}
+                      onChange={(e) => {
+                        setTelefono(e.target.value);
+                        setErrores((x) => ({ ...x, telefono: undefined }));
+                      }}
+                      onBlur={() => setErrores((x) => ({ ...x, telefono: reglaTelefono(telefono) }))}
+                      className="!py-3"
+                    />
+                  )}
                 </Field>
                 <Field label="Correo" error={errores.correo} hint="Si lo cambias, te enviaremos un enlace para confirmarlo.">
-                  {(p) => <Input {...p} type="email" autoComplete="email" value={correo} onChange={(e) => setCorreo(e.target.value)} className="!py-3" />}
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="email"
+                      autoComplete="email"
+                      value={correo}
+                      onChange={(e) => {
+                        setCorreo(e.target.value);
+                        setErrores((x) => ({ ...x, correo: undefined }));
+                      }}
+                      onBlur={() => setErrores((x) => ({ ...x, correo: reglaCorreo()(correo) }))}
+                      className="!py-3"
+                    />
+                  )}
                 </Field>
               </>
             ) : (
