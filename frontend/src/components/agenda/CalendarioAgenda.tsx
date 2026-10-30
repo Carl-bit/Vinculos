@@ -71,7 +71,8 @@ type ClaseFondo = 'libre' | 'ocupado' | 'propio' | 'reservando';
 const TEXTO_FONDO: Record<ClaseFondo, string> = { libre: 'Libre', ocupado: 'Ocupado', propio: 'Tu horario apartado', reservando: 'Reservando…' };
 
 type Evento =
-  { tipo: 'cita'; cita: CitaVista; inicio: string; fin: string } | { tipo: 'fondo'; clase: ClaseFondo; espacioId: string | null; inicio: string; fin: string };
+  | { tipo: 'cita'; cita: CitaVista; inicio: string; fin: string }
+  | { tipo: 'fondo'; clase: ClaseFondo; espacioId: string | null; inicio: string; fin: string; quien?: string };
 
 interface Columna {
   clave: string;
@@ -90,9 +91,10 @@ interface Columna {
  * - "Mi horario" / "Por profesional": sesiones del profesional (o de todo el
  *   equipo para ADMIN/GESTION, con color por profesional).
  * - "Por box": sesiones con el color de su box y las del profesional
- *   destacadas. Con un box elegido se ve su horario libre y lo ocupado (sin
- *   quien: ocupacion_espacios()) y encima las sesiones del profesional, para
- *   ver que no choquen (se puede apagar).
+ *   destacadas. Con un box elegido se ve su horario libre y lo ocupado (entre
+ *   profesionales sin quien: ocupacion_espacios(); ADMIN/GESTION con el nombre,
+ *   desde los bloques) y encima las sesiones del profesional, para ver que no
+ *   choquen (se puede apagar).
  *
  * Se refresca cada 2 minutos con la pestaña visible (estandar_polling.md).
  */
@@ -137,6 +139,11 @@ export function CalendarioAgenda({ rol, modo, onElegir, onAgendar }: { rol: Rol;
     queryFn: () => datos(api.GET('/api/profesionales/{profesionalId}/bloques', { params: { path: { profesionalId: cuenta.data!.id }, query: rango } })),
     enabled: !!box && clinico && !!cuenta.data?.id,
   });
+  const bloquesCentro = useQuery({
+    queryKey: ['panel', 'bloques', 'centro', rango.desde, rango.hasta],
+    queryFn: () => datos(api.GET('/api/espacios/bloques', { params: { query: rango } })),
+    enabled: !!box && admin,
+  });
   // Simbolos de estado: sesiones con evolucion (solo el equipo tratante: es clinico) e inasistencias (Cobros).
   const evolucion = useQuery({
     queryKey: ['panel', 'citas-con-evolucion', rango.desde, rango.hasta],
@@ -176,6 +183,12 @@ export function CalendarioAgenda({ rol, modo, onElegir, onAgendar }: { rol: Rol;
   const estadoDe = (c: CitaVista) =>
     estadoVisual(c, { ahora, conEvolucion: clinico && evolucion.isSuccess ? conEvolucion.has(c.id) : undefined, inasistencia: inasistencias.has(c.id) });
 
+  // Quien aparto un bloque: solo llega a ADMIN/GESTION.
+  const quienAparto = (o: { espacio_id: string; inicio: string; fin: string }) => {
+    const b = bloquesCentro.data?.find((x) => x.espacioId === o.espacio_id && x.inicio <= o.inicio && x.fin >= o.fin);
+    return b && (nombreProfesional.get(b.profesionalId) ?? 'Profesional');
+  };
+
   // Box elegido: de fondo sus horas libres y ocupadas; encima, las sesiones del profesional (todas: un choque
   // puede ser en otro box u online) o, para ADMIN/GESTION sin filtro de profesional, las de ese box.
   const fondo: Evento[] = [
@@ -194,6 +207,7 @@ export function CalendarioAgenda({ rol, modo, onElegir, onAgendar }: { rol: Rol;
               espacioId: box,
               inicio: o.inicio,
               fin: o.fin,
+              quien: quienAparto(o),
             })),
         ]
       : []),
@@ -324,7 +338,7 @@ export function CalendarioAgenda({ rol, modo, onElegir, onAgendar }: { rol: Rol;
               desdeHora={desdeHora}
               render={(e) =>
                 e.tipo === 'fondo' ? (
-                  <Fondo clase={e.clase} lugar={box ? null : e.espacioId ? (nombreBox.get(e.espacioId) ?? 'Box') : 'Online'} />
+                  <Fondo clase={e.clase} lugar={box ? (e.quien ?? null) : e.espacioId ? (nombreBox.get(e.espacioId) ?? 'Box') : 'Online'} />
                 ) : (
                   <TarjetaCita
                     cita={e.cita}

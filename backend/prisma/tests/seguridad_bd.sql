@@ -5797,8 +5797,119 @@ DO $$ DECLARE r uuid := gen_random_uuid(); n int; BEGIN
   PERFORM informar_registro_sis(NULL);
   ASSERT NOT EXISTS (SELECT 1 FROM registros_sis WHERE profesional_id = test.u('b1')), 'caso 153: quitado';
 END $$;
+
+\echo 154 Revocar acceso temporal: ADMIN o el tratante, el receptor pierde la ficha al instante, una sola vez, append-only, aviso y auditoria; preferencias del equipo solo propias
+DO $$ DECLARE v uuid; v_trat uuid; n int; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  v_trat := (SELECT profesional_id FROM pacientes WHERE id = test.u('0a'));
+  v := otorgar_acceso_temporal(test.u('0a'), test.u('b5'), 'INTERCONSULTA', 'LECTURA', NULL, now() + interval '1 day');
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM pacientes WHERE id = test.u('0a')) = 1, 'caso 154: con acceso ve al paciente';
+  BEGIN
+    PERFORM revocar_acceso_temporal(v, 'ERROR');
+    RAISE EXCEPTION 'caso 154: el receptor no revoca';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  BEGIN
+    INSERT INTO revocaciones_acceso_temporal (acceso_id, motivo, revocado_por_id) VALUES (v, 'ERROR', test.u('b5'));
+    RAISE EXCEPTION 'caso 154: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM revocar_acceso_temporal(v, 'ERROR');
+    RAISE EXCEPTION 'caso 154: GESTION no revoca';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM revocar_acceso_temporal(v, 'TERMINO_ANTICIPADO');
+  BEGIN
+    PERFORM revocar_acceso_temporal(v, 'ERROR');
+    RAISE EXCEPTION 'caso 154: se revoca una sola vez';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  ASSERT (SELECT count(*) FROM notificaciones WHERE tipo = 'ACCESO_CLINICO_REVOCADO' AND referencia_id = v AND canal = 'BANDEJA') = 2,
+    'caso 154: aviso al paciente y al profesional';
+  ASSERT (SELECT count(*) FROM accesos_ficha WHERE paciente_id = test.u('0a') AND accion = 'ACCESO_TEMPORAL' AND detalle = 'revocado') = 1, 'caso 154: auditado';
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM pacientes WHERE id = test.u('0a')) = 0, 'caso 154: revocado no ve al paciente';
+  ASSERT (SELECT count(*) FROM revocaciones_acceso_temporal WHERE acceso_id = v) = 1, 'caso 154: el receptor ve la revocacion';
+  BEGIN
+    DELETE FROM revocaciones_acceso_temporal WHERE acceso_id = v;
+    RAISE EXCEPTION 'caso 154: DELETE debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+
+  -- Preferencias del equipo: solo las propias, sin borrar.
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  INSERT INTO preferencias_aviso_equipo (usuario_id, mensajes) VALUES (test.u('b1'), false);
+  BEGIN
+    INSERT INTO preferencias_aviso_equipo (usuario_id) VALUES (test.u('b2'));
+    RAISE EXCEPTION 'caso 154: preferencia de otro debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    DELETE FROM preferencias_aviso_equipo;
+    RAISE EXCEPTION 'caso 154: DELETE de preferencias debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM preferencias_aviso_equipo) = 0, 'caso 154: ADMIN no ve preferencias ajenas';
+END $$;
 \connect :owner_url
 \set ON_ERROR_STOP 1
+
+\echo 155 Revocar con sesiones por cubrir: 422 hasta resolverlas y la cita ya no se mueve a ese profesional; C-11: cargos a la liquidacion solo si el centro lo decide, inasistencia justificada no es sesion realizada; correo del equipo por grupo
+DO $$ DECLARE v uuid; v_cita uuid; v_otra uuid; v_trat uuid; v_liq uuid; v_a uuid; v_b uuid; r uuid := gen_random_uuid(); l liquidaciones%ROWTYPE; BEGIN
+  INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin)
+  VALUES (test.u('b5'), test.box_de(test.u('b5')), test.dia(46, 0), test.dia(48, 0));
+  PERFORM test.ctx('a1', 'ADMIN');
+  v_trat := (SELECT profesional_id FROM pacientes WHERE id = test.u('0a'));
+  v := otorgar_acceso_temporal(test.u('0a'), test.u('b5'), 'REEMPLAZO', 'LECTURA_ESCRITURA', NULL, now() + interval '60 days');
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e2'), v_trat, test.u('0a'), test.dia(46, 10), test.dia(46, 11)) RETURNING id INTO v_cita;
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
+  VALUES (test.u('e2'), v_trat, test.u('0a'), test.dia(47, 10), test.dia(47, 11)) RETURNING id INTO v_otra;
+  UPDATE citas SET profesional_id = test.u('b5') WHERE id = v_cita;
+  BEGIN
+    PERFORM revocar_acceso_temporal(v, 'ERROR');
+    RAISE EXCEPTION 'caso 155: con sesiones por cubrir debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE citas SET estado = 'CANCELADA' WHERE id = v_cita;
+  PERFORM revocar_acceso_temporal(v, 'ERROR');
+  BEGIN
+    UPDATE citas SET profesional_id = test.u('b5') WHERE id = v_otra;
+    RAISE EXCEPTION 'caso 155: acceso revocado no cubre sesiones';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE citas SET estado = 'CANCELADA' WHERE id = v_otra;
+
+  -- C-11: inasistencia (100 %) y justificada con devolucion (25 %), periodo sin otras liquidaciones.
+  UPDATE configuracion_centro SET comision_centro_porcentaje = 10, modelo_cobro = 'CENTRO', cobro_inasistencia_porcentaje = 100,
+                                  penalizacion_cancelacion_porcentaje = 25, comision_derivacion_tipo = 'GENERAL';
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin, monto)
+  VALUES (test.u('e1'), test.u('b9'), test.u('16'), date_trunc('hour', now()) - interval '10 days', date_trunc('hour', now()) - interval '10 days' + interval '1 hour', 30000)
+  RETURNING id INTO v_a;
+  INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin, monto)
+  VALUES (test.u('e1'), test.u('b9'), test.u('16'), date_trunc('hour', now()) - interval '9 days', date_trunc('hour', now()) - interval '9 days' + interval '1 hour', 30000)
+  RETURNING id INTO v_b;
+  PERFORM registrar_pago(v_a, 30000, 'EFECTIVO');
+  PERFORM registrar_pago(v_b, 30000, 'EFECTIVO');
+  PERFORM resolver_cita(v_a, 'INASISTENCIA', NULL, NULL);
+  PERFORM resolver_cita(v_b, 'DEVOLUCION', NULL, 'Licencia medica');
+  v_liq := generar_liquidacion(test.u('b9'), current_date - 12, current_date - 7);
+  SELECT * INTO l FROM liquidaciones WHERE id = v_liq;
+  ASSERT l.total_cobrado = 0 AND l.cargos_liquidados = 0, 'caso 155: apagado, los cargos los retiene el centro y la justificada no cuenta';
+  UPDATE configuracion_centro SET liquidar_cargos_a_profesional = true;
+  v_liq := generar_liquidacion(test.u('b9'), current_date - 12, current_date - 7);
+  SELECT * INTO l FROM liquidaciones WHERE id = v_liq;
+  ASSERT l.cargos_liquidados = 37500 AND l.total_cobrado = 37500, format('caso 155: cargos 30000 + 7500, dio %s', l.cargos_liquidados);
+  ASSERT l.comision = 3750 AND l.total = 33750, 'caso 155: comision normal sobre los cargos';
+  UPDATE configuracion_centro SET liquidar_cargos_a_profesional = false, comision_centro_porcentaje = 0, cobro_inasistencia_porcentaje = 0,
+                                  penalizacion_cancelacion_porcentaje = 0;
+
+  -- Correo por grupo: apagado no llega, la bandeja si; lo que no tiene grupo llega siempre.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  PERFORM encolar_notificacion('MENSAJE_INTERNO', NULL, test.u('b1'), r, NULL);
+  ASSERT (SELECT count(*) FROM notificaciones WHERE referencia_id = r AND canal = 'BANDEJA') = 1, 'caso 155: la bandeja registra siempre';
+  ASSERT (SELECT count(*) FROM notificaciones WHERE referencia_id = r AND canal = 'CORREO') = 0, 'caso 155: mensajes apagado sin correo';
+  PERFORM encolar_notificacion('CIERRE_REQUERIDO', NULL, test.u('b1'), r, NULL);
+  ASSERT (SELECT count(*) FROM notificaciones WHERE referencia_id = r AND canal = 'CORREO') = 1, 'caso 155: sin grupo llega siempre';
+  PERFORM encolar_notificacion('MENSAJE_INTERNO', NULL, test.u('b2'), r, NULL);
+  ASSERT (SELECT count(*) FROM notificaciones WHERE referencia_id = r AND canal = 'CORREO') = 2, 'caso 155: sin fila llega todo';
+END $$;
 
 \echo 78 Sin texto plano: toda columna bytea cifrada tiene el formato; seed sin datos sensibles; copia de autoria intacta tras cerrar cuentas
 DO $$ DECLARE c record; n int; BEGIN

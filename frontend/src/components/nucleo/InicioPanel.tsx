@@ -434,7 +434,7 @@ function pendientesCentro(r: ReporteDashboard, rol: Rol): Pendiente[] {
       icono: 'payments',
       titulo: plural(p.transferencias_por_validar, 'transferencia por validar', 'transferencias por validar'),
       meta: 'Al validarla, la hora queda confirmada',
-      href: '/admin/cobros',
+      href: '/admin/cobros?vista=transferencias',
       tono: 'atencion',
     },
     p.pagos_pendientes > 0 && {

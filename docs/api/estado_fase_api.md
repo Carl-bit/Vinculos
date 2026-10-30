@@ -612,3 +612,15 @@ Roadmap: `docs/cumplimiento/roadmap_aud01.md`. Informe: `docs/cumplimiento/brech
   e2e `03b42b-correctivo-ui`; unit `verificador-prestadores.spec.ts`
   (simulado; HTTP simulado: exito, 404, 401/403, 429, 5xx, no coincide,
   minimizacion) y `jobs.spec.ts`.
+
+## Cierre hacia el MVP (2026-10-30)
+
+- Migraciones `20261103000000_mvp_enums`, `20261103000100_mvp_revocacion_cargos_avisos`
+  (detalle en `requisitos_02_apis.md` y en la matriz).
+- Seed demo: cancelacion tardia 25 %, inasistencia 100 %, comision general 20 %.
+- Decisiones: 03b-6 solo tras validar el flujo del MVP; SMTP real con el
+  despliegue; `prompts/04_pruebas.md` antes de conectar una VPS; sin pantallas
+  de pasarela (el webhook queda en excepciones de `api:cobertura`).
+- Tests: `seguridad_bd.sql` casos 154 (app_user) y 155 (dueño); integracion
+  `test/mvp-cierre.e2e-spec.ts`; Vitest `TransferenciasPorValidar`,
+  `MediosPagoCentro`, `CalendarioAgenda`; Playwright `e2e/cumplimiento.spec.ts`.

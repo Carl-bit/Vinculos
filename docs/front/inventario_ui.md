@@ -141,3 +141,9 @@ El punto de la marca y los bordes siguen con `-600` (son decorativos, no son tex
   `activacion`, `publico/solicitudes`).
 - Dashboard (estadísticas, módulos, sesiones de hoy, pendientes): fase del
   dashboard.
+
+## Excepciones aceptadas de impeccable (2026-10-30)
+
+`nested-cards` en Agenda (tiles de horario), Equipo (datos del integrante),
+Configuración (texto de la política) y detalle del paciente (avisos): copian el
+diseño del handoff, que manda en lo visual. No se corrigen.

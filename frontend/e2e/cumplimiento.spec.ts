@@ -30,6 +30,21 @@ test('Cobros: la sesion pagada muestra el comprobante (no tributario); ADMIN reg
   await expect(modal.getByText(/anulado: Prueba automatizada/).last()).toBeVisible();
 });
 
+test('Cobros y Configuracion (ADMIN): bandeja de transferencias del seed y medios de pago sin pasarela', async ({ page }) => {
+  await ingresarEquipo(page, 'admin');
+  await page.goto('/admin/cobros?vista=transferencias');
+  const tabla = page.getByRole('table', { name: 'Transferencias' });
+  await expect(tabla).toBeVisible();
+  await tabla.getByRole('button', { name: 'Validar' }).first().click();
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Validar y registrar pago' })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
+
+  await page.goto('/admin/configuracion?vista=medios');
+  await expect(page.getByRole('switch', { name: /Transferencia/ })).toBeChecked();
+  await expect(page.getByLabel(/Banco/)).toHaveValue('Banco Ficticio (Demo)');
+  await expect(page.getByText(/Pasarela/i)).toHaveCount(0);
+});
+
 test('Configuracion (ADMIN): auditoria de accesos con quien, rol activo y accion', async ({ page }) => {
   await ingresarEquipo(page, 'admin');
   await page.goto('/admin/configuracion?vista=auditoria');

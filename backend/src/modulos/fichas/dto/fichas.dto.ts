@@ -6,6 +6,7 @@ import {
   EstadoTipoSesion,
   ModoEnvioDocumento,
   MotivoAccesoTemporal,
+  MotivoRevocacionAcceso,
   TipoPolitica,
   NivelRiesgo,
   TipoPlantillaClinica,
@@ -367,7 +368,7 @@ export class EnviarDocumentoDto {
   modo?: ModoEnvioDocumento;
 }
 
-/** Invitacion de cuenta (03a): al paciente (desde 14 años) o, si es menor, a su adulto responsable. */
+/** Invitacion de cuenta (03a): al paciente (desde 14 aÃ±os) o, si es menor, a su adulto responsable. */
 export class InvitarPacienteDto {
   /** Por defecto el correo registrado. */
   @IsOptional()
@@ -406,7 +407,12 @@ export class ConsentimientoAtencionDto {
   adultoResponsableId?: string;
 }
 
-/** Acceso clinico temporal (C-4, C-5): se corta solo al vencer. */
+export class RevocarAccesoTemporalDto {
+  @IsEnum(MotivoRevocacionAcceso)
+  motivo!: MotivoRevocacionAcceso;
+}
+
+/** Acceso clinico temporal (C-4, C-5): vence solo o lo revocan ADMIN o el tratante. */
 export class AccesoTemporalDto {
   @IsUUID()
   profesionalId!: string;
@@ -798,6 +804,10 @@ export class AccesoTemporalVista {
   hasta!: Date;
   otorgadoPorId!: string;
   creadoEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  revocadoEn!: Date | null;
+  @ApiProperty({ enum: MotivoRevocacionAcceso, enumName: 'MotivoRevocacionAcceso', nullable: true })
+  motivoRevocacion!: MotivoRevocacionAcceso | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -891,7 +901,7 @@ export class CatalogoClinicoVista {
   updatedAt!: Date;
 }
 
-/** Ficha que supero los 15 años desde la ultima atencion (la consulta queda registrada). */
+/** Ficha que supero los 15 aÃ±os desde la ultima atencion (la consulta queda registrada). */
 export class FichaSobreRetencion {
   ficha_id!: string;
   paciente_id!: string;

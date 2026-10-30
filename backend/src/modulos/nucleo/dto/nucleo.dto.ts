@@ -243,6 +243,11 @@ export class EditarConfiguracionDto {
   @IsBoolean()
   liquidarExigeEvolucion?: boolean;
 
+  /** C-11: los cargos por inasistencia y cancelacion tardia se liquidan al profesional. */
+  @IsOptional()
+  @IsBoolean()
+  liquidarCargosAProfesional?: boolean;
+
   /** 03a: el match ofrece "prefiero filtrar yo mismo". */
   @IsOptional()
   @IsBoolean()
@@ -617,6 +622,7 @@ export class ConfiguracionCentroVista {
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
   modulosActivos!: ModuloCentro[];
   liquidarExigeEvolucion!: boolean;
+  liquidarCargosAProfesional!: boolean;
   matchFiltroDirecto!: boolean;
   diasRetencionRespuestasMatch!: number;
   minutosRetencionSolicitud!: number;

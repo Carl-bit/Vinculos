@@ -100,6 +100,10 @@ export class AgendaService {
     });
   }
 
+  bloquesCentro(desde: Date, hasta: Date): Promise<BloqueAtencionVista[]> {
+    return this.bd.tx().bloqueAtencion.findMany({ where: { inicio: { lt: hasta }, fin: { gt: desde } }, select: VISTA_BLOQUE, orderBy: { inicio: 'asc' } });
+  }
+
   /**
    * Aparta horas de box (todas o ninguna). El trigger valida rol, box activo
    * y horario del box/centro (422); el EXCLUDE, que el box o el profesional

@@ -5,15 +5,25 @@ import { TAGS } from '../docs/openapi';
 import { Actor, Roles } from '../auth/decoradores';
 import { texto } from '../bd/claro';
 import { ContextoBd, encontrado, type UsuarioActual } from '../bd/contexto-bd.service';
-import { EditarPlantillaDto, MensajeBandeja, NotificacionRegistro, Preferencias, PreferenciasDto, PlantillaMensajeVista } from './notificaciones.dto';
+import {
+  EditarPlantillaDto,
+  MensajeBandeja,
+  NotificacionRegistro,
+  PlantillaMensajeVista,
+  Preferencias,
+  PreferenciasDto,
+  PreferenciasEquipo,
+  PreferenciasEquipoDto,
+} from './notificaciones.dto';
 
 const Uuid = new ParseUUIDPipe();
 const PREFERENCIAS = { recordatorios: true, avisosOperativos: true, whatsapp: true, whatsappConsentidoEn: true } as const;
+const PREFERENCIAS_EQUIPO = { agenda: true, cobros: true, derivaciones: true, mensajes: true } as const;
 
 /**
  * Mensajeria (02i). Registro (metadatos): ADMIN/GESTION todos; cada
  * destinatario los suyos (RLS). Bandeja (registro oficial, con contenido):
- * solo los propios. Preferencias: el paciente.
+ * solo los propios. Preferencias: el paciente y, las suyas, cada integrante.
  */
 @ApiTags(TAGS.mensajeria)
 @Controller('notificaciones')
@@ -80,6 +90,31 @@ export class NotificacionesController {
       create: { pacienteId, ...dto },
       update: dto,
       select: PREFERENCIAS,
+    });
+  }
+
+  /** Avisos por correo del propio integrante del equipo. La bandeja registra todo. */
+  @Get('preferencias-equipo')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  async preferenciasEquipo(@Actor() actor: UsuarioActual): Promise<PreferenciasEquipo> {
+    return (
+      (await this.bd.tx().preferenciaAvisoEquipo.findUnique({ where: { usuarioId: actor.id }, select: PREFERENCIAS_EQUIPO })) ?? {
+        agenda: true,
+        cobros: true,
+        derivaciones: true,
+        mensajes: true,
+      }
+    );
+  }
+
+  @Put('preferencias-equipo')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  guardarPreferenciasEquipo(@Actor() actor: UsuarioActual, @Body() dto: PreferenciasEquipoDto): Promise<PreferenciasEquipo> {
+    return this.bd.tx().preferenciaAvisoEquipo.upsert({
+      where: { usuarioId: actor.id },
+      create: { usuarioId: actor.id, ...dto },
+      update: dto,
+      select: PREFERENCIAS_EQUIPO,
     });
   }
 

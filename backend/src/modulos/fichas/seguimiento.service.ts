@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import type { MotivoRevocacionAcceso } from '@prisma/client';
 
 import { registrarAcceso } from '../../core/bd/auditoria';
 import { claro, texto } from '../../core/bd/claro';
@@ -25,6 +26,12 @@ const vistaBorrador = <B extends { contenido: Uint8Array; valores: Uint8Array | 
   ...b,
   contenido: texto(b.contenido),
   valores: b.valores ? (JSON.parse(texto(b.valores)) as Record<string, unknown>) : null,
+});
+
+const vistaAcceso = <A extends { revocacion: { motivo: MotivoRevocacionAcceso; revocadoEn: Date } | null }>({ revocacion, ...a }: A) => ({
+  ...a,
+  revocadoEn: revocacion?.revocadoEn ?? null,
+  motivoRevocacion: revocacion?.motivo ?? null,
 });
 
 /**
@@ -155,12 +162,25 @@ export class SeguimientoService {
     const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
       SELECT otorgar_acceso_temporal(${pacienteId}::uuid, ${dto.profesionalId}::uuid, ${dto.motivo}::motivo_acceso_temporal,
                                      ${dto.alcance}::alcance_acceso_temporal, ${dto.desde ?? null}, ${dto.hasta}) AS id`;
-    return this.bd.tx().accesoClinicoTemporal.findUniqueOrThrow({ where: { id } });
+    return this.accesoTemporal(id);
   }
 
   /** ADMIN: todos; PROFESIONAL: los que recibio y los de sus pacientes (RLS). */
-  accesosTemporales(pacienteId?: string) {
-    return this.bd.tx().accesoClinicoTemporal.findMany({ where: pacienteId ? { pacienteId } : {}, orderBy: { hasta: 'desc' } });
+  async accesosTemporales(pacienteId?: string) {
+    const filas = await this.bd
+      .tx()
+      .accesoClinicoTemporal.findMany({ where: pacienteId ? { pacienteId } : {}, include: { revocacion: true }, orderBy: { hasta: 'desc' } });
+    return filas.map(vistaAcceso);
+  }
+
+  /** ADMIN o el tratante; solo un acceso vigente y sin sesiones por cubrir (422). Avisa al paciente y al profesional. */
+  async revocarAccesoTemporal(id: string, motivo: MotivoRevocacionAcceso) {
+    await this.bd.tx().$executeRaw`SELECT revocar_acceso_temporal(${id}::uuid, ${motivo}::motivo_revocacion_acceso)`;
+    return this.accesoTemporal(id);
+  }
+
+  private async accesoTemporal(id: string) {
+    return vistaAcceso(await this.bd.tx().accesoClinicoTemporal.findUniqueOrThrow({ where: { id }, include: { revocacion: true } }));
   }
 
   /** Ultima y proxima sesion y sesiones sin cerrar (metadata, sin contenido clinico). */

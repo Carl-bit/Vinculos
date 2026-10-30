@@ -26,6 +26,7 @@ const DESTINO: Partial<Record<MensajeBandeja['tipo'], { icono: Icono; href: stri
   CONSENTIMIENTO_POR_VENCER: { icono: 'verified_user', href: '/portal/consentimientos', accion: 'Responder' },
   AVISO_CAMBIO_SUPERVISOR: { icono: 'supervisor_account', href: '/portal/consentimientos', accion: 'Revisar' },
   ACCESO_CLINICO_TEMPORAL: { icono: 'shield_person', href: '/portal/avisos', accion: '' },
+  ACCESO_CLINICO_REVOCADO: { icono: 'shield_person', href: '/portal/avisos', accion: '' },
   DOCUMENTO_CLINICO: { icono: 'description', href: '/portal/documentos', accion: 'Ver documentos' },
   PAGO_REGISTRADO: { icono: 'payments', href: '/portal/pagos', accion: 'Ver pagos' },
   COMPROBANTE_EMITIDO: { icono: 'receipt_long', href: '/portal/pagos', accion: 'Ver pagos' },

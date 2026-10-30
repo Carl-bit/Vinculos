@@ -11,13 +11,15 @@ import type { TonoBadge } from '@/components/ui/Badge';
 
 import { api, datos } from './api/cliente';
 import type { components } from './api/esquema';
-import { inicioDiaChile, sumarDias } from './panel';
+import { inicioDiaChile, sondeoAgenda, sumarDias } from './panel';
 
 export type EstadoPagoCitaVista = components['schemas']['EstadoPagoCitaVista'];
 export type MedioPago = components['schemas']['MedioPago'];
 export type LiquidacionVista = components['schemas']['LiquidacionVista'];
 export type DocumentoTributarioVista = components['schemas']['DocumentoTributarioVista'];
 export type TipoDocumentoTributario = components['schemas']['TipoDocumentoTributario'];
+export type TransferenciaVista = components['schemas']['TransferenciaVista'];
+export type EstadoTransferencia = TransferenciaVista['estado'];
 
 export const ESTADO_PAGO: Record<EstadoPagoCitaVista['estado_pago'], { texto: string; tono: TonoBadge }> = {
   PAGADO: { texto: 'Pagada', tono: 'positivo' },
@@ -109,6 +111,15 @@ export function useLiquidaciones(profesionalId?: string) {
 export type DeudaPaciente = components['schemas']['DeudaPaciente'];
 
 /** 03b-3.3: pacientes con sesiones terminadas impagas (ADMIN/GESTION todos; el profesional los de sus citas). */
+/** Bandeja de transferencias: se refresca sola, como el calendario (estandar_polling.md). */
+export function useTransferencias(estado: EstadoTransferencia) {
+  return useQuery({
+    queryKey: ['panel', 'cobros', 'transferencias', estado],
+    queryFn: () => datos(api.GET('/api/cobros/transferencias', { params: { query: { estado } } })),
+    ...sondeoAgenda,
+  });
+}
+
 export function useDeudas(habilitado = true) {
   return useQuery({ queryKey: ['panel', 'cobros', 'deudas'], queryFn: () => datos(api.GET('/api/cobros/deudas')), enabled: habilitado });
 }

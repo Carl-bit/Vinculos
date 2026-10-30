@@ -98,6 +98,13 @@ export class EspaciosController {
     return this.agenda.ocupacion(rango.desde, rango.hasta);
   }
 
+  /** Bloques apartados de todo el centro, con quien los aparto (solo administracion: ver matriz). */
+  @Get('bloques')
+  @Roles('ADMIN', 'GESTION')
+  bloquesCentro(@Query() rango: RangoDto): Promise<BloqueAtencionVista[]> {
+    return this.agenda.bloquesCentro(rango.desde, rango.hasta);
+  }
+
   /** 03b: horas libres de cada box para apartar (horario vigente del box menos bloques). Max. 62 dias. */
   @Get('disponibilidad')
   @Roles(...EQUIPO_AGENDA)

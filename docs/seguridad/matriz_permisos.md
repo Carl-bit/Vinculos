@@ -263,7 +263,7 @@ y `profesional_tipos_atencion`. `_prisma_migrations` no tiene GRANT para `app_us
 | A | todos (app_user) | `resenas_reportes` (03a) | todas | ninguna directa (`reportar_resena`) | sin GRANT |
 | A | ADMIN | `resenas_eventos` (03a) | SELECT | todas; append-only (sobrevive a la reseña) | GRANT SELECT + `resenas_eventos_select` + trigger append-only |
 | A | tratante (o acceso temporal) | `altas_paciente` (03a) | SELECT | de sus pacientes; ADMIN/GESTION no (motivo clinico); escritura solo `registrar_alta`; append-only | GRANT SELECT + `altas_paciente_select` + `_consentimiento_practicante` + trigger append-only |
-| A | ADMIN / PROFESIONAL (receptor o tratante) | `accesos_clinicos_temporales` (03a) | SELECT | todos / los que recibio y los de sus pacientes; escritura solo `otorgar_acceso_temporal`; append-only (se corta solo al vencer) | GRANT SELECT + `accesos_clinicos_temporales_select` + trigger append-only + CHECK (hasta 180 dias) |
+| A | ADMIN / PROFESIONAL (receptor o tratante) | `accesos_clinicos_temporales` (03a) | SELECT | todos / los que recibio y los de sus pacientes; escritura solo `otorgar_acceso_temporal`; append-only (se corta al vencer o con `revocar_acceso_temporal`) | GRANT SELECT + `accesos_clinicos_temporales_select` + trigger append-only + CHECK (hasta 180 dias) |
 | A | PROFESIONAL con acceso temporal | `pacientes`, `fichas_clinicas`, `evoluciones`, `adultos_responsables`, `documentos_clinicos`, `adjuntos_ficha` (03a) | SELECT (y INSERT de evoluciones con LECTURA_ESCRITURA) | del paciente, mientras el acceso este vigente | `acceso_temporal_vigente()` / `acceso_temporal_ficha()` en las politicas |
 | A | autor (PROFESIONAL / PRACTICANTE tratante o con acceso temporal de escritura) | `borradores_evolucion` (03a) | SELECT, INSERT, UPDATE, DELETE | los propios (no son ficha: se descartan); contenido cifrado | GRANT + `borradores_evolucion_autor` + `_consentimiento_practicante` + CHECK `borradores_evolucion_cifrado` |
 | B | equipo (ADMIN, GESTION, PROFESIONAL, PRACTICANTE) / ADMIN | `especialidades` (03a-2) | SELECT / INSERT, UPDATE (nombre, activo) | todas; nunca DELETE (se desactiva); PACIENTE y RESPONSABLE nada | GRANT + `especialidades_*` |
@@ -540,3 +540,13 @@ Ajustes 2026-10-29 (sin cambio de BD):
 | - | ADMIN, GESTION | menu y pagina "Equipo" | solo administracion; PROFESIONAL y PRACTICANTE editan lo suyo en "Mi perfil" | la supervision de casos pasa a "Fichas y Pacientes" (quien supervisa) | front (`lib/navegacion.ts`); la API no cambia |
 
 "Por box" (decidido 2026-10-29): entre profesionales queda "Ocupado", sin nombre; ADMIN/GESTION ven el nombre del profesional en cada sesion (su listado de citas ya lo trae).
+
+## Cierre hacia el MVP (2026-10-30)
+
+| Categoria | Rol | Tabla, funcion o endpoint | Operacion | Filas / regla | Mecanismo |
+|---|---|---|---|---|---|
+| A | ADMIN, PROFESIONAL (receptor o tratante) | `revocaciones_acceso_temporal` | SELECT | las de los accesos que ve; append-only; motivo de catalogo (sin texto libre) | GRANT SELECT + `revocaciones_acceso_temporal_select` + `_acceso_vigente` + trigger append-only |
+| A | ADMIN, el tratante | `revocar_acceso_temporal(acceso, motivo)` / `POST accesos-temporales/:id/revocacion` | ejecutar | acceso vigente, una vez; con sesiones futuras por cubrir 422 `revocacion_con_sesiones_por_cubrir`; aviso legal al paciente y aviso al profesional; `accesos_ficha` ACCESO_TEMPORAL detalle `revocado` | SECURITY DEFINER; P0002 (404), 55000 (409), 23514 (422) |
+| A | ADMIN, GESTION, PROFESIONAL, PRACTICANTE (solo las propias) | `preferencias_aviso_equipo` / `GET/PUT notificaciones/preferencias-equipo` | SELECT, INSERT; UPDATE por columna | sin fila = todo; solo correo: la bandeja registra siempre; no se apagan oferta de derivacion, cierre requerido, posible duplicado ni avisos legales (`grupo_aviso_equipo()`) | GRANT minimo + `preferencias_aviso_equipo_propias` + `_acceso_vigente` |
+| A | ADMIN, GESTION | `GET espacios/bloques` | lectura | bloques del centro con `profesionalId` (Por box muestra quien aparto); entre profesionales sigue `ocupacion_espacios()` sin quien | `bloques_atencion_gestion`; caso 34 sin cambios |
+| A | ADMIN | `configuracion_centro.liquidar_cargos_a_profesional` | UPDATE | C-11: cargos por inasistencia y cancelacion tardia a la liquidacion (`cargo_cita()`, `liquidaciones.cargos_liquidados`); apagado por defecto | GRANT UPDATE por columna |

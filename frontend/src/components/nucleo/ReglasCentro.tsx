@@ -168,6 +168,7 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
   );
   const [modelo, setModelo] = useState(c.modeloCobro);
   const [exigeEvolucion, setExigeEvolucion] = useState(c.liquidarExigeEvolucion);
+  const [liquidarCargos, setLiquidarCargos] = useState(c.liquidarCargosAProfesional);
   const [bloquearMorosos, setBloquearMorosos] = useState(c.bloquearAgendaMorosos);
   const [derivTipo, setDerivTipo] = useState(c.comisionDerivacionTipo);
   const [derivValor, setDerivValor] = useState(String(Number(c.comisionDerivacionValor)));
@@ -191,6 +192,7 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
       ...(Object.fromEntries(campos.map((f) => [f.k, Number(valores[f.k])])) as Record<Numerico, number>),
       modeloCobro: modelo,
       liquidarExigeEvolucion: exigeEvolucion,
+      liquidarCargosAProfesional: liquidarCargos,
       bloquearAgendaMorosos: bloquearMorosos,
     });
   };
@@ -287,6 +289,18 @@ function Parametros({ c }: { c: ConfiguracionCentro }) {
                     onChange={(v) => {
                       setGuardado(false);
                       setExigeEvolucion(v);
+                    }}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Interruptor
+                    tono="team"
+                    etiqueta="Liquidar al profesional los cargos cobrados"
+                    descripcion="Lo cobrado por inasistencia y cancelación fuera de plazo entra a la liquidación como línea aparte, con la comisión normal. Apagado, lo retiene el centro."
+                    activo={liquidarCargos}
+                    onChange={(v) => {
+                      setGuardado(false);
+                      setLiquidarCargos(v);
                     }}
                   />
                 </div>

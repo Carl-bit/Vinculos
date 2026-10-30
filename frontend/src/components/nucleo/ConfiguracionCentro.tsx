@@ -11,13 +11,26 @@ import { DatosCentro } from './DatosCentro';
 import { ExportacionCentro } from './ExportacionCentro';
 import { FeriadosCentro } from './FeriadosCentro';
 import { HorarioCentroEditor, PoliticasCentro } from './HorarioPoliticasCentro';
+import { MediosPagoCentro } from './MediosPagoCentro';
 import { PlantillasMensaje } from './PlantillasMensaje';
 import { ReglasCentro } from './ReglasCentro';
 import { SolicitudesDerechos } from './SolicitudesDerechos';
 import { SoporteCentro } from './SoporteCentro';
 
 type Vista =
-  'datos' | 'modulos' | 'horario' | 'politicas' | 'notificaciones' | 'reglas' | 'roles' | 'auditoria' | 'derechos' | 'feriados' | 'exportacion' | 'soporte';
+  | 'datos'
+  | 'modulos'
+  | 'horario'
+  | 'politicas'
+  | 'notificaciones'
+  | 'reglas'
+  | 'medios'
+  | 'roles'
+  | 'auditoria'
+  | 'derechos'
+  | 'feriados'
+  | 'exportacion'
+  | 'soporte';
 const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'datos', etiqueta: 'Datos del centro' },
   { valor: 'modulos', etiqueta: 'Módulos contratados' },
@@ -25,6 +38,7 @@ const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'politicas', etiqueta: 'Consentimiento y políticas' },
   { valor: 'notificaciones', etiqueta: 'Notificaciones' },
   { valor: 'reglas', etiqueta: 'Reglas y plazos' },
+  { valor: 'medios', etiqueta: 'Medios de pago' },
   { valor: 'roles', etiqueta: 'Roles y accesos' },
   { valor: 'auditoria', etiqueta: 'Auditoría de accesos' },
   { valor: 'derechos', etiqueta: 'Solicitudes de datos' },
@@ -70,6 +84,7 @@ export function ConfiguracionCentro() {
           {vista === 'politicas' && <PoliticasCentro />}
           {vista === 'notificaciones' && <PlantillasMensaje />}
           {(vista === 'reglas' || vista === 'modulos' || vista === 'roles') && <ReglasCentro seccion={vista} />}
+          {vista === 'medios' && <MediosPagoCentro />}
           {vista === 'auditoria' && <AuditoriaAccesos />}
           {vista === 'derechos' && <SolicitudesDerechos />}
           {vista === 'feriados' && <FeriadosCentro />}

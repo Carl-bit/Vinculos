@@ -520,8 +520,7 @@ Reportado, no implementado:
 
 Reportado, no implementado:
 
-- Revocar un acceso temporal antes de su fecha: la BD no lo permite (se corta
-  solo al vencer, append-only). Si el centro lo necesita, es una funcion nueva.
+- ~~Revocar un acceso temporal antes de su fecha~~: resuelto en la seccion 23.
 - "Mensajes de pacientes" muestra telefono y correo para responder fuera de la
   app: la respuesta in-app esta fuera de alcance (CLAUDE.md).
 
@@ -766,7 +765,7 @@ decidir.
 | Fase | Estado | Pendientes |
 |---|---|---|
 | 03b-2 (sitio publico) | Completa | — |
-| 03b-3 (cuentas y portal, con 3.1 a 3.4) | Completa | Lista de espera retirada (implementacion futura, seccion 16); pantalla de transferencias por validar dentro de Cobros ya existe como pendiente del inicio |
+| 03b-3 (cuentas y portal, con 3.1 a 3.4) | Completa | Lista de espera retirada (implementacion futura, seccion 16); transferencias por validar y medios de pago: resueltos en la seccion 23 |
 | 03b-4 (backoffice segun diseño) | Completa (2026-10-28: ver seccion 22) | 8 (avisos del equipo) pasa a la auditoria de flujos; 15 sin decidir |
 | 03b-5 | En pausa | No se avanza hasta cerrar 03b-4 |
 
@@ -862,3 +861,18 @@ impeccable en las vistas nuevas: solo `cramped-padding` estructural (líneas de 
 | Equipo | Menú y página solo para ADMIN/GESTION (otro rol se redirige a "Mi perfil"). La pestaña "Supervisión" del supervisor pasa a "Fichas y Pacientes" |
 
 Pendiente: en "Por box" con un box elegido, lo apartado por otro profesional se ve como "Ocupado" también para ADMIN (la ocupación no trae quién); el nombre lo ve en las sesiones. Si ADMIN necesita el nombre en los bloques apartados, hay que leer los bloques por profesional.
+
+## 23. Cierre hacia el MVP (decisiones del usuario, 2026-10-30)
+
+| Pendiente | Resolución |
+|---|---|
+| Transferencias por validar (secciones 17 y 18) | Cobros › Transferencias: por validar, validadas y rechazadas; comprobante, validar y rechazar con motivo. Quien valida sigue el modelo de cobro (la BD lo impone). El inicio enlaza a la pestaña. Nombres con la lista de pacientes del rol: no hizo falta cambiar la API |
+| Medios de pago y cuenta del centro | Configuración › Medios de pago (solo ADMIN): pago en el centro, transferencia, plazo, porcentaje y cuenta. La pasarela no se ofrece; si estaba habilitada se conserva |
+| Revocar acceso temporal | Botón "Revocar" para ADMIN y el tratante, con motivo de catálogo. Con sesiones por cubrir no se permite. Aviso al paciente y al profesional |
+| C-11 | Interruptor en Reglas y plazos, apagado por defecto. Encendido: lo cobrado como cargo entra a la liquidación, línea aparte, con comisión normal. Corrige además un error: la inasistencia justificada con devolución se liquidaba como sesión realizada |
+| 8, avisos del equipo | Mi perfil › Avisos y recordatorios: correo sí/no para agenda, cobros, derivaciones y mensajes |
+| Por box para ADMIN | Lo apartado muestra quién lo apartó (`GET espacios/bloques`). Entre profesionales sigue "Ocupado". Sin función nueva ni cambio en el caso 34 |
+| TOTP (12) | Post-MVP. Sigue apagado |
+| impeccable `nested-cards` | Excepción aceptada: esas vistas copian el diseño del handoff (`inventario_ui.md`) |
+| Fusión de duplicados | Fuera del MVP: se mantiene `MISMO_PACIENTE` y conciliación manual |
+| Menores D-4 | Sin código: pendiente la revisión legal antes de pacientes reales |

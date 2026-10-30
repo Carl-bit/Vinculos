@@ -16,7 +16,7 @@ import { Tabla, Td, Th } from '@/components/ui/Tabla';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { useMiCuenta, useProfesionales } from '@/lib/consultas';
-import { ALCANCE_ACCESO, accesoVigente, MOTIVO_ACCESO, useAccesosRecibidos, type AccesoTemporal } from '@/lib/derivaciones';
+import { ALCANCE_ACCESO, accesoVigente, MOTIVO_ACCESO, MOTIVO_REVOCACION, useAccesosRecibidos, type AccesoTemporal } from '@/lib/derivaciones';
 import { formatoFecha } from '@/lib/formato';
 import { fechaHoyChile, inicioDiaChile, nombresPacientes, sumarDias, useAccesosTemporales, usePacientes } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
@@ -27,8 +27,8 @@ const MAX_DIAS = 180;
  * Accesos clinicos temporales de un paciente (C-4, C-5): REEMPLAZO o
  * INTERCONSULTA a otro profesional, de solo lectura o con escritura, hasta una
  * fecha (maximo 180 dias). Lo otorgan ADMIN o el tratante; el paciente recibe
- * un aviso; se corta solo al vencer y queda en la auditoria. No cambia el
- * tratante: para eso esta la derivacion.
+ * un aviso; se corta al vencer o si ellos lo revocan, y queda en la auditoria.
+ * No cambia el tratante: para eso esta la derivacion.
  */
 export function AccesosPaciente({ pacienteId, tratanteId, puedeOtorgar }: { pacienteId: string; tratanteId: string | null; puedeOtorgar: boolean }) {
   const accesos = useAccesosTemporales(pacienteId, true);
@@ -36,6 +36,7 @@ export function AccesosPaciente({ pacienteId, tratanteId, puedeOtorgar }: { paci
   const nombre = new Map((profesionales.data ?? []).map((p) => [p.id, p.nombre ?? 'Profesional']));
   const [otorgar, setOtorgar] = useState(false);
   const [vista, setVista] = useState<'vigentes' | 'vencidos'>('vigentes');
+  const [revocar, setRevocar] = useState<AccesoTemporal | null>(null);
   return (
     <Panel
       titulo="Accesos clínicos temporales"
@@ -73,7 +74,13 @@ export function AccesosPaciente({ pacienteId, tratanteId, puedeOtorgar }: { paci
                 ) : (
                   <ul className="m-0 flex list-none flex-col p-0">
                     {visibles.map((a) => (
-                      <FilaAcceso key={a.id} acceso={a} profesional={nombre.get(a.profesionalId)} otorgante={nombre.get(a.otorgadoPorId)} />
+                      <FilaAcceso
+                        key={a.id}
+                        acceso={a}
+                        profesional={nombre.get(a.profesionalId)}
+                        otorgante={nombre.get(a.otorgadoPorId)}
+                        onRevocar={puedeOtorgar && accesoVigente(a) ? () => setRevocar(a) : undefined}
+                      />
                     ))}
                   </ul>
                 )}
@@ -85,26 +92,91 @@ export function AccesosPaciente({ pacienteId, tratanteId, puedeOtorgar }: { paci
       <Modal abierto={otorgar} onCerrar={() => setOtorgar(false)} titulo="Otorgar acceso clínico temporal">
         {otorgar && <OtorgarAcceso pacienteId={pacienteId} excluir={tratanteId} onListo={() => setOtorgar(false)} />}
       </Modal>
+      <Modal
+        abierto={!!revocar}
+        onCerrar={() => setRevocar(null)}
+        titulo="Revocar acceso temporal"
+        descripcion={revocar ? nombre.get(revocar.profesionalId) : undefined}
+      >
+        {revocar && <RevocarAcceso acceso={revocar} onListo={() => setRevocar(null)} />}
+      </Modal>
     </Panel>
   );
 }
 
-function FilaAcceso({ acceso: a, profesional, otorgante, paciente }: { acceso: AccesoTemporal; profesional?: string; otorgante?: string; paciente?: string }) {
+function FilaAcceso({
+  acceso: a,
+  profesional,
+  otorgante,
+  onRevocar,
+}: {
+  acceso: AccesoTemporal;
+  profesional?: string;
+  otorgante?: string;
+  onRevocar?: () => void;
+}) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-divider py-3 last:border-b-0">
       <div className="min-w-0">
-        <p className="m-0 text-[14.5px] font-extrabold">{paciente ?? profesional ?? 'Profesional del centro'}</p>
+        <p className="m-0 text-[14.5px] font-extrabold">{profesional ?? 'Profesional del centro'}</p>
         <p className="m-0 text-[12.5px] font-semibold text-neutral-700">
-          {paciente ? `${profesional ?? 'Profesional'} · ` : ''}
           {formatoFecha(a.desde)} al {formatoFecha(a.hasta)}
           {otorgante ? ` · otorgó ${otorgante}` : ''}
+          {a.revocadoEn && a.motivoRevocacion ? ` · revocado el ${formatoFecha(a.revocadoEn)}: ${MOTIVO_REVOCACION[a.motivoRevocacion].toLowerCase()}` : ''}
         </p>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {a.revocadoEn && <Badge tono="neutro">Revocado</Badge>}
         <Badge tono="neutro">{MOTIVO_ACCESO[a.motivo]}</Badge>
         <Badge tono={a.alcance === 'LECTURA_ESCRITURA' ? 'atencion' : 'neutro'}>{ALCANCE_ACCESO[a.alcance]}</Badge>
+        {onRevocar && (
+          <Button variant="ghost" icon="key" onClick={onRevocar} className="!px-3.5 !py-2 !text-[12.5px]">
+            Revocar
+          </Button>
+        )}
       </div>
     </li>
+  );
+}
+
+function RevocarAcceso({ acceso, onListo }: { acceso: AccesoTemporal; onListo: () => void }) {
+  const cliente = useQueryClient();
+  const [motivo, setMotivo] = useState<NonNullable<AccesoTemporal['motivoRevocacion']>>('TERMINO_ANTICIPADO');
+  const [error, setError] = useState<string>();
+  const revocar = useMutation({
+    mutationFn: () => datos(api.POST('/api/accesos-temporales/{id}/revocacion', { params: { path: { id: acceso.id } }, body: { motivo } })),
+    onSuccess: () => {
+      void cliente.invalidateQueries({ queryKey: ['panel', 'accesos-temporales'] });
+      onListo();
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos revocar el acceso.'),
+  });
+  return (
+    <div className="flex flex-col gap-4">
+      <ChoiceGroup
+        legend="Motivo"
+        type="radio"
+        value={[motivo]}
+        onChange={(v) => setMotivo((v[0] as typeof motivo) ?? 'TERMINO_ANTICIPADO')}
+        options={Object.entries(MOTIVO_REVOCACION).map(([value, label]) => ({ value, label }))}
+      />
+      <p className="m-0 text-[12.5px] font-semibold text-neutral-800">
+        El profesional deja de ver la ficha de inmediato. Reciben un aviso él y el paciente, y queda en la auditoría.
+      </p>
+      {error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end gap-2.5">
+        <Button variant="ghost" onClick={onListo}>
+          Cancelar
+        </Button>
+        <Button variant="team" icon="key" loading={revocar.isPending} onClick={() => revocar.mutate()}>
+          Revocar acceso
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -182,7 +254,7 @@ function OtorgarAcceso({ pacienteId, excluir, onListo }: { pacienteId: string; e
         )}
       </Field>
       <p className="m-0 text-[12.5px] font-semibold text-neutral-800">
-        El paciente recibe un aviso del acceso. Queda registrado en la auditoría de la ficha y no se puede revocar antes del plazo.
+        El paciente recibe un aviso del acceso. Queda registrado en la auditoría de la ficha y se puede revocar antes del plazo.
       </p>
       {error && (
         <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">

@@ -134,6 +134,16 @@ describe('CalendarioAgenda (03b-4.2)', () => {
     expect(screen.queryByRole('button', { name: /10:00 Ana Demo/ })).toBeNull();
     expect(localStorage.getItem('vinculos_agenda_encima')).toBe('no');
   });
+
+  it('Por box de ADMIN: lo apartado muestra quien lo aparto', async () => {
+    respuestas['/api/espacios/ocupacion'] = [{ espacio_id: 'b1', inicio: enChile('16:00'), fin: enChile('17:00') }];
+    respuestas['/api/espacios/bloques'] = [{ profesionalId: 'p2', espacioId: 'b1', inicio: enChile('15:00'), fin: enChile('18:00') }];
+    conCliente(<Agenda rol="ADMIN" modo="box" />);
+    await semanaAnterior();
+    await userEvent.selectOptions(screen.getByLabelText('Filtrar por box'), 'b1');
+    expect((await screen.findByText('Ocupado')).parentElement).toHaveTextContent('Profesional Dos');
+  });
+
   it('estado con simbolo (no solo color): sin evolucion vs atendida para el tratante, con leyenda', async () => {
     citas = [cita('c1', '10:00', '10:50'), cita('c2', '12:00', '12:50')];
     respuestas['/api/citas-con-evolucion'] = ['c2'];

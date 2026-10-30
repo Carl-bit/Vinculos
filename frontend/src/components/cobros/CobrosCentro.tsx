@@ -18,11 +18,13 @@ import { DeudasPacientes } from './DeudasPacientes';
 import { LiquidacionesCobros } from './LiquidacionesCobros';
 import { ResumenCobros } from './ResumenCobros';
 import { SesionesPorCobrar } from './SesionesPorCobrar';
+import { TransferenciasPorValidar } from './TransferenciasPorValidar';
 
-type Vista = 'resumen' | 'sesiones' | 'deudas' | 'liquidaciones';
+type Vista = 'resumen' | 'sesiones' | 'transferencias' | 'deudas' | 'liquidaciones';
 const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'resumen', etiqueta: 'Resumen del período' },
   { valor: 'sesiones', etiqueta: 'Asistencia y pago' },
+  { valor: 'transferencias', etiqueta: 'Transferencias' },
   { valor: 'deudas', etiqueta: 'Deudas' },
   { valor: 'liquidaciones', etiqueta: 'Liquidaciones' },
 ];
@@ -122,6 +124,7 @@ export function CobrosCentro({ rol }: { rol: Rol }) {
         <div id="cobros-panel" role="tabpanel">
           {vista === 'resumen' && <ResumenCobros periodo={periodo} rol={rol} onLiquidado={() => ir('liquidaciones')} />}
           {vista === 'sesiones' && <SesionesPorCobrar periodo={periodo} rol={rol} />}
+          {vista === 'transferencias' && <TransferenciasPorValidar rol={rol} />}
           {vista === 'deudas' && <DeudasPacientes rol={rol} />}
           {vista === 'liquidaciones' && <LiquidacionesCobros periodo={periodo} rol={rol} />}
         </div>

@@ -740,6 +740,8 @@ async function main(): Promise<void> {
       mediosPagoHabilitados: ['PAGO_EN_CENTRO', 'TRANSFERENCIA', 'PASARELA'],
       plazoValidacionTransferenciaHoras: 24,
       porcentajePagoConfirmacion: 50,
+      penalizacionCancelacionPorcentaje: 25,
+      cobroInasistenciaPorcentaje: 100,
     });
     // Agendada por el equipo: pendiente de pago hasta 12 h antes de la sesion (aviso al paciente; recordatorios 48 h y 24 h).
     await cita({ pacienteId: diego.id, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(8, '11:00') });

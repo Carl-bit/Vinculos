@@ -887,3 +887,20 @@ Migraciones `20261031000000_03b42_enums` (valores `PROTOCOLO_EQUIPO` y
   `LiquidacionVista` trae `comisionDerivacion` y `sesionesDerivadas`; el PDF
   separa la comision general de la de derivacion. `reporte_cobros` estima la
   comision con la misma regla (mismas columnas de salida).
+
+### Cierre hacia el MVP (2026-10-30)
+
+- Migraciones `20261103000000_mvp_enums` y
+  `20261103000100_mvp_revocacion_cargos_avisos`.
+- `POST accesos-temporales/:id/revocacion` (`TERMINO_ANTICIPADO`, `ERROR`,
+  `SOLICITUD_PACIENTE`). `AccesoTemporalVista` trae `revocadoEn` y
+  `motivoRevocacion`. Sin vigencia: 409; con sesiones por cubrir: 422.
+- `GET/PUT notificaciones/preferencias-equipo` (equipo; solo las propias).
+- `GET espacios/bloques` (ADMIN/GESTION).
+- `liquidarCargosAProfesional` en configuracion; `LiquidacionVista.cargosLiquidados`
+  (parte de `totalCobrado`; el PDF lo separa).
+- `cita_liquidable` excluye la inasistencia justificada: lo pagado se traslado o
+  se devolvio, asi que no es una sesion realizada para liquidar.
+- `GET cobros/transferencias/:id/comprobante` registra `DESCARGA` (antes `LECTURA`).
+- OpenAPI: `GET cobros/cuenta-centro` declara `CuentaCentroVista`; el cuerpo
+  sigue vacio si no hay cuenta.

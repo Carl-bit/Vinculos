@@ -186,6 +186,8 @@ export class LiquidacionVista {
   @ApiProperty({ type: String, format: 'date' })
   periodoHasta!: Date;
   totalCobrado!: number;
+  /** C-11: parte de totalCobrado que viene de cargos por inasistencia y cancelacion tardia. */
+  cargosLiquidados!: number;
   @ApiProperty({ type: String, description: 'Decimal (porcentaje de comision del centro)' })
   comisionPorcentaje!: unknown;
   /** Comision total del centro (general + derivacion). */

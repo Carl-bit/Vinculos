@@ -52,7 +52,7 @@ export function intervaloSondeo(error: unknown, errores: number, base = SONDEO_A
   return Math.min(base * 2 ** Math.max(1, errores), SONDEO_MAXIMO_MS);
 }
 
-const sondeoAgenda = {
+export const sondeoAgenda = {
   refetchInterval: (q: { state: { error: unknown; errorUpdateCount: number } }) => intervaloSondeo(q.state.error, q.state.errorUpdateCount),
   refetchIntervalInBackground: false,
   refetchOnWindowFocus: true,

@@ -87,6 +87,8 @@ model ConfiguracionCentro {
   modulosActivos                    ModuloCentro[]         @default([PAGINA_PUBLICA, FICHAS, AGENDA, EQUIPO, MATCH, COBROS]) @map("modulos_activos")
   /// 03a (C-11): la liquidacion solo cuenta citas realizadas con evolucion registrada.
   liquidarExigeEvolucion            Boolean                @default(false) @map("liquidar_exige_evolucion")
+  /// C-11: los cargos por inasistencia y cancelacion tardia entran a la liquidacion del profesional.
+  liquidarCargosAProfesional        Boolean                @default(false) @map("liquidar_cargos_a_profesional")
   /// 03a: el match muestra "prefiero filtrar yo mismo".
   matchFiltroDirecto                Boolean                @default(true) @map("match_filtro_directo")
   /// 03a (D-6): dias que se guardan las respuestas del match si la solicitud no se concreta.
@@ -216,6 +218,8 @@ model Usuario {
   altasRegistradas           AltaPaciente[]
   accesosTemporales          AccesoClinicoTemporal[]      @relation("AccesoTemporalProfesional")
   accesosTemporalesOtorgados AccesoClinicoTemporal[]      @relation("AccesoTemporalOtorgadoPor")
+  accesosTemporalesRevocados RevocacionAccesoTemporal[]
+  preferenciasAvisoEquipo    PreferenciaAvisoEquipo?
   borradoresEvolucion        BorradorEvolucion[]
   mensajesEscritos           MensajePaciente[]            @relation("MensajeAutor")
   perfilProfesional          Profesional?
@@ -488,6 +492,7 @@ enum TipoNotificacion {
   /// por vencimiento del plazo de pago (antes, lista de espera, retirada).
   HORA_LIBERADA
   ACCESO_CLINICO_TEMPORAL
+  ACCESO_CLINICO_REVOCADO
   SOLICITUD_HORA
   CIERRE_REQUERIDO
   /// 03a-2: mensaje nuevo en un hilo interno (sin contenido).
@@ -1918,6 +1923,8 @@ model Liquidacion {
   periodoDesde       DateTime          @map("periodo_desde") @db.Date
   periodoHasta       DateTime          @map("periodo_hasta") @db.Date
   totalCobrado       Int               @map("total_cobrado")
+  /// C-11: parte de lo cobrado que viene de cargos (inasistencia, cancelacion tardia).
+  cargosLiquidados   Int               @default(0) @map("cargos_liquidados")
   comisionPorcentaje Decimal           @map("comision_porcentaje") @db.Decimal(5, 2)
   comision           Int
   /// 03b-4.2: parte de la comision por la regla de derivacion (0 con GENERAL).
@@ -2643,10 +2650,50 @@ model AccesoClinicoTemporal {
   paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
   profesional Usuario  @relation("AccesoTemporalProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
   otorgadoPor Usuario  @relation("AccesoTemporalOtorgadoPor", fields: [otorgadoPorId], references: [id], onDelete: Restrict)
+  revocacion  RevocacionAccesoTemporal?
 
   @@index([profesionalId, hasta])
   @@index([pacienteId])
   @@map("accesos_clinicos_temporales")
+}
+
+enum MotivoRevocacionAcceso {
+  TERMINO_ANTICIPADO
+  ERROR
+  SOLICITUD_PACIENTE
+
+  @@map("motivo_revocacion_acceso")
+}
+
+/// Corte anticipado de un acceso clinico temporal (A, append-only). El acceso
+/// no se modifica; escritura solo via revocar_acceso_temporal(). Motivo de
+/// catalogo: sin texto libre clinico.
+model RevocacionAccesoTemporal {
+  accesoId      String                 @id @map("acceso_id") @db.Uuid
+  motivo        MotivoRevocacionAcceso
+  revocadoPorId String                 @map("revocado_por_id") @db.Uuid
+  revocadoEn    DateTime               @default(now()) @map("revocado_en") @db.Timestamptz(6)
+
+  acceso      AccesoClinicoTemporal @relation(fields: [accesoId], references: [id], onDelete: Restrict)
+  revocadoPor Usuario               @relation(fields: [revocadoPorId], references: [id], onDelete: Restrict)
+
+  @@map("revocaciones_acceso_temporal")
+}
+
+/// Avisos que cada integrante recibe por correo (A). Sin fila = todos; la
+/// bandeja registra siempre. Lo que no entra en un grupo no se apaga
+/// (grupo_aviso_equipo()).
+model PreferenciaAvisoEquipo {
+  usuarioId    String   @id @map("usuario_id") @db.Uuid
+  agenda       Boolean  @default(true)
+  cobros       Boolean  @default(true)
+  derivaciones Boolean  @default(true)
+  mensajes     Boolean  @default(true)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@map("preferencias_aviso_equipo")
 }
 
 /// Borrador de evolucion (A, 03a C-8): fuera de la ficha, solo su autor lo

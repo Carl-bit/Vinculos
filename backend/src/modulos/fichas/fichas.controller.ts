@@ -27,6 +27,7 @@ import { CatalogosRetencionService } from './catalogos-retencion.service';
 import { DocumentosService } from './documentos.service';
 import {
   AccesoTemporalDto,
+  RevocarAccesoTemporalDto,
   AltaDto,
   BorradorDto,
   BuscarPacientesDto,
@@ -155,7 +156,7 @@ export class PacientesController {
     return this.pacientes.abrirFicha(id);
   }
 
-  /** Invitacion de cuenta: el paciente (desde 14 años) o su adulto responsable si es menor. */
+  /** Invitacion de cuenta: el paciente (desde 14 aÃ±os) o su adulto responsable si es menor. */
   @Post(':id/invitacion')
   @Roles('ADMIN', 'GESTION')
   invitar(@Param('id', Uuid) id: string, @Body() dto: InvitarPacienteDto): Promise<InvitacionEnviada> {
@@ -281,6 +282,14 @@ export class SeguimientoController {
   @Roles('ADMIN', 'PROFESIONAL')
   accesosTemporales(): Promise<AccesoTemporalVista[]> {
     return this.seguimiento.accesosTemporales();
+  }
+
+  /** Corte antes de su fecha: ADMIN o el tratante (los mismos que lo otorgan). */
+  @Post('accesos-temporales/:id/revocacion')
+  @HttpCode(200)
+  @Roles('ADMIN', 'PROFESIONAL')
+  revocarAcceso(@Param('id', Uuid) id: string, @Body() dto: RevocarAccesoTemporalDto): Promise<AccesoTemporalVista> {
+    return this.seguimiento.revocarAccesoTemporal(id, dto.motivo);
   }
 
   /**

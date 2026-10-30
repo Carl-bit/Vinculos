@@ -1104,6 +1104,190 @@
         ]
       }
     },
+    "/api/notificaciones/preferencias-equipo": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "NotificacionesController_preferenciasEquipo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferenciasEquipo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Avisos por correo del propio integrante del equipo. La bandeja registra todo.",
+        "tags": [
+          "Mensajeria"
+        ]
+      },
+      "put": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "NotificacionesController_guardarPreferenciasEquipo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferenciasEquipoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferenciasEquipo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Mensajeria"
+        ]
+      }
+    },
     "/api/notificaciones/preferencias/pacientes/{pacienteId}": {
       "get": {
         "description": "Roles: RESPONSABLE",
@@ -8902,7 +9086,7 @@
             "jwt": []
           }
         ],
-        "summary": "Invitacion de cuenta: el paciente (desde 14 años) o su adulto responsable si es menor.",
+        "summary": "Invitacion de cuenta: el paciente (desde 14 aÃ±os) o su adulto responsable si es menor.",
         "tags": [
           "Fichas y pacientes"
         ]
@@ -13513,6 +13697,113 @@
         ]
       }
     },
+    "/api/accesos-temporales/{id}/revocacion": {
+      "post": {
+        "description": "Roles: ADMIN, PROFESIONAL",
+        "operationId": "SeguimientoController_revocarAcceso",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevocarAccesoTemporalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccesoTemporalVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Corte antes de su fecha: ADMIN o el tratante (los mismos que lo otorgan).",
+        "tags": [
+          "Fichas y pacientes"
+        ]
+      }
+    },
     "/api/citas-con-evolucion": {
       "get": {
         "description": "Roles: PROFESIONAL, PRACTICANTE",
@@ -15250,6 +15541,116 @@
           }
         ],
         "summary": "Ocupacion de boxes (bloques apartados + soft-locks), sin pacientes ni profesionales.",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
+    "/api/espacios/bloques": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION",
+        "operationId": "EspaciosController_bloquesCentro",
+        "parameters": [
+          {
+            "name": "desde",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasta",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BloqueAtencionVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Bloques apartados de todo el centro, con quien los aparto (solo administracion: ver matriz).",
         "tags": [
           "Agenda y espacios"
         ]
@@ -32335,11 +32736,11 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Vacio si no hay cuenta registrada",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/CuentaCentroVista"
                 }
               }
             }
@@ -33023,6 +33424,7 @@
           "COMPROBANTE_EMITIDO",
           "HORA_LIBERADA",
           "ACCESO_CLINICO_TEMPORAL",
+          "ACCESO_CLINICO_REVOCADO",
           "SOLICITUD_HORA",
           "CIERRE_REQUERIDO",
           "MENSAJE_INTERNO",
@@ -33199,6 +33601,46 @@
           "whatsapp": {
             "type": "boolean",
             "description": "AUD-01 (E2.3c): consentimiento propio del canal WhatsApp (la fecha la fija la BD)."
+          }
+        }
+      },
+      "PreferenciasEquipo": {
+        "type": "object",
+        "properties": {
+          "agenda": {
+            "type": "boolean"
+          },
+          "cobros": {
+            "type": "boolean"
+          },
+          "derivaciones": {
+            "type": "boolean"
+          },
+          "mensajes": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "agenda",
+          "cobros",
+          "derivaciones",
+          "mensajes"
+        ]
+      },
+      "PreferenciasEquipoDto": {
+        "type": "object",
+        "properties": {
+          "agenda": {
+            "type": "boolean"
+          },
+          "cobros": {
+            "type": "boolean"
+          },
+          "derivaciones": {
+            "type": "boolean"
+          },
+          "mensajes": {
+            "type": "boolean"
           }
         }
       },
@@ -33752,6 +34194,9 @@
           "liquidarExigeEvolucion": {
             "type": "boolean"
           },
+          "liquidarCargosAProfesional": {
+            "type": "boolean"
+          },
           "matchFiltroDirecto": {
             "type": "boolean"
           },
@@ -33812,6 +34257,7 @@
           "plazoAvisoCancelacionHoras",
           "recordatorioHorasAntes",
           "liquidarExigeEvolucion",
+          "liquidarCargosAProfesional",
           "matchFiltroDirecto",
           "diasRetencionRespuestasMatch",
           "minutosRetencionSolicitud",
@@ -33918,6 +34364,10 @@
           "liquidarExigeEvolucion": {
             "type": "boolean",
             "description": "03a (C-11): liquidar solo citas realizadas con evolucion registrada."
+          },
+          "liquidarCargosAProfesional": {
+            "type": "boolean",
+            "description": "C-11: los cargos por inasistencia y cancelacion tardia se liquidan al profesional."
           },
           "matchFiltroDirecto": {
             "type": "boolean",
@@ -36544,6 +36994,14 @@
           "LECTURA_ESCRITURA"
         ]
       },
+      "MotivoRevocacionAcceso": {
+        "type": "string",
+        "enum": [
+          "TERMINO_ANTICIPADO",
+          "ERROR",
+          "SOLICITUD_PACIENTE"
+        ]
+      },
       "AccesoTemporalVista": {
         "type": "object",
         "properties": {
@@ -36558,6 +37016,19 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AlcanceAccesoTemporal"
+              }
+            ]
+          },
+          "revocadoEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "motivoRevocacion": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MotivoRevocacionAcceso"
               }
             ]
           },
@@ -36589,6 +37060,8 @@
         "required": [
           "motivo",
           "alcance",
+          "revocadoEn",
+          "motivoRevocacion",
           "id",
           "pacienteId",
           "profesionalId",
@@ -37610,6 +38083,22 @@
           "nivelRiesgo"
         ]
       },
+      "RevocarAccesoTemporalDto": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "enum": [
+              "TERMINO_ANTICIPADO",
+              "ERROR",
+              "SOLICITUD_PACIENTE"
+            ]
+          }
+        },
+        "required": [
+          "motivo"
+        ]
+      },
       "EstadoFichaPaciente": {
         "type": "object",
         "properties": {
@@ -37957,27 +38446,6 @@
           "fin"
         ]
       },
-      "HoraLibreBox": {
-        "type": "object",
-        "properties": {
-          "espacioId": {
-            "type": "string"
-          },
-          "inicio": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "fin": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "espacioId",
-          "inicio",
-          "fin"
-        ]
-      },
       "BloqueAtencionVista": {
         "type": "object",
         "properties": {
@@ -38010,6 +38478,27 @@
           "inicio",
           "fin",
           "creadoEn"
+        ]
+      },
+      "HoraLibreBox": {
+        "type": "object",
+        "properties": {
+          "espacioId": {
+            "type": "string"
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "espacioId",
+          "inicio",
+          "fin"
         ]
       },
       "BloqueAtencionDto": {
@@ -44045,6 +44534,10 @@
           "totalCobrado": {
             "type": "number"
           },
+          "cargosLiquidados": {
+            "type": "number",
+            "description": "C-11: parte de totalCobrado que viene de cargos por inasistencia y cancelacion tardia."
+          },
           "comision": {
             "type": "number",
             "description": "Comision total del centro (general + derivacion)."
@@ -44080,6 +44573,7 @@
           "id",
           "profesionalId",
           "totalCobrado",
+          "cargosLiquidados",
           "comision",
           "comisionDerivacion",
           "sesionesDerivadas",
@@ -44508,6 +45002,38 @@
           "motivo"
         ]
       },
+      "CuentaCentroVista": {
+        "type": "object",
+        "properties": {
+          "rut": {
+            "type": "string"
+          },
+          "banco": {
+            "type": "string"
+          },
+          "tipoCuenta": {
+            "type": "string"
+          },
+          "numeroCuenta": {
+            "type": "string"
+          },
+          "titular": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rut",
+          "banco",
+          "tipoCuenta",
+          "numeroCuenta",
+          "titular",
+          "updatedAt"
+        ]
+      },
       "CuentaCentroDto": {
         "type": "object",
         "properties": {
@@ -44540,38 +45066,6 @@
           "tipoCuenta",
           "numeroCuenta",
           "titular"
-        ]
-      },
-      "CuentaCentroVista": {
-        "type": "object",
-        "properties": {
-          "rut": {
-            "type": "string"
-          },
-          "banco": {
-            "type": "string"
-          },
-          "tipoCuenta": {
-            "type": "string"
-          },
-          "numeroCuenta": {
-            "type": "string"
-          },
-          "titular": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "format": "date-time",
-            "type": "string"
-          }
-        },
-        "required": [
-          "rut",
-          "banco",
-          "tipoCuenta",
-          "numeroCuenta",
-          "titular",
-          "updatedAt"
         ]
       },
       "ResultadoPasarela": {

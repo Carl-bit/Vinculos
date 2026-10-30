@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Panel } from '@/components/ui/Panel';
 import type { Icono } from '@/lib/iconos';
 
+import { AvisosEquipo } from './AvisosEquipo';
 import { MiCuentaEquipo } from './MiCuentaEquipo';
 
 const FILA =
@@ -59,10 +60,9 @@ export function MiCuentaAccesos({ liquidaciones, contacto = true }: { liquidacio
         <Desplegable icono="verified_user" titulo="Verificación en dos pasos" nota="Código por correo en cada ingreso · códigos de respaldo">
           <SegundoFactorCuenta tono="team" enPanel={false} />
         </Desplegable>
-        <Link href="/admin/mensajes" className={FILA}>
-          <Texto icono="notifications" titulo="Avisos y recordatorios" nota="Bandeja de avisos del centro y mensajes" />
-          <Icon name="arrow_forward" />
-        </Link>
+        <Desplegable icono="notifications" titulo="Avisos y recordatorios" nota="Qué avisos te llegan por correo">
+          <AvisosEquipo />
+        </Desplegable>
         {liquidaciones && (
           <Link href="/admin/cobros" className={FILA}>
             <Texto icono="receipt_long" titulo="Mis liquidaciones" nota="Sesiones realizadas, cobros y pagos del período" />

@@ -97,9 +97,15 @@ export function LiquidacionesCobros({ periodo, rol }: { periodo: Periodo; rol: R
                       <tr key={q.id}>
                         <Td className="font-extrabold">{nombre.get(q.profesionalId) ?? 'Profesional'}</Td>
                         <Td className="font-semibold text-neutral-800">{rango(String(q.periodoDesde), String(q.periodoHasta))}</Td>
-                        <Td className="text-right font-bold tabular-nums">{formatoClp(q.totalCobrado)}</Td>
                         <Td className="text-right font-bold tabular-nums">
-                          {formatoClp(q.comision)} <span className="text-[12px] text-neutral-700">({String(q.comisionPorcentaje)}%)</span>
+                          {formatoClp(q.totalCobrado)}
+                          {q.cargosLiquidados > 0 && (
+                            <span className="block text-[12px] font-semibold text-neutral-700">incluye {formatoClp(q.cargosLiquidados)} en cargos</span>
+                          )}
+                        </Td>
+                        <Td className="text-right font-bold tabular-nums">
+                          {formatoClp(q.comision)}
+                          <span className="text-[12px] text-neutral-700">({String(q.comisionPorcentaje)}%)</span>
                           {q.comisionDerivacion > 0 && (
                             <span className="block text-[12px] font-semibold text-neutral-700">
                               incluye {formatoClp(q.comisionDerivacion)} por {q.sesionesDerivadas} {q.sesionesDerivadas === 1 ? 'sesión' : 'sesiones'} de

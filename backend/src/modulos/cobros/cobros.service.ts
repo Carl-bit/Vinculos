@@ -272,7 +272,8 @@ export class CobrosService {
       subtitulo: `Periodo ${dia(l.periodoDesde)} a ${dia(l.periodoHasta)}`,
       columnas: ['Concepto', 'Monto'],
       filas: [
-        ['Cobrado por el centro (citas realizadas)', pesos(l.totalCobrado)],
+        ['Cobrado por el centro (citas realizadas)', pesos(l.totalCobrado - l.cargosLiquidados)],
+        ...(l.cargosLiquidados > 0 ? [['Cargos por inasistencia y cancelacion tardia', pesos(l.cargosLiquidados)]] : []),
         ...(l.comisionDerivacion > 0 || l.sesionesDerivadas > 0
           ? [
               [`Comision del centro (${l.comisionPorcentaje.toString()}%)`, `-${pesos(l.comision - l.comisionDerivacion)}`],

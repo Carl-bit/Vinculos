@@ -41,6 +41,32 @@ export class PreferenciasDto {
   whatsapp?: boolean;
 }
 
+/** Grupos de avisos que el equipo puede apagar por correo; lo demas llega siempre (grupo_aviso_equipo()). */
+export class PreferenciasEquipoDto {
+  @IsOptional()
+  @IsBoolean()
+  agenda?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  cobros?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  derivaciones?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  mensajes?: boolean;
+}
+
+export class PreferenciasEquipo {
+  agenda!: boolean;
+  cobros!: boolean;
+  derivaciones!: boolean;
+  mensajes!: boolean;
+}
+
 /** Mensaje de la bandeja propia (registro oficial, ya armado con la plantilla). */
 export class MensajeBandeja {
   id!: string;
