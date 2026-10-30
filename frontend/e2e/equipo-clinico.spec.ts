@@ -35,7 +35,7 @@ test('Accesos temporales: ADMIN ve el vigente del seed y el formulario para otor
 
 test('Supervision: el supervisor ve casos por codigo, sin nombres, con el comentario del seed', async ({ page }) => {
   await ingresarEquipo(page, 'profesional2');
-  await page.goto('/admin/equipo?vista=supervision');
+  await page.goto('/admin/fichas?vista=supervision');
   await page.getByRole('button', { pressed: false }).filter({ hasText: /años/ }).first().click();
   await expect(page.getByText('Comentarios de supervisión').first()).toBeVisible();
   await expect(page.getByText(/Comentario demo de supervision/)).toBeVisible();

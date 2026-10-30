@@ -36,6 +36,7 @@ const VISTAS: { usuario: string | null; zona?: 'admin' | 'portal'; rutas: string
       '/admin/configuracion?vista=reglas',
       '/admin/configuracion?vista=auditoria',
       '/admin/configuracion?vista=derechos',
+      '/admin/configuracion?vista=feriados',
       '/admin/configuracion?vista=soporte',
       '/admin/configuracion?vista=exportacion',
       '/admin/match',

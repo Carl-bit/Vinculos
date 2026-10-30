@@ -74,6 +74,7 @@ import {
   EnvioDocumentoDetalle,
   EnvioDocumentoVista,
   EvolucionCreada,
+  RangoCitasEvolucionDto,
   FichaSobreRetencion,
   IngresoVista,
   PlantillaClinicaVista,
@@ -280,6 +281,17 @@ export class SeguimientoController {
   @Roles('ADMIN', 'PROFESIONAL')
   accesosTemporales(): Promise<AccesoTemporalVista[]> {
     return this.seguimiento.accesosTemporales();
+  }
+
+  /**
+   * 03b-4.2: ids de las sesiones del rango que ya tienen evolucion (solo el
+   * metadato, sin contenido: no se registra en accesos_ficha, como el conteo
+   * del inicio). La RLS de evoluciones deja solo las fichas del tratante.
+   */
+  @Get('citas-con-evolucion')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  citasConEvolucion(@Query() rango: RangoCitasEvolucionDto): Promise<string[]> {
+    return this.seguimiento.citasConEvolucion(rango.desde, rango.hasta);
   }
 
   /** Vista administrativa: ultima/proxima sesion y sesiones sin cerrar por paciente (sin contenido clinico). */

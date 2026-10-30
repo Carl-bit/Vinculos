@@ -55,7 +55,11 @@ test('Configuracion (ADMIN): contrato con Vinculos aceptado, soporte autorizado 
   await page.getByRole('button', { name: 'Autorizar soporte' }).click();
   const tabla = page.getByRole('table', { name: 'Autorizaciones de soporte' });
   await expect(tabla.getByRole('row', { name: /Prueba automatizada de soporte/ }).first()).toContainText('Vigente');
-  await tabla.getByRole('row', { name: /Prueba automatizada de soporte/ }).first().getByRole('button', { name: 'Revocar' }).click();
+  await tabla
+    .getByRole('row', { name: /Prueba automatizada de soporte/ })
+    .first()
+    .getByRole('button', { name: 'Revocar' })
+    .click();
   await expect(tabla.getByRole('row', { name: /Prueba automatizada de soporte/ }).first()).toContainText('Revocada');
 
   await page.goto('/admin/configuracion?vista=derechos');
@@ -93,7 +97,10 @@ test('Derechos sin cuenta: desde el pie del sitio, por RUT, con la misma respues
   await expect(page.getByRole('status')).toContainText('Si el RUT corresponde a un paciente del centro');
 });
 
-test('Fase 3: ADMIN prepara la copia de datos (espera al tratante), el tratante la ve en la ficha y el centro se exporta cifrado', async ({ page, browser }) => {
+test('Fase 3: ADMIN prepara la copia de datos (espera al tratante), el tratante la ve en la ficha y el centro se exporta cifrado', async ({
+  page,
+  browser,
+}) => {
   await ingresarEquipo(page, 'admin');
   await page.goto('/admin/configuracion?vista=derechos');
   await page.getByLabel('Derecho').selectOption('ACCESO');
@@ -118,4 +125,25 @@ test('Fase 3: ADMIN prepara la copia de datos (espera al tratante), el tratante 
   await ingresarEquipo(tratante, 'profesional1');
   await expect(tratante.getByText(/copias? de datos por completar/)).toBeVisible();
   await tratante.close();
+});
+
+test('Feriados: los de la ley vienen calculados; ADMIN agrega uno regional y lo quita', async ({ page }) => {
+  await ingresarEquipo(page, 'admin');
+  await page.goto('/admin/configuracion?vista=feriados');
+  const siguiente = String(new Date().getFullYear() + 1);
+  await page.getByRole('tab', { name: siguiente }).click();
+  await expect(page.getByRole('cell', { name: 'Año Nuevo' })).toBeVisible();
+  const fecha = `${siguiente}-07-07`;
+  const fila = page.locator('tr', { hasText: 'Feriado regional de prueba' });
+  // Idempotente entre corridas: si quedo quitado, se repone; si no existe, se agrega.
+  if (await fila.count()) {
+    await fila.getByRole('button', { name: 'Reponer' }).click();
+  } else {
+    await page.getByLabel('Fecha').fill(fecha);
+    await page.getByLabel('Nombre').fill('Feriado regional de prueba');
+    await page.getByRole('button', { name: 'Agregar feriado' }).click();
+  }
+  await expect(fila).toContainText('Centro');
+  await fila.getByRole('button', { name: 'Quitar' }).click();
+  await expect(fila).toContainText('Quitado');
 });

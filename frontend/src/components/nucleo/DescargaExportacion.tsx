@@ -13,14 +13,17 @@ import { useSesion } from '@/lib/consultas';
 import { guardarBlob, pedirArchivo, pedirArchivoPublico } from '@/lib/descargas';
 
 /**
- * AUD-01 Fase 3: copia de los datos del paciente. Con cuenta, se descarga con
- * su sesion; sin cuenta, con el codigo del segundo correo. JSON para llevar a
+ * AUD-01 Fase 3: copia de los datos del paciente. La recibe el paciente y/o
+ * su adulto responsable segun la edad. Con cuenta (paciente o RESPONSABLE),
+ * se descarga con su sesion; sin cuenta, con el codigo del segundo correo. JSON para llevar a
  * otro sistema; PDF para leer. El enlace vence en 72 horas.
  */
 export function DescargaExportacion() {
   const token = useSearchParams().get('token') ?? '';
   const sesion = useSesion();
-  const conSesion = sesion.tipo === 'activa' && sesion.sesion.rol === 'PACIENTE';
+  const rol = sesion.tipo === 'activa' ? sesion.sesion.rol : null;
+  const conSesion = rol === 'PACIENTE' || rol === 'RESPONSABLE';
+  const archivo = rol === 'RESPONSABLE' ? 'datos-paciente' : 'mis-datos';
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState<string>();
   const [cargando, setCargando] = useState<'json' | 'pdf' | null>(null);
@@ -32,7 +35,7 @@ export function DescargaExportacion() {
       const blob = conSesion
         ? await pedirArchivo('/api/portal/exportacion/descarga', { token, formato })
         : await pedirArchivoPublico('/api/publico/exportacion/descarga', { token, codigo, formato });
-      guardarBlob(blob, formato === 'json' ? 'mis-datos.json' : 'mis-datos.pdf');
+      guardarBlob(blob, `${archivo}.${formato}`);
     } catch (e) {
       setError(
         e instanceof ApiError && e.status === 403
@@ -50,8 +53,12 @@ export function DescargaExportacion() {
   return (
     <TarjetaIngreso>
       <TituloIngreso
-        titulo="Tu copia de datos"
-        bajada="El centro preparó la copia que pediste. Descárgala en el formato que necesites: el enlace vence en 72 horas."
+        titulo={rol === 'PACIENTE' ? 'Tu copia de datos' : 'Copia de datos'}
+        bajada={
+          rol === 'RESPONSABLE'
+            ? 'El centro preparó la copia de los datos de la persona que tienes a cargo. Descárgala en el formato que necesites: el enlace vence en 72 horas.'
+            : 'El centro preparó la copia de datos que se pidió. Descárgala en el formato que necesites: el enlace vence en 72 horas.'
+        }
       />
       {!token ? (
         <Aviso tono="advertencia">Falta el enlace del correo. Ábrelo desde el correo que te envió el centro.</Aviso>

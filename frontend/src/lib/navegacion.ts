@@ -33,7 +33,7 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
     { etiqueta: 'Mensajes', icono: 'chat', href: '/admin/mensajes', grupo: 'principal', roles: EQUIPO },
     { etiqueta: 'Fichas y Pacientes', icono: 'folder_shared', href: '/admin/fichas', grupo: 'modulos', roles: EQUIPO, modulo: 'FICHAS' },
     { etiqueta: 'Agenda y Espacios', icono: 'calendar_month', href: '/admin/agenda', grupo: 'modulos', roles: EQUIPO, modulo: 'AGENDA' },
-    { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'modulos', roles: EQUIPO, modulo: 'EQUIPO' },
+    { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'modulos', roles: ['ADMIN', 'GESTION'], modulo: 'EQUIPO' },
     { etiqueta: 'Match Terapéutico', icono: 'join', href: '/admin/match', grupo: 'modulos', roles: ['ADMIN'], modulo: 'MATCH' },
     { etiqueta: 'Cobros', icono: 'payments', href: '/admin/cobros', grupo: 'modulos', roles: ['ADMIN', 'GESTION', 'PROFESIONAL'], modulo: 'COBROS' },
     { etiqueta: 'Configuración', icono: 'settings', href: '/admin/configuracion', grupo: 'centro', roles: ['ADMIN'] },

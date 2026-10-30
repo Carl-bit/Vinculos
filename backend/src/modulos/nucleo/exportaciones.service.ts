@@ -27,7 +27,9 @@ const MAGIA = Buffer.from('VINCULOS-EXPORT-1\n', 'utf8');
  * Paciente (ARCOP-02): ADMIN prepara la parte administrativa desde una
  * solicitud de acceso o portabilidad; si hay ficha, el tratante agrega la
  * clinica (ADMIN nunca la ve). Completa, se envia un enlace de un solo uso al
- * correo registrado (72 h): con cuenta, la descarga exige su sesion; sin
+ * correo registrado (72 h) de cada destinatario segun la edad (la BD decide:
+ * menor de 14 solo sus adultos responsables; 14 a 17 el paciente y sus
+ * adultos; mayor, el paciente). Con cuenta, la descarga exige su sesion; sin
  * cuenta, el codigo de un segundo correo. Se descarga en JSON o PDF.
  *
  * Centro (LEG-04): ADMIN la pide con una clave que no se guarda; el archivo
@@ -91,38 +93,48 @@ export class ExportacionesService {
           venceEn: true,
           descargas: true,
           purgadaEn: true,
+          destinatarios: { select: { adultoResponsableId: true, descargas: true }, orderBy: { id: 'asc' } },
         },
       }),
       'Exportacion',
     );
     const estado = e.purgadaEn ? 'VENCIDA' : e.enviadaEn ? 'ENVIADA' : e.requiereClinica && !e.clinicaEn ? 'ESPERANDO_TRATANTE' : 'LISTA';
-    return { ...e, estado };
+    const destinatarios = e.destinatarios
+      .map((d) => ({ adultoResponsable: d.adultoResponsableId !== null, descargas: d.descargas }))
+      .sort((a, b) => Number(a.adultoResponsable) - Number(b.adultoResponsable));
+    return { ...e, estado, destinatarios };
   }
 
-  /** Completa: enlace al correo registrado y, sin cuenta, el codigo en un segundo correo. */
+  /** Completa: un enlace por destinatario y, sin cuenta, el codigo en un segundo correo. */
   private async enviar(id: string) {
-    const { token, hash } = nuevoTokenCorreo();
-    const codigo = String(randomInt(10_000_000, 100_000_000));
-    const [{ correo }] = await this.bd.tx().$queryRaw<[{ correo: string }]>`
-      SELECT enviar_exportacion(${id}::uuid, ${hash}, ${hashToken(codigo)}) AS correo`;
-    const [{ cuenta }] = await this.bd.tx().$queryRaw<[{ cuenta: boolean }]>`
-      SELECT exportacion_con_cuenta(paciente_id) AS cuenta FROM exportaciones_paciente WHERE id = ${id}::uuid`;
-    // Con cuenta, el enlace va al portal (exige su sesion); sin cuenta, a la pagina publica con codigo.
-    const enlace = `${this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/+$/, '')}${cuenta ? '/portal' : ''}/exportacion?token=${token}`;
+    const tx = this.bd.tx();
+    const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT destinatarios_pendientes_exportacion(${id}::uuid) AS n`;
+    const enlaces = Array.from({ length: n }, () => ({ ...nuevoTokenCorreo(), codigo: String(randomInt(10_000_000, 100_000_000)) }));
+    const destinatarios = await tx.$queryRaw<{ correo: string; con_cuenta: boolean; es_adulto: boolean }[]>`
+      SELECT * FROM enviar_exportacion(${id}::uuid, ${enlaces.map((e) => e.hash)}::bytea[], ${enlaces.map((e) => hashToken(e.codigo))}::bytea[])`;
+    const base = this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/+$/, '');
     this.bd.alConfirmar(async () => {
-      await this.correos.enviarAviso(
-        correo,
-        'Tus datos personales estan listos',
-        `El centro preparo la copia de tus datos que pediste. Puedes descargarla una o mas veces durante 72 horas:\n\n${enlace}\n\n` +
-          (cuenta ? 'Te pediremos iniciar sesion con tu cuenta.' : 'Te pediremos el codigo que llega en un correo aparte.') +
-          ' No compartas este enlace.',
-      );
-      if (!cuenta) {
+      for (const [i, d] of destinatarios.entries()) {
+        const { token, codigo } = enlaces[i];
+        // Con cuenta, el enlace va al portal (exige su sesion); sin cuenta, a la pagina publica con codigo.
+        const enlace = `${base}${d.con_cuenta ? '/portal' : ''}/exportacion?token=${token}`;
         await this.correos.enviarAviso(
-          correo,
-          'Codigo para descargar tus datos',
-          `Tu codigo es: ${codigo}\n\nUsalo junto con el enlace del otro correo. Vence en 72 horas.`,
+          d.correo,
+          d.es_adulto ? 'Los datos personales de la persona a tu cargo estan listos' : 'Tus datos personales estan listos',
+          (d.es_adulto
+            ? 'El centro preparo la copia de los datos personales de la persona que tienes a cargo. '
+            : 'El centro preparo la copia de tus datos que pediste. ') +
+            `Puedes descargarla una o mas veces durante 72 horas:\n\n${enlace}\n\n` +
+            (d.con_cuenta ? 'Te pediremos iniciar sesion con tu cuenta.' : 'Te pediremos el codigo que llega en un correo aparte.') +
+            ' No compartas este enlace.',
         );
+        if (!d.con_cuenta) {
+          await this.correos.enviarAviso(
+            d.correo,
+            d.es_adulto ? 'Codigo para descargar los datos de la persona a tu cargo' : 'Codigo para descargar tus datos',
+            `Tu codigo es: ${codigo}\n\nUsalo junto con el enlace del otro correo. Vence en 72 horas.`,
+          );
+        }
       }
     });
   }

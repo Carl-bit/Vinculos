@@ -177,6 +177,19 @@ export class Entorno {
   @IsString()
   @MinLength(32)
   PASARELA_SECRETO_WEBHOOK?: string;
+
+  /**
+   * 03b-4.2: apikey de la API de prestadores de la Superintendencia de Salud
+   * (convenio con la Intendencia de Prestadores). Sin valor: verificacion
+   * SIMULADA y la API arranca igual (aviso en el log); el ADMIN verifica a mano.
+   */
+  @IsOptional()
+  @IsString()
+  SUPERSALUD_APIKEY?: string;
+
+  @IsOptional()
+  @IsString()
+  SUPERSALUD_URL: string = 'https://apis.superdesalud.gob.cl';
 }
 
 export function validarEntorno(config: Record<string, unknown>): Entorno {

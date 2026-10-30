@@ -12,6 +12,7 @@ si otro archivo de `core` que no sea `core.module.ts` la elige.
 | `ProveedorCorreo` | `core/notificaciones/correo.ts` | `ProveedorCorreoSmtp` (generico), `ProveedorCorreoSimulado` | `SMTP_URL` presente -> SMTP; vacio -> simulado |
 | `ProveedorVideollamada` | `core/integraciones/videollamada.ts` | `ProveedorVideollamadaPorProfesional`, `ProveedorVideollamadaSimulado` | `VIDEOLLAMADA_SIMULADA=true` -> simulado (default de los tests) |
 | `ProveedorCalendario` | `core/integraciones/calendario.ts` | `CalendarioIcs` | unica (iCalendar RFC 5545) |
+| `VerificadorPrestadores` (03b-4.2) | `core/integraciones/verificador-prestadores.ts` | `VerificadorSuperSalud`, `VerificadorSimulado` | `SUPERSALUD_APIKEY` presente -> SUPERSALUD; vacia -> SIMULADO y aviso en el log (la API arranca igual) |
 | `ProveedorPasarela` (03b-3.1) | `core/integraciones/pasarela.ts` | `PasarelaSimulada`, `PasarelaNoConfigurada` | `PASARELA_PROVEEDOR=simulada` (default fuera de produccion) o vacio (sin pasarela); en produccion la simulada no arranca |
 
 En los tests de integracion (`test/apoyo.ts`) las simuladas siguen siendo
@@ -337,3 +338,35 @@ antes del inicio) y `porcentaje_pago_confirmacion` (100). Transferencia: la
 cuenta del centro (`cuenta_bancaria_centro`) o la del profesional con cobro
 directo; comprobante opcional; valida GESTION/ADMIN o el profesional segun el
 modelo de cobro. Sin lectura de correos bancarios.
+
+## Registro de prestadores de la Superintendencia de Salud (03b-4.2)
+
+- **Para que:** verificar el numero de registro (RNPI) que informa cada
+  profesional: que exista, que sea de su RUT y su nombre, y que el titulo
+  habilitante coincida con su profesion. Estados: NO_INFORMADO (sin fila),
+  PENDIENTE, VERIFICADO_AUTOMATICO, VERIFICADO_MANUAL, NO_COINCIDE.
+- **Apikey:** se obtiene con una solicitud formal a la Intendencia de
+  Prestadores de Salud (convenio de acceso a la API de prestadores). Va en
+  `SUPERSALUD_APIKEY` (secreto del silo, nunca en el repo) y la URL base en
+  `SUPERSALUD_URL` (default `https://apis.superdesalud.gob.cl`). Mientras no
+  exista, la verificacion automatica es SIMULADA y el ADMIN verifica a mano
+  con el respaldo de la trayectoria y el buscador publico
+  (https://rnpi.superdesalud.gob.cl/).
+- **Consulta:** solo desde el servidor (nunca el navegador):
+  `GET /api/v2/prestadores/registro/{registro}` con cabecera `apikey`.
+  Timeout de 5 s y hasta 2 reintentos ante red caida o 5xx (cabe en los 20 s
+  de la transaccion); 404 = no existe (NO_COINCIDE); 401/403 = apikey
+  invalida; 429 = limite (sin reintento). El formato exacto de la respuesta
+  se entrega con el convenio: `parsearPrestador()` lee de forma tolerante
+  solo registro, RUT, nombre y titulos; ajustarlo ahi al recibir la
+  documentacion. `/api/v2/prestadores/rut/{rut}` (RUT sin DV) queda
+  disponible para el mismo adaptador si se necesita buscar por RUT.
+- **Minimizacion:** se guardan numero, titulo habilitante, institucion,
+  fecha, estado y metodo (`registros_sis`). Nunca fecha de nacimiento, sexo
+  ni nacionalidad de la respuesta.
+- **Cuando se consulta:** al informar el numero (el propio profesional), a
+  pedido del ADMIN ("Verificar ahora") y en el job mensual
+  `reverificar_registros_sis` (dia 1, 05:00; no corre sin apikey; omite los
+  verificados a mano). Si el RNPI falla, el registro queda PENDIENTE.
+- **Simulado:** responde coherente con lo consultado; registro que empieza
+  con 9 = no existe; con 8 = de otro RUT (para probar NO_COINCIDE).

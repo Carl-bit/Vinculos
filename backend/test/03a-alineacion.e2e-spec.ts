@@ -522,6 +522,9 @@ describe('03a alineacion con el diseño', () => {
         .post('/api/publico/solicitudes')
         .send(solicitud(publico.id, 'bot@test.cl', { sitioWeb: 'http://spam' }));
       expect(bot.status).toBe(202);
+      // 03b-4.2: respuestas del match o, sin match, el motivo de la sesion; con tope de largo (antes de tocar la BD).
+      const largo = solicitud(publico.id, 'largo@test.cl', { respuestas: { motivo_sesion: 'x'.repeat(9000) } });
+      expect((await t.http().post('/api/publico/solicitudes').send(largo)).status).toBe(400);
       const email = `ema-${randomUUID().slice(0, 8)}@test.cl`;
       const dto = solicitud(publico.id, email);
       const r = await t.http().post('/api/publico/solicitudes').send(dto);

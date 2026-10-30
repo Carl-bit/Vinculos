@@ -260,7 +260,7 @@ export function AccesosTemporalesVista({ rol }: { rol: Rol }) {
                       </Td>
                       <Td className="text-right">
                         {rol === 'PROFESIONAL' && recibido && accesoVigente(a) && (
-                          <ButtonLink href={`/admin/fichas/${a.pacienteId}/ficha`} variant="secondary" className="!px-4 !py-2 !text-[13px]">
+                          <ButtonLink href={`/admin/fichas/${a.pacienteId}?vista=evoluciones`} variant="secondary" className="!px-4 !py-2 !text-[13px]">
                             Abrir ficha
                           </ButtonLink>
                         )}

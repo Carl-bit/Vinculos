@@ -287,6 +287,12 @@ model Usuario {
   contratosAceptados         AceptacionContrato[]
   exportacionesCreadas       ExportacionPaciente[]        @relation("ExportacionCreadaPor")
   exportacionesClinicas      ExportacionPaciente[]        @relation("ExportacionClinicaPor")
+  exportacionesRecibidas     DestinatarioExportacion[]    @relation("DestinatarioExportacionCuenta")
+  feriadosCreados            Feriado[]                    @relation("FeriadoCreadoPor")
+  feriadosQuitados           Feriado[]                    @relation("FeriadoQuitadoPor")
+  recordatoriosPersonales    RecordatorioPersonal[]       @relation("RecordatorioPersonalAutor")
+  registroSis                RegistroSis?                 @relation("RegistroSisProfesional")
+  registrosSisVerificados    RegistroSis[]                @relation("RegistroSisVerificadoPor")
   derechosRegistrados        SolicitudDerecho[]           @relation("DerechoRegistradoPor")
   derechosResueltos          SolicitudDerecho[]           @relation("DerechoResueltoPor")
   pacientesBloqueados        Paciente[]                   @relation("PacienteBloqueadoPor")
@@ -763,12 +769,13 @@ model AdultoResponsable {
   usuarioId  String?  @map("usuario_id") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  paciente               Paciente              @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
-  usuario                Usuario?              @relation("AdultoResponsableCuenta", fields: [usuarioId], references: [id], onDelete: Restrict)
+  paciente               Paciente                  @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  usuario                Usuario?                  @relation("AdultoResponsableCuenta", fields: [usuarioId], references: [id], onDelete: Restrict)
   aceptaciones           AceptacionPolitica[]
-  consentimientos        Consentimiento[]      @relation("ConsentimientoAdulto")
+  consentimientos        Consentimiento[]          @relation("ConsentimientoAdulto")
   avisosRespondidos      AvisoConsentimiento[]
-  revocacionesComoAdulto Consentimiento[]      @relation("ConsentimientoRevocadoAdulto")
+  revocacionesComoAdulto Consentimiento[]          @relation("ConsentimientoRevocadoAdulto")
+  exportacionesRecibidas DestinatarioExportacion[]
 
   @@index([pacienteId])
   @@index([rutHmac])
@@ -2991,11 +2998,59 @@ model AceptacionContrato {
 }
 
 /// AUD-01 (E2.3a, B): feriados de Chile; los carga el operador por año.
+/// Categoria B. Los de la ley los calcula generar_feriados (origen LEY); el
+/// ADMIN agrega puntuales o regionales (CENTRO) y quita (logico).
 model Feriado {
-  fecha  DateTime @id @db.Date
-  nombre String
+  fecha        DateTime  @id @db.Date
+  nombre       String
+  origen       String
+  creadoPorId  String?   @map("creado_por_id") @db.Uuid
+  quitadoEn    DateTime? @map("quitado_en") @db.Timestamptz(6)
+  quitadoPorId String?   @map("quitado_por_id") @db.Uuid
+
+  creadoPor  Usuario? @relation("FeriadoCreadoPor", fields: [creadoPorId], references: [id], onDelete: Restrict)
+  quitadoPor Usuario? @relation("FeriadoQuitadoPor", fields: [quitadoPorId], references: [id], onDelete: Restrict)
 
   @@map("feriados")
+}
+
+/// 03b-4.2 (A): recordatorios personales del equipo. Solo su autor (RLS);
+/// texto cifrado (CLINICO, texto libre). Sin vinculo con pacientes.
+model RecordatorioPersonal {
+  id       String    @id @db.Uuid
+  autorId  String    @map("autor_id") @db.Uuid
+  /// cifrado (CLINICO)
+  texto    Bytes
+  venceEl  DateTime? @map("vence_el") @db.Date
+  hechoEn  DateTime? @map("hecho_en") @db.Timestamptz(6)
+  creadoEn DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  autor Usuario @relation("RecordatorioPersonalAutor", fields: [autorId], references: [id], onDelete: Restrict)
+
+  @@index([autorId])
+  @@map("recordatorios_personales")
+}
+
+/// 03b-4.2 (A+C): registro de prestador individual en la Superintendencia de
+/// Salud (RNPI). Escritura solo via informar_registro_sis() y
+/// registrar_verificacion_sis(); publico via registros_sis_publicos().
+model RegistroSis {
+  profesionalId     String    @id @map("profesional_id") @db.Uuid
+  numero            String
+  /// PENDIENTE | VERIFICADO_AUTOMATICO | VERIFICADO_MANUAL | NO_COINCIDE (sin fila = NO_INFORMADO)
+  estado            String
+  /// AUTOMATICO | MANUAL
+  metodo            String?
+  tituloHabilitante String?   @map("titulo_habilitante")
+  institucion       String?
+  verificadoEn      DateTime? @map("verificado_en") @db.Timestamptz(6)
+  verificadoPorId   String?   @map("verificado_por_id") @db.Uuid
+  actualizadoEn     DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+
+  profesional   Usuario  @relation("RegistroSisProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  verificadoPor Usuario? @relation("RegistroSisVerificadoPor", fields: [verificadoPorId], references: [id], onDelete: Restrict)
+
+  @@map("registros_sis")
 }
 
 enum TipoDerecho {
@@ -3084,19 +3139,38 @@ model ExportacionPaciente {
   creadaEn             DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
   clinicaPorId         String?   @map("clinica_por_id") @db.Uuid
   clinicaEn            DateTime? @map("clinica_en") @db.Timestamptz(6)
-  tokenHash            Bytes?    @unique @map("token_hash")
-  codigoHash           Bytes?    @map("codigo_hash")
   enviadaEn            DateTime? @map("enviada_en") @db.Timestamptz(6)
   venceEn              DateTime? @map("vence_en") @db.Timestamptz(6)
   descargas            Int       @default(0)
   ultimaDescargaEn     DateTime? @map("ultima_descarga_en") @db.Timestamptz(6)
   purgadaEn            DateTime? @map("purgada_en") @db.Timestamptz(6)
 
-  paciente   Paciente         @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
-  solicitud  SolicitudDerecho @relation(fields: [solicitudId], references: [id], onDelete: Restrict)
-  creadaPor  Usuario          @relation("ExportacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
-  clinicaPor Usuario?         @relation("ExportacionClinicaPor", fields: [clinicaPorId], references: [id], onDelete: Restrict)
+  paciente      Paciente                  @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  solicitud     SolicitudDerecho          @relation(fields: [solicitudId], references: [id], onDelete: Restrict)
+  creadaPor     Usuario                   @relation("ExportacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  clinicaPor    Usuario?                  @relation("ExportacionClinicaPor", fields: [clinicaPorId], references: [id], onDelete: Restrict)
+  destinatarios DestinatarioExportacion[]
 
   @@index([pacienteId])
   @@map("exportaciones_paciente")
+}
+
+/// Categoria A. Un enlace por destinatario (paciente y/o adultos responsables
+/// segun la edad). Con cuenta (usuarioId) exige su sesion; sin cuenta, el codigo.
+model DestinatarioExportacion {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exportacionId       String    @map("exportacion_id") @db.Uuid
+  adultoResponsableId String?   @map("adulto_responsable_id") @db.Uuid
+  usuarioId           String?   @map("usuario_id") @db.Uuid
+  tokenHash           Bytes     @unique @map("token_hash")
+  codigoHash          Bytes?    @map("codigo_hash")
+  descargas           Int       @default(0)
+  ultimaDescargaEn    DateTime? @map("ultima_descarga_en") @db.Timestamptz(6)
+
+  exportacion       ExportacionPaciente @relation(fields: [exportacionId], references: [id], onDelete: Restrict)
+  adultoResponsable AdultoResponsable?  @relation(fields: [adultoResponsableId], references: [id], onDelete: Restrict)
+  usuario           Usuario?            @relation("DestinatarioExportacionCuenta", fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([exportacionId])
+  @@map("destinatarios_exportacion")
 }

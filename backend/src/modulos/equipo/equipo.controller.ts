@@ -12,6 +12,8 @@ import {
   CambiarSupervisorDto,
   ComentarioDto,
   DatosPrivadosDto,
+  InformarRegistroSisDto,
+  VerificacionManualSisDto,
   EditarPerfilDto,
   EditarTipoAtencionDto,
   MargenDto,
@@ -28,6 +30,7 @@ import {
   FotoSubida,
   MiResenaRecibida,
   PerfilProfesionalVista,
+  RegistroSisVista,
   SupervisionVista,
   CasoSupervision,
   ComentarioSupervision,
@@ -40,6 +43,7 @@ import {
   TrayectoriaVista,
 } from './dto/equipo-respuestas.dto';
 import { EquipoService } from './equipo.service';
+import { RegistroSisService } from './registro-sis.service';
 import { SupervisionService } from './supervision.service';
 
 const Uuid = new ParseUUIDPipe();
@@ -57,7 +61,36 @@ const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RE
 @Controller('profesionales')
 @Modulo('EQUIPO')
 export class PerfilesController {
-  constructor(private readonly equipo: EquipoService) {}
+  constructor(
+    private readonly equipo: EquipoService,
+    private readonly registroSis: RegistroSisService,
+  ) {}
+
+  /** 03b-4.2: el profesional informa (o quita) su registro en la Superintendencia; se intenta verificar en el acto. */
+  @Put('yo/registro-sis')
+  @Roles('PROFESIONAL')
+  informarRegistroSis(@Body() dto: InformarRegistroSisDto): Promise<RegistroSisVista> {
+    return this.registroSis.informar(dto.numero);
+  }
+
+  /** 03b-4.2: registro en la Superintendencia (los practicantes no tienen: los supervisa un profesional). */
+  @Get(':id/registro-sis')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  registroSisDe(@Param('id', Uuid) id: string): Promise<RegistroSisVista> {
+    return this.registroSis.ver(id);
+  }
+
+  @Post(':id/registro-sis/verificacion')
+  @Roles('ADMIN')
+  verificarRegistroSis(@Param('id', Uuid) id: string): Promise<RegistroSisVista> {
+    return this.registroSis.verificar(id);
+  }
+
+  @Post(':id/registro-sis/verificacion-manual')
+  @Roles('ADMIN')
+  verificarRegistroSisManual(@Param('id', Uuid) id: string, @Body() dto: VerificacionManualSisDto): Promise<RegistroSisVista> {
+    return this.registroSis.verificarManual(id, dto);
+  }
 
   @Put('yo/perfil')
   @Roles('PROFESIONAL')

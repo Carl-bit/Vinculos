@@ -9,6 +9,7 @@ import type {
   CuestionarioPublico,
   Hueco,
   PerfilPublico,
+  RegistroSisPublico,
   PoliticaPublica,
   PreguntaPublica,
   ResenaPublica,
@@ -45,12 +46,17 @@ export class MatchService {
 
   /** Perfiles publicos (solo PROFESIONAL; nunca practicantes, C-3). Filtros del equipo publico. */
   async perfiles(filtro: FiltroPerfilesDto = {}): Promise<PerfilPublico[]> {
-    const todos = await this.db.$queryRaw<PerfilPublico[]>`SELECT * FROM perfiles_publicos()`;
-    return todos.filter(
-      (p) =>
-        (!filtro.tipoAtencion || p.tipos_atencion.includes(filtro.tipoAtencion)) &&
-        (!filtro.modalidad || p.modalidad === 'MIXTA' || p.modalidad === filtro.modalidad),
-    );
+    const todos = await this.db.$queryRaw<Omit<PerfilPublico, 'registro_sis'>[]>`SELECT * FROM perfiles_publicos()`;
+    const registros = await this.db.$queryRaw<(RegistroSisPublico & { profesional_id: string })[]>`
+      SELECT profesional_id, numero, estado, verificado_en FROM registros_sis_publicos()`;
+    const registro = new Map(registros.map(({ profesional_id, ...r }) => [profesional_id, r]));
+    return todos
+      .map((p) => ({ ...p, registro_sis: registro.get(p.id) ?? null }))
+      .filter(
+        (p) =>
+          (!filtro.tipoAtencion || p.tipos_atencion.includes(filtro.tipoAtencion)) &&
+          (!filtro.modalidad || p.modalidad === 'MIXTA' || p.modalidad === filtro.modalidad),
+      );
   }
 
   /** Sin contexto solo responde para perfiles publicos (la funcion lo filtra). Max. 62 dias. */

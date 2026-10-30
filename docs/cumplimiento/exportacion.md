@@ -95,5 +95,19 @@ codigo. X3: la del centro, cifrada con la clave del ADMIN. X4: JSON mas PDF.
 | Vencidas | job `purgar_exportaciones_vencidas` (04:15): borra los datos, queda el registro |
 | Baja del centro | `docs/cumplimiento/baja_centro.md` |
 
-Paciente menor de edad: el enlace va al correo registrado del paciente; la
-entrega al adulto responsable queda para una entrega posterior.
+### Paciente menor de edad (decision del 2026-10-28)
+
+| Edad del paciente | Recibe la copia |
+|---|---|
+| Menor de 14 | Solo sus adultos responsables |
+| 14 a 17 | El paciente y sus adultos responsables |
+| 18 o mas (o sin fecha de nacimiento) | Solo el paciente |
+
+- Cada destinatario recibe su propio enlace (`destinatarios_exportacion`).
+  Con cuenta (la del paciente o la RESPONSABLE del adulto), la descarga exige
+  esa sesion; sin cuenta, el codigo del segundo correo.
+- La edad se calcula en la BD al enviar (`destinatarios_por_edad`, hora de
+  Chile). Un destinatario sin correo registrado se omite; si nadie tiene
+  correo, el envio falla y la copia se entrega en persona.
+- Configuracion > Solicitudes de datos muestra a quien se envio ("el
+  paciente y 2 adultos responsables"), sin correos.

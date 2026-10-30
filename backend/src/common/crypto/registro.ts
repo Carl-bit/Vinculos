@@ -146,6 +146,8 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
     id: 'id',
   },
   { modelo: 'ExportacionPaciente', campo: 'datosClinicos', tabla: 'exportaciones_paciente', columna: 'datos_clinicos', categoria: 'CLINICO', id: 'id' },
+  // 03b-4.2: recordatorios personales del equipo (texto libre: puede traer un dato de salud aunque se advierte que no).
+  { modelo: 'RecordatorioPersonal', campo: 'texto', tabla: 'recordatorios_personales', columna: 'texto', categoria: 'CLINICO', id: 'id' },
 ];
 
 /**

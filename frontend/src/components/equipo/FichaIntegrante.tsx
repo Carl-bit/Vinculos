@@ -35,6 +35,7 @@ import { useEstadoFichas, useTiposAtencion } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
 
 import { FormularioPerfil } from './FormularioPerfil';
+import { RegistroSisPanel } from './RegistroSis';
 
 const hoy = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
 
@@ -131,6 +132,14 @@ export function FichaIntegrante({
       )}
 
       {profesional && <Revisiones profesionalId={miembro.id} admin={admin} />}
+      {profesional && !propio && (
+        <RegistroSisPanel
+          profesionalId={miembro.id}
+          practicante={!miembro.roles.includes('PROFESIONAL')}
+          propio={miembro.id === yo.data?.id && rol === 'PROFESIONAL'}
+          admin={admin}
+        />
+      )}
       {profesional && <TrayectoriaTarifas profesionalId={miembro.id} admin={admin} />}
       {profesional && <DatosPrivados profesionalId={miembro.id} />}
       {miembro.roles.includes('PROFESIONAL') && <ResenasPublicas profesionalId={miembro.id} />}

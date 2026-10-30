@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
@@ -12,8 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { ControlSegmentado } from '@/components/ui/ControlSegmentado';
 import { Field, Input } from '@/components/ui/Field';
 import { Pestanas } from '@/components/ui/Pestanas';
-import { useMiCuenta } from '@/lib/consultas';
-import { NOMBRE_ROL, useCuentasEquipo, useSupervisiones } from '@/lib/equipo';
+import { NOMBRE_ROL, useCuentasEquipo } from '@/lib/equipo';
 import { useEquipoAgenda } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
@@ -24,14 +22,13 @@ import { FichaIntegrante } from './FichaIntegrante';
 import { ModeracionResenas } from './ModeracionResenas';
 import { NuevaCuenta } from './NuevaCuenta';
 import { PracticantesEquipo } from './PracticantesEquipo';
-import { SupervisionCasos } from './SupervisionCasos';
 
-type Vista = 'integrantes' | 'practicantes' | 'supervision' | 'revisiones' | 'resenas' | 'alertas';
+type Vista = 'integrantes' | 'practicantes' | 'revisiones' | 'resenas' | 'alertas';
 
 /**
  * Equipo (diseño "Admin - Perfil Profesional"): integrantes con su perfil y
  * cuenta, practicantes, catalogos y revisiones, moderacion de reseñas y
- * alertas. El profesional ve el directorio y edita lo suyo en "Mi perfil".
+ * alertas. Solo ADMIN/GESTION; el profesional edita lo suyo en "Mi perfil".
  * Parametros: `?vista=`, `?id=` (integrante abierto) y `?nuevo=1`.
  */
 export function EquipoCentro({ rol }: { rol: Rol }) {
@@ -39,14 +36,9 @@ export function EquipoCentro({ rol }: { rol: Rol }) {
   const gestiona = esAdministracion(rol);
   const router = useRouter();
   const parametros = useSearchParams();
-  const cuenta = useMiCuenta();
-  const supervisiones = useSupervisiones();
-  // Supervision seudonimizada: solo quien supervisa a un practicante vigente.
-  const supervisa = rol === 'PROFESIONAL' && (supervisiones.data ?? []).some((s) => s.supervisorId === cuenta.data?.id && !s.hasta);
   const vistas: { valor: Vista; etiqueta: string }[] = [
     { valor: 'integrantes', etiqueta: 'Integrantes' },
     { valor: 'practicantes', etiqueta: 'Practicantes' },
-    ...(supervisa ? ([{ valor: 'supervision', etiqueta: 'Supervisión' }] as const) : []),
     ...(admin
       ? ([
           { valor: 'revisiones', etiqueta: 'Catálogos y revisiones' },
@@ -71,17 +63,13 @@ export function EquipoCentro({ rol }: { rol: Rol }) {
       <Encabezado
         tono="team"
         titulo="Equipo del centro"
-        bajada={gestiona ? 'Integrantes, perfiles, accesos y revisiones.' : 'Quiénes forman el equipo. Tu perfil se edita en "Mi perfil".'}
+        bajada="Integrantes, perfiles, accesos y revisiones."
         accion={
           admin ? (
             <Button variant="team" icon="person_add" onClick={() => ir({ nuevo: '1' })}>
               Nueva cuenta
             </Button>
-          ) : (
-            <Link href="/admin/perfil" className="text-[13.5px] font-extrabold text-accent-700 underline underline-offset-2">
-              Ir a mi perfil
-            </Link>
-          )
+          ) : undefined
         }
       />
       <div className="flex min-w-0 flex-col gap-5">
@@ -97,7 +85,6 @@ export function EquipoCentro({ rol }: { rol: Rol }) {
         <div id="equipo-panel" role="tabpanel" className="min-w-0">
           {vista === 'integrantes' && <Integrantes rol={rol} abierto={parametros.get('id')} onAbrir={(id) => ir({ id })} />}
           {vista === 'practicantes' && <PracticantesEquipo rol={rol} />}
-          {vista === 'supervision' && <SupervisionCasos />}
           {vista === 'revisiones' && <CatalogosEquipo />}
           {vista === 'resenas' && <ModeracionResenas />}
           {vista === 'alertas' && <AlertasEquipo rol={rol} />}

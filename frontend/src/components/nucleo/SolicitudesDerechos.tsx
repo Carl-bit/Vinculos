@@ -230,6 +230,7 @@ function FilaSolicitud({ s, onCambio }: { s: Solicitud; onCambio: () => void }) 
       {s.exportacion && (
         <p className="m-0 text-[13px] font-semibold text-neutral-800">
           Copia de datos: {ESTADO_EXPORTACION[s.exportacion.estado]}
+          {s.exportacion.destinatarios.length > 0 ? ` · enviada a ${destinatarios(s.exportacion.destinatarios)}` : ''}
           {s.exportacion.venceEn && s.exportacion.estado === 'ENVIADA' ? ` · vence ${formatoFechaHora(s.exportacion.venceEn)}` : ''}
           {s.exportacion.descargas > 0 ? ` · descargada ${s.exportacion.descargas} ${s.exportacion.descargas === 1 ? 'vez' : 'veces'}` : ''}
         </p>
@@ -242,12 +243,7 @@ function FilaSolicitud({ s, onCambio }: { s: Solicitud; onCambio: () => void }) 
           </Field>
           <div className="flex flex-wrap justify-end gap-2">
             {s.pacienteId && (
-              <Button
-                variant="ghost"
-                icon="lock"
-                loading={bloqueo.isPending}
-                onClick={() => bloqueo.mutate(s.pacienteBloqueado ? 'levantar' : 'bloquear')}
-              >
+              <Button variant="ghost" icon="lock" loading={bloqueo.isPending} onClick={() => bloqueo.mutate(s.pacienteBloqueado ? 'levantar' : 'bloquear')}>
                 {s.pacienteBloqueado ? 'Levantar bloqueo' : 'Bloquear tratamiento'}
               </Button>
             )}
@@ -299,4 +295,14 @@ function FilaSolicitud({ s, onCambio }: { s: Solicitud; onCambio: () => void }) 
       />
     </li>
   );
+}
+
+/** "el paciente y 2 adultos responsables" (segun la edad, lo decide la BD). */
+function destinatarios(lista: { adultoResponsable: boolean }[]): string {
+  const adultos = lista.filter((d) => d.adultoResponsable).length;
+  const partes = [
+    ...(lista.length > adultos ? ['el paciente'] : []),
+    ...(adultos ? [adultos === 1 ? '1 adulto responsable' : `${adultos} adultos responsables`] : []),
+  ];
+  return partes.join(' y ');
 }

@@ -404,14 +404,14 @@ Aprobadas para ejecutar: Fase 1 y Fase 2.
 | E1.5 Trazabilidad | Hecha (DESCARGA, EXPORTACION, edicion de pacientes, registro_exportaciones, vista "Auditoria de accesos") |
 | E2.1 Acceso de soporte | Hecha (rol sin tablas, autorizacion del ADMIN, registro; pestaña "Soporte"; runbook) |
 | E2.2 Terminos y DPA en el silo | Hecha (publica el operador, acepta ADMIN, aviso bloqueante; plantillas borrador para revision legal) |
-| E2.3a Registro y plazo | Hecha (feriados 2026, 30 dias habiles, alerta a 5 dias; pestaña "Solicitudes de datos") |
+| E2.3a Registro y plazo | Hecha (30 dias habiles, alerta a 5 dias; pestaña "Solicitudes de datos"; feriados calculados por ley y pestaña "Feriados" para los puntuales) |
 | E2.3b Solicitud sin cuenta por RUT | Hecha con la variante aprobada: misma respuesta exista o no el RUT; registro y aviso solo al correo registrado; el cambio de correo lo hace el centro tras verificar identidad. Pagina publica `/derechos` (enlace en el pie) |
 | E2.3c Bloqueo, cancelacion, canales | Hecha (bloqueo visible e impide gestiones nuevas; cancelacion periferica; WhatsApp con consentimiento propio en Pedir hora y en el portal) |
-| E2.4 Respaldos, monitoreo, deteccion | Hecha en codigo y scripts; RTO/RPO aprobados; `instalar.sh` listo para el servidor (falta servidor y bucket); feriados 2027 en borrador por verificar |
+| E2.4 Respaldos, monitoreo, deteccion | Hecha en codigo y scripts; RTO/RPO aprobados; `instalar.sh` listo para el servidor (falta servidor y bucket) |
 | E0.1 Dependencias | Hecha: 0 vulnerabilidades de produccion en backend y frontend (`docs/seguridad/dependencias.md`) |
 | E0.2 Proceso | Hecho: `npm run auditoria` (falla con alta o critica) y proceso escrito |
 | E3.0 Propuesta de contenido | Hecha y aprobada (X1 tratante, X2 enlace + codigo, X3 clave del ADMIN, X4 JSON + PDF) |
-| E3.1 Exportacion por paciente | Hecha |
+| E3.1 Exportacion por paciente | Hecha (menores: menor de 14 sus adultos responsables, 14 a 17 ambos) |
 | E3.2 Exportacion del centro y baja | Hecha (archivo cifrado con la clave del ADMIN, script de descifrado, runbook de baja) |
 
 ## Respuestas (2026-10-28, segunda ronda)

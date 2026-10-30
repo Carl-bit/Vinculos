@@ -40,6 +40,8 @@ async function pedirHora(page: Page, etiqueta: string, menor = false): Promise<s
   await page.getByLabel('Mes').selectOption('5');
   await page.getByLabel('Año').selectOption(menor ? '2012' : '1990');
   await page.getByLabel(/^Correo/).fill(email);
+  // Sin match: el motivo en sus palabras (opcional; llega cifrado al tratante).
+  await page.getByLabel('¿Qué te gustaría trabajar en la sesión?').fill('Me cuesta dormir hace unos meses.');
   if (menor) {
     await expect(page.getByText('Por la fecha de nacimiento, el paciente es menor de 18.', { exact: false })).toBeVisible();
     await page.getByLabel('Nombre completo').fill('Adulta Responsable');

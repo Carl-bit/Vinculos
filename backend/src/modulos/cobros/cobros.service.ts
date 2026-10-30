@@ -76,7 +76,10 @@ export class CobrosService {
       f.profesionalId ? Prisma.sql`profesional_id = ${f.profesionalId}::uuid` : undefined,
     ].filter((c): c is Prisma.Sql => !!c);
     const where = condiciones.length ? Prisma.sql`WHERE ${Prisma.join(condiciones, ' AND ')}` : Prisma.empty;
-    return this.bd.tx().$queryRaw<EstadoPagoCita[]>`SELECT * FROM estado_pago_citas ${where} ORDER BY inicio LIMIT 500`;
+    // 03b-4.2: inasistencia = resolucion INASISTENCIA (simbolo "no asistio" en la agenda).
+    return this.bd.tx().$queryRaw<(EstadoPagoCita & { inasistencia: boolean })[]>`
+      SELECT e.*, EXISTS (SELECT 1 FROM resoluciones_cita r WHERE r.cita_id = e.cita_id AND r.decision = 'INASISTENCIA') AS inasistencia
+      FROM estado_pago_citas e ${where} ORDER BY e.inicio LIMIT 500`;
   }
 
   async estado(citaId: string): Promise<EstadoPagoCita> {

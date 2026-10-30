@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -23,6 +23,7 @@ import { FiltroErrores } from './errores/filtro-errores';
 import { JobsService } from './jobs/jobs.service';
 import { CalendarioIcs, ProveedorCalendario } from './integraciones/calendario';
 import { PasarelaNoConfigurada, PasarelaSimulada, ProveedorPasarela } from './integraciones/pasarela';
+import { VerificadorPrestadores, VerificadorSimulado, VerificadorSuperSalud } from './integraciones/verificador-prestadores';
 import { ProveedorVideollamada, ProveedorVideollamadaPorProfesional, ProveedorVideollamadaSimulado } from './integraciones/videollamada';
 import { ProveedorCorreo, ProveedorCorreoSimulado, ProveedorCorreoSmtp } from './notificaciones/correo';
 import { NotificacionesController, PlantillasMensajeController } from './notificaciones/notificaciones.controller';
@@ -125,6 +126,16 @@ export class CoreModule {
                 )
               : new PasarelaNoConfigurada(),
         },
+        {
+          provide: VerificadorPrestadores,
+          inject: [ConfigService],
+          useFactory: (config: ConfigService) => {
+            const apikey = config.get<string>('SUPERSALUD_APIKEY');
+            if (apikey) return new VerificadorSuperSalud(apikey, config.getOrThrow<string>('SUPERSALUD_URL'));
+            new Logger('Integraciones').warn('SUPERSALUD_APIKEY vacia: registro SIS con verificacion SIMULADA (el ADMIN verifica a mano)');
+            return new VerificadorSimulado();
+          },
+        },
         { provide: APP_GUARD, useClass: JwtGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
         { provide: APP_GUARD, useExisting: ModulosGuard },
@@ -138,6 +149,7 @@ export class CoreModule {
         ProveedorVideollamada,
         ProveedorCalendario,
         ProveedorPasarela,
+        VerificadorPrestadores,
         CorreosCuenta,
         ConcrecionReserva,
         ModulosGuard,

@@ -14,8 +14,10 @@ async function abrirFichaPrueba(page: Page) {
     .getByRole('link', { name: /Prueba, Paciente|Paciente Prueba/ })
     .first()
     .click();
-  await page.getByRole('link', { name: 'Abrir ficha clínica' }).click();
-  await expect(page).toHaveURL(/\/admin\/fichas\/[^/]+\/ficha$/);
+  // 03b-4.2: sin paso intermedio; el contenido clinico esta en las pestañas.
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await page.getByRole('tab', { name: 'Evoluciones' }).click();
+  await expect(page).toHaveURL(/\/admin\/fichas\/[^/]+\?vista=evoluciones/);
 }
 
 test('Ficha: el borrador se guarda solo, exige tipo y riesgo para confirmar y se puede descartar', async ({ page }) => {
@@ -42,7 +44,7 @@ test('Ficha: el borrador se guarda solo, exige tipo y riesgo para confirmar y se
 test('Ficha: vista previa del PDF antes de emitir (sin emitir nada)', async ({ page }) => {
   await ingresarEquipo(page, 'profesional1');
   await abrirFichaPrueba(page);
-  await page.getByRole('tab', { name: 'Documentos' }).click();
+  await page.getByRole('tab', { name: 'Documentos y adjuntos' }).click();
   await expect(page).toHaveURL(/vista=documentos/);
   await page.getByRole('button', { name: 'Emitir documento' }).click();
   const modal = page.getByRole('dialog', { name: 'Emitir documento' });
@@ -63,8 +65,11 @@ test('Ficha: ADMIN no ve el contenido clinico; administra plantillas, catalogos 
     .first()
     .click();
   await expect(page).toHaveURL(/\/admin\/fichas\/[^/?]+$/);
+  // 03b-4.2: la antigua /ficha lleva a la vista del paciente; ADMIN no tiene pestañas clinicas.
   await page.goto(`${page.url()}/ficha`);
-  await expect(page.getByText('La ficha clínica es del equipo tratante')).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/fichas\/[^/]+\?vista=evoluciones/);
+  await expect(page.getByRole('tab', { name: 'Sesiones' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Evoluciones' })).toHaveCount(0);
 
   await page.goto('/admin/fichas?vista=plantillas');
   await expect(page.getByText('Evolucion psicoterapia (Demo)')).toBeVisible();

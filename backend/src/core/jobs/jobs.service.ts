@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 
 import { ContextoBd, type Tx } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
+import { VerificadorPrestadores, verificarRegistrosSis } from '../integraciones/verificador-prestadores';
 
 export type ResultadoJob = { corrio: false } | { corrio: true; total: number };
 
@@ -26,6 +27,7 @@ export class JobsService implements OnApplicationBootstrap {
     private readonly bd: ContextoBd,
     private readonly llavero: LlaveroService,
     private readonly config: ConfigService,
+    private readonly verificador: VerificadorPrestadores,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -173,6 +175,34 @@ export class JobsService implements OnApplicationBootstrap {
       const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT purgar_exportaciones_vencidas() AS n`;
       return n;
     });
+  }
+
+  /**
+   * AUD-01 (E2.3a): feriados de ley de este año y el siguiente (la BD los
+   * calcula; idempotente, no revive los que el centro quito).
+   */
+  @Cron('30 2 * * *', { name: 'generar_feriados', timeZone: 'America/Santiago' })
+  generarFeriados(): Promise<ResultadoJob> {
+    return this.conLock('generar_feriados', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`
+        SELECT (generar_feriados(a) + generar_feriados(a + 1))::int AS n
+        FROM (SELECT extract(year FROM now() AT TIME ZONE 'America/Santiago')::int AS a) x`;
+      return n;
+    });
+  }
+
+  /**
+   * 03b-4.2: reverificacion mensual de los registros SIS contra el RNPI (los
+   * verificados a mano por el ADMIN no se tocan). Sin apikey no corre.
+   */
+  @Cron('0 5 1 * *', { name: 'reverificar_registros_sis', timeZone: 'America/Santiago' })
+  async reverificarRegistrosSis(): Promise<ResultadoJob> {
+    if (this.verificador.simulado) {
+      this.logger.log('reverificar_registros_sis: omitido (sin SUPERSALUD_APIKEY)');
+      return { corrio: false };
+    }
+    // ponytail: consultas en serie dentro del lock; por lotes si el equipo crece a cientos.
+    return this.conLock('reverificar_registros_sis', async (tx) => (await verificarRegistrosSis(tx, this.llavero, this.verificador, null, this.logger)).total);
   }
 
   /** AUD-01 (E2.4): alertas por lecturas masivas de fichas e ingresos fallidos repetidos (sin nombres). */

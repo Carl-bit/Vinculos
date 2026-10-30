@@ -382,6 +382,26 @@ async function main(): Promise<void> {
       const { id } = await llamar(token, 'POST', '/trayectoria', cuerpo);
       await llamar(admin, 'POST', `/trayectoria/${id}/verificacion`, { verificado: true });
     }
+    // 03b-4.2: registro SIS de todos los profesionales (numeros ficticios), verificado a mano por ADMIN: la
+    // insignia sale en todas las tarjetas del demo. Los practicantes no tienen: muestran a su supervisor.
+    for (const [i, [token, id]] of (
+      [
+        [prof1, prof1Id],
+        [prof2, prof2Id],
+        [prof3, prof3Id],
+        [prof4.token, prof4.id],
+        [prof5.token, prof5.id],
+        [prof6.token, prof6.id],
+        [adminProfesional, adminId],
+      ] as const
+    ).entries()) {
+      await llamar(token, 'PUT', '/profesionales/yo/registro-sis', { numero: String(100001 + i) });
+      await llamar(admin, 'POST', `/profesionales/${id}/registro-sis/verificacion-manual`, {
+        coincide: true,
+        tituloHabilitante: 'Psicólogo(a) (Demo)',
+        institucion: 'Universidad Ficticia',
+      });
+    }
 
     // Sitio publico (03b-2): contenido editable por ADMIN y politicas que se aceptan al pedir hora.
     await llamar(admin, 'PATCH', '/configuracion/contenido-publico', {

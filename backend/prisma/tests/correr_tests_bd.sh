@@ -101,7 +101,7 @@ DATABASE_URL="$MIGRATION_DATABASE_URL" node -e "
     WHERE table_schema = 'public' AND data_type = 'bytea' AND column_name NOT LIKE '%hmac'
       AND table_name NOT IN ('llaves_datos', 'sesiones', 'tokens_correo', 'codigos_verificacion', 'codigos_respaldo')
       AND table_name || '.' || column_name NOT IN ('imagenes_publicas.contenido', 'solicitudes_hora.reserva_hash',
-                                                   'exportaciones_paciente.token_hash', 'exportaciones_paciente.codigo_hash') ORDER BY 1\`.then((filas) => {
+                                                   'destinatarios_exportacion.token_hash', 'destinatarios_exportacion.codigo_hash') ORDER BY 1\`.then((filas) => {
     const bd = filas.map((f) => f.c).join(',');
     const reg = CAMPOS_CIFRADOS.map((c) => c.tabla + '.' + c.columna).sort().join(',');
     if (bd !== reg) { throw new Error('registro.ts != BD\nBD:  ' + bd + '\nreg: ' + reg); }

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -82,12 +83,20 @@ import {
   EstadoBloqueoVista,
   SolicitudDerechoPublicaDto,
   SolicitudDerechoPublicaRecibida,
+  AgregarFeriadoDto,
   DescargaExportacionDto,
+  FeriadoVista,
+  FiltroFeriadosDto,
+  MarcarRecordatorioDto,
+  RecordatorioPersonalDto,
+  RecordatorioPersonalVista,
   ExportacionPacienteVista,
   ExportarCentroDto,
 } from './dto/nucleo.dto';
 import { ExportacionesService } from './exportaciones.service';
 import { DerechosService } from './derechos.service';
+import { FeriadosService } from './feriados.service';
+import { RecordatoriosPersonalesService } from './recordatorios-personales.service';
 import { AuditoriaService } from './auditoria.service';
 import { SoporteService } from './soporte.service';
 import { EquipoAccesoService } from './equipo-acceso.service';
@@ -466,6 +475,67 @@ export class SoporteController {
   }
 }
 
+/** Dia AAAA-MM-DD en la ruta. */
+const FECHA_DIA = /^\d{4}-\d{2}-\d{2}$/;
+
+/** AUD-01 (E2.3a): feriados de los plazos en dias habiles. Los de la ley los calcula la BD; ADMIN agrega o quita. */
+@ApiTags(TAGS.nucleo)
+@Controller('feriados')
+export class FeriadosController {
+  constructor(private readonly feriados: FeriadosService) {}
+
+  @Get()
+  @Roles('ADMIN')
+  delAnio(@Query() filtro: FiltroFeriadosDto): Promise<FeriadoVista[]> {
+    return this.feriados.delAnio(filtro.anio);
+  }
+
+  @Post()
+  @Roles('ADMIN')
+  agregar(@Body() dto: AgregarFeriadoDto): Promise<FeriadoVista[]> {
+    return this.feriados.agregar(dto);
+  }
+
+  @Delete(':fecha')
+  @Roles('ADMIN')
+  quitar(@Param('fecha') fecha: string): Promise<FeriadoVista[]> {
+    if (!FECHA_DIA.test(fecha) || Number.isNaN(Date.parse(fecha))) throw new BadRequestException('Fecha AAAA-MM-DD');
+    return this.feriados.quitar(fecha);
+  }
+}
+
+/** 03b-4.2: recordatorios personales del inicio. Cada integrante del equipo ve y escribe solo los suyos (RLS). */
+@ApiTags(TAGS.nucleo)
+@Controller('mis-recordatorios')
+export class RecordatoriosController {
+  constructor(private readonly recordatorios: RecordatoriosPersonalesService) {}
+
+  @Get()
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  listar(): Promise<RecordatorioPersonalVista[]> {
+    return this.recordatorios.listar();
+  }
+
+  @Post()
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  crear(@Body() dto: RecordatorioPersonalDto): Promise<RecordatorioPersonalVista> {
+    return this.recordatorios.crear(dto);
+  }
+
+  @Patch(':id')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  marcar(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: MarcarRecordatorioDto): Promise<RecordatorioPersonalVista> {
+    return this.recordatorios.marcar(id, dto.hecho);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  eliminar(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.recordatorios.eliminar(id);
+  }
+}
+
 /** AUD-01 (E2.3a): solicitudes de derechos de los titulares, con plazo en dias habiles. Solo ADMIN. */
 @ApiTags(TAGS.nucleo)
 @Controller('derechos')
@@ -564,10 +634,10 @@ export class ExportacionesController {
     return this.exportaciones.agregarClinica(id);
   }
 
-  /** Paciente con cuenta: descarga con su sesion. */
+  /** Paciente o adulto responsable con cuenta: descarga con su sesion (la BD exige la cuenta del enlace). */
   @Post('portal/exportacion/descarga')
   @HttpCode(200)
-  @Roles('PACIENTE')
+  @Roles('PACIENTE', 'RESPONSABLE')
   @RespuestaArchivo('application/json', 'application/pdf')
   async descargarPortal(@Body() dto: DescargaExportacionDto) {
     const a = await this.exportaciones.descargar(dto.token, null, dto.formato, true);

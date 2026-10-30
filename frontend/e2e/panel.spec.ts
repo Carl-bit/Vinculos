@@ -40,17 +40,20 @@ test('Agenda: agendar retiene la hora con cuenta regresiva y solo confirma al pu
   }
 });
 
-test('Agenda: pestañas de espacios, horarios del equipo y pendientes', async ({ page }) => {
+test('Agenda: pestañas de espacios y pendientes; horarios y boxes desde el encabezado', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/agenda?vista=espacios');
   await expect(page.getByRole('heading', { name: 'Box 1 (Demo)' })).toBeVisible();
   await expect(page.getByRole('meter', { name: /Horas apartadas de Box 1/ })).toBeVisible();
 
-  await page.getByRole('tab', { name: 'Horarios del equipo' }).click();
-  await expect(page).toHaveURL(/vista=equipo/);
+  // 03b-4.2: "Horarios del equipo" deja de ser pestaña; queda como accion del encabezado.
+  await expect(page.getByRole('tab', { name: 'Horarios del equipo' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Horarios y boxes' }).click();
+  await expect(page).toHaveURL(/vista=horarios/);
   await expect(page.getByRole('heading', { name: 'Profesional Uno' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Apartar horas' }).first()).toBeVisible();
 
+  await page.getByRole('button', { name: 'Volver a la agenda' }).click();
   await page.getByRole('tab', { name: 'Pendientes' }).click();
   await expect(page.getByRole('heading', { name: 'Pago pendiente' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Por reprogramar' })).toBeVisible();
@@ -60,7 +63,12 @@ test('Agenda: el detalle de una sesion futura ofrece cubrir sesion y explica la 
   await ingresarAdmin(page);
   await page.goto('/admin/agenda');
   await page.getByRole('button', { name: 'Semana siguiente' }).click();
-  await page.getByRole('region', { name: 'Calendario de la semana' }).getByRole('button').filter({ hasText: 'Confirmada' }).first().click();
+  // 03b-4.2: el estado va en el nombre accesible de la tarjeta (simbolo + texto).
+  await page
+    .getByRole('region', { name: 'Calendario' })
+    .getByRole('button', { name: /Confirmada/ })
+    .first()
+    .click();
   const modal = page.getByRole('dialog');
   await expect(modal.getByText('Cambio definitivo de profesional')).toBeVisible();
   await modal.getByRole('button', { name: 'Cubrir sesión' }).click();
@@ -158,7 +166,7 @@ test('Mi perfil del profesional (diseño "Admin - Mi Perfil"): cabecera con indi
 test('Agenda: Semana | Mes y Hoy; la vista mensual se recuerda', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/agenda');
-  await expect(page.getByRole('region', { name: 'Calendario de la semana' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Calendario' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Hoy' })).toBeDisabled();
   await page.getByRole('group', { name: 'Vista de la agenda' }).locator('label').filter({ hasText: /Mes$/ }).click();
   await expect(page.getByRole('region', { name: 'Calendario del mes' })).toBeVisible();
@@ -177,7 +185,7 @@ test('Agenda: Semana | Mes y Hoy; la vista mensual se recuerda', async ({ page }
 test('selector de equipo: "Viendo a" con volver a todo el equipo', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/agenda');
-  await page.getByLabel('Equipo').selectOption({ label: 'Profesional Uno' });
+  await page.getByLabel('Equipo', { exact: true }).selectOption({ label: 'Profesional Uno' });
   await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
   // 03b-4.1 (pendiente 19): va en la URL, sobrevive a recargar y a navegar por el menu.
   await expect(page).toHaveURL(/[?&]equipo=[0-9a-f-]{36}/);
@@ -185,9 +193,9 @@ test('selector de equipo: "Viendo a" con volver a todo el equipo', async ({ page
   await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
   await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Cobros' }).click();
   await expect(page).toHaveURL(/\/admin\/cobros\?equipo=/);
-  await expect(page.getByLabel('Equipo')).not.toHaveValue('');
+  await expect(page.getByLabel('Equipo', { exact: true })).not.toHaveValue('');
   await page.getByRole('button', { name: 'Volver a todo el equipo' }).click();
-  await expect(page.getByLabel('Equipo')).toHaveValue('');
+  await expect(page.getByLabel('Equipo', { exact: true })).toHaveValue('');
   await expect(page).not.toHaveURL(/equipo=/);
 });
 
@@ -207,3 +215,30 @@ test('Mi perfil de la cuenta madre (punto 22): su perfil profesional con ADMIN a
   await expect(page).toHaveURL(/\/admin\/perfil$/);
   await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Configuración' })).toHaveCount(0);
 });
+
+for (const usuario of ['admin', 'profesional1'] as const) {
+  test(`Agenda 1920x1080 (${usuario}): sin scroll de la pagina, grilla 08-24 entera en la ventana y vistas Semana | Mes`, async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await ingresarEquipo(page, usuario);
+    await page.goto('/admin/agenda');
+    await expect(page.getByRole('heading', { level: 1, name: usuario === 'admin' ? 'Coordinación del centro' : 'Mi agenda' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: usuario === 'admin' ? 'Por profesional' : 'Mi horario' })).toBeVisible();
+    const vistas = page.getByRole('group', { name: 'Vista de la agenda' });
+    for (const vista of ['Semana', 'Mes']) await expect(vistas.getByRole('radio', { name: vista })).toHaveCount(1);
+    await expect(vistas.getByRole('radio', { name: 'Día' })).toHaveCount(0);
+    const grilla = page.getByRole('region', { name: 'Calendario' });
+    await expect(grilla).toBeVisible();
+    // Tras la animacion de entrada (desplaza el main unos px al aparecer).
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeLessThanOrEqual(0);
+    // 08:00 a 24:00 caben enteras: la grilla no necesita scroll vertical.
+    await expect(grilla.getByText('08:00')).toBeVisible();
+    await expect(grilla.getByText('23:00')).toBeVisible();
+    expect(await grilla.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+    await vistas.locator('label').filter({ hasText: /Mes$/ }).click();
+    await expect(page.getByRole('region', { name: 'Calendario del mes' })).toBeVisible();
+    await vistas
+      .locator('label')
+      .filter({ hasText: /Semana$/ })
+      .click();
+  });
+}

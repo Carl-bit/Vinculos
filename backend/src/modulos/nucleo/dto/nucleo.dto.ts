@@ -26,6 +26,7 @@ import {
   IsEmail,
   IsEnum,
   IsInt,
+  IsISO8601,
   IsNumber,
   IsOptional,
   IsString,
@@ -1023,6 +1024,12 @@ export class AvanzarSolicitudDerechoDto {
 /** AUD-01 Fase 3: estado de la exportacion de un paciente (solo metadatos). */
 export const ESTADOS_EXPORTACION = ['ESPERANDO_TRATANTE', 'LISTA', 'ENVIADA', 'VENCIDA'] as const;
 
+/** A quien se envio la copia (sin correos): el paciente o un adulto responsable. */
+export class DestinatarioExportacionVista {
+  adultoResponsable!: boolean;
+  descargas!: number;
+}
+
 export class ExportacionPacienteVista {
   id!: string;
   pacienteId!: string;
@@ -1041,6 +1048,9 @@ export class ExportacionPacienteVista {
   descargas!: number;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   purgadaEn!: Date | null;
+  /** Segun la edad: menor de 14 sus adultos responsables; 14 a 17 ambos; mayor, el paciente. */
+  @ApiProperty({ type: [DestinatarioExportacionVista] })
+  destinatarios!: DestinatarioExportacionVista[];
 }
 
 export class SolicitudDerechoVista {
@@ -1159,4 +1169,69 @@ export class ExportarCentroDto {
   @IsString()
   @Length(16, 200)
   clave!: string;
+}
+
+/** AUD-01 (E2.3a): feriados de un año (los de la ley y los del centro). */
+export class FiltroFeriadosDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  anio!: number;
+}
+
+/** Feriado puntual o regional que la ley no calcula (o uno quitado que se repone). */
+export class AgregarFeriadoDto {
+  /** AAAA-MM-DD, de hoy en adelante. */
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
+  fecha!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(2, 120)
+  nombre!: string;
+}
+
+export const ORIGENES_FERIADO = ['LEY', 'CENTRO'] as const;
+
+export class FeriadoVista {
+  /** AAAA-MM-DD */
+  fecha!: string;
+  nombre!: string;
+  /** LEY: lo calcula el sistema; CENTRO: lo agrego un ADMIN. */
+  @ApiProperty({ enum: ORIGENES_FERIADO })
+  origen!: (typeof ORIGENES_FERIADO)[number];
+  /** Quitado por un ADMIN: no cuenta como feriado. */
+  quitado!: boolean;
+}
+
+/** 03b-4.2: recordatorio personal (solo su autor). Sin datos clinicos: la pantalla lo advierte. */
+export class RecordatorioPersonalDto {
+  @Recortar()
+  @IsString()
+  @Length(1, 300)
+  texto!: string;
+
+  /** AAAA-MM-DD opcional. */
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
+  venceEl?: string;
+}
+
+export class MarcarRecordatorioDto {
+  @IsBoolean()
+  hecho!: boolean;
+}
+
+export class RecordatorioPersonalVista {
+  id!: string;
+  texto!: string;
+  /** AAAA-MM-DD */
+  @ApiProperty({ nullable: true, type: String })
+  venceEl!: string | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  hechoEn!: Date | null;
+  creadoEn!: Date;
 }

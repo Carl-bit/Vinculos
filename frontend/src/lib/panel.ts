@@ -6,6 +6,7 @@
  * vienen del directorio (`useProfesionales`, `useDirectorio`).
  */
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
 import { api, datos } from './api/cliente';
 import { ApiError } from './api/errores';
@@ -18,6 +19,16 @@ export type ReporteDashboard = components['schemas']['ReporteDashboard'];
 export type TipoAtencion = components['schemas']['TipoAtencionVista'];
 
 const MINUTO = 60_000;
+
+/** Reloj que avanza cada minuto: linea de la hora actual y sesion en curso. */
+export function useAhora() {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), MINUTO);
+    return () => clearInterval(t);
+  }, []);
+  return ahora;
+}
 
 export function useDashboard() {
   return useQuery({ queryKey: ['panel', 'dashboard'], queryFn: () => datos(api.GET('/api/reportes/dashboard')), refetchInterval: 5 * MINUTO });
@@ -156,6 +167,7 @@ export function mesChile(desplazamiento = 0, hoy = diaChile(new Date())): { prim
 }
 
 export type EstadoFicha = components['schemas']['EstadoFichaPaciente'];
+type EstadoFichaPaciente = EstadoFicha;
 export type AceptacionVista = components['schemas']['AceptacionVista'];
 export type AdultoResponsable = components['schemas']['AdultoResponsableVista'];
 export type DerivacionVista = components['schemas']['DerivacionVista'];
@@ -196,6 +208,10 @@ export function useEstadoFichas(profesionalId: string | undefined) {
     enabled: !!profesionalId,
   });
 }
+
+/** 03b-4.2: paciente sin sesion hace mas de un mes, sin proxima hora ni alta (inicio y lista del profesional). */
+export const sinSesionHaceUnMes = (e: EstadoFichaPaciente | undefined, ahora = Date.now()) =>
+  !!e && !e.alta_en && !e.proxima_sesion && !!e.ultima_sesion && new Date(e.ultima_sesion).getTime() < ahora - 30 * 86_400_000;
 
 /** Evoluciones de la ficha (solo el tratante): aca solo se usa que sesion quedo cerrada. */
 export function useEvoluciones(fichaId: string | undefined, habilitado: boolean) {

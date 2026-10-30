@@ -961,3 +961,14 @@ export class AdjuntoFichaVista {
   tamanoBytes!: number;
   subidoEn!: Date;
 }
+
+/** 03b-4.2: rango de la agenda para saber que sesiones ya tienen evolucion. */
+export class RangoCitasEvolucionDto {
+  @Type(() => Date)
+  @IsDate()
+  desde!: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  hasta!: Date;
+}

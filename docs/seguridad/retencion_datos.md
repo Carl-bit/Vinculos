@@ -103,6 +103,8 @@ esos datos existan (`cifrado.md`, `runbooks_llaves.md`).
 - Cancelacion de datos perifericos (`cancelar_datos_perifericos`): borra
   contacto, preferencias, respuestas del match y cuenta del portal; la ficha
   y la identificacion se conservan al menos 15 años (Ley 20.584, Decreto 41).
+- `destinatarios_exportacion`: solo hashes del enlace y del codigo y el
+  conteo de descargas; quedan como registro (el enlace ya no sirve al vencer).
 - `exportaciones_paciente`: los datos (cifrados) se borran al vencer el
   enlace (72 h) o a los 30 dias si nunca se envio; el registro queda.
 - La exportacion del centro no se guarda en el silo (solo su registro).

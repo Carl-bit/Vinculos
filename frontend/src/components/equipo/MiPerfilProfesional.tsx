@@ -31,6 +31,7 @@ import { useTiposAtencion } from '@/lib/panel';
 
 import { FormularioPerfil } from './FormularioPerfil';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { RegistroSisPanel } from './RegistroSis';
 
 type DatosPrivadosDto = components['schemas']['DatosPrivadosDto'];
 const BANCOS: NonNullable<DatosPrivadosDto['banco']>[] = [
@@ -120,6 +121,7 @@ export function MasDeMiPerfil({ usuarioId, practicante }: { usuarioId: string; p
   return (
     <div className="flex flex-col gap-6">
       {!practicante && <MisDeclaraciones usuarioId={usuarioId} />}
+      <RegistroSisPanel profesionalId={usuarioId} practicante={practicante} propio admin={false} />
       <MiTrayectoria usuarioId={usuarioId} />
       {!practicante && <MisTarifas usuarioId={usuarioId} />}
       <MisDatosPrivados usuarioId={usuarioId} />

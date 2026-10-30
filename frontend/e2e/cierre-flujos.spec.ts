@@ -45,8 +45,8 @@ test('Ficha: el tratante ve las solicitudes de copia de la ficha en Documentos',
     .getByRole('link', { name: /Prueba, Paciente|Paciente Prueba/ })
     .first()
     .click();
-  await page.getByRole('link', { name: 'Abrir ficha clínica' }).click();
-  await page.getByRole('tab', { name: 'Documentos' }).click();
+  // 03b-4.2: la ficha vive en las pestañas de la vista del paciente (sin "Abrir ficha clínica").
+  await page.getByRole('tab', { name: 'Documentos y adjuntos' }).click();
   await expect(page.getByRole('heading', { name: 'Solicitudes de copia de la ficha' })).toBeVisible();
 });
 

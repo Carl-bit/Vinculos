@@ -559,7 +559,7 @@ Roadmap: `docs/cumplimiento/roadmap_aud01.md`. Informe: `docs/cumplimiento/brech
   `registrar_solicitud_publica()`, `solicitudes_derechos.pide_cambio_correo`;
   aviso solo al correo registrado (`CorreosCuenta.enviarAviso`). Pagina
   `/derechos`. Tests: `seguridad_bd.sql` caso 149; e2e y Playwright.
-- `infra/scripts/continuidad/instalar.sh` y `feriados_2027.sql` (borrador).
+- `infra/scripts/continuidad/instalar.sh` (el borrador `feriados_2027.sql` lo reemplazo `generar_feriados`).
 
 ## AUD-01 Fase 3 (exportaciones, 2026-10-28)
 
@@ -574,3 +574,41 @@ Roadmap: `docs/cumplimiento/roadmap_aud01.md`. Informe: `docs/cumplimiento/brech
 - `infra/scripts/exportacion/descifrar.mjs`; runbook `docs/cumplimiento/baja_centro.md`.
 - Tests: `seguridad_bd.sql` caso 150; e2e (12 en `aud01-cumplimiento`);
   `jobs.spec.ts`; Playwright.
+
+## AUD-01: copia de datos de menores y feriados por ley (2026-10-28)
+
+- Migracion `20261101001300_aud01_exportacion_menores`: `destinatarios_exportacion`
+  (A), un enlace por destinatario segun la edad (menor de 14 sus adultos
+  responsables; 14 a 17 ambos; mayor el paciente). `enviar_exportacion` recibe
+  un arreglo de enlaces; `entregar_exportacion` acepta la sesion RESPONSABLE.
+  Salen `exportaciones_paciente.token_hash/codigo_hash` y `exportacion_con_cuenta`.
+- Migracion `20261101001400_aud01_feriados_por_ley`: `feriados_legales(año)`
+  (Pascua, solsticio, traslados de las leyes 19.668, 20.299, 20.215 y
+  20.983), `generar_feriados` (job diario 02:30, este año y el siguiente),
+  `agregar_feriado` y `quitar_feriado` (ADMIN, de hoy en adelante; quitar es
+  logico y el job no lo revive). Carga 2027 al migrar.
+- API: `ExportacionPacienteVista.destinatarios`; `POST portal/exportacion/descarga`
+  tambien para RESPONSABLE; `GET/POST feriados`, `DELETE feriados/:fecha`.
+- Front: Configuracion > Feriados; la copia muestra a quien se envio; la
+  descarga del portal sirve al adulto responsable.
+- Tests: `seguridad_bd.sql` casos 151 y 152; e2e (14 en `aud01-cumplimiento`);
+  `jobs.spec.ts`; Vitest `FeriadosCentro`; Playwright.
+
+## 03b-4.2: correctivo de interfaz (2026-10-29)
+
+- Migracion `20261102000000_03b42_recordatorios_registro_sis`:
+  `recordatorios_personales` (A, texto cifrado CLINICO, solo el autor) y
+  `registros_sis` (A+C; escritura via `informar_registro_sis`,
+  `registrar_verificacion_sis`; `datos_verificacion_sis` y publico
+  `registros_sis_publicos`). Migra los numeros de `profesional_trayectoria.registro_superintendencia`.
+- Core: `VerificadorPrestadores` (`core/integraciones/verificador-prestadores.ts`):
+  SIMULADO (default) y SUPERSALUD (`SUPERSALUD_APIKEY`, `SUPERSALUD_URL`).
+  Job mensual `reverificar_registros_sis` (dia 1, 05:00; no corre sin apikey).
+- API: `mis-recordatorios` (GET/POST/PATCH/DELETE); `profesionales/yo/registro-sis`
+  (PUT), `profesionales/:id/registro-sis` (GET) y sus verificaciones (POST,
+  ADMIN); `PerfilPublico.registro_sis`; `GET citas-con-evolucion`;
+  `EstadoPagoCitaVista.inasistencia`.
+- Tests: `seguridad_bd.sql` caso 153 (y 46 con la tabla nueva con DELETE);
+  e2e `03b42b-correctivo-ui`; unit `verificador-prestadores.spec.ts`
+  (simulado; HTTP simulado: exito, 404, 401/403, 429, 5xx, no coincide,
+  minimizacion) y `jobs.spec.ts`.

@@ -4,6 +4,8 @@ import { AuditoriaService } from './auditoria.service';
 import { CentroService } from './centro.service';
 import { DerechosService } from './derechos.service';
 import { ExportacionesService } from './exportaciones.service';
+import { FeriadosService } from './feriados.service';
+import { RecordatoriosPersonalesService } from './recordatorios-personales.service';
 import { EquipoAccesoService } from './equipo-acceso.service';
 import {
   AlertasController,
@@ -16,6 +18,8 @@ import {
   DirectorioController,
   ExportacionPublicaController,
   ExportacionesController,
+  FeriadosController,
+  RecordatoriosController,
   PracticantesController,
   SoporteController,
   UsuariosController,
@@ -38,8 +42,20 @@ import { UsuariosService } from './usuarios.service';
     DerechosPublicoController,
     ExportacionesController,
     ExportacionPublicaController,
+    FeriadosController,
+    RecordatoriosController,
     DirectorioController,
   ],
-  providers: [UsuariosService, EquipoAccesoService, CentroService, AuditoriaService, SoporteService, DerechosService, ExportacionesService],
+  providers: [
+    UsuariosService,
+    EquipoAccesoService,
+    CentroService,
+    AuditoriaService,
+    SoporteService,
+    DerechosService,
+    ExportacionesService,
+    FeriadosService,
+    RecordatoriosPersonalesService,
+  ],
 })
 export class NucleoModule {}

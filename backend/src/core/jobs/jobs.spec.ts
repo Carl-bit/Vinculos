@@ -14,6 +14,7 @@ import { LlaveroService } from '../crypto/llavero.service';
 import { ProveedorCalendario } from '../integraciones/calendario';
 import { ProveedorCorreo } from '../notificaciones/correo';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { VerificadorPrestadores } from '../integraciones/verificador-prestadores';
 import { JobsService } from './jobs.service';
 
 const HORA = 3_600_000;
@@ -39,6 +40,7 @@ describe('programacion de jobs (reloj simulado)', () => {
         { provide: LlaveroService, useValue: {} },
         { provide: ProveedorCorreo, useValue: {} },
         { provide: ProveedorCalendario, useValue: {} },
+        { provide: VerificadorPrestadores, useValue: { simulado: true } },
         // JOBS_HABILITADOS=false: sin la corrida de procesar_bajas al arrancar.
         { provide: ConfigService, useValue: { get: () => false } },
       ],
@@ -106,6 +108,12 @@ describe('programacion de jobs (reloj simulado)', () => {
     expect(purga[0].en.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour12: false })).toBe('04:15:00');
   });
 
+  it('una vez al dia a las 02:30 de Chile: generar feriados de ley (AUD-01)', () => {
+    const feriados = de('generar_feriados');
+    expect(feriados).toHaveLength(1);
+    expect(feriados[0].en.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour12: false })).toBe('02:30:00');
+  });
+
   it('una vez al dia a las 03:00 de Chile: verificar canarios', () => {
     const canarios = de('verificar_canarios');
     expect(canarios).toHaveLength(1);
@@ -132,6 +140,7 @@ describe('programacion de jobs (reloj simulado)', () => {
         'detectar_anomalias',
         'alertar_solicitudes_por_vencer',
         'purgar_exportaciones_vencidas',
+        'generar_feriados',
       ]),
     );
   });

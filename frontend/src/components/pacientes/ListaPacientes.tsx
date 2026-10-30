@@ -13,11 +13,11 @@ import { Tabla, Td, Th } from '@/components/ui/Tabla';
 import { edadEn } from '@/lib/condiciones';
 import { useMiCuenta, useProfesionales } from '@/lib/consultas';
 import { formatoFechaLarga } from '@/lib/formato';
-import { useEstadoFichas, usePacientes, type EstadoFicha, type PacienteVista } from '@/lib/panel';
+import { sinSesionHaceUnMes, useEstadoFichas, usePacientes, type EstadoFicha, type PacienteVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
-type Filtro = 'todos' | 'sin-cerrar' | 'menores' | 'derivados' | 'sin-rut' | 'duplicados';
+type Filtro = 'todos' | 'sin-cerrar' | 'sin-sesion' | 'menores' | 'derivados' | 'sin-rut' | 'duplicados';
 
 /**
  * Lista de pacientes (diseño "Fichas y Pacientes"): lo que la RLS deja ver al
@@ -57,6 +57,7 @@ export function ListaPacientes({ rol }: { rol: Rol }) {
     : [
         { valor: 'todos', etiqueta: 'Todos' },
         { valor: 'sin-cerrar', etiqueta: 'Sin cerrar' },
+        { valor: 'sin-sesion', etiqueta: 'Sin sesión +1 mes' },
         { valor: 'menores', etiqueta: 'Menores' },
         { valor: 'derivados', etiqueta: 'Derivados a mí' },
       ];
@@ -66,6 +67,7 @@ export function ListaPacientes({ rol }: { rol: Rol }) {
   const lista = (consulta.data ?? []).filter((p) => {
     if (filtro === 'sin-rut') return !p.rut;
     if (filtro === 'sin-cerrar') return (porPaciente.get(p.id)?.sesiones_sin_cerrar ?? 0) > 0;
+    if (filtro === 'sin-sesion') return sinSesionHaceUnMes(porPaciente.get(p.id));
     return true;
   });
 

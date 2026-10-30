@@ -10,7 +10,7 @@ import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Casilla } from '@/components/ui/Casilla';
-import { Field, Input } from '@/components/ui/Field';
+import { Field, Input, Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
 import type { components } from '@/lib/api/esquema';
@@ -50,6 +50,8 @@ interface Datos {
   aceptaTerminos: boolean;
   /** AUD-01: consentimiento propio del canal, opcional y desmarcado. */
   aceptaWhatsapp: boolean;
+  /** Sin match: en sus palabras, que lo trae (llega cifrado al tratante, D-6). */
+  motivoSesion: string;
   sitioWeb: string;
 }
 
@@ -67,8 +69,12 @@ const VACIO: Datos = {
   aceptaDatos: false,
   aceptaTerminos: false,
   aceptaWhatsapp: false,
+  motivoSesion: '',
   sitioWeb: '',
 };
+
+/** Largo maximo del motivo escrito (mismo tope que la API). */
+const MAX_MOTIVO_SESION = 1000;
 
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MENSAJE_CORREO = 'Escribe un correo válido: ahí llegan la confirmación y la invitación a tu cuenta.';
@@ -114,6 +120,8 @@ export function SolicitudHora({
   const alerta = useRef<HTMLParagraphElement>(null);
   const montado = useRef(false);
   const cliente = useQueryClient();
+  // Llego sin el cuestionario del match: se le pide el motivo en sus palabras.
+  const [sinMatch] = useState(() => !ultimoMatch());
 
   const edad = bloque && /^\d{4}-\d{2}-\d{2}$/.test(d.fechaNacimiento) ? edadEn(d.fechaNacimiento, bloque.inicio) : null;
   const menor = d.paraMenor || (edad !== null && edad < 18);
@@ -182,7 +190,11 @@ export function SolicitudHora({
             telefono: opcional(d.telefono),
             rut: rutNormalizado(d.rut) || undefined,
             ...(menor ? { adultoNombre: d.adultoNombre.trim(), adultoParentesco: d.adultoParentesco.trim(), adultoTelefono: opcional(d.adultoTelefono) } : {}),
-            ...(match ? { respuestas: match.respuestas, recomendadoId: match.recomendadoId ?? undefined } : {}),
+            ...(match
+              ? { respuestas: match.respuestas, recomendadoId: match.recomendadoId ?? undefined }
+              : d.motivoSesion.trim()
+                ? { respuestas: { motivo_sesion: d.motivoSesion.trim() } }
+                : {}),
             politicaId: politicaDatos.id,
             terminosId: terminos?.id,
             aceptaWhatsapp: d.aceptaWhatsapp || undefined,
@@ -359,6 +371,25 @@ export function SolicitudHora({
                 Tus datos viajan cifrados y se usan solo para tu atención en el centro.
               </p>
             </fieldset>
+
+            {sinMatch && (
+              <section className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+                <Field
+                  label="¿Qué te gustaría trabajar en la sesión?"
+                  hint="Opcional. Con tus palabras: ayuda a que tu profesional prepare mejor la primera sesión. Solo lo lee tu profesional."
+                >
+                  {(p) => (
+                    <Textarea
+                      {...p}
+                      maxLength={MAX_MOTIVO_SESION}
+                      value={d.motivoSesion}
+                      onChange={(e) => cambiar('motivoSesion', e.target.value)}
+                      placeholder="Por ejemplo: hace unos meses me cuesta dormir y estoy con mucha ansiedad en el trabajo."
+                    />
+                  )}
+                </Field>
+              </section>
+            )}
 
             {menor && (
               <fieldset className="entrada m-0 grid gap-4 rounded-lg border border-accent-500 bg-accent-200 p-[clamp(18px,3vw,28px)] sm:grid-cols-2">

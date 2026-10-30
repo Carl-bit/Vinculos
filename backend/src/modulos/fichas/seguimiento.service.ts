@@ -114,6 +114,14 @@ export class SeguimientoService {
     return resultado;
   }
 
+  /** 03b-4.2: sesiones del rango con evolucion (solo ids). */
+  async citasConEvolucion(desde: Date, hasta: Date): Promise<string[]> {
+    const filas = await this.bd.tx().$queryRaw<{ cita_id: string }[]>`
+      SELECT DISTINCT e.cita_id FROM evoluciones e JOIN citas c ON c.id = e.cita_id
+      WHERE c.inicio >= ${desde} AND c.inicio < ${hasta}`;
+    return filas.map((f) => f.cita_id);
+  }
+
   /** Alta (tratante): fecha y motivo cifrado; borra las respuestas del match. */
   async registrarAlta(pacienteId: string, fecha: Date, motivo: string) {
     const id = randomUUID();

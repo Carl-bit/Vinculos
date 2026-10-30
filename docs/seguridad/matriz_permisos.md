@@ -493,7 +493,7 @@ EXPIRADA`, `historial_accesos_practicante.accion = EXPIRADO` y
 | A | operador (dueño) | `politicas` tipo `TERMINOS_SERVICIO` / `DPA` | INSERT | el contrato lo publica Vinculos | `politicas_insert` ya no deja esos tipos al ADMIN (42501) |
 | A | ADMIN | `politicas` tipo `TERMINOS_SERVICIO` / `DPA` | SELECT | solo ADMIN; `politica_vigente()` no los entrega a nadie mas | `politicas_select` |
 | A | ADMIN | `aceptaciones_contrato` | SELECT; INSERT via `aceptar_contrato(tipo)` (version vigente, idempotente); `contratos_pendientes()` | todas | GRANT SELECT; trigger append-only |
-| B | todos | `feriados` | SELECT | todas; escribe solo el operador | GRANT SELECT; `dias_habiles_restantes(fecha)` (EXECUTE app_user), `dias_habiles_desde` (interna) |
+| B | todos | `feriados` | SELECT | todas; escribe el job (`generar_feriados`, sin contexto) y ADMIN (`agregar_feriado`, `quitar_feriado`, de hoy en adelante; quitar es logico) | GRANT SELECT; `dias_habiles_restantes(fecha)` (EXECUTE app_user), `dias_habiles_desde` (interna) |
 | A | ADMIN | `solicitudes_derechos` | SELECT; escritura via `registrar_solicitud_derecho` (plazo 30 dias habiles lo fija la BD) y `avanzar_solicitud_derecho` (cerrar exige respuesta) | todas; detalle y respuesta cifrados (CLINICO) | GRANT SELECT; trigger solo avanza el estado; leerlas registra `accesos_ficha` LECTURA |
 | A | job (sin contexto) | `alertar_solicitudes_por_vencer()` | alerta a 5 dias habiles o menos | una por solicitud | 42501 con usuario |
 | A | ADMIN | `bloquear_tratamiento(paciente, motivo, solicitud)`, `levantar_bloqueo(paciente)` | bloqueo visible en `pacientes` | gestiones nuevas sobre el bloqueado: citas, derivaciones, edicion de paciente o adulto responsable -> 55000 (409, `pacientes_tratamiento_bloqueado`); lo agendado se mantiene | triggers `citas_paciente_bloqueado`, `derivaciones_paciente_bloqueado`, `adultos_responsables_paciente_bloqueado`, `pacientes_bloqueado` |
@@ -507,6 +507,36 @@ EXPIRADA`, `historial_accesos_practicante.accion = EXPIRADO` y
 | A | PROFESIONAL tratante | `exportar_datos_paciente(paciente, 'CLINICA')` | lectura de la ficha para la copia (ADMIN nunca, CENS-S6) | ficha, ingreso, evoluciones, adjuntos y documentos; registra EXPORTACION | 42501 |
 | A | ADMIN | `exportar_tabla_centro(tabla)`, `tablas_exportacion_centro()` | salida del centro; la API cifra con la clave del ADMIN y registra `registro_exportaciones` | todas las tablas salvo llaves, sesiones, tokens, codigos, intentos, colas | 23514 tabla fuera de la lista |
 | A | ADMIN / tratante | `exportaciones_paciente` | SELECT de metadatos (GRANT por columna, sin los datos cifrados) | ADMIN todas; el tratante las de sus pacientes | `exportaciones_paciente_select` |
-| A | ADMIN / tratante | `crear_exportacion_paciente`, `agregar_clinica_exportacion`, `enviar_exportacion` | con solicitud abierta de ACCESO o PORTABILIDAD; enlace de 72 h | — | 23514, 23505, 55000 |
-| A | PACIENTE (sesion) o sin contexto (codigo) | `entregar_exportacion(token_hash, codigo_hash)` | con cuenta exige su sesion; sin cuenta el codigo | cuenta descargas | P0002, 42501 |
+| A | ADMIN / tratante | `crear_exportacion_paciente`, `agregar_clinica_exportacion`, `destinatarios_pendientes_exportacion`, `enviar_exportacion(id, tokens[], codigos[])` | con solicitud abierta de ACCESO o PORTABILIDAD; enlace de 72 h | — | 23514, 23505, 55000 |
+| A | PACIENTE o RESPONSABLE (sesion de la cuenta del enlace) o sin contexto (codigo) | `entregar_exportacion(token_hash, codigo_hash)` | con cuenta exige su sesion; sin cuenta el codigo | cuenta descargas | P0002, 42501 |
 | A | job (sin contexto) | `purgar_exportaciones_vencidas()` | borra los datos de las vencidas | — | 42501 con usuario |
+| A | ADMIN / tratante | `destinatarios_exportacion` | SELECT de metadatos (si es adulto responsable, descargas; nunca los hashes); la RLS sigue a `exportaciones_paciente` | segun la edad: menor de 14 adultos; 14 a 17 ambos; mayor el paciente | `destinatarios_exportacion_select` |
+| B | ADMIN | `GET/POST feriados`, `DELETE feriados/:fecha` | ver por año, agregar puntual o regional, quitar (logico) | solo de hoy en adelante | 23514 `feriados_futuros`, 23505 ya es feriado |
+
+## 03b-4.2 correctivo de interfaz (recordatorios, registro SIS, agenda)
+
+| Categoria | Rol | Tabla, funcion o endpoint | Operacion | Filas / regla | Mecanismo |
+|---|---|---|---|---|---|
+| A | ADMIN, GESTION, PROFESIONAL, PRACTICANTE (solo el autor) | `recordatorios_personales` | SELECT, INSERT, DELETE; UPDATE solo `hecho_en` | las propias (ni ADMIN ve las ajenas); texto cifrado CLINICO, sin vinculo con pacientes | GRANT minimo + `recordatorios_personales_autor` + `_acceso_vigente`; CHECK de largo cifrado |
+| A+C | ADMIN, GESTION, PROFESIONAL, PRACTICANTE | `registros_sis` | SELECT | todas (el registro es publico en el RNPI); PACIENTE nunca | GRANT SELECT + `registros_sis_select`; sin GRANT de escritura |
+| A+C | PROFESIONAL (el propio) | `informar_registro_sis(numero)` | informa o quita (NULL) su numero; queda PENDIENTE | solo la suya | 42501 otro rol |
+| A+C | ADMIN (MANUAL o AUTOMATICO), PROFESIONAL propio (AUTOMATICO), job sin contexto (AUTOMATICO) | `registrar_verificacion_sis(prof, numero, estado, metodo, titulo, institucion)` | resultado de la verificacion | numero distinto al vigente -> 55000; sin registro -> P0002 | 42501 (GESTION, PRACTICANTE, verificar a otro) |
+| A+C | ADMIN, PROFESIONAL propio; todos (NULL) solo el job | `datos_verificacion_sis(prof)` | numero, nombre, especialidad y RUT cifrado para comparar con el RNPI | el job omite los VERIFICADO_MANUAL | 42501 |
+| C | publico (sin contexto) | `registros_sis_publicos()` | numero, estado y fecha | solo VERIFICADO_* de perfiles publicados | proargnames fijo (caso 153) |
+| A | autor | `GET/POST mis-recordatorios`, `PATCH/DELETE mis-recordatorios/:id` | los propios | texto 1-300, fecha opcional | 404 ajeno (RLS) |
+| A+C | PROFESIONAL | `PUT profesionales/yo/registro-sis` | informa y verifica en el acto (si el RNPI falla, queda PENDIENTE) | - | 400 formato |
+| A+C | ADMIN, GESTION, PROFESIONAL, PRACTICANTE | `GET profesionales/:id/registro-sis` | estado | - | - |
+| A+C | ADMIN | `POST profesionales/:id/registro-sis/verificacion`, `.../verificacion-manual` | automatica (desde el servidor) o manual con respaldo | - | 422 sin RUT o sin registro; 503 RNPI caido o limite |
+| A | PROFESIONAL, PRACTICANTE | `GET citas-con-evolucion?desde&hasta` | ids de sesiones del rango con evolucion (solo el metadato, como el conteo del inicio; no registra `accesos_ficha`) | RLS de `evoluciones` | 403 ADMIN/GESTION |
+| A | ADMIN, GESTION, PROFESIONAL | `GET cobros/citas` (campo `inasistencia`) | si la cita tiene resolucion INASISTENCIA | RLS de `resoluciones_cita` | - |
+
+Sin cambio: `ocupacion_espacios()` sigue entregando solo box, inicio y fin. La vista "Por box" del PROFESIONAL muestra lo de colegas como "Ocupado", sin nombre del profesional (ver brechas 03b-4.2).
+
+Ajustes 2026-10-29 (sin cambio de BD):
+
+| Categoria | Rol | Tabla, funcion o endpoint | Operacion | Filas / regla | Mecanismo |
+|---|---|---|---|---|---|
+| A | publico (sin contexto) | `POST publico/solicitudes` (`respuestas.motivo_sesion`) | sin match, el motivo de la sesion en palabras del paciente (opcional, hasta 1000 caracteres) | mismo camino que las respuestas del match: cifrado CLINICO en `solicitudes_hora.respuestas`, lo lee solo el tratante (`respuestas_match_paciente`), se borra a los N dias si no se concreta (D-6) y al alta | 400 si el JSON supera 8000 caracteres |
+| - | ADMIN, GESTION | menu y pagina "Equipo" | solo administracion; PROFESIONAL y PRACTICANTE editan lo suyo en "Mi perfil" | la supervision de casos pasa a "Fichas y Pacientes" (quien supervisa) | front (`lib/navegacion.ts`); la API no cambia |
+
+"Por box" (decidido 2026-10-29): entre profesionales queda "Ocupado", sin nombre; ADMIN/GESTION ven el nombre del profesional en cada sesion (su listado de citas ya lo trae).

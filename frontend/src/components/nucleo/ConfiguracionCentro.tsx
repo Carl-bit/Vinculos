@@ -9,13 +9,15 @@ import { Pestanas } from '@/components/ui/Pestanas';
 import { AuditoriaAccesos } from './AuditoriaAccesos';
 import { DatosCentro } from './DatosCentro';
 import { ExportacionCentro } from './ExportacionCentro';
+import { FeriadosCentro } from './FeriadosCentro';
 import { HorarioCentroEditor, PoliticasCentro } from './HorarioPoliticasCentro';
 import { PlantillasMensaje } from './PlantillasMensaje';
 import { ReglasCentro } from './ReglasCentro';
 import { SolicitudesDerechos } from './SolicitudesDerechos';
 import { SoporteCentro } from './SoporteCentro';
 
-type Vista = 'datos' | 'modulos' | 'horario' | 'politicas' | 'notificaciones' | 'reglas' | 'roles' | 'auditoria' | 'derechos' | 'exportacion' | 'soporte';
+type Vista =
+  'datos' | 'modulos' | 'horario' | 'politicas' | 'notificaciones' | 'reglas' | 'roles' | 'auditoria' | 'derechos' | 'feriados' | 'exportacion' | 'soporte';
 const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'datos', etiqueta: 'Datos del centro' },
   { valor: 'modulos', etiqueta: 'Módulos contratados' },
@@ -26,6 +28,7 @@ const VISTAS: { valor: Vista; etiqueta: string }[] = [
   { valor: 'roles', etiqueta: 'Roles y accesos' },
   { valor: 'auditoria', etiqueta: 'Auditoría de accesos' },
   { valor: 'derechos', etiqueta: 'Solicitudes de datos' },
+  { valor: 'feriados', etiqueta: 'Feriados' },
   { valor: 'exportacion', etiqueta: 'Exportar datos' },
   { valor: 'soporte', etiqueta: 'Soporte' },
 ];
@@ -69,6 +72,7 @@ export function ConfiguracionCentro() {
           {(vista === 'reglas' || vista === 'modulos' || vista === 'roles') && <ReglasCentro seccion={vista} />}
           {vista === 'auditoria' && <AuditoriaAccesos />}
           {vista === 'derechos' && <SolicitudesDerechos />}
+          {vista === 'feriados' && <FeriadosCentro />}
           {vista === 'exportacion' && <ExportacionCentro />}
           {vista === 'soporte' && <SoporteCentro />}
         </div>

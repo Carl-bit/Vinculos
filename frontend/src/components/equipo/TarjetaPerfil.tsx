@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/Icon';
 import type { PerfilPublico } from '@/lib/api/servidor';
 import type { Icono } from '@/lib/iconos';
 import { formacionBase, NOMBRE_MODALIDAD, nombreCorto, nombrePerfil, textoCalificacion, textoTarifa } from '@/lib/perfiles';
+import { InsigniaRegistroSis } from './RegistroSis';
 
 /** Pastilla de dato (precio, modalidad, experiencia) del diseño "Equipo Publico". */
 export function Dato({ icono, children }: { icono: Icono; children: ReactNode }) {
@@ -66,6 +67,9 @@ export function CabeceraPerfil({ perfil, nivel = 2, size = 88 }: { perfil: Perfi
             {base}
           </p>
         )}
+        <div className="mb-2 empty:hidden">
+          <InsigniaRegistroSis registro={perfil.registro_sis} />
+        </div>
         <Calificacion perfil={perfil} />
       </div>
     </div>

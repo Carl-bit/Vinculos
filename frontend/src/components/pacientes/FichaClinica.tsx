@@ -1,166 +1,47 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
-import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
+import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Aviso } from '@/components/ui/Aviso';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
-import { EnlaceVolver } from '@/components/ui/EnlaceVolver';
 import { Panel } from '@/components/ui/Panel';
-import { Pestanas } from '@/components/ui/Pestanas';
-import { ApiError } from '@/lib/api/errores';
-import { edadEn } from '@/lib/condiciones';
 import { useMiCuenta } from '@/lib/consultas';
 import { NIVEL_RIESGO, useBorradores, type BorradorVista, type EvolucionVista } from '@/lib/fichas';
-import { formatoFecha, formatoFechaHora, formatoTelefono } from '@/lib/formato';
+import { formatoFechaHora, formatoTelefono } from '@/lib/formato';
 import { useHilos } from '@/lib/mensajes';
-import { useAdultosResponsables, useCitas, useEvoluciones, useFicha, usePaciente, type PacienteVista } from '@/lib/panel';
+import { useAdultosResponsables, useCitas, useEvoluciones, type PacienteVista } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
 
-import { AccesosPaciente } from './AccesosTemporales';
-import { AdjuntosFicha } from './AdjuntosFicha';
-import { AltaPaciente } from './AltaPaciente';
-import { DocumentosFicha } from './DocumentosFicha';
 import { EditorEvolucion } from './EditorEvolucion';
-import { ExportacionClinicaPendiente } from './ExportacionClinicaPendiente';
 import { FichaClinicaTimeline } from './FichaClinicaTimeline';
-import { IngresoFicha } from './IngresoFicha';
-import { SolicitudesEpicrisis } from './SolicitudesEpicrisis';
-
-type Vista = 'evoluciones' | 'ingreso' | 'documentos' | 'adjuntos' | 'accesos' | 'alta';
-
-const PESTANAS: readonly { valor: Vista; etiqueta: string }[] = [
-  { valor: 'evoluciones', etiqueta: 'Evoluciones' },
-  { valor: 'ingreso', etiqueta: 'Ficha de ingreso' },
-  { valor: 'documentos', etiqueta: 'Documentos' },
-  { valor: 'adjuntos', etiqueta: 'Adjuntos' },
-  { valor: 'accesos', etiqueta: 'Accesos' },
-  { valor: 'alta', etiqueta: 'Alta' },
-];
 
 /**
- * Ficha clinica (03b-5): solo el equipo tratante (PROFESIONAL o PRACTICANTE
- * con acceso; tambien quien tiene un acceso clinico temporal vigente). La RLS
- * decide; ADMIN y GESTION nunca ven el contenido. Secciones en la URL
- * (`?vista=`); `?cita=` abre una evolucion nueva para esa sesion.
+ * Piezas clinicas de la vista del paciente (03b-4.2: la ficha ya no es una
+ * pagina aparte; vive en las pestañas de DetallePaciente para quien tiene
+ * acceso). Solo el equipo tratante o un acceso clinico temporal vigente: la
+ * RLS decide y cada lectura queda en accesos_ficha.
  */
-export function FichaClinica({ pacienteId, rol }: { pacienteId: string; rol: Rol }) {
-  const clinico = rol === 'PROFESIONAL' || rol === 'PRACTICANTE';
-  const paciente = usePaciente(pacienteId);
-  const ficha = useFicha(pacienteId, clinico);
-  const cuenta = useMiCuenta();
-  const parametros = useSearchParams();
-  const router = useRouter();
-  // Accesos temporales: los otorga y los ve el tratante PROFESIONAL (la API no los entrega al practicante).
-  const pestanas = PESTANAS.filter((p) => p.valor !== 'accesos' || rol === 'PROFESIONAL');
-  const vista = (pestanas.find((p) => p.valor === parametros.get('vista'))?.valor ?? 'evoluciones') as Vista;
-  const ir = (v: Vista) =>
-    router.replace(v === 'evoluciones' ? `/admin/fichas/${pacienteId}/ficha` : `/admin/fichas/${pacienteId}/ficha?vista=${v}`, { scroll: false });
-
-  if (!clinico) {
-    return (
-      <>
-        <EnlaceVolver href={`/admin/fichas/${pacienteId}`}>Volver al paciente</EnlaceVolver>
-        <EstadoVista
-          estado="sin-permiso"
-          titulo="La ficha clínica es del equipo tratante"
-          mensaje="Administración ve que la ficha existe, nunca su contenido (secreto profesional). Cambia al rol profesional si también atiendes."
-        />
-      </>
-    );
-  }
-  return (
-    <EstadoConsulta consulta={paciente}>
-      {(p) => (
-        <>
-          <EnlaceVolver href={`/admin/fichas/${p.id}`}>Volver al paciente</EnlaceVolver>
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-            <div className="min-w-0">
-              <p className="m-0 mb-1 text-[11px] font-extrabold tracking-[0.1em] text-accent-800 uppercase">Ficha clínica</p>
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="m-0 text-[clamp(28px,3.4vw,36px)] leading-[1.05] font-black tracking-[-0.03em]">
-                  {p.nombre} {p.apellido}
-                </h1>
-                {edadEn(p.fechaNacimiento) < 18 && <Badge tono="atencion">Menor de edad</Badge>}
-              </div>
-              <p className="m-0 mt-1.5 text-[14px] font-semibold text-neutral-800">
-                {edadEn(p.fechaNacimiento)} años{ficha.data ? ` · ficha abierta el ${formatoFecha(ficha.data.fechaApertura)}` : ''}
-              </p>
-            </div>
-          </div>
-          <div className="mb-4 empty:hidden">
-            <ExportacionClinicaPendiente pacienteId={p.id} tratante={rol === 'PROFESIONAL' && p.profesionalId === cuenta.data?.id} />
-          </div>
-          {p.bloqueoDesde && (
-            <div className="mb-4">
-              <Aviso tono="advertencia" icono="lock" titulo="Tratamiento bloqueado por solicitud del titular">
-                Desde el {formatoFecha(p.bloqueoDesde)}. Se registra la atención de las horas ya agendadas; no se pueden hacer gestiones nuevas.
-              </Aviso>
-            </div>
-          )}
-          {ficha.isPending ? (
-            <EstadoVista estado="carga" />
-          ) : ficha.error || !ficha.data ? (
-            <EstadoVista
-              estado={ficha.error instanceof ApiError && ficha.error.status === 403 ? 'sin-permiso' : 'vacio'}
-              titulo="No tienes acceso a esta ficha"
-              mensaje="La ven su profesional tratante y quien tenga un acceso clínico temporal vigente. Si todavía no está abierta, se abre desde el detalle del paciente."
-            />
-          ) : (
-            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="flex min-w-0 flex-col gap-4">
-                <Pestanas etiqueta="Secciones de la ficha" tono="team" valor={vista} onChange={ir} pestanas={pestanas} panelId="seccion-ficha" />
-                <div id="seccion-ficha" role="tabpanel" className="entrada" key={vista}>
-                  {vista === 'evoluciones' && (
-                    <EvolucionesFicha
-                      fichaId={ficha.data.id}
-                      paciente={p}
-                      citaInicial={parametros.get('cita') ?? undefined}
-                      borradorInicial={parametros.get('borrador') ?? undefined}
-                      rol={rol}
-                    />
-                  )}
-                  {vista === 'ingreso' && <IngresoFicha fichaId={ficha.data.id} miId={cuenta.data?.id} />}
-                  {vista === 'documentos' && (
-                    <div className="flex flex-col gap-4">
-                      <SolicitudesEpicrisis pacienteId={p.id} puedeResolver />
-                      <DocumentosFicha pacienteId={p.id} />
-                    </div>
-                  )}
-                  {vista === 'adjuntos' && <AdjuntosFicha pacienteId={p.id} />}
-                  {vista === 'accesos' && <AccesosPaciente pacienteId={p.id} tratanteId={p.profesionalId} puedeOtorgar={p.profesionalId === cuenta.data?.id} />}
-                  {vista === 'alta' && <AltaPaciente pacienteId={p.id} />}
-                </div>
-              </div>
-              {/* En pantallas angostas el contacto de emergencia va antes que las secciones (dato de seguridad). */}
-              <aside className="order-first flex min-w-0 flex-col gap-4 xl:order-none" aria-label="Datos de contacto">
-                <ContactoEmergencia paciente={p} />
-                <ConversacionesCaso pacienteId={p.id} />
-              </aside>
-            </div>
-          )}
-        </>
-      )}
-    </EstadoConsulta>
-  );
-}
 
 /** Evoluciones: borradores propios de esta ficha, editor y linea de tiempo. */
-function EvolucionesFicha({
+export function EvolucionesFicha({
   fichaId,
   paciente,
   citaInicial,
   borradorInicial,
+  nueva = false,
   rol,
 }: {
   fichaId: string;
   paciente: PacienteVista;
   citaInicial?: string;
   borradorInicial?: string;
+  /** 03b-4.2: "Registrar evolucion" del encabezado abre el editor al llegar. */
+  nueva?: boolean;
   rol: Rol;
 }) {
   const cuenta = useMiCuenta();
@@ -169,7 +50,7 @@ function EvolucionesFicha({
   const citas = useCitas({ pacienteId: paciente.id });
   const router = useRouter();
   const [editor, setEditor] = useState<{ borrador?: BorradorVista; corrige?: EvolucionVista; cita?: string } | null>(
-    citaInicial ? { cita: citaInicial } : null,
+    citaInicial || nueva ? { cita: citaInicial } : null,
   );
   const cerradas = new Set((evoluciones.data ?? []).map((e) => e.citaId).filter(Boolean));
   const ahora = Date.now();
@@ -187,7 +68,7 @@ function EvolucionesFicha({
   }, [borradorInicial, borradores.data]);
   const cerrar = () => {
     setEditor(null);
-    if (citaInicial || borradorInicial) router.replace(`/admin/fichas/${paciente.id}/ficha`, { scroll: false });
+    if (citaInicial || borradorInicial || nueva) router.replace(`/admin/fichas/${paciente.id}?vista=evoluciones`, { scroll: false });
   };
   const pendientes = (borradores.data ?? []).filter((b) => b.id !== editor?.borrador?.id);
 
@@ -259,7 +140,7 @@ function EvolucionesFicha({
 }
 
 /** Conversaciones internas del caso (las ve quien tiene acceso clinico vigente). */
-function ConversacionesCaso({ pacienteId }: { pacienteId: string }) {
+export function ConversacionesCaso({ pacienteId }: { pacienteId: string }) {
   const hilos = useHilos(pacienteId);
   const lista = hilos.data ?? [];
   return (
@@ -291,7 +172,7 @@ function ConversacionesCaso({ pacienteId }: { pacienteId: string }) {
 }
 
 /** Contacto de emergencia y adultos responsables: visibles para el tratante dentro de la ficha. */
-function ContactoEmergencia({ paciente }: { paciente: PacienteVista }) {
+export function ContactoEmergencia({ paciente }: { paciente: PacienteVista }) {
   const adultos = useAdultosResponsables(paciente.id);
   return (
     <Panel titulo="Contacto de emergencia" nivel={2}>

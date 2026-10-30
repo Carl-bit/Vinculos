@@ -2,7 +2,7 @@
  * AUD-01 (docs/cumplimiento/roadmap_aud01.md): alineacion con las decisiones
  * de cumplimiento. Una seccion por entrega, por rol.
  */
-import { createDecipheriv, randomInt, scryptSync } from 'node:crypto';
+import { createDecipheriv, randomInt, randomUUID, scryptSync } from 'node:crypto';
 
 import { ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
 import { dvRut } from '../src/core/validacion/validadores';
@@ -512,6 +512,68 @@ describe('AUD-01 cumplimiento', () => {
       expect(await t.dueno.accesoFicha.count({ where: { pacienteId: pac.id, recurso: 'exportacion_paciente', accion: 'EXPORTACION' } })).toBe(2);
     });
 
+    it('menor de 14: la copia va solo a sus adultos responsables (con cuenta: su sesion; sin cuenta: codigo), no al paciente', async () => {
+      const p = await t.datos.usuario('PROFESIONAL', { nombre: 'Ps. Infantil' });
+      const pac = await t.datos.paciente(p.id, { fechaNacimiento: new Date(Date.now() - 10 * 365.25 * 24 * HORA) });
+      const sufijo = pac.id.slice(0, 8);
+      await t.dueno.paciente.update({ where: { id: pac.id }, data: { email: `nino-${sufijo}@x.cl` } });
+      const responsable = await t.datos.usuario('RESPONSABLE');
+      await t.dueno.adultoResponsable.create({
+        data: { id: randomUUID(), pacienteId: pac.id, nombre: 'Madre', email: `madre-${sufijo}@x.cl`, usuarioId: responsable.id },
+      });
+      await t.dueno.adultoResponsable.create({ data: { id: randomUUID(), pacienteId: pac.id, nombre: 'Padre', email: `padre-${sufijo}@x.cl` } });
+      const sol = await t
+        .http()
+        .post('/api/derechos/solicitudes')
+        .set(await tk(admin))
+        .send({ tipo: 'ACCESO', pacienteId: pac.id, canal: 'PRESENCIAL' });
+      const e = await t
+        .http()
+        .post(`/api/derechos/solicitudes/${sol.body.id}/exportacion`)
+        .set(await tk(admin));
+      expect(e.status).toBe(201);
+      const correo = t.app.get<ProveedorCorreo, ProveedorCorreoSimulado>(ProveedorCorreo);
+      correo.enviados.length = 0;
+      const clinica = await t
+        .http()
+        .post(`/api/exportaciones/${e.body.id}/clinica`)
+        .set(await tk(p));
+      expect(clinica.status).toBe(200);
+      expect(clinica.body.destinatarios).toEqual([
+        { adultoResponsable: true, descargas: 0 },
+        { adultoResponsable: true, descargas: 0 },
+      ]);
+      await new Promise((r) => setTimeout(r, 200));
+      const aDatos = correo.enviados.filter((c) => c.asunto.includes('persona a tu cargo'));
+      expect(new Set(aDatos.map((c) => c.para))).toEqual(new Set([`madre-${sufijo}@x.cl`, `padre-${sufijo}@x.cl`]));
+      expect(correo.enviados.some((c) => c.para === `nino-${sufijo}@x.cl`)).toBe(false);
+      // Madre (cuenta RESPONSABLE): enlace al portal, sin codigo; descarga con su sesion y otra cuenta no.
+      const deMadre = aDatos.filter((c) => c.para === `madre-${sufijo}@x.cl`);
+      expect(deMadre).toHaveLength(1);
+      const tokenMadre = /\/portal\/exportacion\?token=([\w-]+)/.exec(deMadre[0].texto)?.[1];
+      const portal = async (u: UsuarioPrueba) =>
+        t
+          .http()
+          .post('/api/portal/exportacion/descarga')
+          .set(await tk(u))
+          .send({ token: tokenMadre, formato: 'json' })
+          .buffer(true);
+      expect((await portal(await t.datos.usuario('RESPONSABLE'))).status).toBe(403);
+      const json = await portal(responsable);
+      expect(json.status).toBe(200);
+      expect((json.body as { datos: { pacientes: { id: string }[] } }).datos.pacientes[0].id).toBe(pac.id);
+      // Padre (sin cuenta): enlace publico mas codigo.
+      const dePadre = correo.enviados
+        .filter((c) => c.para === `padre-${sufijo}@x.cl`)
+        .map((c) => c.texto)
+        .join(' ');
+      expect(dePadre).not.toContain('/portal/');
+      const tokenPadre = /exportacion\?token=([\w-]+)/.exec(dePadre)?.[1];
+      const codigo = /Tu codigo es: (\d{8})/.exec(dePadre)?.[1];
+      const pub = await t.http().post('/api/publico/exportacion/descarga').send({ token: tokenPadre, codigo, formato: 'pdf' }).buffer(true);
+      expect(pub.status).toBe(200);
+    });
+
     it('centro: solo ADMIN, clave de 16 o mas; el archivo sale cifrado (se abre solo con la clave), sin llaves ni contraseñas; queda registrado', async () => {
       const pedir = async (u: UsuarioPrueba, clave: string) =>
         t
@@ -548,6 +610,45 @@ describe('AUD-01 cumplimiento', () => {
       expect(exp.datos).not.toHaveProperty('sesiones');
       expect(plano).not.toContain('password_hash');
       expect(await t.dueno.registroExportacion.count({ where: { recurso: 'exportacion_centro', usuarioId: admin.id } })).toBe(1);
+    });
+  });
+
+  describe('E2.3a Feriados', () => {
+    it('los de la ley vienen calculados; solo ADMIN agrega y quita (de hoy en adelante); quitado sigue listado', async () => {
+      const anio = new Date().getUTCFullYear() + 1;
+      const ver = async (u: UsuarioPrueba) =>
+        t
+          .http()
+          .get(`/api/feriados?anio=${anio}`)
+          .set(await tk(u));
+      expect((await ver(gestion)).status).toBe(403);
+      const lista = await ver(admin);
+      expect(lista.status).toBe(200);
+      expect(lista.body).toContainEqual({ fecha: `${anio}-01-01`, nombre: 'Año Nuevo', origen: 'LEY', quitado: false });
+      const fecha = `${anio}-07-07`;
+      const agregar = async (u: UsuarioPrueba) =>
+        t
+          .http()
+          .post('/api/feriados')
+          .set(await tk(u))
+          .send({ fecha, nombre: 'Feriado regional' });
+      expect((await agregar(gestion)).status).toBe(403);
+      const ok = await agregar(admin);
+      expect(ok.status).toBe(201);
+      expect(ok.body).toContainEqual({ fecha, nombre: 'Feriado regional', origen: 'CENTRO', quitado: false });
+      expect((await agregar(admin)).status).toBe(409);
+      const quitar = await t
+        .http()
+        .delete(`/api/feriados/${fecha}`)
+        .set(await tk(admin));
+      expect(quitar.status).toBe(200);
+      expect(quitar.body).toContainEqual({ fecha, nombre: 'Feriado regional', origen: 'CENTRO', quitado: true });
+      const pasado = await t
+        .http()
+        .post('/api/feriados')
+        .set(await tk(admin))
+        .send({ fecha: '2020-03-02', nombre: 'Pasado' });
+      expect(pasado.status).toBe(422);
     });
   });
 });

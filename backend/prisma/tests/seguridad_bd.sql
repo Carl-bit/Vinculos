@@ -910,8 +910,9 @@ DO $$ BEGIN
           WHERE n.nspname = 'public' AND c.relkind = 'r' AND has_table_privilege('app_user', c.oid, 'DELETE'))
          -- 03a: borradores de evolucion (no son ficha: se descartan) y horarios del centro y de los boxes (B).
          -- 03b: bloques de box (liberar; el trigger impide si tienen citas o retenciones).
+         -- 03b-4.2: recordatorios personales (lista de tareas del autor, no son ficha).
          = 'bloqueos_agenda,bloqueos_temporales,bloques_atencion,borradores_evolucion,disponibilidad_profesional,horario_centro,horarios_espacio,'
-           || 'profesional_tipos_atencion,profesional_trayectoria',
+           || 'profesional_tipos_atencion,profesional_trayectoria,recordatorios_personales',
     'caso 46: DELETE';
   ASSERT NOT has_table_privilege('app_user', '_prisma_migrations', 'SELECT'), 'caso 46: _prisma_migrations';
 END $$;
@@ -5613,9 +5614,9 @@ DO $$ DECLARE v jsonb; v_sol uuid := gen_random_uuid(); v_exp uuid := gen_random
   ASSERT v ? 'evoluciones', 'caso 150: el tratante exporta lo clinico';
   -- Descarga sin cuenta: exige el codigo; vencida se purga.
   INSERT INTO solicitudes_derechos (id, tipo, paciente_id, canal, vence_el) VALUES (v_sol, 'ACCESO', test.u('15'), 'CORREO', current_date + 40);
-  INSERT INTO exportaciones_paciente (id, paciente_id, solicitud_id, datos_administrativos, requiere_clinica, creada_por_id,
-                                      token_hash, codigo_hash, enviada_en, vence_en)
-  VALUES (v_exp, test.u('15'), v_sol, test.cif('{}'), false, test.u('a1'), sha256('tok-150'), sha256('cod-150'), now(), now() + interval '72 hours');
+  INSERT INTO exportaciones_paciente (id, paciente_id, solicitud_id, datos_administrativos, requiere_clinica, creada_por_id, enviada_en, vence_en)
+  VALUES (v_exp, test.u('15'), v_sol, test.cif('{}'), false, test.u('a1'), now(), now() + interval '72 hours');
+  INSERT INTO destinatarios_exportacion (exportacion_id, token_hash, codigo_hash) VALUES (v_exp, sha256('tok-150'), sha256('cod-150'));
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
   BEGIN
     PERFORM * FROM entregar_exportacion(sha256('tok-150'), sha256('otro'));
@@ -5627,6 +5628,178 @@ DO $$ DECLARE v jsonb; v_sol uuid := gen_random_uuid(); v_exp uuid := gen_random
   ASSERT (SELECT datos_administrativos IS NULL AND purgada_en IS NOT NULL FROM exportaciones_paciente WHERE id = v_exp), 'caso 150: purgada';
 END $$;
 
+\echo 151 Copia de datos segun la edad (AUD-01 Fase 3, dueño): menor de 14 solo sus adultos responsables; 14 a 17 ambos; mayor solo el paciente; un enlace por destinatario; la cuenta RESPONSABLE descarga con su sesion y otra cuenta no
+DO $$ DECLARE v_sol uuid := gen_random_uuid(); v_exp uuid := gen_random_uuid(); v_adulto uuid := gen_random_uuid();
+  v_nac date; v_correo text; n int; BEGIN
+  SELECT fecha_nacimiento, email INTO v_nac, v_correo FROM pacientes WHERE id = test.u('15');
+  UPDATE pacientes SET email = 'pac-151@x.cl' WHERE id = test.u('15');
+  INSERT INTO adultos_responsables (id, paciente_id, nombre, email, usuario_id) VALUES (v_adulto, test.u('15'), 'Madre 151', 'madre-151@x.cl', test.u('aa'));
+  UPDATE pacientes SET fecha_nacimiento = current_date - interval '10 years' WHERE id = test.u('15');
+  ASSERT (SELECT array_agg(correo ORDER BY orden) FROM destinatarios_por_edad(test.u('15'))) = ARRAY['madre-151@x.cl'], 'caso 151: menor de 14 solo el adulto';
+  UPDATE pacientes SET fecha_nacimiento = current_date - interval '15 years' WHERE id = test.u('15');
+  ASSERT (SELECT array_agg(correo ORDER BY orden) FROM destinatarios_por_edad(test.u('15'))) = ARRAY['pac-151@x.cl', 'madre-151@x.cl'], 'caso 151: 14 a 17 ambos';
+  UPDATE pacientes SET fecha_nacimiento = current_date - interval '14 years' WHERE id = test.u('15');
+  ASSERT (SELECT count(*) FROM destinatarios_por_edad(test.u('15'))) = 2, 'caso 151: el dia que cumple 14 ya recibe';
+  UPDATE pacientes SET fecha_nacimiento = current_date - interval '18 years' WHERE id = test.u('15');
+  ASSERT (SELECT array_agg(correo ORDER BY orden) FROM destinatarios_por_edad(test.u('15'))) = ARRAY['pac-151@x.cl'], 'caso 151: mayor solo el paciente';
+  -- 15 años: dos enlaces; el adulto con cuenta va sin codigo.
+  UPDATE pacientes SET fecha_nacimiento = current_date - interval '15 years' WHERE id = test.u('15');
+  INSERT INTO solicitudes_derechos (id, tipo, paciente_id, canal, vence_el) VALUES (v_sol, 'ACCESO', test.u('15'), 'CORREO', current_date + 40);
+  INSERT INTO exportaciones_paciente (id, paciente_id, solicitud_id, datos_administrativos, requiere_clinica, creada_por_id)
+  VALUES (v_exp, test.u('15'), v_sol, test.cif('{}'), false, test.u('a1'));
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM destinatarios_pendientes_exportacion(v_exp);
+    RAISE EXCEPTION 'caso 151: GESTION envia debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT destinatarios_pendientes_exportacion(v_exp) = 2, 'caso 151: dos destinatarios';
+  BEGIN
+    PERFORM * FROM enviar_exportacion(v_exp, ARRAY[sha256('t1')], ARRAY[sha256('c1')]);
+    RAISE EXCEPTION 'caso 151: enlaces de menos debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  SELECT count(*) INTO n FROM enviar_exportacion(v_exp, ARRAY[sha256('t-pac-151'), sha256('t-adulto-151')], ARRAY[sha256('c-pac-151'), sha256('c-adulto-151')]) d
+  WHERE (d.es_adulto AND d.con_cuenta AND d.correo = 'madre-151@x.cl') OR (NOT d.es_adulto AND d.correo = 'pac-151@x.cl');
+  ASSERT n = 2, 'caso 151: enviados a ambos';
+  ASSERT (SELECT codigo_hash IS NULL AND usuario_id = test.u('aa') FROM destinatarios_exportacion WHERE adulto_responsable_id = v_adulto),
+    'caso 151: el adulto con cuenta no lleva codigo';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  BEGIN
+    PERFORM * FROM entregar_exportacion(sha256('t-adulto-151'), NULL);
+    RAISE EXCEPTION 'caso 151: otra cuenta descarga el enlace del adulto debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('aa', 'RESPONSABLE');
+  ASSERT (SELECT id FROM entregar_exportacion(sha256('t-adulto-151'), NULL)) = v_exp, 'caso 151: el adulto descarga con su sesion';
+  ASSERT EXISTS (SELECT 1 FROM accesos_ficha WHERE usuario_id = test.u('aa') AND rol = 'RESPONSABLE' AND recurso = 'exportacion_paciente' AND accion = 'DESCARGA'),
+    'caso 151: descarga del adulto auditada';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  UPDATE pacientes SET fecha_nacimiento = v_nac, email = v_correo WHERE id = test.u('15');
+END $$;
+
+\echo 152 Feriados por ley (AUD-01 E2.3a): reglas de traslado y Pascua; el job no corre con usuario; ADMIN agrega y quita solo de hoy en adelante; quitado no cuenta y el job no lo revive
+DO $$ DECLARE v date := (now() AT TIME ZONE 'America/Santiago')::date + 400; BEGIN
+  IF extract(isodow FROM v) >= 6 THEN v := v + 2; END IF;
+  ASSERT (SELECT array_agg(fecha ORDER BY fecha) FROM feriados_legales(2023) WHERE fecha IN ('2023-01-02', '2023-04-07', '2023-06-21', '2023-06-26', '2023-10-09', '2023-10-27'))
+         = ARRAY['2023-01-02', '2023-04-07', '2023-06-21', '2023-06-26', '2023-10-09', '2023-10-27']::date[], 'caso 152: 2023 (2 de enero, Pascua, traslados, 27 de octubre)';
+  ASSERT (SELECT count(*) FROM feriados_legales(2024) WHERE fecha IN ('2024-06-20', '2024-09-20')) = 2, 'caso 152: 2024 solsticio 20-06 y 20 de septiembre viernes';
+  ASSERT (SELECT count(*) FROM feriados_legales(2018) WHERE fecha IN ('2018-07-02', '2018-09-17', '2018-10-15', '2018-11-02')) = 4, 'caso 152: 2018 traslados y 17 de septiembre lunes';
+  ASSERT (SELECT count(*) FROM feriados_legales(2027) WHERE fecha IN ('2027-06-21', '2027-06-28', '2027-09-17', '2027-10-11')) = 4, 'caso 152: 2027';
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM generar_feriados(2030);
+    RAISE EXCEPTION 'caso 152: generar con usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM agregar_feriado('2020-03-02', 'Pasado');
+    RAISE EXCEPTION 'caso 152: feriado pasado debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM agregar_feriado(v, 'Feriado regional 152');
+  ASSERT dias_habiles_desde(v - 1, 1) > v, 'caso 152: el agregado no es habil';
+  PERFORM quitar_feriado(v);
+  ASSERT (SELECT quitado_por_id = test.u('a1') FROM feriados WHERE fecha = v), 'caso 152: quitado con autor';
+  ASSERT dias_habiles_desde(v - 1, 1) = v, 'caso 152: el quitado es habil';
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM agregar_feriado(v, 'Otro');
+    RAISE EXCEPTION 'caso 152: GESTION agrega debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  -- El job no revive un feriado de ley quitado.
+  UPDATE feriados SET quitado_en = now(), quitado_por_id = test.u('a1') WHERE fecha = '2027-09-17';
+  PERFORM generar_feriados(2027);
+  ASSERT (SELECT quitado_en IS NOT NULL FROM feriados WHERE fecha = '2027-09-17'), 'caso 152: no revive el quitado';
+  UPDATE feriados SET quitado_en = NULL, quitado_por_id = NULL WHERE fecha = '2027-09-17';
+  DELETE FROM feriados WHERE fecha = v;
+END $$;
+
+-- 153 corre como app_user (RLS real); luego de vuelta al dueño para el caso 78.
+\connect :app_url
+\set ON_ERROR_STOP 1
+\echo 153 03b-4.2: recordatorios personales solo de su autor (ni ADMIN los ve); registro SIS: lo informa el profesional, verifica ADMIN (manual) o la API/job (automatico), publico solo verificado
+DO $$ DECLARE r uuid := gen_random_uuid(); n int; BEGIN
+  -- Recordatorios (A): el autor crea, marca hecho y borra; nadie mas lo ve ni lo toca.
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  INSERT INTO recordatorios_personales (id, autor_id, texto) VALUES (r, test.u('b1'), test.cif('llamar al colegio'));
+  BEGIN
+    INSERT INTO recordatorios_personales (id, autor_id, texto) VALUES (gen_random_uuid(), test.u('b2'), test.cif('ajeno'));
+    RAISE EXCEPTION 'caso 153: recordatorio a nombre de otro debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  UPDATE recordatorios_personales SET hecho_en = now() WHERE id = r;
+  BEGIN
+    UPDATE recordatorios_personales SET texto = test.cif('otro') WHERE id = r;
+    RAISE EXCEPTION 'caso 153: editar texto debio fallar (solo hecho_en)';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO recordatorios_personales (id, autor_id, texto) VALUES (gen_random_uuid(), test.u('b1'), convert_to('claro', 'UTF8'));
+    RAISE EXCEPTION 'caso 153: texto sin cifrar debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT count(*) FROM recordatorios_personales WHERE id = r) = 0, 'caso 153: ADMIN ve un recordatorio ajeno';
+  DELETE FROM recordatorios_personales WHERE id = r;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  ASSERT n = 0, 'caso 153: ADMIN borra un recordatorio ajeno';
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM recordatorios_personales WHERE id = r) = 0, 'caso 153: otro profesional ve un recordatorio ajeno';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM recordatorios_personales) = 0, 'caso 153: el paciente ve recordatorios';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  DELETE FROM recordatorios_personales WHERE id = r;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  ASSERT n = 1, 'caso 153: el autor borra el suyo';
+
+  -- Registro SIS (A+C): sin escritura directa; el profesional informa el suyo.
+  BEGIN
+    INSERT INTO registros_sis (profesional_id, numero, estado) VALUES (test.u('b1'), '1', 'VERIFICADO_MANUAL');
+    RAISE EXCEPTION 'caso 153: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM informar_registro_sis('153153');
+  ASSERT (SELECT estado FROM registros_sis WHERE profesional_id = test.u('b1')) = 'PENDIENTE', 'caso 153: informado queda PENDIENTE';
+  BEGIN
+    PERFORM registrar_verificacion_sis(test.u('b1'), '153153', 'VERIFICADO_MANUAL', 'MANUAL', 'Psicólogo', 'U');
+    RAISE EXCEPTION 'caso 153: el profesional verifica a mano debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM registrar_verificacion_sis(test.u('b2'), '1', 'VERIFICADO_AUTOMATICO', 'AUTOMATICO', 'Psicólogo', 'U');
+    RAISE EXCEPTION 'caso 153: verificar el registro de otro debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM datos_verificacion_sis(NULL);
+    RAISE EXCEPTION 'caso 153: listar todos con usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) FROM registros_sis_publicos() WHERE profesional_id = test.u('b1')) = 0, 'caso 153: pendiente no es publico';
+  PERFORM registrar_verificacion_sis(test.u('b1'), '153153', 'VERIFICADO_AUTOMATICO', 'AUTOMATICO', 'Psicólogo', 'U. de Chile');
+  BEGIN
+    PERFORM registrar_verificacion_sis(test.u('b1'), '999', 'NO_COINCIDE', 'AUTOMATICO', NULL, NULL);
+    RAISE EXCEPTION 'caso 153: numero cambiado debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT estado FROM registros_sis WHERE profesional_id = test.u('b1')) = 'VERIFICADO_AUTOMATICO', 'caso 153: GESTION lo ve';
+  BEGIN
+    PERFORM registrar_verificacion_sis(test.u('b1'), '153153', 'VERIFICADO_MANUAL', 'MANUAL', 'Psicólogo', 'U');
+    RAISE EXCEPTION 'caso 153: GESTION verifica debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM registrar_verificacion_sis(test.u('b1'), '153153', 'VERIFICADO_MANUAL', 'MANUAL', 'Psicólogo', 'U. de Chile');
+  ASSERT (SELECT verificado_por_id = test.u('a1') AND metodo = 'MANUAL' FROM registros_sis WHERE profesional_id = test.u('b1')),
+    'caso 153: manual queda con quien verifico';
+  ASSERT (SELECT count(*) FROM datos_verificacion_sis(test.u('b1'))) = 1, 'caso 153: ADMIN lee los datos para verificar uno';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT (SELECT count(*) FROM registros_sis) = 0, 'caso 153: el paciente ve la tabla';
+  -- Job (sin contexto): lista todos menos los verificados por el centro.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT (SELECT count(*) FROM datos_verificacion_sis(NULL) WHERE profesional_id = test.u('b1')) = 0, 'caso 153: el job no toca lo manual';
+  ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'registros_sis_publicos') = '{profesional_id,numero,estado,verificado_en}',
+    'caso 153: columnas publicas';
+  ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'datos_verificacion_sis') = '{p_profesional,profesional_id,numero,nombre,especialidad,rut}',
+    'caso 153: columnas para verificar';
+  -- Limpieza: el profesional quita su registro.
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  PERFORM informar_registro_sis(NULL);
+  ASSERT NOT EXISTS (SELECT 1 FROM registros_sis WHERE profesional_id = test.u('b1')), 'caso 153: quitado';
+END $$;
+\connect :owner_url
+\set ON_ERROR_STOP 1
+
 \echo 78 Sin texto plano: toda columna bytea cifrada tiene el formato; seed sin datos sensibles; copia de autoria intacta tras cerrar cuentas
 DO $$ DECLARE c record; n int; BEGIN
   FOR c IN SELECT table_name, column_name FROM information_schema.columns
@@ -5637,7 +5810,7 @@ DO $$ DECLARE c record; n int; BEGIN
              -- 03b-3.1: SHA-256 del token opaco de la reserva (como tokens_correo).
              AND table_name || '.' || column_name NOT IN ('solicitudes_hora.reserva_hash',
              -- AUD-01: SHA-256 del enlace y del codigo de una exportacion (como tokens_correo).
-                                                          'exportaciones_paciente.token_hash', 'exportaciones_paciente.codigo_hash') LOOP
+                                                          'destinatarios_exportacion.token_hash', 'destinatarios_exportacion.codigo_hash') LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE %I IS NOT NULL AND (get_byte(%I, 0) <> 1 OR octet_length(%I) < 49)',
                    c.table_name, c.column_name, c.column_name, c.column_name) INTO n;
     ASSERT n = 0, format('caso 78: %s.%s con valores sin formato cifrado', c.table_name, c.column_name);

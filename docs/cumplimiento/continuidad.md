@@ -77,10 +77,11 @@ Una alerta de deteccion confirmada se trata como incidente
 
 ## 6. Feriados de cada año
 
-El plazo de las solicitudes de derechos usa `feriados`. La migracion trae
-2026. Para 2027: `infra/scripts/continuidad/feriados_2027.sql` (borrador:
-las fechas con traslado o discrepancia entre fuentes estan comentadas para
-verificar contra el Diario Oficial antes de cargarlo, antes del 1 de enero).
+El plazo de las solicitudes de derechos usa `feriados`. Los nacionales que
+la ley fija con una regla los calcula la BD (`feriados_legales`) y el job
+`generar_feriados` los carga cada dia para este año y el siguiente. Los que
+crea una ley puntual o los regionales los agrega el ADMIN en Configuracion >
+Feriados (tambien puede quitar uno). No hay carga manual por año.
 
 ## Pendiente (requiere el servidor o cuentas externas)
 
@@ -89,4 +90,3 @@ verificar contra el Diario Oficial antes de cargarlo, antes del 1 de enero).
 - Crear el bucket de respaldos (cifrado del lado del servidor, bloqueo de
   borrado, ciclo de vida 35 dias) y anotar region en `subencargados.md`.
 - Cifrado del disco del servidor (Lightsail) documentado al desplegar.
-- Verificar y cargar `feriados_2027.sql`.

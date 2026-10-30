@@ -242,4 +242,4 @@ Avance de las entregas: ver la seccion "Estado" de `roadmap_aud01.md`.
 | COM | 01, 02, 03, 04 | 05, 06 (post-MVP, con WhatsApp) |
 
 Fuera del codigo: servidor y bucket (puesta en marcha), revision legal de
-plantillas y plazos, feriados 2027 por verificar.
+plantillas y plazos. Los feriados se calculan por ley (2026-10-28).

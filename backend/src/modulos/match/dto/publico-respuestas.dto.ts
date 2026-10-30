@@ -100,6 +100,17 @@ export class PerfilPublico {
   @ApiProperty({ type: String, nullable: true, description: 'Promedio de reseñas publicadas (decimal como texto)' })
   calificacion!: string | null;
   resenas!: number;
+  /** 03b-4.2: registro en la Superintendencia de Salud, solo si esta verificado (sin registro: null). */
+  @ApiProperty({ type: () => RegistroSisPublico, nullable: true })
+  registro_sis!: RegistroSisPublico | null;
+}
+
+export class RegistroSisPublico {
+  numero!: string;
+  /** VERIFICADO_AUTOMATICO: contra el RNPI (con fecha); VERIFICADO_MANUAL: por el centro. */
+  @ApiProperty({ enum: ['VERIFICADO_AUTOMATICO', 'VERIFICADO_MANUAL'] })
+  estado!: 'VERIFICADO_AUTOMATICO' | 'VERIFICADO_MANUAL';
+  verificado_en!: Date;
 }
 
 export class Hueco {

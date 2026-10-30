@@ -329,3 +329,27 @@ export class ComentarioDto {
   @Length(1, 5000)
   texto!: string;
 }
+
+/** 03b-4.2: numero de registro de prestador (RNPI). null = quitarlo. */
+export class InformarRegistroSisDto {
+  @ValidateIf((_, v) => v !== null)
+  @Matches(/^\d{1,10}$/, { message: 'El número de registro son solo dígitos (hasta 10)' })
+  numero!: string | null;
+}
+
+/** ADMIN: verificacion manual (respaldo de la trayectoria) cuando no hay apikey o el RNPI falla. */
+export class VerificacionManualSisDto {
+  /** false = el registro no corresponde (NO_COINCIDE). */
+  @IsBoolean()
+  coincide!: boolean;
+
+  @Recortar()
+  @IsString()
+  @Length(2, 200)
+  tituloHabilitante!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(2, 200)
+  institucion!: string;
+}

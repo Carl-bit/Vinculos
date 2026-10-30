@@ -295,3 +295,26 @@ export class ParticipanteHiloVista {
   usuarioId!: string;
   agregadoEn!: Date;
 }
+
+export const ESTADOS_REGISTRO_SIS = ['NO_INFORMADO', 'PENDIENTE', 'VERIFICADO_AUTOMATICO', 'VERIFICADO_MANUAL', 'NO_COINCIDE'] as const;
+
+/** 03b-4.2: registro en la Superintendencia de Salud (lo minimo: nunca datos personales de la respuesta del RNPI). */
+export class RegistroSisVista {
+  @ApiProperty({ enum: ESTADOS_REGISTRO_SIS })
+  estado!: (typeof ESTADOS_REGISTRO_SIS)[number];
+  @ApiProperty({ nullable: true, type: String })
+  numero!: string | null;
+  @ApiProperty({ nullable: true, enum: ['AUTOMATICO', 'MANUAL'] })
+  metodo!: 'AUTOMATICO' | 'MANUAL' | null;
+  @ApiProperty({ nullable: true, type: String })
+  tituloHabilitante!: string | null;
+  @ApiProperty({ nullable: true, type: String })
+  institucion!: string | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  verificadoEn!: Date | null;
+  /** true = la verificacion automatica es simulada (sin apikey de la Superintendencia). */
+  verificacionSimulada!: boolean;
+  /** Por que no se verifico (solo en la respuesta de una verificacion). */
+  @ApiProperty({ nullable: true, type: String, required: false })
+  motivo?: string | null;
+}

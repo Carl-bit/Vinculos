@@ -36,7 +36,7 @@ export function BorradoresPendientes() {
                 </div>
                 {b.pacienteId ? (
                   <ButtonLink
-                    href={`/admin/fichas/${b.pacienteId}/ficha?borrador=${b.id}`}
+                    href={`/admin/fichas/${b.pacienteId}?vista=evoluciones&borrador=${b.id}`}
                     variant="team"
                     icon="edit_note"
                     className="!px-4 !py-2.5 !text-[13px]"

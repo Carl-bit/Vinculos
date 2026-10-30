@@ -187,7 +187,10 @@ export class SolicitudHoraDto {
   @Matches(TELEFONO_CL, { message: 'adultoTelefono: formato +56XXXXXXXXX' })
   adultoTelefono?: string;
 
-  /** Respuestas del cuestionario (se guardan cifradas solo con esta solicitud, D-6). */
+  /**
+   * Respuestas del cuestionario (se guardan cifradas solo con esta solicitud, D-6).
+   * Sin match: `{ motivo_sesion: texto }`, el motivo en palabras del paciente (03b-4.2).
+   */
   @IsOptional()
   @IsObject()
   respuestas?: Record<string, string | string[]>;

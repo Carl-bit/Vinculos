@@ -85,14 +85,10 @@ export function AccesoFicha({ paciente, rol, tratante }: { paciente: PacienteVis
           </p>
           {clinico ? (
             <div className="flex flex-col gap-2">
+              {/* 03b-4.2: el contenido clinico esta en las pestañas de esta misma vista (sin paso intermedio). */}
               {!tratante && (
                 <p className="m-0 text-[12.5px] font-semibold text-neutral-700">Tienes acceso a esta ficha sin ser su tratante (acceso clínico temporal).</p>
               )}
-              <div>
-                <ButtonLink href={`/admin/fichas/${paciente.id}/ficha`} variant="team" icon="edit_note">
-                  Abrir ficha clínica
-                </ButtonLink>
-              </div>
             </div>
           ) : (
             <Aviso tono="nota" icono="shield_person">
@@ -125,23 +121,25 @@ export function DerivacionRecibida({ pacienteId, habilitado }: { pacienteId: str
   );
 }
 
-/** Lo que respondio en el match al pedir hora (solo el tratante; ADMIN y GESTION nunca). */
+/** Lo que respondio en el match al pedir hora, o sin match su motivo escrito (solo el tratante; ADMIN y GESTION nunca). */
 export function IndicacionesPaciente({ pacienteId }: { pacienteId: string }) {
   const respuestas = useRespuestasMatch(pacienteId, true);
   const cuestionario = useQuery({ queryKey: ['publico', 'cuestionario'], queryFn: () => datos(api.GET('/api/publico/cuestionario')), staleTime: 10 * 60_000 });
   const ultima = respuestas.data?.[0];
   return (
-    <Panel titulo="Indicaciones del paciente" bajada="Lo que respondió en el cuestionario al pedir su primera hora. Solo lo ves tú.">
+    <Panel titulo="Indicaciones del paciente" bajada="Lo que escribió o respondió al pedir su primera hora. Solo lo ves tú.">
       <EstadoConsulta consulta={respuestas}>
         {() => {
-          if (!ultima)
-            return <p className="m-0 text-[13.5px] font-semibold text-neutral-700">No llegó por el cuestionario del sitio: no hay respuestas guardadas.</p>;
+          if (!ultima) return <p className="m-0 text-[13.5px] font-semibold text-neutral-700">No dejó indicaciones al pedir su hora.</p>;
           const r = (ultima.respuestas ?? {}) as Record<string, unknown>;
           const preguntas = cuestionario.data?.preguntas ?? [];
           const texto = (clave: string, valor: unknown) => {
             const p = preguntas.find((q) => q.clave === clave);
             const etiqueta = (v: unknown) => p?.opciones.find((o) => o.valor === v)?.etiqueta ?? String(v);
-            return { pregunta: p?.texto ?? clave, valor: Array.isArray(valor) ? valor.map(etiqueta).join(', ') : etiqueta(valor) };
+            return {
+              pregunta: p?.texto ?? (clave === 'motivo_sesion' ? 'Motivo de la sesión, en sus palabras' : clave),
+              valor: Array.isArray(valor) ? valor.map(etiqueta).join(', ') : etiqueta(valor),
+            };
           };
           return (
             <dl className="m-0 grid gap-3.5">
@@ -228,7 +226,12 @@ export function HistorialSesiones({ paciente, rol, tratante }: { paciente: Pacie
                   </div>
                   <Badge tono={estado.tono}>{estado.texto}</Badge>
                   {clinico && realizada && !conEvolucion && (
-                    <ButtonLink href={`/admin/fichas/${paciente.id}/ficha?cita=${c.id}`} variant="team" icon="edit_note" className="!px-4 !py-2 !text-[13px]">
+                    <ButtonLink
+                      href={`/admin/fichas/${paciente.id}?vista=evoluciones&cita=${c.id}`}
+                      variant="team"
+                      icon="edit_note"
+                      className="!px-4 !py-2 !text-[13px]"
+                    >
                       Registrar evolución
                     </ButtonLink>
                   )}
@@ -410,14 +413,22 @@ export function OrigenPaciente({ paciente }: { paciente: PacienteVista }) {
  * ADMIN/GESTION lo envian por correo (enlace de un solo uso) o lo registran
  * firmado en el centro con respaldo. Un menor lo otorga su adulto responsable.
  */
-export function ConsentimientoPaciente({ paciente, rol }: { paciente: PacienteVista; rol: Rol }) {
-  const admin = esAdministracion(rol);
-  const aceptaciones = useAceptaciones(paciente.id);
+/** Consentimiento de atencion al dia (version aceptada >= vigente). Tambien lo usa el aviso de la vista del paciente. */
+export function useConsentimientoAtencion(pacienteId: string) {
+  const aceptaciones = useAceptaciones(pacienteId);
   const vigente = useQuery({
     queryKey: ['publico', 'politica', 'CONSENTIMIENTO_ATENCION'],
     queryFn: () => datos(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo: 'CONSENTIMIENTO_ATENCION' } } })),
     retry: false,
   });
+  const ultima = aceptaciones.data?.find((a) => a.politica.tipo === 'CONSENTIMIENTO_ATENCION');
+  const alDia = !!ultima && (!vigente.data || ultima.politica.version >= vigente.data.version);
+  return { aceptaciones, vigente, ultima, alDia };
+}
+
+export function ConsentimientoPaciente({ paciente, rol }: { paciente: PacienteVista; rol: Rol }) {
+  const admin = esAdministracion(rol);
+  const { aceptaciones, vigente, ultima, alDia } = useConsentimientoAtencion(paciente.id);
   const adultos = useAdultosResponsables(paciente.id);
   const cliente = useQueryClient();
   const [registrar, setRegistrar] = useState(false);
@@ -443,8 +454,6 @@ export function ConsentimientoPaciente({ paciente, rol }: { paciente: PacienteVi
       void cliente.invalidateQueries({ queryKey: ['panel', 'paciente', paciente.id, 'aceptaciones'] });
     },
   });
-  const ultima = aceptaciones.data?.find((a) => a.politica.tipo === 'CONSENTIMIENTO_ATENCION');
-  const alDia = !!ultima && (!vigente.data || ultima.politica.version >= vigente.data.version);
   // 03b-4.2: acuse del protocolo del centro para pacientes (desde el portal).
   const protocolo = aceptaciones.data?.find((a) => a.politica.tipo === 'PROTOCOLO_PACIENTE');
   return (

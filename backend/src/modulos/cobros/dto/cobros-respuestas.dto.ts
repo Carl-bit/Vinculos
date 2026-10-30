@@ -34,6 +34,9 @@ export class EstadoPagoCitaVista {
   saldo!: number;
   @ApiProperty({ enum: ESTADOS_PAGO, enumName: 'EstadoPagoCita' })
   estado_pago!: (typeof ESTADOS_PAGO)[number];
+  /** 03b-4.2: la cita tiene resolucion INASISTENCIA (solo en el listado). */
+  @ApiProperty({ required: false })
+  inasistencia?: boolean;
 }
 
 export class PagoVista {

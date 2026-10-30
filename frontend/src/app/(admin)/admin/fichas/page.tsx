@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
+import { SupervisionCasos } from '@/components/equipo/SupervisionCasos';
 import { AccesosTemporalesVista } from '@/components/pacientes/AccesosTemporales';
 import { BorradoresPendientes } from '@/components/pacientes/BorradoresPendientes';
 import { CatalogosClinicos } from '@/components/pacientes/CatalogosClinicos';
@@ -21,12 +22,13 @@ import { useSupervisiones } from '@/lib/equipo';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
-type Vista = 'equipo' | 'pacientes' | 'borradores' | 'derivaciones' | 'accesos' | 'consentimientos' | 'plantillas' | 'catalogos' | 'retencion';
+type Vista = 'equipo' | 'pacientes' | 'borradores' | 'derivaciones' | 'accesos' | 'consentimientos' | 'supervision' | 'plantillas' | 'catalogos' | 'retencion';
 
 /**
  * Secciones del modulo por rol: GESTION no ve nada clinico (plantillas,
  * catalogos, retencion, derivaciones ni accesos). Consentimientos de
- * practicante: administracion y quien supervisa.
+ * practicante: administracion y quien supervisa. Supervision de casos (antes
+ * en Equipo, que ahora es solo de ADMIN/GESTION): quien supervisa.
  */
 function secciones(rol: Rol, supervisa: boolean): { valor: Vista; etiqueta: string }[] {
   if (rol === 'ADMIN')
@@ -51,7 +53,12 @@ function secciones(rol: Rol, supervisa: boolean): { valor: Vista; etiqueta: stri
     { valor: 'borradores', etiqueta: 'Borradores' },
     { valor: 'derivaciones', etiqueta: rol === 'PRACTICANTE' ? 'Ofertas de derivación' : 'Derivaciones' },
     ...(rol === 'PROFESIONAL' ? [{ valor: 'accesos' as const, etiqueta: 'Accesos temporales' }] : []),
-    ...(supervisa ? [{ valor: 'consentimientos' as const, etiqueta: 'Consentimientos' }] : []),
+    ...(supervisa
+      ? [
+          { valor: 'consentimientos' as const, etiqueta: 'Consentimientos' },
+          { valor: 'supervision' as const, etiqueta: 'Supervisión' },
+        ]
+      : []),
     { valor: 'plantillas', etiqueta: 'Plantillas clínicas' },
     { valor: 'catalogos', etiqueta: 'Catálogos clínicos' },
   ];
@@ -98,6 +105,7 @@ function Fichas() {
         {vista === 'derivaciones' && <DerivacionesVista rol={rol} />}
         {vista === 'accesos' && <AccesosTemporalesVista rol={rol} />}
         {vista === 'consentimientos' && <ConsentimientosEquipo rol={rol} />}
+        {vista === 'supervision' && <SupervisionCasos />}
         {vista === 'plantillas' && <PlantillasClinicas rol={rol} />}
         {vista === 'catalogos' && <CatalogosClinicos rol={rol} />}
         {vista === 'retencion' && <RetencionFichas />}
