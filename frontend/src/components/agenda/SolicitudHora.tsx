@@ -197,7 +197,7 @@ export function SolicitudHora({
                 : {}),
             politicaId: politicaDatos.id,
             terminosId: terminos?.id,
-            aceptaWhatsapp: d.aceptaWhatsapp || undefined,
+            aceptaWhatsapp: (centro.modulos.includes('WHATSAPP') && d.aceptaWhatsapp) || undefined,
             sitioWeb: d.sitioWeb || undefined,
           },
         }),
@@ -450,9 +450,12 @@ export function SolicitudHora({
                     (versión {terminos.version}).
                   </Casilla>
                 )}
-                <Casilla checked={d.aceptaWhatsapp} onChange={(v) => cambiar('aceptaWhatsapp', v)}>
-                  Opcional: quiero recibir avisos de mis horas por WhatsApp. Puedes cambiarlo cuando quieras en tu portal.
-                </Casilla>
+                {/* Solo si el centro contrato el modulo WHATSAPP (desactivado por defecto). */}
+                {centro.modulos.includes('WHATSAPP') && (
+                  <Casilla checked={d.aceptaWhatsapp} onChange={(v) => cambiar('aceptaWhatsapp', v)}>
+                    Opcional: quiero recibir avisos de mis horas por WhatsApp. Puedes cambiarlo cuando quieras en tu portal.
+                  </Casilla>
+                )}
               </div>
             </section>
 

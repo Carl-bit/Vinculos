@@ -45,7 +45,7 @@ describe('03b agenda publica', () => {
 
   beforeAll(async () => {
     t = await crearApp();
-    await t.dueno.horarioCentro.deleteMany({});
+    await t.datos.centroAbierto();
     admin = await t.datos.usuario('ADMIN');
     prof = await t.datos.usuario('PROFESIONAL');
     tipoId = (await t.datos.tipoAtencion()).id;

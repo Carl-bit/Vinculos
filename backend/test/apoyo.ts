@@ -266,10 +266,21 @@ export class Fixtures {
       ),
     });
     const box = await this.espacio();
-    await this.dueno.bloqueAtencion.create({
-      data: { profesionalId, espacioId: box.id, inicio: new Date('2024-01-01T03:00:00Z'), fin: new Date(Date.now() + 3 * 365 * 86_400_000) },
-    });
+    // Un bloque de años cruza dias y no cabe en el horario de un dia: dato de prueba como dueño, sin el trigger.
+    await this.dueno.$transaction([
+      this.dueno.$executeRaw`ALTER TABLE bloques_atencion DISABLE TRIGGER bloques_atencion_validos`,
+      this.dueno.bloqueAtencion.create({
+        data: { profesionalId, espacioId: box.id, inicio: new Date('2024-01-01T03:00:00Z'), fin: new Date(Date.now() + 3 * 365 * 86_400_000) },
+      }),
+      this.dueno.$executeRaw`ALTER TABLE bloques_atencion ENABLE TRIGGER bloques_atencion_validos`,
+    ]);
     return box;
+  }
+
+  /** Centro abierto los 7 dias de 00:00 a 24:00 (sin dias el centro esta cerrado desde 2026-11-05). */
+  async centroAbierto() {
+    await this.dueno.horarioCentro.deleteMany({});
+    await this.dueno.horarioCentro.createMany({ data: [1, 2, 3, 4, 5, 6, 7].map((diaSemana) => ({ diaSemana, inicioMin: 0, finMin: 1440 })) });
   }
 
   async espacio() {

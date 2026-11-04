@@ -312,6 +312,34 @@ describe('02d agenda y espacios', () => {
       ).toBe(403);
     });
 
+    it('sesiones del box: cada sesion, tambien ajena, sin paciente ni profesional; el paciente no', async () => {
+      const inicio = nuevoDia();
+      const c = await t
+        .http()
+        .post('/api/citas')
+        .set(await tk(gestion))
+        .send(cita({ inicio: iso(inicio), fin: iso(inicio + 50 * 60_000) }));
+      expect(c.status).toBe(201);
+      const rango = { desde: iso(inicio - HORA), hasta: iso(inicio + HORA) };
+      const r = await t
+        .http()
+        .get('/api/espacios/sesiones')
+        .query(rango)
+        .set(await tk(otroProfesional));
+      expect(r.status).toBe(200);
+      expect(r.body).toContainEqual({ espacio_id: c.body.espacioId, inicio: iso(inicio), fin: iso(inicio + 50 * 60_000) });
+      expect(Object.keys(r.body[0]).sort()).toEqual(['espacio_id', 'fin', 'inicio']);
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/espacios/sesiones')
+            .query(rango)
+            .set(await tk(usuarioPaciente))
+        ).status,
+      ).toBe(403);
+    });
+
     it('horario del box por periodo: fuera 422; cambiarlo dejando bloques fuera 409; liberar con cita dentro 409', async () => {
       const p = await t.datos.usuario('PROFESIONAL');
       const pac = await t.datos.paciente(p.id);

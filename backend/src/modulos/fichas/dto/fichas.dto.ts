@@ -451,6 +451,11 @@ export class BorradorDto {
   @ValidateIf((o: BorradorDto) => o.plantillaId !== undefined)
   @IsObject()
   valores?: Record<string, unknown>;
+
+  /** Opcional aca; al confirmar es obligatorio. Omitirlo en un PUT lo deja sin indicar. */
+  @IsOptional()
+  @IsEnum(NivelRiesgo)
+  nivelRiesgo?: NivelRiesgo;
 }
 
 export class ListarBorradoresDto {
@@ -836,6 +841,8 @@ export class BorradorVista {
   plantillaId!: string | null;
   @ApiProperty({ type: 'object', additionalProperties: true, nullable: true })
   valores!: Record<string, unknown> | null;
+  @ApiProperty({ enum: NivelRiesgo, enumName: 'NivelRiesgo', nullable: true })
+  nivelRiesgo!: NivelRiesgo | null;
   creadoEn!: Date;
   actualizadoEn!: Date;
 }

@@ -114,7 +114,7 @@ describe('03b-3.1 / 03b-3.2 la hora se confirma con el pago', () => {
 
   beforeAll(async () => {
     t = await crearApp();
-    await t.dueno.horarioCentro.deleteMany({});
+    await t.datos.centroAbierto();
     await t.dueno.configuracionCentro.update({ where: { id: true }, data: { rolGestionHabilitado: true } });
     admin = await t.datos.usuario('ADMIN');
     gestion = await t.datos.usuario('GESTION');

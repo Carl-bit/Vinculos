@@ -31,6 +31,43 @@ export function posicion(inicio: string, fin: string, desdeHora = HORA_INICIO): 
   const hasta = Math.min(rango, Math.max(0, crudo + duracion));
   return { top: (desde / rango) * 100, alto: ((hasta - desde) / rango) * 100 };
 }
+/** Hora elegida en la grilla para agendar rapido: libre de un box (presencial) o sin box (online). */
+export interface HoraElegida {
+  inicio: Date;
+  fin: Date;
+  /** null: sesion online (no ocupa box). */
+  espacioId: string | null;
+  /** Nombre del box, u "Online". */
+  nombreBox: string;
+  /** Con foco en un profesional; sin el, sale del tratante del paciente que se elija. */
+  profesionalId?: string;
+  /** Hora libre del box: hay que apartarla antes de reservar. */
+  apartar: boolean;
+}
+
+const MINIMO_TRAMO_MS = 15 * 60_000;
+
+/**
+ * Tramos de un rango que quedan sin cubrir por `cortes`. Un tramo de menos de
+ * 15 minutos se descarta: el descanso entre sesiones no es hora disponible.
+ */
+export function tramosLibres(rango: { inicio: string; fin: string }, cortes: readonly { inicio: string; fin: string }[]): { inicio: string; fin: string }[] {
+  const ms = (iso: string) => new Date(iso).getTime();
+  const fin = ms(rango.fin);
+  const tramos: { inicio: string; fin: string }[] = [];
+  let desde = rango.inicio;
+  const agregar = (hasta: string) => {
+    if (ms(hasta) - ms(desde) >= MINIMO_TRAMO_MS) tramos.push({ inicio: desde, fin: hasta });
+  };
+  for (const c of [...cortes].sort((a, b) => ms(a.inicio) - ms(b.inicio))) {
+    if (ms(c.fin) <= ms(desde) || ms(c.inicio) >= fin) continue;
+    if (ms(c.inicio) > ms(desde)) agregar(c.inicio);
+    if (ms(c.fin) > ms(desde)) desde = c.fin;
+  }
+  if (ms(desde) < fin) agregar(rango.fin);
+  return tramos;
+}
+
 /**
  * Carriles para eventos que se pisan en una columna: cada evento recibe su
  * carril y el total del grupo que se solapa (ancho = 1 / total).

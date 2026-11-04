@@ -37,7 +37,7 @@ test('ADMIN: codigo por correo, menu de su rol, sin tokens en el almacen del nav
 
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
   await expect(menu.getByRole('link', { name: 'Configuración' })).toBeVisible();
-  await expect(page.getByLabel('Equipo')).toBeVisible();
+  await expect(page.getByLabel('Equipo')).toHaveCount(0);
   // El seed demo da ADMIN + PROFESIONAL al admin: el selector de rol aparece.
   await expect(page.getByLabel('Rol activo')).toHaveValue('ADMIN');
 

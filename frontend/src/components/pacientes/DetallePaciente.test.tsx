@@ -64,6 +64,7 @@ vi.mock('./SeccionesPaciente', () => ({
 }));
 vi.mock('./FichaClinica', () => ({
   ContactoEmergencia: () => <p>contacto</p>,
+  useMotivoConsulta: () => 'Sin ficha de ingreso registrada.',
   ConversacionesCaso: () => null,
   EvolucionesFicha: () => <p>evoluciones</p>,
 }));

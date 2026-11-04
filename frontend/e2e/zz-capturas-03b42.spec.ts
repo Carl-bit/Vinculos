@@ -40,12 +40,10 @@ for (const usuario of ['profesional1', 'admin'] as const) {
     await foto(page, `inicio-${usuario}`);
     await page.goto('/admin/agenda');
     await foto(page, `agenda-${usuario}-semana`);
-    await page.goto('/admin/agenda?vista=box');
-    await foto(page, `agenda-${usuario}-por-box`);
-    // Box elegido: horario libre y ocupado de fondo, sesiones del profesional encima.
-    await page.getByLabel('Filtrar por box').selectOption({ label: 'Box 1 (Demo)' });
+    // Box elegido en el panel lateral: horario libre y ocupado de fondo, sesiones del profesional encima.
+    await page.getByRole('button', { name: /^Box 1 \(Demo\)/ }).click();
     await foto(page, `agenda-${usuario}-box-elegido`);
-    await page.goto('/admin/agenda?vista=box');
+    await page.goto('/admin/agenda');
     await page.waitForLoadState('networkidle');
     await abrirPaciente(page, usuario === 'admin');
     await foto(page, `paciente-${usuario}`);

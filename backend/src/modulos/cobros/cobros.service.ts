@@ -10,7 +10,16 @@ import { generarPdfTabla } from '../../core/documentos/pdf';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { EVENTOS, type NotificacionSolicitada } from '../../core/eventos/eventos';
-import type { ArriendoDto, FiltroCobrosDto, LiquidacionDto, RegistrarDocumentoTributarioDto, RegistrarPagoDto, ResolverCitaDto } from './dto/cobros.dto';
+import { conflicto } from '../../core/errores/sqlstate';
+import type {
+  AcuerdoProfesionalDto,
+  ArriendoDto,
+  FiltroCobrosDto,
+  LiquidacionDto,
+  RegistrarDocumentoTributarioDto,
+  RegistrarPagoDto,
+  ResolverCitaDto,
+} from './dto/cobros.dto';
 
 export interface EstadoPagoCita {
   cita_id: string;
@@ -220,6 +229,25 @@ export class CobrosService {
     });
   }
 
+  /** Versiones de acuerdos (RLS: ADMIN/GESTION todas; el profesional las suyas), de la mas nueva a la mas antigua. */
+  acuerdos(profesionalId?: string) {
+    return this.bd.tx().acuerdoProfesional.findMany({ where: { profesionalId }, orderBy: [{ profesionalId: 'asc' }, { vigenteDesde: 'desc' }] });
+  }
+
+  /** ADMIN: nueva version (append-only). Misma fecha -> 409; dentro de un periodo liquidado -> 422. */
+  async registrarAcuerdo(dto: AcuerdoProfesionalDto) {
+    if (
+      await this.bd.tx().acuerdoProfesional.findFirst({ where: { profesionalId: dto.profesionalId, vigenteDesde: dto.vigenteDesde }, select: { id: true } })
+    ) {
+      throw conflicto('acuerdos_profesional_profesional_id_vigente_desde_key');
+    }
+    const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
+      SELECT registrar_acuerdo_profesional(${dto.profesionalId}::uuid, ${dto.modelo}::modelo_cobro, ${dto.cobra}::cobrador_acuerdo,
+        ${dto.comisionPorcentaje}::numeric, ${dto.comisionDerivacionTipo}::tipo_comision_derivacion, ${dto.comisionDerivacionValor}::numeric,
+        ${dto.cuotaMensual}::int, ${dto.cargoBoxHora}::int, ${dto.ivaBox}::boolean, ${dia(dto.vigenteDesde)}::date) AS id`;
+    return encontrado(await this.bd.tx().acuerdoProfesional.findUnique({ where: { id } }), 'Acuerdo');
+  }
+
   liquidaciones(profesionalId?: string) {
     return this.bd.tx().liquidacion.findMany({ where: { profesionalId }, orderBy: { periodoDesde: 'desc' } });
   }
@@ -281,7 +309,10 @@ export class CobrosService {
             ]
           : [[`Comision del centro (${l.comisionPorcentaje.toString()}%)`, `-${pesos(l.comision)}`]]),
         ['Arriendos del periodo', `-${pesos(l.arriendos)}`],
-        ['Total a pagar', pesos(l.total)],
+        ...(l.cuotaFija > 0 ? [['Cuota fija del acuerdo', `-${pesos(l.cuotaFija)}`]] : []),
+        ...(l.usoBox > 0 ? [[`Uso de box (${l.horasBox.toString()} h)`, `-${pesos(l.usoBox)}`]] : []),
+        ...(l.comisionCobroPropio > 0 ? [['Comision de pacientes del centro cobrados por el profesional', `-${pesos(l.comisionCobroPropio)}`]] : []),
+        l.total >= 0 ? ['Total a pagar', pesos(l.total)] : ['El profesional paga al centro', pesos(-l.total)],
       ],
       pie: [`Profesional: ${l.profesionalId}`],
     });

@@ -304,6 +304,8 @@ model Usuario {
   resolucionesCita           ResolucionCita[]
   liquidaciones              Liquidacion[]                @relation("LiquidacionProfesional")
   liquidacionesCreadas       Liquidacion[]                @relation("LiquidacionCreadaPor")
+  acuerdos                   AcuerdoProfesional[]         @relation("AcuerdoProfesional")
+  acuerdosCreados            AcuerdoProfesional[]         @relation("AcuerdoCreadoPor")
   adjuntosSubidos            AdjuntoFicha[]
   especialidades             ProfesionalEspecialidad[]    @relation("EspecialidadProfesional")
   especialidadesRevisadas    ProfesionalEspecialidad[]    @relation("EspecialidadRevisadaPor")
@@ -1682,6 +1684,42 @@ enum EstadoLiquidacion {
   @@map("estado_liquidacion")
 }
 
+/// Quien cobra al paciente en un acuerdo por profesional.
+enum CobradorAcuerdo {
+  CENTRO
+  PROFESIONAL
+
+  @@map("cobrador_acuerdo")
+}
+
+/// Acuerdo economico por profesional (A, versionado y append-only). modelo:
+/// DIRECTO = A (cobra el profesional), CENTRO = B (cobra el centro), MIXTO = C
+/// (cuota, box y comisiones; `cobra` decide). Rige desde vigente_desde; sin
+/// acuerdo rige el del centro. Escritura solo registrar_acuerdo_profesional
+/// (ADMIN); leen ADMIN/GESTION y el profesional los suyos.
+model AcuerdoProfesional {
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId           String                 @map("profesional_id") @db.Uuid
+  modelo                  ModeloCobro
+  cobra                   CobradorAcuerdo
+  comisionPorcentaje      Decimal                @default(0) @map("comision_porcentaje") @db.Decimal(5, 2)
+  comisionDerivacionTipo  TipoComisionDerivacion @default(GENERAL) @map("comision_derivacion_tipo")
+  comisionDerivacionValor Decimal                @default(0) @map("comision_derivacion_valor") @db.Decimal(10, 2)
+  cuotaMensual            Int                    @default(0) @map("cuota_mensual")
+  cargoBoxHora            Int                    @default(0) @map("cargo_box_hora")
+  ivaBox                  Boolean                @default(false) @map("iva_box")
+  vigenteDesde            DateTime               @map("vigente_desde") @db.Date
+  creadoPorId             String                 @map("creado_por_id") @db.Uuid
+  createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profesional   Usuario       @relation("AcuerdoProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  creadoPor     Usuario       @relation("AcuerdoCreadoPor", fields: [creadoPorId], references: [id], onDelete: Restrict)
+  liquidaciones Liquidacion[]
+
+  @@unique([profesionalId, vigenteDesde])
+  @@map("acuerdos_profesional")
+}
+
 /// Cobro de box al profesional por periodo [periodo_desde, periodo_hasta).
 /// Escriben ADMIN/GESTION; el profesional ve los suyos.
 model Arriendo {
@@ -1918,28 +1956,38 @@ model ResolucionCita {
 /// comision - arriendos. BORRADOR -> EMITIDA -> PAGADA solo via funciones
 /// (ADMIN/GESTION). EXCLUDE: sin periodos solapados por profesional.
 model Liquidacion {
-  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profesionalId      String            @map("profesional_id") @db.Uuid
-  periodoDesde       DateTime          @map("periodo_desde") @db.Date
-  periodoHasta       DateTime          @map("periodo_hasta") @db.Date
-  totalCobrado       Int               @map("total_cobrado")
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId       String            @map("profesional_id") @db.Uuid
+  periodoDesde        DateTime          @map("periodo_desde") @db.Date
+  periodoHasta        DateTime          @map("periodo_hasta") @db.Date
+  totalCobrado        Int               @map("total_cobrado")
   /// C-11: parte de lo cobrado que viene de cargos (inasistencia, cancelacion tardia).
-  cargosLiquidados   Int               @default(0) @map("cargos_liquidados")
-  comisionPorcentaje Decimal           @map("comision_porcentaje") @db.Decimal(5, 2)
-  comision           Int
+  cargosLiquidados    Int               @default(0) @map("cargos_liquidados")
+  comisionPorcentaje  Decimal           @map("comision_porcentaje") @db.Decimal(5, 2)
+  comision            Int
   /// 03b-4.2: parte de la comision por la regla de derivacion (0 con GENERAL).
-  comisionDerivacion Int               @default(0) @map("comision_derivacion")
-  sesionesDerivadas  Int               @default(0) @map("sesiones_derivadas")
-  arriendos          Int
-  total              Int
-  estado             EstadoLiquidacion @default(BORRADOR)
-  creadaPorId        String            @map("creada_por_id") @db.Uuid
-  creadaEn           DateTime          @default(now()) @map("creada_en") @db.Timestamptz(6)
-  emitidaEn          DateTime?         @map("emitida_en") @db.Timestamptz(6)
-  pagadaEn           DateTime?         @map("pagada_en") @db.Timestamptz(6)
+  comisionDerivacion  Int               @default(0) @map("comision_derivacion")
+  sesionesDerivadas   Int               @default(0) @map("sesiones_derivadas")
+  arriendos           Int
+  /// Acuerdo del profesional que rigio (null = reglas del centro).
+  acuerdoId           String?           @map("acuerdo_id") @db.Uuid
+  /// Cuota fija del acuerdo: una por cada dia 1 de mes dentro del periodo.
+  cuotaFija           Int               @default(0) @map("cuota_fija")
+  horasBox            Decimal           @default(0) @map("horas_box") @db.Decimal(8, 2)
+  /// Cargo por hora del acuerdo x horas de bloques apartados en el periodo.
+  usoBox              Int               @default(0) @map("uso_box")
+  /// Comision de captados que cobro el propio profesional (le debe al centro).
+  comisionCobroPropio Int               @default(0) @map("comision_cobro_propio")
+  total               Int
+  estado              EstadoLiquidacion @default(BORRADOR)
+  creadaPorId         String            @map("creada_por_id") @db.Uuid
+  creadaEn            DateTime          @default(now()) @map("creada_en") @db.Timestamptz(6)
+  emitidaEn           DateTime?         @map("emitida_en") @db.Timestamptz(6)
+  pagadaEn            DateTime?         @map("pagada_en") @db.Timestamptz(6)
 
-  profesional Usuario @relation("LiquidacionProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  creadaPor   Usuario @relation("LiquidacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  profesional Usuario             @relation("LiquidacionProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  creadaPor   Usuario             @relation("LiquidacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  acuerdo     AcuerdoProfesional? @relation(fields: [acuerdoId], references: [id], onDelete: Restrict)
 
   @@index([profesionalId])
   @@map("liquidaciones")
@@ -2144,6 +2192,8 @@ enum ModuloCentro {
   EQUIPO
   MATCH
   COBROS
+  /// 2026-11-03: avisos por WhatsApp. Desactivado por defecto (no va en el DEFAULT de modulos_activos).
+  WHATSAPP
 
   @@map("modulo_centro")
 }
@@ -2647,9 +2697,9 @@ model AccesoClinicoTemporal {
   otorgadoPorId String                @map("otorgado_por_id") @db.Uuid
   creadoEn      DateTime              @default(now()) @map("creado_en") @db.Timestamptz(6)
 
-  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
-  profesional Usuario  @relation("AccesoTemporalProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  otorgadoPor Usuario  @relation("AccesoTemporalOtorgadoPor", fields: [otorgadoPorId], references: [id], onDelete: Restrict)
+  paciente    Paciente                  @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profesional Usuario                   @relation("AccesoTemporalProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  otorgadoPor Usuario                   @relation("AccesoTemporalOtorgadoPor", fields: [otorgadoPorId], references: [id], onDelete: Restrict)
   revocacion  RevocacionAccesoTemporal?
 
   @@index([profesionalId, hasta])
@@ -2700,18 +2750,20 @@ model PreferenciaAvisoEquipo {
 /// ve, editable (guardado automatico) y descartable. Al confirmarlo pasa a
 /// evolucion y se elimina. Contenido cifrado (CLINICO); id generado por la API.
 model BorradorEvolucion {
-  id             String   @id @db.Uuid
-  autorId        String   @map("autor_id") @db.Uuid
-  fichaClinicaId String   @map("ficha_clinica_id") @db.Uuid
-  citaId         String?  @map("cita_id") @db.Uuid
+  id             String       @id @db.Uuid
+  autorId        String       @map("autor_id") @db.Uuid
+  fichaClinicaId String       @map("ficha_clinica_id") @db.Uuid
+  citaId         String?      @map("cita_id") @db.Uuid
   /// cifrado (CLINICO)
   contenido      Bytes
   /// 03a-2: plantilla de evolucion
-  plantillaId    String?  @map("plantilla_id") @db.Uuid
+  plantillaId    String?      @map("plantilla_id") @db.Uuid
   /// cifrado (CLINICO): valores de la plantilla
   valores        Bytes?
-  creadoEn       DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
-  actualizadoEn  DateTime @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  /// Opcional en el borrador; obligatorio al confirmar.
+  nivelRiesgo    NivelRiesgo? @map("nivel_riesgo")
+  creadoEn       DateTime     @default(now()) @map("creado_en") @db.Timestamptz(6)
+  actualizadoEn  DateTime     @default(now()) @map("actualizado_en") @db.Timestamptz(6)
 
   autor        Usuario           @relation(fields: [autorId], references: [id], onDelete: Restrict)
   fichaClinica FichaClinica      @relation(fields: [fichaClinicaId], references: [id], onDelete: Restrict)

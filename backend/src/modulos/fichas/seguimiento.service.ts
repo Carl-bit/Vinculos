@@ -18,6 +18,7 @@ const VISTA_BORRADOR = {
   contenido: true,
   plantillaId: true,
   valores: true,
+  nivelRiesgo: true,
   creadoEn: true,
   actualizadoEn: true,
 } as const;
@@ -82,6 +83,7 @@ export class SeguimientoService {
         contenido: claro(dto.contenido),
         plantillaId: dto.plantillaId ?? null,
         valores: await this.valoresBorrador(dto),
+        nivelRiesgo: dto.nivelRiesgo ?? null,
       },
       select: VISTA_BORRADOR,
     });
@@ -94,7 +96,13 @@ export class SeguimientoService {
     encontrado(await tx.borradorEvolucion.findUnique({ where: { id }, select: { id: true } }), 'Borrador');
     const b = await tx.borradorEvolucion.update({
       where: { id },
-      data: { contenido: claro(dto.contenido), citaId: dto.citaId, plantillaId: dto.plantillaId ?? null, valores: await this.valoresBorrador(dto) },
+      data: {
+        contenido: claro(dto.contenido),
+        citaId: dto.citaId,
+        plantillaId: dto.plantillaId ?? null,
+        valores: await this.valoresBorrador(dto),
+        nivelRiesgo: dto.nivelRiesgo ?? null,
+      },
       select: VISTA_BORRADOR,
     });
     return vistaBorrador(b);

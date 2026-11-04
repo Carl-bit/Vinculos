@@ -23,8 +23,10 @@ const TIPOS_CUENTA = ['Cuenta corriente', 'Cuenta vista', 'Cuenta de ahorro'];
 
 /**
  * Medios con que el paciente confirma su hora y cuenta del centro para
- * transferir (solo ADMIN). La pasarela no se configura aca (modulo de ejemplo,
- * sin adaptador real): si ya estaba habilitada, se conserva tal cual.
+ * transferir (solo ADMIN; diseño "Opcion A submenu agrupado"). El link de pago
+ * y las conexiones de cobro se muestran como diseño de ejemplo: la pasarela
+ * no tiene adaptador real, asi que no se activan desde aca (si ya estaba
+ * habilitada, se conserva tal cual).
  */
 export function MediosPagoCentro() {
   const configuracion = useConfiguracionCentro();
@@ -37,6 +39,7 @@ export function MediosPagoCentro() {
             <div className="flex flex-col gap-6">
               <Medios key={c.updatedAt} c={c} hayCuenta={!!k} />
               <Cuenta key={k?.updatedAt ?? 'nueva'} cuenta={k ?? null} directo={c.modeloCobro === 'DIRECTO'} />
+              <Conexiones cuenta={k ?? null} />
             </div>
           )}
         </EstadoConsulta>
@@ -80,33 +83,53 @@ function Medios({ c, hayCuenta }: { c: ConfiguracionCentro; hayCuenta: boolean }
       porcentajePagoConfirmacion: pct,
     });
   };
+  const cambiar = (set: (v: boolean) => void) => (v: boolean) => {
+    setGuardado(false);
+    set(v);
+  };
+  const pasarela = c.mediosPagoHabilitados.includes('PASARELA');
+  const tarjetas: { nombre: string; texto: string; activo: boolean; onChange?: (v: boolean) => void; nota?: string }[] = [
+    { nombre: 'Pago en el centro', texto: 'La hora se confirma con el correo verificado y se paga al llegar.', activo: centro, onChange: cambiar(setCentro) },
+    {
+      nombre: 'Transferencia',
+      texto: 'El paciente sube su comprobante; la hora se confirma al validarlo en Cobros.',
+      activo: transferencia,
+      onChange: cambiar(setTransferencia),
+    },
+    {
+      nombre: 'Link de pago',
+      texto: 'Tarjeta o transferencia por la pasarela del titular del cobro.',
+      activo: pasarela,
+      nota: pasarela ? 'Habilitado antes: se conserva' : 'Requiere una conexión activa (aún no disponible)',
+    },
+  ];
   return (
-    <Panel titulo="Medios de pago" bajada="Lo que ve el paciente al reservar o pagar una sesión.">
-      <div className="mt-4 flex flex-col gap-4">
-        <Interruptor
-          tono="team"
-          etiqueta="Pago en el centro"
-          descripcion="La hora se confirma con el correo verificado y se paga al llegar."
-          activo={centro}
-          onChange={setCentro}
-        />
-        <Interruptor
-          tono="team"
-          etiqueta="Transferencia"
-          descripcion="El paciente transfiere y sube su comprobante; la hora se confirma al validarlo en Cobros."
-          activo={transferencia}
-          onChange={setTransferencia}
-        />
+    <Panel titulo="Lo que ve el paciente al reservar" nivel={3}>
+      <div className="flex flex-col gap-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          {tarjetas.map((t) => (
+            <div
+              key={t.nombre}
+              className={`flex flex-col gap-2 rounded-[14px] bg-bg p-3.5 ${t.activo ? 'border-2 border-accent-2-700' : 'border border-divider'}`}
+            >
+              <Interruptor tono="patient" etiqueta={t.nombre} activo={t.activo} deshabilitado={!t.onChange} onChange={t.onChange ?? (() => undefined)} />
+              <span className="text-[12px] font-semibold text-neutral-800">{t.texto}</span>
+              <span className={`text-[12px] font-extrabold ${t.activo ? 'text-accent-2-800' : 'text-pendiente-900'}`}>
+                {t.nota ?? (t.activo ? 'Visible al reservar' : 'Oculto al reservar')}
+              </span>
+            </div>
+          ))}
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Plazo para pagar o validar" hint="Entre 1 y 168 horas. Nunca después del inicio de la sesión.">
+          <Field label="Plazo para pagar o validar" hint="Horas, entre 1 y 168. Nunca después del inicio de la sesión.">
             {(p) => (
               <span className="flex items-center gap-2">
-                <Input {...p} inputMode="numeric" value={plazo} onChange={(e) => setPlazo(e.target.value.replace(/\D/g, ''))} className="!w-[120px]" />
+                <Input {...p} inputMode="numeric" value={plazo} onChange={(e) => setPlazo(e.target.value.replace(/\D/g, ''))} className="!w-[110px] !py-2.5" />
                 <span className="text-[13px] font-bold text-neutral-700">horas</span>
               </span>
             )}
           </Field>
-          <Field label="Porcentaje que se paga para confirmar" hint="Entre 1 y 100 % del valor de la sesión.">
+          <Field label="Porcentaje que se paga para confirmar" hint="Del valor de la sesión, entre 1 y 100 %.">
             {(p) => (
               <span className="flex items-center gap-2">
                 <Input
@@ -114,7 +137,7 @@ function Medios({ c, hayCuenta }: { c: ConfiguracionCentro; hayCuenta: boolean }
                   inputMode="numeric"
                   value={porcentaje}
                   onChange={(e) => setPorcentaje(e.target.value.replace(/\D/g, ''))}
-                  className="!w-[120px]"
+                  className="!w-[110px] !py-2.5"
                 />
                 <span className="text-[13px] font-bold text-neutral-700">%</span>
               </span>
@@ -122,6 +145,66 @@ function Medios({ c, hayCuenta }: { c: ConfiguracionCentro; hayCuenta: boolean }
           </Field>
         </div>
         <Pie error={error} guardado={guardado} cargando={guardar.isPending} onGuardar={enviar} texto="Guardar medios de pago" />
+      </div>
+    </Panel>
+  );
+}
+
+/**
+ * Conexiones de cobro (diseño de ejemplo): la transferencia del centro es
+ * real (sale de la cuenta registrada); la pasarela del centro y las de cada
+ * profesional se muestran como quedaran, sin conectarse todavia.
+ */
+function Conexiones({ cuenta }: { cuenta: CuentaVista | null }) {
+  const filas: { titular: string; tipo: string; detalle: string; estado: string; tono: string; accion?: string }[] = [
+    {
+      titular: cuenta?.titular ?? 'El centro',
+      tipo: 'Transferencia',
+      detalle: cuenta ? `${cuenta.banco} · ${cuenta.tipoCuenta.toLowerCase()} terminada en ${cuenta.numeroCuenta.slice(-3)}` : 'Sin cuenta registrada',
+      estado: cuenta ? 'Activa' : 'Sin cuenta',
+      tono: cuenta ? 'bg-accent-2-200 text-accent-2-800' : 'bg-pendiente-100 text-pendiente-900',
+    },
+    {
+      titular: cuenta?.titular ?? 'El centro',
+      tipo: 'Pasarela de pago',
+      detalle: 'Para las atenciones que cobra el centro (acuerdos B y C).',
+      estado: 'Sin conectar',
+      tono: 'bg-pendiente-100 text-pendiente-900',
+      accion: 'Conectar',
+    },
+    {
+      titular: 'Profesionales con cobro propio',
+      tipo: 'Pasarela propia',
+      detalle: 'Para sus atenciones (acuerdo A). Cada uno la conecta desde Mi perfil.',
+      estado: 'Ejemplo',
+      tono: 'bg-neutral-200 text-neutral-800',
+    },
+  ];
+  return (
+    <Panel
+      titulo="Conexiones de cobro"
+      bajada="Cada titular conecta su propia cuenta. Las credenciales se guardan cifradas y no se vuelven a mostrar."
+      nivel={3}
+    >
+      <div className="flex flex-col gap-2.5">
+        <Aviso tono="nota" icono="info">
+          Diseño de ejemplo: la conexión con pasarelas de pago todavía no está disponible. Hoy el paciente paga en el centro o por transferencia.
+        </Aviso>
+        {filas.map((f) => (
+          <div key={f.tipo} className="flex flex-wrap items-center gap-3 rounded-[12px] border border-divider bg-bg px-3.5 py-3">
+            <span className="flex min-w-0 flex-[1_1_200px] flex-col">
+              <strong className="text-[14px]">{f.titular}</strong>
+              <span className="text-[12px] font-semibold text-neutral-700">{f.tipo}</span>
+            </span>
+            <span className="flex-[1_1_200px] text-[12px] font-semibold text-neutral-800">{f.detalle}</span>
+            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${f.tono}`}>{f.estado}</span>
+            {f.accion && (
+              <Button variant="secondary" disabled className="!py-2" title="Aún no disponible">
+                {f.accion}
+              </Button>
+            )}
+          </div>
+        ))}
       </div>
     </Panel>
   );

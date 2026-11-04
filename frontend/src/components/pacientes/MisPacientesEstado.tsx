@@ -20,7 +20,8 @@ import { useCitas, useEstadoFichas, usePacientes } from '@/lib/panel';
  * pendiente 9): "Con deuda" (sesion realizada con saldo) o "Pago pendiente"
  * (hora futura que espera el pago para confirmarse). "Por confirmar" ya no
  * existe: desde 03b-3.2 la hora se confirma con el pago. Sin contenido
- * clinico: eso vive en la ficha.
+ * clinico: eso vive en la ficha. Solo caben ocho: con deuda primero, para que
+ * un centro con muchos pacientes no los esconda; despues, la proxima sesion.
  */
 export function MisPacientesEstado({ profesionalId }: { profesionalId: string }) {
   const pacientes = usePacientes({ profesionalId });
@@ -47,7 +48,7 @@ export function MisPacientesEstado({ profesionalId }: { profesionalId: string })
         {(lista) => {
           const filas = lista
             .map((p) => ({ p, e: porPaciente.get(p.id) }))
-            .sort((a, b) => (a.e?.proxima_sesion ?? '9').localeCompare(b.e?.proxima_sesion ?? '9'))
+            .sort((a, b) => Number(deudas.has(b.p.id)) - Number(deudas.has(a.p.id)) || (a.e?.proxima_sesion ?? '9').localeCompare(b.e?.proxima_sesion ?? '9'))
             .slice(0, 8);
           return (
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0">

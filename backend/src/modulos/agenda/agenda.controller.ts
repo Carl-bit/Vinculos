@@ -98,6 +98,13 @@ export class EspaciosController {
     return this.agenda.ocupacion(rango.desde, rango.hasta);
   }
 
+  /** Cada sesion presencial de los boxes, sin pacientes ni profesionales (vista "Por box"). Max. 62 dias. */
+  @Get('sesiones')
+  @Roles(...EQUIPO_AGENDA)
+  sesiones(@Query() rango: RangoDto): Promise<OcupacionBox[]> {
+    return this.agenda.sesionesEspacios(rango.desde, rango.hasta);
+  }
+
   /** Bloques apartados de todo el centro, con quien los aparto (solo administracion: ver matriz). */
   @Get('bloques')
   @Roles('ADMIN', 'GESTION')

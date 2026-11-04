@@ -21,9 +21,10 @@ import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { edadEn } from '@/lib/condiciones';
 import { useMiCuenta, useModulos } from '@/lib/consultas';
-import { useBorradores, useIngresos } from '@/lib/fichas';
+import { useBorradores } from '@/lib/fichas';
 import { formatoClp, formatoFecha, formatoRut, formatoTelefono, rutValido } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
+import { textoPlano } from '@/lib/notasEvolucion';
 import {
   useAdultosResponsables,
   useCitas,
@@ -32,7 +33,6 @@ import {
   useEvoluciones,
   useFicha,
   usePaciente,
-  useRespuestasMatch,
   useTiposAtencion,
   type CitaVista,
   type PacienteVista,
@@ -48,7 +48,7 @@ import { CobrosPaciente, usePagosPaciente } from './CobrosPaciente';
 import { CrearDerivacion } from './CrearDerivacion';
 import { DocumentosFicha } from './DocumentosFicha';
 import { ExportacionClinicaPendiente } from './ExportacionClinicaPendiente';
-import { ContactoEmergencia, ConversacionesCaso, EvolucionesFicha } from './FichaClinica';
+import { ContactoEmergencia, ConversacionesCaso, EvolucionesFicha, useMotivoConsulta } from './FichaClinica';
 import { IngresoFicha } from './IngresoFicha';
 import {
   AccesoFicha,
@@ -76,6 +76,7 @@ const ALIAS: Record<string, Vista> = { adjuntos: 'documentos', accesos: 'datos',
  * - Equipo con acceso clinico (tratante o acceso temporal): Sesiones,
  *   Evoluciones, Ingreso, Documentos y adjuntos, Cobros, Consentimientos y
  *   Datos, con panel lateral (motivo de consulta y ultima evolucion).
+ *   Evoluciones usa el ancho completo: lleva su propio contexto al escribir.
  * - ADMIN/GESTION: Sesiones (estado administrativo), Cobros,
  *   Consentimientos y Datos. Nunca contenido clinico.
  * Toda lectura clinica pasa por los mismos endpoints (accesos_ficha).
@@ -126,6 +127,7 @@ function VistaPaciente({ paciente: p, rol }: { paciente: PacienteVista; rol: Rol
   const pedida = parametros.get('vista') ?? '';
   const vista: Vista = pestanas.find((t) => t.valor === (ALIAS[pedida] ?? pedida))?.valor ?? 'sesiones';
   const ir = (v: Vista, extra = '') => router.replace(`/admin/fichas/${p.id}?vista=${v}${extra}`, { scroll: false });
+  const conResumen = clinico && !!ficha.data && vista !== 'evoluciones';
 
   return (
     <>
@@ -170,7 +172,7 @@ function VistaPaciente({ paciente: p, rol }: { paciente: PacienteVista; rol: Rol
         {p.posibleDuplicado && <Duplicado paciente={p} admin={admin} />}
       </div>
 
-      <div className={`grid items-start gap-4 ${clinico && ficha.data ? 'xl:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
+      <div className={`grid items-start gap-4 ${conResumen ? 'xl:grid-cols-[minmax(0,1fr)_340px]' : ''}`}>
         <div className="flex min-w-0 flex-col gap-4">
           <Pestanas etiqueta="Secciones del paciente" tono="team" valor={vista} onChange={(v) => ir(v)} pestanas={pestanas} panelId="seccion-paciente" />
           <div id="seccion-paciente" role="tabpanel" className="entrada flex flex-col gap-4" key={vista}>
@@ -221,7 +223,7 @@ function VistaPaciente({ paciente: p, rol }: { paciente: PacienteVista; rol: Rol
             )}
           </div>
         </div>
-        {clinico && ficha.data && (
+        {conResumen && ficha.data && (
           <aside aria-label="Resumen clínico" className="flex min-w-0 flex-col gap-4">
             <ResumenClinico pacienteId={p.id} fichaId={ficha.data.id} onVista={ir} />
             <ContactoEmergencia paciente={p} />
@@ -428,37 +430,24 @@ function DatoRapido({ etiqueta, valor, copiar }: { etiqueta: string; valor: stri
 }
 
 /**
- * Panel lateral del tratante: motivo de consulta (ficha de ingreso; sin ella,
- * lo que el paciente escribio al pedir hora) y ultima evolucion resumida.
+ * Panel lateral del tratante: motivo de consulta y ultima evolucion resumida.
  * Lecturas auditadas por la API.
  */
 function ResumenClinico({ pacienteId, fichaId, onVista }: { pacienteId: string; fichaId: string; onVista: (v: Vista) => void }) {
-  const ingresos = useIngresos(fichaId);
-  const solicitud = useRespuestasMatch(pacienteId, true).data?.[0]?.respuestas as Record<string, unknown> | undefined;
-  const escrito = solicitud?.motivo_sesion ?? solicitud?.relato;
+  const motivo = useMotivoConsulta(pacienteId, fichaId);
   const evoluciones = useEvoluciones(fichaId, true);
-  const ingreso = [...(ingresos.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-  const motivo = ingreso ? Object.entries(ingreso.valores ?? {}).find(([k, v]) => /motivo/i.test(k) && typeof v === 'string' && v.trim())?.[1] : undefined;
   const ultima = [...(evoluciones.data ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   return (
     <Panel titulo="Resumen clínico" nivel={2}>
       <div className="flex flex-col gap-3">
         <div>
           <p className="m-0 text-xs font-extrabold text-neutral-700">Motivo de consulta</p>
-          <p className="m-0 line-clamp-4 text-[14px] font-semibold whitespace-pre-line">
-            {ingresos.isPending
-              ? '…'
-              : typeof motivo === 'string'
-                ? motivo
-                : typeof escrito === 'string'
-                  ? `Al pedir hora: «${escrito}»`
-                  : 'Sin ficha de ingreso registrada.'}
-          </p>
+          <p className="m-0 line-clamp-4 text-[14px] font-semibold whitespace-pre-line">{motivo}</p>
         </div>
         <div className="border-t border-divider pt-3">
           <p className="m-0 text-xs font-extrabold text-neutral-700">Última evolución{ultima ? ` · ${formatoFecha(ultima.createdAt)}` : ''}</p>
           <p className="m-0 line-clamp-4 text-[14px] font-semibold whitespace-pre-line">
-            {evoluciones.isPending ? '…' : (ultima?.notas ?? 'Todavía no hay evoluciones.')}
+            {evoluciones.isPending ? '…' : ultima ? textoPlano(ultima.notas ?? '') : 'Todavía no hay evoluciones.'}
           </p>
           {ultima && (
             <button

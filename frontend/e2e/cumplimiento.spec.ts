@@ -42,13 +42,18 @@ test('Cobros y Configuracion (ADMIN): bandeja de transferencias del seed y medio
   await page.goto('/admin/configuracion?vista=medios');
   await expect(page.getByRole('switch', { name: /Transferencia/ })).toBeChecked();
   await expect(page.getByLabel(/Banco/)).toHaveValue('Banco Ficticio (Demo)');
-  await expect(page.getByText(/Pasarela/i)).toHaveCount(0);
+  // Pasarela: solo el diseño de ejemplo (no se activa desde aca).
+  await expect(page.getByRole('switch', { name: /Link de pago/ })).toBeDisabled();
 });
 
 test('Configuracion (ADMIN): auditoria de accesos con quien, rol activo y accion', async ({ page }) => {
   await ingresarEquipo(page, 'admin');
   await page.goto('/admin/configuracion?vista=auditoria');
-  await expect(page.getByRole('tab', { name: 'Auditoría de accesos', selected: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Secciones de configuración' }).locator('[aria-current="page"]')).toHaveText(
+    /Datos personales y auditoría/,
+  );
+  await expect(page.getByText(/lecturas · \d+ ediciones/)).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir auditoría' }).click();
   const tabla = page.getByRole('table', { name: 'Registros de auditoría' });
   await expect(tabla).toBeVisible();
   await expect(tabla.getByRole('row').nth(1)).toBeVisible();
@@ -58,7 +63,7 @@ test('Configuracion (ADMIN): auditoria de accesos con quien, rol activo y accion
 
 test('Configuracion (ADMIN): contrato con Vinculos aceptado, soporte autorizado y revocado, y solicitudes de datos con plazo', async ({ page }) => {
   await ingresarEquipo(page, 'admin');
-  await page.goto('/admin/configuracion?vista=politicas');
+  await page.goto('/admin/configuracion?vista=vinculos');
   const contrato = page.getByRole('region', { name: 'Contrato con Vinculos' }).or(page.locator('section', { hasText: 'Contrato con Vinculos' }));
   await expect(contrato.first()).toContainText('Términos de servicio de Vinculos');
   await expect(contrato.first()).toContainText('Aceptada');
@@ -89,16 +94,11 @@ test('Configuracion (ADMIN): contrato con Vinculos aceptado, soporte autorizado 
   await expect(fila).toContainText('Resuelta');
 });
 
-test('Portal: WhatsApp es un consentimiento propio, apagado por defecto, que se activa y se retira con fecha', async ({ page }) => {
+test('Portal: sin el modulo WhatsApp (desactivado por defecto) no se ofrece el consentimiento', async ({ page }) => {
   await ingresar(page, 'paciente', 'portal');
   await page.goto('/portal/avisos');
-  const whatsapp = page.getByRole('switch', { name: /Avisos por WhatsApp/ });
-  await expect(whatsapp).toHaveAttribute('aria-checked', 'false');
-  await whatsapp.click();
-  await expect(whatsapp).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByText(/Lo aceptaste el/)).toBeVisible();
-  await whatsapp.click();
-  await expect(whatsapp).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByRole('switch', { name: /Recordatorios de horas/ })).toBeVisible();
+  await expect(page.getByRole('switch', { name: /Avisos por WhatsApp/ })).toHaveCount(0);
 });
 
 test('Derechos sin cuenta: desde el pie del sitio, por RUT, con la misma respuesta exista o no', async ({ page }) => {
@@ -146,6 +146,7 @@ test('Feriados: los de la ley vienen calculados; ADMIN agrega uno regional y lo 
   await ingresarEquipo(page, 'admin');
   await page.goto('/admin/configuracion?vista=feriados');
   const siguiente = String(new Date().getFullYear() + 1);
+  await page.getByRole('button', { name: /^Ver \d{4} completo/ }).click();
   await page.getByRole('tab', { name: siguiente }).click();
   await expect(page.getByRole('cell', { name: 'Año Nuevo' })).toBeVisible();
   const fecha = `${siguiente}-07-07`;
@@ -154,8 +155,8 @@ test('Feriados: los de la ley vienen calculados; ADMIN agrega uno regional y lo 
   if (await fila.count()) {
     await fila.getByRole('button', { name: 'Reponer' }).click();
   } else {
-    await page.getByLabel('Fecha').fill(fecha);
-    await page.getByLabel('Nombre').fill('Feriado regional de prueba');
+    await page.getByLabel('Agregar feriado propio').fill(fecha);
+    await page.getByLabel('Nombre del feriado').fill('Feriado regional de prueba');
     await page.getByRole('button', { name: 'Agregar feriado' }).click();
   }
   await expect(fila).toContainText('Centro');

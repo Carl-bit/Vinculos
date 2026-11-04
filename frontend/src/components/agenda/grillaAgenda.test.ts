@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { carriles, estadoVisual, horaInicioCentro, posicion } from './grillaAgenda';
+import { carriles, estadoVisual, horaInicioCentro, posicion, tramosLibres } from './grillaAgenda';
 
 describe('grilla de la agenda', () => {
+  it('tramosLibres: corta el rango bajo las sesiones y descarta el descanso entre ellas', () => {
+    const r = (desde: string, hasta: string) => ({ inicio: `2026-11-03T${desde}:00.000Z`, fin: `2026-11-03T${hasta}:00.000Z` });
+    expect(tramosLibres(r('12:00', '16:00'), [])).toEqual([r('12:00', '16:00')]);
+    // Sesiones seguidas: los 10 minutos entre ellas no quedan como tramo.
+    expect(tramosLibres(r('12:00', '16:00'), [r('13:00', '13:50'), r('12:00', '12:50')])).toEqual([r('13:50', '16:00')]);
+    // Una sesion que se sale del rango y una ajena al rango.
+    expect(tramosLibres(r('12:00', '14:00'), [r('11:30', '12:30'), r('15:00', '15:50')])).toEqual([r('12:30', '14:00')]);
+    expect(tramosLibres(r('12:00', '13:00'), [r('12:00', '13:00')])).toEqual([]);
+  });
+
   it('posicion en % del rango 08:00-24:00 por hora de inicio (Chile) y duracion', () => {
     // 10:30 a 11:20 en Chile (UTC-3 en noviembre): 2,5 h y 50 min de 16 h.
     const p = posicion('2026-11-03T13:30:00Z', '2026-11-03T14:20:00Z');

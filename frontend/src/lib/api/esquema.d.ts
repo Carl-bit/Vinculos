@@ -2351,6 +2351,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/espacios/sesiones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cada sesion presencial de los boxes, sin pacientes ni profesionales (vista "Por box"). Max. 62 dias.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        get: operations["EspaciosController_sesiones"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/espacios/bloques": {
         parameters: {
             query?: never;
@@ -4797,6 +4817,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cobros/acuerdos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Acuerdos por profesional (versiones). ADMIN/GESTION todos; el profesional los suyos (RLS).
+         * @description Roles: ADMIN, GESTION, PROFESIONAL
+         */
+        get: operations["CobrosController_acuerdos"];
+        put?: never;
+        /**
+         * Nueva version del acuerdo de un profesional (solo la cuenta madre).
+         * @description Roles: ADMIN
+         */
+        post: operations["CobrosController_registrarAcuerdo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cobros/liquidaciones": {
         parameters: {
             query?: never;
@@ -5575,7 +5619,7 @@ export interface components {
         /** @enum {string} */
         TipoComisionDerivacion: "GENERAL" | "PORCENTAJE" | "MONTO_FIJO";
         /** @enum {string} */
-        ModuloCentro: "PAGINA_PUBLICA" | "FICHAS" | "AGENDA" | "EQUIPO" | "MATCH" | "COBROS";
+        ModuloCentro: "PAGINA_PUBLICA" | "FICHAS" | "AGENDA" | "EQUIPO" | "MATCH" | "COBROS" | "WHATSAPP";
         /** @enum {string} */
         MedioConfirmacion: "PAGO_EN_CENTRO" | "TRANSFERENCIA" | "PASARELA";
         ConfiguracionCentroVista: {
@@ -6675,6 +6719,7 @@ export interface components {
             valores: {
                 [key: string]: unknown;
             } | null;
+            nivelRiesgo: components["schemas"]["NivelRiesgo"] | null;
             id: string;
             fichaClinicaId: string;
             contenido: string;
@@ -6695,6 +6740,11 @@ export interface components {
             valores?: {
                 [key: string]: unknown;
             };
+            /**
+             * @description Opcional aca; al confirmar es obligatorio. Omitirlo en un PUT lo deja sin indicar.
+             * @enum {string}
+             */
+            nivelRiesgo?: "NINGUNO" | "BAJO" | "MEDIO" | "ALTO";
         };
         ConfirmarBorradorDto: {
             /** Format: uuid */
@@ -8477,6 +8527,45 @@ export interface components {
             medios: components["schemas"]["ReporteCobrosMedio"][];
         };
         /** @enum {string} */
+        CobradorAcuerdo: "CENTRO" | "PROFESIONAL";
+        AcuerdoProfesionalVista: {
+            modelo: components["schemas"]["ModeloCobro"];
+            cobra: components["schemas"]["CobradorAcuerdo"];
+            /** @description Decimal (porcentaje sobre lo cobrado) */
+            comisionPorcentaje: string;
+            comisionDerivacionTipo: components["schemas"]["TipoComisionDerivacion"];
+            /** @description Decimal (porcentaje o pesos segun el tipo) */
+            comisionDerivacionValor: string;
+            /** Format: date */
+            vigenteDesde: string;
+            id: string;
+            profesionalId: string;
+            cuotaMensual: number;
+            cargoBoxHora: number;
+            ivaBox: boolean;
+            creadoPorId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AcuerdoProfesionalDto: {
+            /** Format: uuid */
+            profesionalId: string;
+            /** @enum {string} */
+            modelo: "CENTRO" | "DIRECTO" | "MIXTO";
+            /** @enum {string} */
+            cobra: "PROFESIONAL" | "CENTRO";
+            comisionPorcentaje: number;
+            /** @enum {string} */
+            comisionDerivacionTipo: "GENERAL" | "PORCENTAJE" | "MONTO_FIJO";
+            /** @description Porcentaje (0 a 100) o monto en pesos segun el tipo; 0 con GENERAL. */
+            comisionDerivacionValor: number;
+            cuotaMensual: number;
+            cargoBoxHora: number;
+            ivaBox: boolean;
+            /** Format: date-time */
+            vigenteDesde: string;
+        };
+        /** @enum {string} */
         EstadoLiquidacion: "BORRADOR" | "EMITIDA" | "PAGADA";
         LiquidacionVista: {
             /** Format: date */
@@ -8485,6 +8574,10 @@ export interface components {
             periodoHasta: string;
             /** @description Decimal (porcentaje de comision del centro) */
             comisionPorcentaje: string;
+            /** @description Acuerdo del profesional que rigio (null = reglas del centro). */
+            acuerdoId: string | null;
+            /** @description Decimal (horas de box apartadas en el periodo) */
+            horasBox: string;
             estado: components["schemas"]["EstadoLiquidacion"];
             /** Format: date-time */
             emitidaEn: string | null;
@@ -8501,6 +8594,13 @@ export interface components {
             comisionDerivacion: number;
             sesionesDerivadas: number;
             arriendos: number;
+            /** @description Cuota fija del acuerdo: una por cada dia 1 de mes dentro del periodo. */
+            cuotaFija: number;
+            /** @description Cargo por hora de box del acuerdo x horasBox. */
+            usoBox: number;
+            /** @description Comision de captados que cobro el propio profesional (se la debe al centro). */
+            comisionCobroPropio: number;
+            /** @description total = cobrado - comision - arriendos - cuotaFija - usoBox - comisionCobroPropio; negativo = el profesional le debe al centro. */
             total: number;
             creadaPorId: string;
             /** Format: date-time */
@@ -20565,6 +20665,82 @@ export interface operations {
             };
         };
     };
+    EspaciosController_sesiones: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OcupacionBox"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
     EspaciosController_bloquesCentro: {
         parameters: {
             query: {
@@ -31913,6 +32089,158 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CobrosController_acuerdos: {
+        parameters: {
+            query?: {
+                profesionalId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcuerdoProfesionalVista"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CobrosController_registrarAcuerdo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcuerdoProfesionalDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcuerdoProfesionalVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
                 };
             };
         };

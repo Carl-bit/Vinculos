@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Interruptor } from '@/components/ui/Interruptor';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
+import { useModulos } from '@/lib/consultas';
 import { ApiError } from '@/lib/api/errores';
 import { formatoFecha, formatoFechaHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
@@ -81,6 +82,7 @@ function PreferenciasCorreo() {
   const portal = usePortal();
   const cliente = useQueryClient();
   const prefs = usePreferencias(portal.pacienteId, portal.responsable, !portal.cargando);
+  const whatsapp = !!useModulos().data?.activos.includes('WHATSAPP');
   const guardar = useMutation({
     mutationFn: (p: Partial<Preferencias>) =>
       portal.responsable
@@ -115,17 +117,20 @@ function PreferenciasCorreo() {
               deshabilitado={guardar.isPending}
               onChange={(v) => guardar.mutate({ avisosOperativos: v })}
             />
-            <Interruptor
-              etiqueta="Avisos por WhatsApp"
-              descripcion={
-                p.whatsapp && p.whatsappConsentidoEn
-                  ? `Lo aceptaste el ${formatoFecha(p.whatsappConsentidoEn)}. Puedes retirarlo cuando quieras.`
-                  : 'Opcional. Si lo activas, aceptas recibir avisos de tus horas por WhatsApp al número que registraste.'
-              }
-              activo={p.whatsapp}
-              deshabilitado={guardar.isPending}
-              onChange={(v) => guardar.mutate({ whatsapp: v })}
-            />
+            {/* Solo con el modulo WHATSAPP; un consentimiento ya dado se muestra para poder retirarlo. */}
+            {(whatsapp || p.whatsapp) && (
+              <Interruptor
+                etiqueta="Avisos por WhatsApp"
+                descripcion={
+                  p.whatsapp && p.whatsappConsentidoEn
+                    ? `Lo aceptaste el ${formatoFecha(p.whatsappConsentidoEn)}. Puedes retirarlo cuando quieras.`
+                    : 'Opcional. Si lo activas, aceptas recibir avisos de tus horas por WhatsApp al número que registraste.'
+                }
+                activo={p.whatsapp}
+                deshabilitado={guardar.isPending}
+                onChange={(v) => guardar.mutate({ whatsapp: v })}
+              />
+            )}
             {guardar.error && (
               <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
                 {guardar.error instanceof ApiError ? guardar.error.message : 'No pudimos guardar el cambio.'}

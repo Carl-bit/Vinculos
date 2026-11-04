@@ -5,6 +5,9 @@
  */
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  CobradorAcuerdo,
+  ModeloCobro,
+  TipoComisionDerivacion,
   CobradoPor,
   DecisionCita,
   EstadoDocumentoTributario,
@@ -177,6 +180,29 @@ export class ArriendoVista {
   updatedAt!: Date;
 }
 
+/** Version de un acuerdo por profesional (append-only; la vigente es la ultima con vigenteDesde <= hoy). */
+export class AcuerdoProfesionalVista {
+  id!: string;
+  profesionalId!: string;
+  @ApiProperty({ enum: ModeloCobro, enumName: 'ModeloCobro' })
+  modelo!: ModeloCobro;
+  @ApiProperty({ enum: CobradorAcuerdo, enumName: 'CobradorAcuerdo' })
+  cobra!: CobradorAcuerdo;
+  @ApiProperty({ type: String, description: 'Decimal (porcentaje sobre lo cobrado)' })
+  comisionPorcentaje!: unknown;
+  @ApiProperty({ enum: TipoComisionDerivacion, enumName: 'TipoComisionDerivacion' })
+  comisionDerivacionTipo!: TipoComisionDerivacion;
+  @ApiProperty({ type: String, description: 'Decimal (porcentaje o pesos segun el tipo)' })
+  comisionDerivacionValor!: unknown;
+  cuotaMensual!: number;
+  cargoBoxHora!: number;
+  ivaBox!: boolean;
+  @ApiProperty({ type: String, format: 'date' })
+  vigenteDesde!: Date;
+  creadoPorId!: string;
+  createdAt!: Date;
+}
+
 /** Liquidacion: total = cobrado - comision del centro - arriendos. BORRADOR se recalcula; EMITIDA y PAGADA no cambian. */
 export class LiquidacionVista {
   id!: string;
@@ -196,6 +222,18 @@ export class LiquidacionVista {
   comisionDerivacion!: number;
   sesionesDerivadas!: number;
   arriendos!: number;
+  /** Acuerdo del profesional que rigio (null = reglas del centro). */
+  @ApiProperty({ type: String, nullable: true })
+  acuerdoId!: string | null;
+  /** Cuota fija del acuerdo: una por cada dia 1 de mes dentro del periodo. */
+  cuotaFija!: number;
+  @ApiProperty({ type: String, description: 'Decimal (horas de box apartadas en el periodo)' })
+  horasBox!: unknown;
+  /** Cargo por hora de box del acuerdo x horasBox. */
+  usoBox!: number;
+  /** Comision de captados que cobro el propio profesional (se la debe al centro). */
+  comisionCobroPropio!: number;
+  /** total = cobrado - comision - arriendos - cuotaFija - usoBox - comisionCobroPropio; negativo = el profesional le debe al centro. */
   total!: number;
   @ApiProperty({ enum: EstadoLiquidacion, enumName: 'EstadoLiquidacion' })
   estado!: EstadoLiquidacion;

@@ -51,6 +51,8 @@ CREATE TABLE prueba.rangos (id serial PRIMARY KEY, r tstzrange NOT NULL,
 GRANT USAGE ON SCHEMA prueba TO app_user;
 GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA prueba TO app_user;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA prueba TO app_user;
+-- Sin dias el centro esta cerrado (2026-11-05): los tests corren con el centro abierto todo el dia.
+INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) SELECT d, 0, 1440 FROM generate_series(1, 7) d;
 SQL
 
 cat > "$SALIDA" <<JSON

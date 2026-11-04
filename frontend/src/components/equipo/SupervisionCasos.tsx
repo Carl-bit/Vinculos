@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { ComentariosSupervision } from '@/components/shared/ComentariosSupervision';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
+import { NotasClinicas } from '@/components/shared/NotasClinicas';
 import { ValoresPlantilla } from '@/components/shared/ValoresPlantilla';
 import { Badge } from '@/components/ui/Badge';
 import { Panel } from '@/components/ui/Panel';
@@ -123,7 +124,7 @@ function EvolucionCaso({ evolucion: e, campos }: { evolucion: EvolucionSupervisa
       {e.notas && (
         <div className="mt-3.5 border-t border-divider pt-3">
           <p className="m-0 mb-1.5 text-xs font-extrabold text-neutral-700">Notas</p>
-          <p className="m-0 text-[14.5px] leading-relaxed font-semibold whitespace-pre-line text-pretty">{e.notas}</p>
+          <NotasClinicas notas={e.notas} />
         </div>
       )}
       <ComentariosSupervision evolucionId={e.evolucionId} puedeComentar />

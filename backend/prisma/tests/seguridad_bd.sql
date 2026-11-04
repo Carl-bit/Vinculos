@@ -95,8 +95,11 @@ CREATE FUNCTION test.disponible_siempre(usuarios uuid[]) RETURNS void LANGUAGE s
   SELECT u, d, 0, 1440, m::modalidad_atencion
   FROM unnest(usuarios) u, generate_series(1, 7) d, unnest(ARRAY['PRESENCIAL', 'ONLINE']) m;
   INSERT INTO espacios (id, nombre) SELECT test.box_de(u), 'T Box agenda ' || u FROM unnest(usuarios) u;
+  -- Un bloque de años cruza dias: no cabe en el horario de un dia; dato de prueba como dueño.
+  ALTER TABLE bloques_atencion DISABLE TRIGGER bloques_atencion_validos;
   INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin)
   SELECT u, test.box_de(u), '2024-01-01 00:00-03', now() + interval '3 years' FROM unnest(usuarios) u;
+  ALTER TABLE bloques_atencion ENABLE TRIGGER bloques_atencion_validos;
 $$;
 -- Inicio de una cita relativa a now() que no cruza la medianoche de Chile en
 -- su primera hora (la disponibilidad no cruza de dia): si cae despues de las
@@ -141,6 +144,8 @@ DO $$ BEGIN
           test.evo(test.u('fd'), test.u('c2'), 'sesion 1 Dani', NULL, test.u('ed'));
 END $$;
 INSERT INTO espacios (id, nombre) VALUES (test.u('e1'), 'T Box 1'), (test.u('e2'), 'T Box 2');
+-- Sin dias el centro esta cerrado (2026-11-05): los casos corren con el centro abierto todo el dia.
+INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) SELECT d, 0, 1440 FROM generate_series(1, 7) d;
 INSERT INTO adultos_responsables (id, paciente_id, nombre) VALUES (gen_random_uuid(), test.u('0a'), 'Pareja');
 -- c2 tuvo supervision (b3) mientras atendia a Dani; se cierra despues del COMMIT.
 INSERT INTO supervisiones (practicante_id, supervisor_id) VALUES (test.u('c1'), test.u('b3')), (test.u('c2'), test.u('b3'));
@@ -579,6 +584,15 @@ DO $$ BEGIN
   ASSERT (SELECT count(*) FROM ocupacion_espacios('2025-11-02 00:00-03', '2025-11-03 00:00-03')) = 6, 'caso 34: ocupacion';
   ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'ocupacion_espacios') = '{desde,hasta,espacio_id,inicio,fin}',
     'caso 34: columnas expuestas';
+  -- sesiones_espacios: cada sesion del box, tambien las ajenas, sin quien.
+  ASSERT EXISTS (SELECT 1 FROM sesiones_espacios('2025-11-02 00:00-03', '2025-11-04 00:00-03')), 'caso 34: sesiones del box';
+  ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'sesiones_espacios') = '{desde,hasta,espacio_id,inicio,fin}',
+    'caso 34: sesiones_espacios sin quien';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  BEGIN
+    PERFORM * FROM sesiones_espacios('2025-11-02 00:00-03', '2025-11-03 00:00-03');
+    RAISE EXCEPTION 'caso 34: el paciente no ve sesiones de box';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 
 \echo 35 EXCLUDE detecta choque con un bloque que el contexto no ve -> 23P01
@@ -3493,6 +3507,7 @@ DO $$ DECLARE v uuid; BEGIN
     RAISE EXCEPTION 'caso 105: el horario del centro es de ADMIN';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   PERFORM test.ctx('a1', 'ADMIN');
+  DELETE FROM horario_centro;
   INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) SELECT d, 540, 1080 FROM generate_series(1, 7) d;
   BEGIN
     INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
@@ -3516,6 +3531,7 @@ DO $$ DECLARE v uuid; BEGIN
   DELETE FROM horarios_espacio WHERE espacio_id = test.box_de(test.u('b1'));
   PERFORM test.ctx('a1', 'ADMIN');
   DELETE FROM horario_centro;
+  INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) SELECT d, 0, 1440 FROM generate_series(1, 7) d;
 END $$;
 
 \echo 106 Solicitud de hora sin cuenta (D-2, 03b-3.2): retiene la hora (cita RETENIDA sin paciente, EXCLUDE); con solo pago en el centro el enlace del correo (un solo uso) concreta paciente, ficha, cita y aceptaciones; la API no toca la hora retenida; limites, menor, respuestas del match y RUT antes de la primera evolucion
@@ -3690,6 +3706,8 @@ DO $$ BEGIN
   INSERT INTO borradores_evolucion (id, autor_id, ficha_clinica_id, contenido) VALUES (test.u('2a'), test.u('b2'), test.u('fa'), test.cif('borrador'));
   UPDATE borradores_evolucion SET contenido = test.cif('borrador 2') WHERE id = test.u('2a');
   ASSERT (SELECT count(*) FROM borradores_evolucion) = 1, 'caso 109: el autor lo ve';
+  UPDATE borradores_evolucion SET nivel_riesgo = 'ALTO' WHERE id = test.u('2a');
+  ASSERT (SELECT nivel_riesgo FROM borradores_evolucion WHERE id = test.u('2a')) = 'ALTO', 'caso 109: el autor guarda el riesgo';
   BEGIN
     INSERT INTO borradores_evolucion (id, autor_id, ficha_clinica_id, contenido) VALUES (gen_random_uuid(), test.u('b2'), test.u('fb'), test.cif('x'));
     RAISE EXCEPTION 'caso 109: no en una ficha ajena';
@@ -5527,7 +5545,10 @@ DO $$ DECLARE v_sol uuid := gen_random_uuid(); v_cita uuid; v_msg text; BEGIN
     RAISE EXCEPTION 'caso 147: cancelar sin solicitud debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
   INSERT INTO solicitudes_derechos (id, tipo, paciente_id, canal, vence_el) VALUES (v_sol, 'CANCELACION', test.u('15'), 'CORREO', current_date + 40);
+  -- 2026-11-03: el consentimiento exige el modulo WHATSAPP (caso 156).
+  UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'WHATSAPP'::modulo_centro;
   INSERT INTO preferencias_notificacion (paciente_id, whatsapp) VALUES (test.u('15'), true);
+  UPDATE configuracion_centro SET modulos_activos = array_remove(modulos_activos, 'WHATSAPP');
   ASSERT (SELECT whatsapp_consentido_en IS NOT NULL FROM preferencias_notificacion WHERE paciente_id = test.u('15')), 'caso 147: fecha del consentimiento';
   v_msg := cancelar_datos_perifericos(test.u('15'), v_sol);
   ASSERT v_msg LIKE '%15 años%', 'caso 147: explica el motivo legal';
@@ -5678,7 +5699,11 @@ END $$;
 
 \echo 152 Feriados por ley (AUD-01 E2.3a): reglas de traslado y Pascua; el job no corre con usuario; ADMIN agrega y quita solo de hoy en adelante; quitado no cuenta y el job no lo revive
 DO $$ DECLARE v date := (now() AT TIME ZONE 'America/Santiago')::date + 400; BEGIN
-  IF extract(isodow FROM v) >= 6 THEN v := v + 2; END IF;
+  -- Dia habil: ni fin de semana ni feriado (hoy + 400 cayo en 8-12-2027, Inmaculada Concepcion).
+  WHILE extract(isodow FROM v) >= 6 OR EXISTS (SELECT 1 FROM feriados WHERE fecha = v)
+        OR EXISTS (SELECT 1 FROM feriados_legales(extract(year FROM v)::int) WHERE fecha = v) LOOP
+    v := v + 1;
+  END LOOP;
   ASSERT (SELECT array_agg(fecha ORDER BY fecha) FROM feriados_legales(2023) WHERE fecha IN ('2023-01-02', '2023-04-07', '2023-06-21', '2023-06-26', '2023-10-09', '2023-10-27'))
          = ARRAY['2023-01-02', '2023-04-07', '2023-06-21', '2023-06-26', '2023-10-09', '2023-10-27']::date[], 'caso 152: 2023 (2 de enero, Pascua, traslados, 27 de octubre)';
   ASSERT (SELECT count(*) FROM feriados_legales(2024) WHERE fecha IN ('2024-06-20', '2024-09-20')) = 2, 'caso 152: 2024 solsticio 20-06 y 20 de septiembre viernes';
@@ -5854,8 +5879,11 @@ END $$;
 
 \echo 155 Revocar con sesiones por cubrir: 422 hasta resolverlas y la cita ya no se mueve a ese profesional; C-11: cargos a la liquidacion solo si el centro lo decide, inasistencia justificada no es sesion realizada; correo del equipo por grupo
 DO $$ DECLARE v uuid; v_cita uuid; v_otra uuid; v_trat uuid; v_liq uuid; v_a uuid; v_b uuid; r uuid := gen_random_uuid(); l liquidaciones%ROWTYPE; BEGIN
+  -- Bloque de dos dias (dato de prueba como dueño): no cabe en el horario de un dia.
+  ALTER TABLE bloques_atencion DISABLE TRIGGER bloques_atencion_validos;
   INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin)
   VALUES (test.u('b5'), test.box_de(test.u('b5')), test.dia(46, 0), test.dia(48, 0));
+  ALTER TABLE bloques_atencion ENABLE TRIGGER bloques_atencion_validos;
   PERFORM test.ctx('a1', 'ADMIN');
   v_trat := (SELECT profesional_id FROM pacientes WHERE id = test.u('0a'));
   v := otorgar_acceso_temporal(test.u('0a'), test.u('b5'), 'REEMPLAZO', 'LECTURA_ESCRITURA', NULL, now() + interval '60 days');
@@ -5880,10 +5908,10 @@ DO $$ DECLARE v uuid; v_cita uuid; v_otra uuid; v_trat uuid; v_liq uuid; v_a uui
   UPDATE configuracion_centro SET comision_centro_porcentaje = 10, modelo_cobro = 'CENTRO', cobro_inasistencia_porcentaje = 100,
                                   penalizacion_cancelacion_porcentaje = 25, comision_derivacion_tipo = 'GENERAL';
   INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin, monto)
-  VALUES (test.u('e1'), test.u('b9'), test.u('16'), date_trunc('hour', now()) - interval '10 days', date_trunc('hour', now()) - interval '10 days' + interval '1 hour', 30000)
+  VALUES (test.u('e1'), test.u('b9'), test.u('16'), test.dia(-10, 12), test.dia(-10, 13), 30000)
   RETURNING id INTO v_a;
   INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin, monto)
-  VALUES (test.u('e1'), test.u('b9'), test.u('16'), date_trunc('hour', now()) - interval '9 days', date_trunc('hour', now()) - interval '9 days' + interval '1 hour', 30000)
+  VALUES (test.u('e1'), test.u('b9'), test.u('16'), test.dia(-9, 12), test.dia(-9, 13), 30000)
   RETURNING id INTO v_b;
   PERFORM registrar_pago(v_a, 30000, 'EFECTIVO');
   PERFORM registrar_pago(v_b, 30000, 'EFECTIVO');
@@ -5909,6 +5937,109 @@ DO $$ DECLARE v uuid; v_cita uuid; v_otra uuid; v_trat uuid; v_liq uuid; v_a uui
   ASSERT (SELECT count(*) FROM notificaciones WHERE referencia_id = r AND canal = 'CORREO') = 1, 'caso 155: sin grupo llega siempre';
   PERFORM encolar_notificacion('MENSAJE_INTERNO', NULL, test.u('b2'), r, NULL);
   ASSERT (SELECT count(*) FROM notificaciones WHERE referencia_id = r AND canal = 'CORREO') = 2, 'caso 155: sin fila llega todo';
+END $$;
+
+\echo 156 Modulo WHATSAPP (2026-11-03, dueño con contexto): desactivado por defecto; sin el modulo el paciente no da el consentimiento nuevo (23514); uno ya dado se conserva y se puede retirar
+DO $$ DECLARE v_conf configuracion_centro; v_p uuid := gen_random_uuid(); BEGIN
+  SELECT * INTO v_conf FROM configuracion_centro;
+  ASSERT NOT 'WHATSAPP' = ANY (v_conf.modulos_activos), 'caso 156: desactivado por defecto';
+  ASSERT NOT whatsapp_contratado(), 'caso 156: whatsapp_contratado() sin el modulo';
+  INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id) VALUES (v_p, 'P156', 'W', '1990-01-01', test.u('b1'));
+  BEGIN
+    INSERT INTO preferencias_notificacion (paciente_id, whatsapp) VALUES (v_p, true);
+    RAISE EXCEPTION 'caso 156: consentir sin el modulo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO preferencias_notificacion (paciente_id, recordatorios) VALUES (v_p, false);
+  BEGIN
+    UPDATE preferencias_notificacion SET whatsapp = true WHERE paciente_id = v_p;
+    RAISE EXCEPTION 'caso 156: activar sin el modulo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'WHATSAPP'::modulo_centro;
+  ASSERT whatsapp_contratado(), 'caso 156: con el modulo';
+  UPDATE preferencias_notificacion SET whatsapp = true WHERE paciente_id = v_p;
+  UPDATE configuracion_centro SET modulos_activos = v_conf.modulos_activos;
+  -- Ya dado: se conserva al editar otra preferencia y se puede retirar.
+  UPDATE preferencias_notificacion SET recordatorios = true WHERE paciente_id = v_p;
+  ASSERT (SELECT whatsapp AND whatsapp_consentido_en IS NOT NULL FROM preferencias_notificacion WHERE paciente_id = v_p), 'caso 156: se conserva';
+  UPDATE preferencias_notificacion SET whatsapp = false WHERE paciente_id = v_p;
+  ASSERT (SELECT NOT whatsapp FROM preferencias_notificacion WHERE paciente_id = v_p), 'caso 156: se retira';
+END $$;
+
+\connect :app_url
+\echo 157 Horario cerrado y acuerdos por profesional (2026-11-05): sin dias el centro esta cerrado (no se aparta box ni hay horas libres); acuerdo solo ADMIN, append-only, el profesional ve el suyo y no el ajeno; con cobro propio rige cobro_directo; liquidacion con cuota fija, uso de box y regla del acuerdo; nunca dentro de un periodo liquidado
+DO $$ DECLARE v_a uuid; v_a2 uuid; v_l uuid; r liquidaciones; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  DELETE FROM horario_centro;
+  ASSERT NOT en_horario_centro(test.lunes(30, 10), test.lunes(30, 11)), 'caso 157: sin dias = cerrado';
+  ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_espacios(test.lunes(30, 0), test.lunes(31, 0))), 'caso 157: sin horas libres de box';
+  PERFORM test.ctx('b5', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id)
+    VALUES (test.u('b5'), test.u('e2'), test.lunes(30, 10), test.lunes(30, 11), test.u('b5'));
+    RAISE EXCEPTION 'caso 157: apartar box con el centro cerrado debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) SELECT d, 0, 1440 FROM generate_series(1, 7) d;
+  ASSERT en_horario_centro(test.lunes(30, 10), test.lunes(30, 11)), 'caso 157: abierto otra vez';
+
+  -- Acuerdos: solo ADMIN registra, solo para un profesional vigente, A siempre lo cobra el profesional.
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM registrar_acuerdo_profesional(test.u('b4'), 'CENTRO', 'CENTRO', 15, 'GENERAL', 0, 50000, 0, false, '2029-01-01');
+    RAISE EXCEPTION 'caso 157: GESTION define acuerdos debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM registrar_acuerdo_profesional(test.u('b4'), 'DIRECTO', 'CENTRO', 0, 'GENERAL', 0, 0, 0, false, '2029-01-01');
+    RAISE EXCEPTION 'caso 157: modelo A cobrado por el centro debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM registrar_acuerdo_profesional(test.u('c1'), 'CENTRO', 'CENTRO', 10, 'GENERAL', 0, 0, 0, false, '2029-01-01');
+    RAISE EXCEPTION 'caso 157: acuerdo de un practicante debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  v_a := registrar_acuerdo_profesional(test.u('b4'), 'MIXTO', 'CENTRO', 12, 'MONTO_FIJO', 5000, 90000, 1000, true, '2029-01-01');
+  BEGIN
+    PERFORM registrar_acuerdo_profesional(test.u('b4'), 'CENTRO', 'CENTRO', 20, 'GENERAL', 0, 0, 0, false, '2029-01-01');
+    RAISE EXCEPTION 'caso 157: dos versiones con la misma fecha debio fallar';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  BEGIN
+    UPDATE acuerdos_profesional SET cuota_mensual = 0 WHERE id = v_a;
+    RAISE EXCEPTION 'caso 157: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b4', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM acuerdos_profesional) = 1, 'caso 157: el profesional ve su acuerdo';
+  PERFORM test.ctx('b3', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM acuerdos_profesional), 'caso 157: no ve el ajeno';
+
+  -- Quien cobra: un acuerdo vigente hoy con cobro propio manda sobre el modelo del centro.
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM registrar_acuerdo_profesional(test.u('b5'), 'DIRECTO', 'PROFESIONAL', 0, 'PORCENTAJE', 15, 0, 6800, true,
+                                        (now() AT TIME ZONE 'America/Santiago')::date);
+
+  -- Liquidacion de enero 2029 de b4 (sin pagos): cuota del mes y horas de su bloque (todo el mes).
+  PERFORM test.ctx('a3', 'GESTION');
+  v_l := generar_liquidacion(test.u('b4'), '2029-01-01', '2029-02-01');
+  SELECT * INTO r FROM liquidaciones WHERE id = v_l;
+  ASSERT r.acuerdo_id = v_a AND r.comision_porcentaje = 12 AND r.cuota_fija = 90000 AND r.horas_box = 744
+         AND r.uso_box = 744000 AND r.total = -834000, format('caso 157: liquidacion con acuerdo %s', row_to_json(r));
+  v_a2 := generar_liquidacion(test.u('b4'), '2029-02-01', '2029-02-15');
+  ASSERT (SELECT cuota_fija FROM liquidaciones WHERE id = v_a2) = 90000, 'caso 157: el dia 1 cae en el periodo';
+  v_a2 := generar_liquidacion(test.u('b4'), '2029-02-15', '2029-03-01');
+  ASSERT (SELECT cuota_fija FROM liquidaciones WHERE id = v_a2) = 0, 'caso 157: sin dia 1, sin cuota';
+  PERFORM avanzar_liquidacion(v_l, 'EMITIDA');
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM registrar_acuerdo_profesional(test.u('b4'), 'CENTRO', 'CENTRO', 20, 'GENERAL', 0, 0, 0, false, '2029-01-20');
+    RAISE EXCEPTION 'caso 157: acuerdo dentro de un periodo liquidado debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM registrar_acuerdo_profesional(test.u('b4'), 'CENTRO', 'CENTRO', 20, 'GENERAL', 0, 0, 0, false, '2029-03-01');
+END $$;
+\connect :owner_url
+-- cobro_directo es interna (sin EXECUTE para app_user): se mira como dueño.
+DO $$ BEGIN
+  ASSERT cobro_directo(test.u('b5')), 'caso 157: con acuerdo A vigente cobra el profesional';
+  ASSERT NOT cobro_directo(test.u('b4')), 'caso 157: un acuerdo futuro aun no rige (manda el centro)';
+  ASSERT NOT cobro_directo(test.u('b3')), 'caso 157: sin acuerdo rige el centro';
 END $$;
 
 \echo 78 Sin texto plano: toda columna bytea cifrada tiene el formato; seed sin datos sensibles; copia de autoria intacta tras cerrar cuentas

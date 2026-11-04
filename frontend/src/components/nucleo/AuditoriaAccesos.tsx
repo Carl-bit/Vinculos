@@ -93,7 +93,8 @@ const diaChile = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'America
  * su rol activo. Solo ADMIN. La edicion de datos personales muestra los
  * campos que cambiaron, nunca los valores. Por defecto, los ultimos 7 dias.
  */
-export function AuditoriaAccesos() {
+export function AuditoriaAccesos({ plegable = false }: { plegable?: boolean } = {}) {
+  const [abierta, setAbierta] = useState(!plegable);
   const [desde, setDesde] = useState(() => diaChile(new Date(Date.now() - 6 * 86_400_000)));
   const [hasta, setHasta] = useState(() => diaChile(new Date()));
   const [accion, setAccion] = useState<Accion | ''>('');
@@ -121,60 +122,114 @@ export function AuditoriaAccesos() {
       titulo="Auditoría de accesos"
       bajada="Quién vio, editó, descargó o exportó datos del centro, cuándo y con qué rol activo. Las ediciones muestran los campos que cambiaron, nunca los valores."
     >
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <Field label="Desde">{(p) => <Input {...p} type="date" max={hasta} value={desde} onChange={(e) => setDesde(e.target.value)} />}</Field>
-        <Field label="Hasta">{(p) => <Input {...p} type="date" min={desde} value={hasta} onChange={(e) => setHasta(e.target.value)} />}</Field>
-        <Field label="Acción">
-          {(p) => (
-            <Select {...p} value={accion} onChange={(e) => setAccion(e.target.value as Accion | '')}>
-              <option value="">Todas</option>
-              {ACCIONES.map((a) => (
-                <option key={a.valor} value={a.valor}>
-                  {a.texto}
-                </option>
-              ))}
-            </Select>
+      {plegable && (
+        <div className="mt-4 flex flex-col gap-2">
+          <ResumenAuditoria filas={consulta.data} cargando={consulta.isPending} abierta={abierta} onAbrir={() => setAbierta((v) => !v)} />
+        </div>
+      )}
+      {abierta && (
+        <>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <Field label="Desde">{(p) => <Input {...p} type="date" max={hasta} value={desde} onChange={(e) => setDesde(e.target.value)} />}</Field>
+            <Field label="Hasta">{(p) => <Input {...p} type="date" min={desde} value={hasta} onChange={(e) => setHasta(e.target.value)} />}</Field>
+            <Field label="Acción">
+              {(p) => (
+                <Select {...p} value={accion} onChange={(e) => setAccion(e.target.value as Accion | '')}>
+                  <option value="">Todas</option>
+                  {ACCIONES.map((a) => (
+                    <option key={a.valor} value={a.valor}>
+                      {a.texto}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
+          <p className="mt-2 mb-4 text-[12.5px] font-semibold text-neutral-800">Se muestran hasta 300 registros, del más reciente al más antiguo.</p>
+          {!valido ? (
+            <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+              La fecha de inicio debe ser anterior o igual a la de término.
+            </p>
+          ) : (
+            <EstadoConsulta consulta={consulta} vacio={(f) => f.length === 0} textoVacio="Sin registros en el período">
+              {(filas) => (
+                <Tabla etiqueta="Registros de auditoría">
+                  <thead>
+                    <tr>
+                      <Th>Fecha y hora</Th>
+                      <Th>Quién</Th>
+                      <Th>Paciente</Th>
+                      <Th>Qué</Th>
+                      <Th>Acción</Th>
+                      <Th>Detalle</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filas.map((f) => (
+                      <tr key={`${f.origen}-${f.id}`}>
+                        <Td className="whitespace-nowrap tabular-nums">{formatoFechaHora(f.ocurridoEn)}</Td>
+                        <Td>
+                          <span className="font-bold">{quien(f.usuarioNombre, f.rol)}</span>
+                          <span className="block text-[12.5px] font-semibold text-neutral-700">{NOMBRE_ROL[f.rol]}</span>
+                        </Td>
+                        <Td>{f.pacienteNombre ?? <span className="text-neutral-700">—</span>}</Td>
+                        <Td>{RECURSOS[f.recurso] ?? f.recurso}</Td>
+                        <Td>{TEXTO_ACCION.get(f.accion) ?? f.accion}</Td>
+                        <Td className="min-w-[180px] text-[13px] text-neutral-800">{detalleLegible(f.detalle)}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Tabla>
+              )}
+            </EstadoConsulta>
           )}
-        </Field>
-      </div>
-      <p className="mt-2 mb-4 text-[12.5px] font-semibold text-neutral-800">Se muestran hasta 300 registros, del más reciente al más antiguo.</p>
-      {!valido ? (
-        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
-          La fecha de inicio debe ser anterior o igual a la de término.
-        </p>
-      ) : (
-        <EstadoConsulta consulta={consulta} vacio={(f) => f.length === 0} textoVacio="Sin registros en el período">
-          {(filas) => (
-            <Tabla etiqueta="Registros de auditoría">
-              <thead>
-                <tr>
-                  <Th>Fecha y hora</Th>
-                  <Th>Quién</Th>
-                  <Th>Paciente</Th>
-                  <Th>Qué</Th>
-                  <Th>Acción</Th>
-                  <Th>Detalle</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {filas.map((f) => (
-                  <tr key={`${f.origen}-${f.id}`}>
-                    <Td className="whitespace-nowrap tabular-nums">{formatoFechaHora(f.ocurridoEn)}</Td>
-                    <Td>
-                      <span className="font-bold">{quien(f.usuarioNombre, f.rol)}</span>
-                      <span className="block text-[12.5px] font-semibold text-neutral-700">{NOMBRE_ROL[f.rol]}</span>
-                    </Td>
-                    <Td>{f.pacienteNombre ?? <span className="text-neutral-700">—</span>}</Td>
-                    <Td>{RECURSOS[f.recurso] ?? f.recurso}</Td>
-                    <Td>{TEXTO_ACCION.get(f.accion) ?? f.accion}</Td>
-                    <Td className="min-w-[180px] text-[13px] text-neutral-800">{detalleLegible(f.detalle)}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Tabla>
-          )}
-        </EstadoConsulta>
+        </>
       )}
     </Panel>
+  );
+}
+
+type Fila = NonNullable<ReturnType<typeof useQuery<paths['/api/auditoria/accesos']['get']['responses']['200']['content']['application/json']>>['data']>[number];
+
+/**
+ * Diseño "Opcion A submenu agrupado": resumen del periodo por defecto (7 dias)
+ * y el ultimo acceso a una ficha, sin nombres de pacientes. "Abrir auditoria"
+ * despliega los filtros y la tabla.
+ */
+function ResumenAuditoria({ filas, cargando, abierta, onAbrir }: { filas?: Fila[]; cargando: boolean; abierta: boolean; onAbrir: () => void }) {
+  const cuenta = (a: string) => filas?.filter((f) => f.accion === a).length ?? 0;
+  const ultimo = filas?.find((f) => f.pacienteNombre !== null);
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-3 rounded-[12px] border border-divider bg-bg px-3 py-2.5">
+        <span className="flex min-w-0 flex-[1_1_260px] flex-col">
+          <strong className="text-[14px]">Últimos 7 días</strong>
+          <span className="text-[12px] font-semibold text-neutral-700">
+            {cargando
+              ? 'Cargando…'
+              : `${cuenta('LECTURA')} lecturas · ${cuenta('ESCRITURA')} ediciones · ${cuenta('EXPORTACION')} exportaciones${filas?.length === 300 ? ' (primeros 300 registros)' : ''}`}
+          </span>
+        </span>
+        <button
+          type="button"
+          aria-expanded={abierta}
+          onClick={onAbrir}
+          className="min-h-9 cursor-pointer rounded-full border border-divider bg-surface px-3.5 text-[13px] font-extrabold hover:border-accent-500"
+        >
+          {abierta ? 'Cerrar auditoría' : 'Abrir auditoría'}
+        </button>
+      </div>
+      {ultimo && (
+        <div className="flex flex-wrap items-center gap-3 rounded-[12px] border border-divider bg-bg px-3 py-2.5">
+          <span className="flex min-w-0 flex-col">
+            <strong className="text-[14px]">Último acceso a una ficha</strong>
+            <span className="text-[12px] font-semibold text-neutral-700">
+              {quien(ultimo.usuarioNombre, ultimo.rol)} · {formatoFechaHora(ultimo.ocurridoEn)} · {TEXTO_ACCION.get(ultimo.accion) ?? ultimo.accion} de{' '}
+              {(RECURSOS[ultimo.recurso] ?? ultimo.recurso).toLowerCase()}
+            </span>
+          </span>
+        </div>
+      )}
+    </>
   );
 }

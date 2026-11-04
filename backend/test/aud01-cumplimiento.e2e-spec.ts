@@ -352,7 +352,7 @@ describe('AUD-01 cumplimiento', () => {
   });
 
   describe('E2.3c Bloqueo y canales', () => {
-    it('bloqueado: no se agenda ni se edita (409 con el motivo), lo agendado sigue; al levantar vuelve; el paciente activa y retira WhatsApp', async () => {
+    it('bloqueado: no se agenda ni se edita (409 con el motivo), lo agendado sigue; al levantar vuelve; el paciente activa WhatsApp solo con el modulo y lo retira', async () => {
       const p = await t.datos.usuario('PROFESIONAL');
       await t.datos.disponibleSiempre(p.id);
       const pac = await t.datos.usuarioPaciente(p.id);
@@ -409,7 +409,17 @@ describe('AUD-01 cumplimiento', () => {
               .get('/api/notificaciones/preferencias')
               .set(await tk(pac));
       expect((await prefs()).body).toEqual(expect.objectContaining({ whatsapp: false, whatsappConsentidoEn: null }));
-      expect((await prefs({ whatsapp: true })).body).toEqual(expect.objectContaining({ whatsapp: true, whatsappConsentidoEn: expect.any(String) }));
+      // 2026-11-03: sin el modulo WHATSAPP (desactivado por defecto) el consentimiento no se puede dar.
+      const sinModulo = await prefs({ whatsapp: true });
+      expect(sinModulo.status).toBe(422);
+      expect(sinModulo.body.mensaje).toMatch(/no tiene avisos por WhatsApp/);
+      await t.dueno.$executeRaw`UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'WHATSAPP'::modulo_centro`;
+      try {
+        expect((await prefs({ whatsapp: true })).body).toEqual(expect.objectContaining({ whatsapp: true, whatsappConsentidoEn: expect.any(String) }));
+      } finally {
+        await t.dueno.$executeRaw`UPDATE configuracion_centro SET modulos_activos = array_remove(modulos_activos, 'WHATSAPP')`;
+      }
+      // Ya dado, se retira aunque el modulo este apagado.
       expect((await prefs({ whatsapp: false })).body).toEqual(expect.objectContaining({ whatsapp: false, whatsappConsentidoEn: null }));
     });
   });

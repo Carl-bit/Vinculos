@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Configuración opción A: submenú agrupado</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8A4B1F}a:hover{color:#6B3714}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1500px; box-sizing: border-box; background: #E6DED1; color: #2B2420; font-family: 'Figtree', system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-wrap: wrap">
+
+<nav aria-label="Menú principal" style="flex: 1 1 200px; max-width: 210px; box-sizing: border-box; background: #F4ECE0; padding: 24px 14px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #DCCFBB">
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 17px; padding: 0 10px 24px"><span style="width: 8px; height: 8px; border-radius: 999px; background: #4F6B2F"></span>Centro de Prueba</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Inicio</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mi perfil</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mensajes</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 20px 12px 6px">MÓDULOS</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Fichas y Pacientes</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Agenda y Espacios</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Match Terapéutico</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Cobros</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 20px 12px 6px">CENTRO</div>
+<a href="#" style="text-decoration: none; color: #2F3B1F; padding: 10px 12px; border-radius: 10px; background: #E1E8CF; font-weight: 600">Configuración</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Página pública</a>
+<div style="margin-top: auto; padding: 12px; font-size: 13px; color: #5E5247">Rol activo: <strong>Cuenta madre</strong></div>
+</nav>
+
+<main style="flex: 999 1 640px; min-width: 0; box-sizing: border-box; padding: 28px 32px 48px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: #8A4B1F">CENTRO</span>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 34px; line-height: 1.05">Configuración del centro</h1>
+<span style="font-size: 14px; color: #5E5247">Datos, reglas y políticas que usan todos los módulos y la página pública.</span>
+</div>
+<label style="margin-left: auto; display: flex; flex-direction: column; gap: 4px; min-width: 300px">
+<span style="font-size: 12px; font-weight: 700">Buscar un ajuste</span>
+<input type="search" placeholder="Ej.: comisión, recordatorio, feriado" style="min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F7F1E8; color: #2B2420; font-size: 14px">
+</label>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<nav aria-label="Secciones de configuración" style="flex: 1 1 240px; max-width: 270px; background: #F4ECE0; border: 1px solid #DCCFBB; border-radius: 18px; padding: 14px 10px; display: flex; flex-direction: column; gap: 2px">
+<sc-for list="{{ grupos }}" as="g" hint-placeholder-count="7">
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 12px 10px 4px">{{ g.titulo }}</div>
+<sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+<button type="button" aria-current="{{ it.actual }}" onClick="{{ it.pick }}" style="display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 10px 0 12px; border: 0; border-radius: 10px; background: {{ it.fondo }}; color: {{ it.color }}; font-weight: {{ it.peso }}; font-size: 14px; text-align: left">
+<span style="flex: 1">{{ it.label }}</span>
+<sc-if value="{{ it.hayChip }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: {{ it.chipFondo }}; color: {{ it.chipColor }}; white-space: nowrap">{{ it.chip }}</span></sc-if>
+</button>
+</sc-for>
+</sc-for>
+</nav>
+
+<div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 18px">
+
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px; font-weight: 800">{{ secTitulo }}</h2>
+<span style="font-size: 13px; color: #5E5247">{{ secDesc }}</span>
+</div>
+
+<sc-if value="{{ sDatos }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+<div style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 18px">
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Identidad y contacto</h3>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Nombre del centro *</span><input defaultValue="Centro de Prueba Vinculos (DEMO)" style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">RUT del centro</span><input defaultValue="76.111.222-8" style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"><span style="font-size: 12px; color: #2F3B1F; font-weight: 600">Dígito verificador correcto</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Correo de contacto</span><input type="email" defaultValue="contacto@centro-prueba.cl" style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"><span style="font-size: 12px; color: #5E5247">También recibe las respuestas a los correos del sistema.</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Teléfono</span><input type="tel" defaultValue="+56 2 2222 2222" style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Dirección</span><input defaultValue="Dirección ficticia 123, Santiago" style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">WhatsApp</span><input type="tel" placeholder="+56 9 XXXX XXXX" style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Instagram</span><input placeholder="@centro" style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; border: 1px dashed #CDBFAE; background: #FFFDF9">
+<span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 12px; background: #EFE5D6; display: flex; align-items: center; justify-content: center; color: #5E5247"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="9" cy="9" r="2"></circle><path d="M21 15l-5-5L5 21"></path></svg></span>
+<span style="display: flex; flex-direction: column"><strong>Logo del centro</strong><span style="font-size: 12px; color: #5E5247">JPEG, PNG o WebP. Se le quitan los metadatos antes de publicarlo.</span></span>
+<button type="button" style="margin-left: auto; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F4ECE0; font-weight: 700; color: #2B2420">Subir logo</button>
+</div>
+</section>
+
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: baseline; gap: 10px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Textos de la página pública</h3><a href="#" style="font-size: 13px; font-weight: 700">Abrir la página pública</a></div>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Título de la portada</span><input defaultValue="Acompañamiento psicológico, con orden detrás." style="min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Texto de la portada</span><textarea rows="2" defaultValue="Atendemos consultas individuales, de pareja y familiares. Reserva en línea y un equipo que se coordina en la misma plataforma." style="padding: 10px 14px; border-radius: 12px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px; resize: vertical"></textarea></label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Misión</span><textarea rows="3" placeholder="Para qué existe el centro, en dos o tres líneas." style="padding: 10px 14px; border-radius: 12px; border: 1px solid #E8D09A; background: #FFFDF9; font-size: 14px; resize: vertical"></textarea><span style="font-size: 12px; color: #7A520A; font-weight: 600">Vacía: "Quiénes somos" no se muestra en la página.</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Visión</span><textarea rows="3" placeholder="Hacia dónde quiere crecer el centro." style="padding: 10px 14px; border-radius: 12px; border: 1px solid #E8D09A; background: #FFFDF9; font-size: 14px; resize: vertical"></textarea><span style="font-size: 12px; color: #7A520A; font-weight: 600">Vacía.</span></label>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; font-weight: 700">Servicios</span><span style="font-size: 12px; color: #5E5247">3 de 12</span><button type="button" style="margin-left: auto; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F4ECE0; font-weight: 700; font-size: 13px; color: #2B2420">Agregar servicio</button></div>
+<sc-for list="{{ servicios }}" as="sv" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #FFFDF9; border: 1px solid #E3D7C4">
+<span aria-hidden="true" style="color: #8A6E55; font-weight: 700">::</span>
+<span style="display: flex; flex-direction: column; flex: 1; min-width: 0"><strong>{{ sv.n }}</strong><span style="font-size: 12px; color: #5E5247">{{ sv.d }}</span></span>
+<button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: #8A4B1F; font-weight: 700; font-size: 13px">Editar</button>
+<button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 999px; border: 0; background: transparent; color: #5E5247; font-weight: 600; font-size: 13px">Quitar</button>
+</div>
+</sc-for>
+</div>
+</section>
+</div>
+
+<aside aria-label="Vista previa" style="flex: 1 1 280px; max-width: 340px; display: flex; flex-direction: column; gap: 14px">
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Color de marca</h3>
+<span style="font-size: 12px; color: #5E5247">Solo cambia la página pública; el panel mantiene la paleta del sistema.</span>
+<div role="group" aria-label="Color de marca" style="display: flex; gap: 8px">
+<sc-for list="{{ colores }}" as="c" hint-placeholder-count="5">
+<button type="button" aria-label="{{ c.nombre }}" aria-pressed="{{ c.on }}" onClick="{{ c.pick }}" style="width: 44px; height: 44px; border-radius: 999px; background: {{ c.hex }}; border: {{ c.borde }}"></button>
+</sc-for>
+</div>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Hexadecimal</span><input value="{{ colorHex }}" readonly="" style="min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+<div style="border-radius: 14px; background: #FFFDF9; border: 1px solid #E3D7C4; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247">ASÍ SE VE EN LA PORTADA</span>
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px; font-weight: 800; line-height: 1.15">Acompañamiento psicológico, con orden detrás.</span>
+<span style="align-self: flex-start; min-height: 40px; display: inline-flex; align-items: center; padding: 0 18px; border-radius: 999px; background: {{ colorHex }}; color: #FFFFFF; font-weight: 700">Reservar una hora</span>
+<span style="font-size: 12px; font-weight: 700; color: {{ contrasteColor }}">{{ contrasteTexto }}</span>
+</div>
+</section>
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{ sHorario }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ cerrado }}" hint-placeholder-val="{{ true }}">
+<div role="status" style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 14px; background: #FFF4D6; border: 1px solid #E8D09A; color: #5A3D00"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6A2 2 0 0 0 22 18L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><span><strong>El centro figura cerrado todos los días.</strong> Nadie puede agendar ni abrir horarios de box hasta que definas al menos un día.</span></div>
+</sc-if>
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+<section style="flex: 999 1 480px; min-width: 0; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 10px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Horario general</h3><button type="button" onClick="{{ copiarLunes }}" style="margin-left: auto; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F4ECE0; font-weight: 700; font-size: 13px; color: #2B2420">Lunes a viernes, 09:00 a 20:00</button></div>
+<span style="font-size: 12px; color: #5E5247">Ninguna cita ni horario de box puede quedar fuera. Las citas ya agendadas no se mueven.</span>
+<sc-for list="{{ dias }}" as="d" hint-placeholder-count="7">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 52px; padding: 4px 12px; border-radius: 12px; background: {{ d.fondo }}">
+<button type="button" role="switch" aria-checked="{{ d.abierto }}" aria-label="{{ d.aria }}" onClick="{{ d.toggle }}" style="width: 48px; height: 28px; border-radius: 999px; border: 0; background: {{ d.swFondo }}; position: relative; padding: 0"><span style="position: absolute; top: 3px; left: {{ d.swLeft }}; width: 22px; height: 22px; border-radius: 999px; background: #FFFFFF"></span></button>
+<span style="width: 92px; font-weight: 700">{{ d.nombre }}</span>
+<sc-if value="{{ d.abierto }}" hint-placeholder-val="{{ false }}">
+<input aria-label="Desde" defaultValue="09:00" style="width: 92px; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">
+<span style="color: #5E5247">a</span>
+<input aria-label="Hasta" defaultValue="20:00" style="width: 92px; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">
+<button type="button" style="min-height: 36px; padding: 0 10px; border: 0; background: transparent; color: #8A4B1F; font-weight: 700; font-size: 13px">Agregar pausa</button>
+</sc-if>
+<sc-if value="{{ d.cerradoDia }}" hint-placeholder-val="{{ true }}"><span style="color: #5E5247">Cerrado</span></sc-if>
+</div>
+</sc-for>
+<a href="#" style="font-size: 13px; font-weight: 700; padding-top: 4px">Ajustar horarios por box en Agenda y Espacios</a>
+</section>
+<section style="flex: 1 1 280px; max-width: 360px; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Feriados</h3>
+<span style="font-size: 12px; color: #5E5247">Los nacionales se calculan solos cada año. No cuentan como días hábiles en los plazos.</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 700; color: #5E5247">PRÓXIMOS</span>
+<div style="display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: #FFFDF9"><span>8 dic · Inmaculada Concepción</span><span style="font-size: 12px; color: #5E5247">Ley</span></div>
+<div style="display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: #FFFDF9"><span>25 dic · Navidad</span><span style="font-size: 12px; color: #5E5247">Ley</span></div>
+<div style="display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: #FFFDF9"><span>1 ene · Año Nuevo</span><span style="font-size: 12px; color: #5E5247">Ley</span></div>
+</div>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Agregar feriado propio</span><input type="date" style="min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+<input aria-label="Nombre del feriado" placeholder="Ej.: Feriado regional de Arica" style="min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">
+<div style="display: flex; gap: 8px; flex-wrap: wrap"><button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 0; background: #2B2420; color: #F4ECE0; font-weight: 700">Agregar</button><a href="#" style="align-self: center; font-size: 13px; font-weight: 700">Ver 2026 completo (16)</a></div>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{ sCobros }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; background: #E1E8CF; border: 1px solid #C3D0A3; color: #2F3B1F; font-size: 13px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg><span>Vinculos registra, calcula y conecta. El dinero pasa por la cuenta del centro o de cada profesional, y las boletas las emite su titular.</span></div>
+
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Acuerdo por defecto para profesionales nuevos</h3>
+<span style="font-size: 12px; color: #5E5247">Se copia al agregar a alguien al equipo. Después cada acuerdo se ajusta por persona.</span>
+<div role="radiogroup" aria-label="Acuerdo por defecto" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ modelos }}" as="m" hint-placeholder-count="3">
+<button type="button" role="radio" aria-checked="{{ m.on }}" onClick="{{ m.pick }}" style="display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px; border-radius: 14px; border: {{ m.borde }}; background: {{ m.fondo }}; color: #2B2420">
+<span style="display: flex; align-items: center; gap: 8px; width: 100%"><span style="width: 28px; height: 28px; border-radius: 999px; background: #2B2420; color: #F4ECE0; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; font-size: 13px">{{ m.letra }}</span><strong style="font-size: 15px">{{ m.titulo }}</strong></span>
+<span style="font-size: 13px; color: #4A3F36">{{ m.desc }}</span>
+<span style="font-size: 12px; color: #5E5247">{{ m.ejemplo }}</span>
+</button>
+</sc-for>
+</div>
+</section>
+
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Acuerdos por profesional</h3><span style="font-size: 12px; color: #5E5247">Un cambio rige desde su fecha. Lo ya liquidado no cambia.</span></div>
+<div style="overflow-x: auto">
+<div style="min-width: 760px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.8fr); gap: 10px; padding: 0 12px; font-size: 12px; font-weight: 700; color: #5E5247"><span>Profesional</span><span>Quién cobra</span><span>Cargos del centro</span><span>Vigente desde</span><span></span></div>
+<sc-for list="{{ acuerdos }}" as="a" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{ a.sel }}" onClick="{{ a.pick }}" style="display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.8fr); gap: 10px; align-items: center; min-height: 52px; padding: 6px 12px; border-radius: 12px; border: {{ a.borde }}; background: {{ a.fondo }}; color: #2B2420; text-align: left; font-size: 14px">
+<span style="font-weight: 700">{{ a.nombre }}</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: {{ a.chipFondo }}; color: {{ a.chipColor }}">{{ a.letra }}</span>{{ a.cobra }}</span>
+<span style="font-size: 13px; color: #4A3F36">{{ a.cargos }}</span>
+<span style="font-size: 13px; color: #4A3F36">{{ a.desde }}</span>
+<span style="font-size: 13px; font-weight: 700; color: #8A4B1F">{{ a.accion }}</span>
+</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; padding: 16px; border-radius: 16px; background: #FFFDF9; border: 1px solid #E3D7C4">
+<div style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; font-weight: 700">Acuerdo de {{ det.nombre }}</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ det.piezas }}" as="p" hint-placeholder-count="6">
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">{{ p.l }}</span><input defaultValue="{{ p.v }}" style="min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #F7F1E8; font-size: 14px"><span style="font-size: 11px; color: #5E5247">{{ p.a }}</span></label>
+</sc-for>
+</div>
+</div>
+<div style="flex: 1 1 260px; max-width: 320px; display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 14px; background: #F4ECE0">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247">EJEMPLO DE UN MES</span>
+<span style="font-size: 12px; color: #4A3F36">20 sesiones de $35.000, 8 de pacientes que llegaron por el centro.</span>
+<sc-for list="{{ det.ejemplo }}" as="e" hint-placeholder-count="4">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: {{ e.peso }}; border-top: {{ e.linea }}; padding-top: {{ e.pad }}"><span>{{ e.l }}</span><span>{{ e.v }}</span></div>
+</sc-for>
+<span style="font-size: 11px; color: #5E5247">Cálculo informativo, no tributario.</span>
+</div>
+</div>
+</section>
+
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Cancelaciones, inasistencias y deudas</h3>
+<span style="font-size: 12px; color: #5E5247">Iguales para todo el centro. Se aplican al resolver cancelaciones y al calcular liquidaciones.</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Aviso para cancelar sin cargo</span><span style="display: flex; align-items: center; gap: 8px"><input defaultValue="24" style="width: 90px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">horas</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Cargo por cancelar tarde</span><span style="display: flex; align-items: center; gap: 8px"><input defaultValue="25" style="width: 90px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">%</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Cargo por inasistencia</span><span style="display: flex; align-items: center; gap: 8px"><input defaultValue="100" style="width: 90px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">%</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Pago previo si agenda el equipo</span><span style="display: flex; align-items: center; gap: 8px"><input defaultValue="12" style="width: 90px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">horas antes</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Días de gracia para una deuda</span><span style="display: flex; align-items: center; gap: 8px"><input defaultValue="0" style="width: 90px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">días</span></label>
+</div>
+<sc-for list="{{ switchesCobro }}" as="w" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 14px; padding: 10px 0; border-top: 1px solid #E3D7C4">
+<span style="flex: 1; display: flex; flex-direction: column"><strong>{{ w.l }}</strong><span style="font-size: 12px; color: #5E5247">{{ w.d }}</span></span>
+<button type="button" role="switch" aria-checked="{{ w.on }}" aria-label="{{ w.l }}" onClick="{{ w.toggle }}" style="width: 48px; height: 28px; border-radius: 999px; border: 0; background: {{ w.swFondo }}; position: relative; padding: 0; flex: none"><span style="position: absolute; top: 3px; left: {{ w.swLeft }}; width: 22px; height: 22px; border-radius: 999px; background: #FFFFFF"></span></button>
+</div>
+</sc-for>
+</section>
+
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px">
+<div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 4px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Parámetros tributarios</h3>
+<span style="font-size: 12px; color: #5E5247">Solo para los cálculos informativos. Los mantiene Vinculos según la ley vigente.</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<span style="padding: 8px 12px; border-radius: 12px; background: #2B2420; color: #F4ECE0; font-size: 13px"><strong>2026</strong> · retención 15,25%</span>
+<span style="padding: 8px 12px; border-radius: 12px; background: #FFFDF9; border: 1px solid #E3D7C4; font-size: 13px"><strong>2027</strong> · 16%</span>
+<span style="padding: 8px 12px; border-radius: 12px; background: #FFFDF9; border: 1px solid #E3D7C4; font-size: 13px"><strong>2028</strong> · 17%</span>
+<span style="padding: 8px 12px; border-radius: 12px; background: #FFFDF9; border: 1px solid #E3D7C4; font-size: 13px"><strong>IVA</strong> · 19% (arriendo de box amoblado)</span>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ sMedios }}" hint-placeholder-val="{{ false }}">
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Lo que ve el paciente al reservar</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ medios }}" as="m" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 14px; background: #FFFDF9; border: {{ m.borde }}">
+<span style="display: flex; align-items: center; gap: 8px"><strong style="flex: 1">{{ m.l }}</strong><button type="button" role="switch" aria-checked="{{ m.on }}" aria-label="{{ m.l }}" onClick="{{ m.toggle }}" style="width: 48px; height: 28px; border-radius: 999px; border: 0; background: {{ m.swFondo }}; position: relative; padding: 0; flex: none"><span style="position: absolute; top: 3px; left: {{ m.swLeft }}; width: 22px; height: 22px; border-radius: 999px; background: #FFFFFF"></span></button></span>
+<span style="font-size: 12px; color: #4A3F36">{{ m.d }}</span>
+<span style="font-size: 12px; font-weight: 700; color: {{ m.notaColor }}">{{ m.nota }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Plazo para pagar o validar</span><span style="display: flex; align-items: center; gap: 8px"><input defaultValue="24" style="width: 90px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">horas · nunca después del inicio de la sesión</span></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Porcentaje para confirmar la hora</span><span style="display: flex; align-items: center; gap: 8px"><input defaultValue="50" style="width: 90px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px">% del valor de la sesión</span></label>
+</div>
+</section>
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Conexiones de cobro</h3><span style="font-size: 12px; color: #5E5247">Cada titular conecta su propia cuenta. Las credenciales se guardan cifradas y no se vuelven a mostrar.</span></div>
+<sc-for list="{{ conexiones }}" as="c" hint-placeholder-count="4">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #FFFDF9; border: 1px solid #E3D7C4">
+<span style="flex: 1 1 200px; display: flex; flex-direction: column"><strong>{{ c.titular }}</strong><span style="font-size: 12px; color: #5E5247">{{ c.tipo }}</span></span>
+<span style="font-size: 12px; color: #4A3F36; flex: 1 1 200px">{{ c.detalle }}</span>
+<span style="font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: {{ c.chipFondo }}; color: {{ c.chipColor }}">{{ c.estado }}</span>
+<button type="button" style="min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F4ECE0; color: #2B2420; font-weight: 700; font-size: 13px">{{ c.accion }}</button>
+</div>
+</sc-for>
+</section>
+</sc-if>
+
+<sc-if value="{{ sAvisos }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+<section style="flex: 999 1 520px; min-width: 0; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+<div role="group" aria-label="Filtrar avisos" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ filtrosAviso }}" as="f" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{ f.on }}" onClick="{{ f.pick }}" style="min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: {{ f.fondo }}; color: {{ f.color }}; font-weight: 700; font-size: 13px">{{ f.l }}</button>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, 1fr)); gap: 6px; font-size: 12px; font-weight: 700; color: #5E5247; padding: 6px 8px 0">
+<span>Aviso</span><span style="text-align: center">Paciente · bandeja</span><span style="text-align: center">Paciente · correo</span><span style="text-align: center">Equipo · bandeja</span><span style="text-align: center">Equipo · correo</span>
+</div>
+<sc-for list="{{ gruposAviso }}" as="g" hint-placeholder-count="4">
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #8A4B1F; padding: 8px 8px 2px">{{ g.t }}</div>
+<sc-for list="{{ g.filas }}" as="r" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 2px 8px">
+<span style="font-weight: 600">{{ r.n }}</span>
+<sc-for list="{{ r.celdas }}" as="c" hint-placeholder-count="4">
+<sc-if value="{{ c.hay }}" hint-placeholder-val="{{ true }}"><button type="button" aria-label="{{ c.aria }}" aria-pressed="{{ c.sel }}" onClick="{{ c.pick }}" style="min-height: 36px; border-radius: 10px; border: {{ c.borde }}; background: {{ c.fondo }}; color: {{ c.color }}; font-size: 12px; font-weight: 700">{{ c.l }}</button></sc-if>
+<sc-if value="{{ c.no }}" hint-placeholder-val="{{ false }}"><span aria-label="No aplica" style="text-align: center; color: #B3A594">·</span></sc-if>
+</sc-for>
+</div>
+</sc-for>
+</sc-for>
+</section>
+<aside aria-label="Editar plantilla" style="flex: 1 1 300px; max-width: 380px; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247">{{ ed.destino }}</span>
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px">{{ ed.nombre }}</h3>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Asunto</span><input value="{{ ed.nombre }}" readonly="" style="min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"></label>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Mensaje</span><textarea rows="5" value="{{ ed.texto }}" readonly="" style="padding: 10px 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px; resize: vertical"></textarea></label>
+<span style="font-size: 12px; color: #5E5247">Toca un dato para agregarlo:</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ variables }}" as="v" hint-placeholder-count="6">
+<button type="button" title="{{ v.d }}" style="min-height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid #DCCFBB; background: #FFFDF9; color: #2B2420; font-size: 12px; font-weight: 600">{{ v.k }}</button>
+</sc-for>
+</div>
+<div style="padding: 12px; border-radius: 12px; background: #EFE5D6; display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247">ASÍ LE LLEGA</span>
+<span style="font-size: 13px">{{ ed.vista }}</span>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap"><button type="button" style="min-height: 42px; padding: 0 16px; border-radius: 999px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 700">Guardar plantilla</button><button type="button" style="min-height: 42px; padding: 0 16px; border-radius: 999px; border: 1px solid #DCCFBB; background: #FFFDF9; color: #2B2420; font-weight: 600">Restaurar ejemplo</button></div>
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{ sGenerico }}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{ bloques }}" as="b" hint-placeholder-count="2">
+<section style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">{{ b.t }}</h3><span style="font-size: 12px; color: #5E5247">{{ b.d }}</span></div>
+<sc-if value="{{ b.hayCampos }}" hint-placeholder-val="{{ false }}">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ b.campos }}" as="f" hint-placeholder-count="3">
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">{{ f.l }}</span><span style="display: flex; align-items: center; gap: 8px"><input defaultValue="{{ f.v }}" style="width: 100%; max-width: {{ f.ancho }}; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 14px"><span style="font-size: 13px">{{ f.u }}</span></span><span style="font-size: 11px; color: #5E5247">{{ f.a }}</span></label>
+</sc-for>
+</div>
+</sc-if>
+<sc-for list="{{ b.filas }}" as="r" hint-placeholder-count="0">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #FFFDF9; border: 1px solid #E3D7C4">
+<span style="flex: 1 1 260px; display: flex; flex-direction: column"><strong>{{ r.l }}</strong><span style="font-size: 12px; color: #5E5247">{{ r.d }}</span></span>
+<sc-if value="{{ r.hayChip }}" hint-placeholder-val="{{ true }}"><span style="font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: {{ r.chipFondo }}; color: {{ r.chipColor }}">{{ r.chip }}</span></sc-if>
+<sc-if value="{{ r.hayBoton }}" hint-placeholder-val="{{ false }}"><button type="button" style="min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F4ECE0; color: #2B2420; font-weight: 700; font-size: 13px">{{ r.boton }}</button></sc-if>
+<sc-if value="{{ r.haySw }}" hint-placeholder-val="{{ false }}"><button type="button" role="switch" aria-checked="{{ r.on }}" aria-label="{{ r.l }}" style="width: 48px; height: 28px; border-radius: 999px; border: 0; background: {{ r.swFondo }}; position: relative; padding: 0; flex: none"><span style="position: absolute; top: 3px; left: {{ r.swLeft }}; width: 22px; height: 22px; border-radius: 999px; background: #FFFFFF"></span></button></sc-if>
+</div>
+</sc-for>
+<sc-if value="{{ b.hayAccion }}" hint-placeholder-val="{{ false }}"><div><button type="button" style="min-height: 42px; padding: 0 18px; border-radius: 999px; border: 0; background: #2B2420; color: #F4ECE0; font-weight: 700">{{ b.accion }}</button></div></sc-if>
+</section>
+</sc-for>
+</sc-if>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 16px; background: #F4ECE0; border: 1px solid #DCCFBB">
+<span style="font-size: 13px; color: #4A3F36">{{ guardarTexto }}</span>
+<button type="button" style="margin-left: auto; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid #DCCFBB; background: #FFFDF9; color: #2B2420; font-weight: 600">Descartar</button>
+<button type="button" style="min-height: 44px; padding: 0 20px; border-radius: 999px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 700">Guardar esta sección</button>
+</div>
+
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+var OK = ['#E1E8CF', '#2F3B1F'], WARN = ['#FFF4D6', '#7A520A'], NEU = ['#EFE5D6', '#4A3F36'];
+var GRUPOS = [
+  { t: 'EL CENTRO', items: [['datos', 'Datos y página pública', 'Misión vacía', WARN], ['horario', 'Horario y feriados', 'Sin horario', WARN]] },
+  { t: 'OPERACIÓN', items: [['agenda', 'Agenda y plazos', '', null]] },
+  { t: 'FINANZAS', items: [['cobros', 'Cobros y acuerdos', '2 sin acuerdo', WARN], ['medios', 'Medios de pago', '2 activos', OK]] },
+  { t: 'COMUNICACIÓN', items: [['avisos', 'Avisos al paciente y equipo', '58', NEU]] },
+  { t: 'EQUIPO', items: [['equipo', 'Roles y accesos', '', null]] },
+  { t: 'LEGAL Y PRIVACIDAD', items: [['legal', 'Consentimientos y políticas', '9 sin leer', WARN], ['privacidad', 'Datos personales y auditoría', '', null]] },
+  { t: 'VINCULOS', items: [['vinculos', 'Módulos, contrato y soporte', '6 de 7', NEU]] }
+];
+var DESC = {
+  datos: ['Datos y página pública', 'Lo que se edita acá aparece en correos, comprobantes y la página pública.'],
+  horario: ['Horario y feriados', 'El marco dentro del que caen todas las citas y los horarios de box.'],
+  agenda: ['Agenda y plazos', 'Reservas, recordatorios y plazos de derivaciones, consentimientos y evoluciones.'],
+  cobros: ['Cobros y acuerdos', 'Quién cobra cada atención y qué se deben el centro y cada profesional.'],
+  medios: ['Medios de pago', 'Cómo paga el paciente y con qué cuenta se conecta cada cobro.'],
+  avisos: ['Avisos al paciente y equipo', 'Una fila por aviso, una columna por destino. Lo que va entre llaves lo completa el sistema.'],
+  equipo: ['Roles y accesos', 'La política general. El rol de cada persona se asigna en Equipo.'],
+  legal: ['Consentimientos y políticas', 'Cada versión nueva queda registrada con quién la aceptó y cuándo.'],
+  privacidad: ['Datos personales y auditoría', 'Derechos de los titulares (Ley 21.719), registro de accesos y exportación.'],
+  vinculos: ['Módulos, contrato y soporte', 'Tu relación con Vinculos: lo contratado, lo aceptado y lo autorizado.']
+};
+var COLORES = [['Arcilla', '#8A4A1F'], ['Bosque', '#4F6B2F'], ['Océano', '#2F5A7A'], ['Ciruela', '#6B3A5C'], ['Arena', '#C9A227']];
+var ACUERDOS = [
+  { id: 'u', nombre: 'Profesional Uno', letra: 'B', cobra: 'Cobra el centro', cargos: '20% de lo cobrado · $5.000 por sesión captada', desde: '01-11-2026',
+    piezas: [['Quién cobra al paciente', 'El centro', 'El profesional emite su boleta al centro'], ['Comisión sobre todas las atenciones', '20 %', ''], ['Pacientes que llegaron por el centro', '$5.000 por sesión', 'Reemplaza la comisión general en esas sesiones'], ['Cuota fija mensual', '$0', ''], ['Comisión de la pasarela la paga', 'El centro', ''], ['Vigente desde', '01-11-2026', 'Lo ya liquidado no cambia']],
+    ej: [['Bruto cobrado por el centro', '$700.000'], ['Para el centro', '$124.000'], ['Boleta del profesional', '$576.000'], ['Retención 15,25%', '$87.840'], ['Recibe el profesional', '$488.160']] },
+  { id: 'd', nombre: 'Profesional Dos', letra: 'A', cobra: 'Cobra el profesional', cargos: 'Box $6.800 por hora · 15% de pacientes captados', desde: '01-11-2026',
+    piezas: [['Quién cobra al paciente', 'El profesional', 'Con su propia cuenta o pasarela'], ['Cargo por uso de box', '$6.800 por hora', 'También por bloque o bolsa de horas'], ['Pacientes que llegaron por el centro', '15 %', ''], ['Cuota fija mensual', '$0', ''], ['IVA del arriendo', 'Box amoblado: sí', 'Lo factura el centro en su sistema'], ['Vigente desde', '01-11-2026', '']],
+    ej: [['Cobra el profesional', '$700.000'], ['Uso de box: 20 h', '$136.000'], ['Comisión de 8 captadas', '$42.000'], ['Paga al centro', '$178.000 + IVA del box']] },
+  { id: 'r', nombre: 'Directora Demo', letra: 'C', cobra: 'Cobra el centro', cargos: 'Cuota $90.000 + 12% de lo cobrado', desde: '15-10-2026',
+    piezas: [['Quién cobra al paciente', 'El centro', ''], ['Cuota fija mensual', '$90.000', ''], ['Comisión sobre todas las atenciones', '12 %', ''], ['Pacientes que llegaron por el centro', 'La misma comisión', ''], ['Si la cuota supera lo recaudado', 'Pasa al mes siguiente', 'O se cobra aparte'], ['Vigente desde', '15-10-2026', '']],
+    ej: [['Bruto cobrado por el centro', '$700.000'], ['Para el centro', '$174.000'], ['Boleta del profesional', '$526.000'], ['Retención 15,25%', '$80.215'], ['Recibe el profesional', '$445.785']] },
+  { id: 't', nombre: 'Profesional Tres (Demo)', letra: '?', cobra: 'Sin acuerdo propio', cargos: 'Usa el acuerdo por defecto', desde: '-', pend: true,
+    piezas: [['Quién cobra al paciente', 'Según el acuerdo por defecto', ''], ['Comisión sobre todas las atenciones', '', ''], ['Pacientes que llegaron por el centro', '', ''], ['Cuota fija mensual', '', ''], ['Comisión de la pasarela la paga', '', ''], ['Vigente desde', '', '']],
+    ej: [['Sin acuerdo confirmado', '-']] },
+  { id: 'p', nombre: 'Practicante Demo', letra: '-', cobra: 'No cobra', cargos: 'En práctica supervisada, sin cargos', desde: '01-09-2026',
+    piezas: [['Quién cobra al paciente', 'El centro', 'Las sesiones las cobra el centro'], ['Comisión', 'No aplica', ''], ['Supervisor', 'Profesional Uno', ''], ['Vigente hasta', '31-12-2026', 'Fecha de término de la práctica']],
+    ej: [['No se liquida', '-']] }
+];
+var SWC = [
+  ['liq', 'Liquidar solo sesiones con evolución registrada', 'Una sesión sin evolución no entra hasta que el profesional la cierre.', false],
+  ['car', 'Liquidar al profesional los cargos cobrados', 'Inasistencias y cancelaciones tardías entran como línea aparte. Apagado, los retiene el centro.', false],
+  ['deu', 'No agendar a pacientes con deuda', 'Administración o gestión pueden autorizar una hora indicando el motivo.', true]
+];
+var MEDIOS = [
+  ['centro', 'Pago en el centro', 'La hora se confirma con el correo verificado y se paga al llegar.', true, ''],
+  ['transf', 'Transferencia', 'El paciente sube su comprobante; la hora se confirma al validarlo en Cobros.', true, ''],
+  ['link', 'Link de pago', 'Tarjeta o transferencia por la pasarela del titular del cobro.', false, 'Requiere una conexión activa']
+];
+var CONEX = [
+  ['Centro de Prueba SpA', 'Transferencia', 'Banco Ficticio · cuenta corriente terminada en 222', 'Activa', OK, 'Editar'],
+  ['Centro de Prueba SpA', 'Pasarela de pago', 'Para las atenciones que cobra el centro (acuerdos B y C)', 'Sin conectar', WARN, 'Conectar'],
+  ['Profesional Dos', 'Pasarela propia', 'Para sus atenciones (acuerdo A). La conectó desde Mi perfil.', 'Modo prueba', NEU, 'Ver'],
+  ['Profesional Uno', 'No necesita', 'Cobra el centro', 'No aplica', NEU, 'Ver acuerdo']
+];
+var AV = [
+  ['Citas', [['Cita confirmada', 'PP..', 'Hola {paciente}: su cita con {profesional} quedó confirmada para el {fecha} a las {hora} ({modalidad}). Enlace: {enlace}'], ['Cita cancelada', 'PPEE', 'Hola {paciente}: su cita del {fecha} a las {hora} fue cancelada. Puede pedir otra hora en {enlace}.'], ['Cita reprogramada', 'PP..', 'Hola {paciente}: su cita pasó al {fecha} a las {hora} con {profesional}.'], ['Recordatorio de cita', 'PP..', 'Hola {paciente}: le recordamos su cita del {fecha} a las {hora} ({modalidad}).'], ['Hora liberada', 'PP..', 'Hola {paciente}: la hora del {fecha} a las {hora} se liberó porque no se registró el pago.'], ['Solicitud de hora', '..EE', 'Nueva solicitud de hora para el {fecha} a las {hora}.'], ['Cierre requerido', '..EE', 'Tienes sesiones sin evolución registrada. Ciérralas en {enlace}.'], ['Posible duplicado', '..EE', 'Un paciente nuevo podría estar duplicado. Revísalo en {enlace}.']]],
+  ['Pagos', [['Instrucciones de transferencia', 'PP..', 'Hola {paciente}: para confirmar su hora del {fecha}, transfiera y suba su comprobante en {enlace}.'], ['Comprobante recibido', 'PP..', 'Hola {paciente}: recibimos su comprobante. Le avisaremos al validarlo.'], ['Pago validado', 'PP..', 'Hola {paciente}: validamos su pago. Su hora del {fecha} a las {hora} está confirmada.'], ['Pago rechazado', 'PP..', 'Hola {paciente}: no pudimos validar su pago. Revise los datos en {enlace}.'], ['Pago pendiente', 'PP..', 'Hola {paciente}: su hora del {fecha} sigue pendiente de pago.'], ['Pago registrado', 'PP..', 'Hola {paciente}: registramos su pago de la sesión del {fecha}.'], ['Comprobante emitido', 'PP..', 'Hola {paciente}: ya está disponible el comprobante de su sesión del {fecha}.'], ['Deuda pendiente', 'PPEE', 'Hola {paciente}: tiene una sesión impaga del {fecha}. Puede pagarla en {enlace}.']]],
+  ['Clínico y consentimientos', [['Consentimiento solicitado', 'PP..', 'Hola {paciente}: {centro} le pide revisar y aceptar un consentimiento en {enlace}.'], ['Consentimiento por vencer', 'PP..', 'Hola {paciente}: tiene un consentimiento pendiente que vence pronto.'], ['Cambio de supervisor', 'PP..', 'Hola {paciente}: cambió el supervisor de su practicante. Sus sesiones siguen igual.'], ['Documento clínico', 'PP..', 'Hola {paciente}: {profesional} le envió un documento. Descárguelo en {enlace}.'], ['Acceso clínico temporal', 'PP..', 'Hola {paciente}: se dio un acceso temporal y registrado a su ficha.'], ['Acceso clínico revocado', 'PPEE', 'Se cerró el acceso temporal a la ficha de {paciente}.']]],
+  ['Equipo', [['Derivación ofrecida', '..EE', 'Te ofrecen un paciente por derivación. Revisa motivo, edad y tipo de atención en {enlace}.'], ['Derivación actualizada', '..EE', 'Hubo novedades en tu derivación. Revísala en {enlace}.'], ['Mensaje de paciente', '..EE', '{paciente} te escribió desde el portal. Léelo en {enlace}.'], ['Mensaje interno', '..EE', 'Tienes un mensaje nuevo del equipo en {enlace}.']]]
+];
+var EDITADAS = { 'Cita confirmada-0': true, 'Recordatorio de cita-1': true, 'Deuda pendiente-1': true, 'Derivación ofrecida-3': true };
+var DESTS = ['PACIENTE · BANDEJA', 'PACIENTE · CORREO', 'EQUIPO · BANDEJA', 'EQUIPO · CORREO'];
+var VARS = [['{paciente}', 'nombre del paciente'], ['{profesional}', 'nombre del profesional'], ['{fecha}', 'día de la cita'], ['{hora}', 'hora de la cita'], ['{modalidad}', 'presencial u online'], ['{centro}', 'nombre del centro'], ['{enlace}', 'enlace para entrar']];
+var EJ = { '{paciente}': 'María José', '{profesional}': 'Profesional Uno', '{fecha}': 'jueves 12 de noviembre', '{hora}': '11:00', '{modalidad}': 'presencial, Box 1', '{centro}': 'Centro de Prueba', '{enlace}': 'centro-prueba.cl/portal' };
+var DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+function chipOf(t) { return t ? { f: t[0], c: t[1] } : { f: 'transparent', c: '#2B2420' }; }
+function sw(on) { return { swFondo: on ? '#4F6B2F' : '#CDBFAE', swLeft: on ? '23px' : '3px' }; }
+function fila(l, d, chip, tono, boton) { var c = chipOf(tono); return { l: l, d: d, hayChip: !!chip, chip: chip, chipFondo: c.f, chipColor: c.c, hayBoton: !!boton, boton: boton, haySw: false }; }
+function filaSw(l, d, on) { var s = sw(on); return { l: l, d: d, hayChip: false, hayBoton: false, haySw: true, on: on, swFondo: s.swFondo, swLeft: s.swLeft }; }
+function campo(l, v, u, a) { return { l: l, v: v, u: u, a: a, ancho: '110px' }; }
+function bloque(t, d, campos, filas, accion) { return { t: t, d: d, campos: campos || [], hayCampos: !!(campos && campos.length), filas: filas || [], hayAccion: !!accion, accion: accion }; }
+
+var BLOQUES = {
+  agenda: [
+    bloque('Reservas y recordatorios', 'Para la página pública y los avisos por correo.', [campo('Recordatorio antes de la sesión', '48', 'horas', 'Mayor que el aviso para cancelar (24 h)'), campo('Margen entre presencial y online', '30', 'min', 'Entre 0 y 240'), campo('Retener la hora mientras se verifica el correo', '30', 'min', 'Entre 5 y 120')]),
+    bloque('Plazos clínicos', 'Derivaciones, consentimientos y cierre de sesiones.', [campo('Responder una derivación', '24', 'horas', 'Luego pasa al siguiente candidato'), campo('Responder un consentimiento', '48', 'horas', 'Entre 1 y 720'), campo('Oposición del paciente', '48', 'horas', 'Entre 1 y 720'), campo('Registrar la evolución', '30', 'días', 'Entre 1 y 365')]),
+    bloque('Cuentas y conservación', '', [campo('Edad mínima para cuenta propia', '14', 'años', 'Entre 14 y 18'), campo('Conservar mensajes internos', '365', 'días', 'Entre 30 y 3650')])
+  ],
+  equipo: [
+    bloque('Jerarquía de accesos', 'Ningún rol administrativo ve contenido clínico.', null, [fila('Cuenta madre', 'Configuración, cobros, equipo y la vista administrativa de fichas.', '2 personas', NEU, ''), fila('Gestión', 'Agenda, recepción y cobros del día a día, sin Configuración.', '1 persona', NEU, ''), fila('Profesional', 'Sus pacientes, su agenda y sus fichas. Otras fichas solo por derivación o acceso temporal.', '7 personas', NEU, ''), fila('Practicante', 'Con fecha de término, bajo supervisión y con consentimiento del paciente.', '1 persona', NEU, '')], 'Ver personas en Equipo'),
+    bloque('Opciones', '', null, [filaSw('Habilitar el rol de gestión', 'Para centros con recepción o coordinación administrativa.', true)])
+  ],
+  legal: [
+    bloque('Documentos para pacientes', 'Se aceptan de forma explícita (Ley 20.584 y Ley 21.719).', null, [fila('Consentimiento informado', 'Versión 1 · desde 31-10-2026', 'Vigente', OK, 'Nueva versión'), fila('Política de datos personales', 'Versión 2 · desde 31-10-2026 · 1 anterior', 'Vigente', OK, 'Nueva versión'), fila('Términos de agendamiento', 'Versión 2 · desde 31-10-2026 · 1 anterior', 'Vigente', OK, 'Nueva versión'), fila('Consentimiento de atención con practicante', 'Versión 1 · desde 31-10-2026', 'Vigente', OK, 'Nueva versión'), fila('Protocolo para pacientes', 'Versión 1 · el paciente confirma que lo leyó', 'Vigente', OK, 'Nueva versión')]),
+    bloque('Documentos del equipo', 'Cada integrante lo marca como leído en Mi perfil.', null, [fila('Protocolo interno del equipo', 'Versión 1 · 1 de 10 lo leyeron', '9 pendientes', WARN, 'Recordar a pendientes')]),
+    bloque('Reglas del sistema', 'Vienen de la normativa: el centro no las cambia.', null, [fila('Menores de 18 años', 'Necesitan un adulto responsable registrado antes de su primera hora.', 'Fija', NEU, ''), fila('Conservación de fichas', 'Al menos 15 años desde la última atención (Decreto 41). Nunca se borran.', 'Fija', NEU, ''), fila('Acceso a fichas ajenas', 'Solo por derivación o acceso temporal registrado.', 'Fija', NEU, '')])
+  ],
+  privacidad: [
+    bloque('Solicitudes de los titulares', 'Acceso, rectificación, cancelación, oposición, portabilidad o bloqueo. Plazo: 30 días hábiles.', null, [fila('No hay solicitudes abiertas', 'Faltando 5 días hábiles o menos, el inicio muestra una alerta.', '0 abiertas', OK, '')], 'Registrar solicitud'),
+    bloque('Auditoría de accesos', 'Quién vio, editó, descargó o exportó datos, con su rol activo. Las ediciones muestran campos, nunca valores.', null, [fila('Últimos 7 días', '262 lecturas · 41 ediciones · 0 exportaciones', '', null, 'Abrir auditoría'), fila('Último acceso a una ficha', 'Profesional Uno · 03-11-2026, 14:42 · Lectura de evoluciones', '', null, '')]),
+    bloque('Exportación completa del centro', 'Un archivo cifrado con todo: pacientes, fichas, agenda, equipo, cobros, políticas y auditoría. Vinculos no guarda la clave.', null, [fila('Clave de al menos 16 caracteres', 'Sin la clave nadie puede abrir el archivo, tampoco Vinculos. Queda en la auditoría.', '', null, 'Generar y descargar')])
+  ],
+  vinculos: [
+    bloque('Módulos contratados', 'Los activa Vinculos según lo contratado. Para sumar uno, escríbenos.', null, [fila('Página pública del centro', 'Sitio con equipo, servicios y contacto', 'Activo', OK, ''), fila('Fichas y Pacientes', 'Fichas clínicas con acceso por profesional', 'Activo', OK, ''), fila('Agenda y Espacios', 'Reservas por box y disponibilidad', 'Activo', OK, ''), fila('Equipo', 'Perfiles, especialidades y roles', 'Activo', OK, ''), fila('Match Terapéutico', 'Cuestionario público que recomienda profesionales', 'Activo', OK, ''), fila('Cobros', 'Cobros, conciliación y liquidaciones', 'Activo', OK, ''), fila('Avisos por WhatsApp', 'Con el número y el nombre del centro', 'No contratado', NEU, 'Solicitar')]),
+    bloque('Contrato con Vinculos', 'Los publica Vinculos; el centro los acepta y queda registrado quién y cuándo.', null, [fila('Términos de servicio', 'Versión 1 · aceptó Admin Centro Prueba el 31-10-2026', 'Aceptada', OK, 'Leer'), fila('Anexo de tratamiento de datos (DPA)', 'Versión 1 · aceptó Admin Centro Prueba el 31-10-2026', 'Aceptada', OK, 'Leer')]),
+    bloque('Soporte de Vinculos', 'El soporte nunca ve datos de pacientes ni del equipo: solo conteos y estados.', [campo('Plazo', '24', 'horas', 'De 1 a 72')], [fila('Sin autorizaciones', 'Cada diagnóstico queda registrado con la autorización que lo cubrió.', 'Ninguna activa', NEU, '')], 'Autorizar soporte')
+  ]
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sec: 'cobros', color: 0, abiertos: {}, modelo: 'C', ac: 'r', swc: { liq: false, car: false, deu: true }, med: { centro: true, transf: true, link: false }, fav: 'Todos', cel: 'Cita confirmada-0' };
+  }
+  renderVals() {
+    var s = this.state, self = this;
+    var grupos = GRUPOS.map(function (g) {
+      return { titulo: g.t, items: g.items.map(function (it) {
+        var on = s.sec === it[0]; var c = chipOf(it[3]);
+        return { label: it[1], actual: on ? 'page' : 'false', fondo: on ? '#E1E8CF' : 'transparent', color: on ? '#2F3B1F' : '#2B2420', peso: on ? '700' : '500',
+          hayChip: !!it[2], chip: it[2], chipFondo: c.f, chipColor: c.c, pick: function () { self.setState({ sec: it[0] }); } };
+      }) };
+    });
+    var colores = COLORES.map(function (c, i) {
+      return { nombre: c[0], hex: c[1], on: s.color === i, borde: s.color === i ? '3px solid #2B2420' : '3px solid #FFFDF9', pick: function () { self.setState({ color: i }); } };
+    });
+    var bajo = s.color === 4;
+    var abiertosN = 0;
+    var dias = DIAS.map(function (n, i) {
+      var on = !!s.abiertos[i]; if (on) abiertosN++;
+      var w = sw(on);
+      return { nombre: n, abierto: on, cerradoDia: !on, aria: 'Abrir ' + n, fondo: on ? '#FFFDF9' : 'transparent', swFondo: w.swFondo, swLeft: w.swLeft,
+        toggle: function () { var a = Object.assign({}, self.state.abiertos); a[i] = !a[i]; self.setState({ abiertos: a }); } };
+    });
+    var modelos = [['A', 'Cobra el profesional', 'Paga al centro por uso de box: hora, bloque o bolsa de horas.', 'Arriendo, estilo coworking'], ['B', 'Cobra el centro', 'Descuenta su comisión y liquida el resto al profesional.', 'Comisión o revenue share'], ['C', 'Mixto', 'Combina cuota fija, cargo por box y comisiones.', 'Ej.: cuota $90.000 + 12%']].map(function (m) {
+      var on = s.modelo === m[0];
+      return { letra: m[0], titulo: m[1], desc: m[2], ejemplo: m[3], on: on, borde: on ? '2px solid #8A4B1F' : '1px solid #DCCFBB', fondo: on ? '#FBF3EA' : '#FFFDF9', pick: function () { self.setState({ modelo: m[0] }); } };
+    });
+    var det = null;
+    var acuerdos = ACUERDOS.map(function (a) {
+      var on = s.ac === a.id; if (on) det = a;
+      var tono = a.pend ? WARN : (a.letra === '-' ? NEU : ['#2B2420', '#F4ECE0']);
+      return { nombre: a.nombre, letra: a.letra, cobra: a.cobra, cargos: a.cargos, desde: a.desde, sel: on, accion: a.pend ? 'Definir' : 'Editar',
+        borde: on ? '2px solid #8A4B1F' : '1px solid #E3D7C4', fondo: on ? '#FBF3EA' : '#FFFDF9', chipFondo: tono[0], chipColor: tono[1],
+        pick: function () { self.setState({ ac: a.id }); } };
+    });
+    det = det || ACUERDOS[0];
+    var detV = { nombre: det.nombre,
+      piezas: det.piezas.map(function (p) { return { l: p[0], v: p[1], a: p[2] }; }),
+      ejemplo: det.ej.map(function (e, i) { var last = i === det.ej.length - 1 && det.ej.length > 1; return { l: e[0], v: e[1], peso: last ? '800' : '500', linea: last ? '1px solid #CDBFAE' : '0', pad: last ? '8px' : '0' }; }) };
+    var switchesCobro = SWC.map(function (w) {
+      var on = !!s.swc[w[0]]; var x = sw(on);
+      return { l: w[1], d: w[2], on: on, swFondo: x.swFondo, swLeft: x.swLeft, toggle: function () { var o = Object.assign({}, self.state.swc); o[w[0]] = !o[w[0]]; self.setState({ swc: o }); } };
+    });
+    var medios = MEDIOS.map(function (m) {
+      var on = !!s.med[m[0]]; var x = sw(on);
+      return { l: m[1], d: m[2], on: on, swFondo: x.swFondo, swLeft: x.swLeft, borde: on ? '2px solid #4F6B2F' : '1px solid #E3D7C4',
+        nota: on ? 'Visible al reservar' : (m[4] || 'Oculto al reservar'), notaColor: on ? '#2F3B1F' : '#7A520A',
+        toggle: function () { var o = Object.assign({}, self.state.med); o[m[0]] = !o[m[0]]; self.setState({ med: o }); } };
+    });
+    var conexiones = CONEX.map(function (c) { return { titular: c[0], tipo: c[1], detalle: c[2], estado: c[3], chipFondo: c[4][0], chipColor: c[4][1], accion: c[5] }; });
+    var filtrosAviso = ['Todos', 'Citas', 'Pagos', 'Clínico y consentimientos', 'Equipo'].map(function (f) {
+      var on = s.fav === f; return { l: f, on: on, fondo: on ? '#2B2420' : '#FFFDF9', color: on ? '#F4ECE0' : '#2B2420', pick: function () { self.setState({ fav: f }); } };
+    });
+    var ed = null;
+    var gruposAviso = AV.filter(function (g) { return s.fav === 'Todos' || s.fav === g[0]; }).map(function (g) {
+      return { t: g[0].toUpperCase(), filas: g[1].map(function (r) {
+        return { n: r[0], celdas: [0, 1, 2, 3].map(function (k) {
+          var hay = r[1].charAt(k) !== '.'; var key = r[0] + '-' + k; var sel = s.cel === key; var edit = !!EDITADAS[key];
+          if (sel) ed = { nombre: r[0], destino: DESTS[k], texto: r[2] };
+          return { hay: hay, no: !hay, sel: sel, aria: r[0] + ', ' + DESTS[k].toLowerCase(), l: edit ? 'Editada' : 'Ejemplo',
+            borde: sel ? '2px solid #8A4B1F' : '1px solid #E3D7C4', fondo: sel ? '#FBF3EA' : (edit ? '#E1E8CF' : '#FFFDF9'), color: edit ? '#2F3B1F' : '#4A3F36',
+            pick: function () { self.setState({ cel: key }); } };
+        }) };
+      }) };
+    });
+    ed = ed || { nombre: 'Elige un aviso', destino: '', texto: '' };
+    var vista = ed.texto; Object.keys(EJ).forEach(function (k) { vista = vista.split(k).join(EJ[k]); });
+    ed.vista = vista;
+    var variables = VARS.map(function (v) { return { k: v[0], d: v[1] }; });
+    var generico = !!BLOQUES[s.sec];
+    var d = DESC[s.sec];
+    return {
+      grupos: grupos, secTitulo: d[0], secDesc: d[1],
+      sDatos: s.sec === 'datos', sHorario: s.sec === 'horario', sCobros: s.sec === 'cobros', sMedios: s.sec === 'medios', sAvisos: s.sec === 'avisos', sGenerico: generico,
+      servicios: [{ n: 'Terapia individual', d: 'Sesiones presenciales o por videollamada, con seguimiento entre sesiones.' }, { n: 'Terapia de pareja', d: 'Conflictos de convivencia, comunicación y proyectos en común.' }, { n: 'Niños y adolescentes', d: 'Evaluación y terapia con participación de la familia.' }],
+      colores: colores, colorHex: COLORES[s.color][1], contrasteTexto: bajo ? 'El texto blanco no se lee bien sobre este color (contraste bajo AA).' : 'Contraste AA correcto para el texto blanco.', contrasteColor: bajo ? '#8A2A1F' : '#2F3B1F',
+      dias: dias, cerrado: abiertosN === 0,
+      copiarLunes: function () { self.setState({ abiertos: { 0: true, 1: true, 2: true, 3: true, 4: true } }); },
+      modelos: modelos, acuerdos: acuerdos, det: detV, switchesCobro: switchesCobro,
+      medios: medios, conexiones: conexiones,
+      filtrosAviso: filtrosAviso, gruposAviso: gruposAviso, ed: ed, variables: variables,
+      bloques: generico ? BLOQUES[s.sec] : [],
+      guardarTexto: 'Los cambios de "' + d[0] + '" se guardan juntos y quedan en la auditoría.'
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 'use client';
 
+import { EscalaDiez } from '@/components/shared/EscalaDiez';
 import { ChoiceGroup } from '@/components/ui/ChoiceGroup';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import type { components } from '@/lib/api/esquema';
@@ -70,6 +71,24 @@ export function FormularioDinamico({ campos, valores, onChange, errores = {}, di
                 disabled={disabled}
                 onChange={(v) => fijar(c.clave, multiple ? v : v[0] === 'si')}
               />
+            );
+          }
+
+          // ponytail: la definicion no trae min/max; la escala se reconoce por la etiqueta ("... (1 a 10)").
+          if (c.tipo === 'NUMERO' && /1 a 10/.test(c.etiqueta)) {
+            return (
+              <div key={c.clave} className="flex flex-col gap-2">
+                <span className="text-[14px] font-bold">
+                  {c.etiqueta}
+                  {c.obligatorio && ' *'}
+                </span>
+                <EscalaDiez etiqueta={c.etiqueta} valor={valor as number | undefined} disabled={disabled} onChange={(v) => fijar(c.clave, v)} />
+                {error && (
+                  <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+                    {error}
+                  </p>
+                )}
+              </div>
             );
           }
 

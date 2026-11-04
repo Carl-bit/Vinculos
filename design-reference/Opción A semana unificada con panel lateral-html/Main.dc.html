@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agenda opción A: semana unificada</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8A4B1F}a:hover{color:#6B3714}
+button,select,input{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1000px; box-sizing: border-box; background: #E6DED1; color: #2B2420; font-family: 'Figtree', system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-wrap: wrap">
+
+<nav aria-label="Menú principal" style="flex: 1 1 200px; max-width: 210px; box-sizing: border-box; background: #F4ECE0; padding: 24px 14px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #DCCFBB">
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 17px; padding: 0 10px 24px"><span style="width: 8px; height: 8px; border-radius: 999px; background: #4F6B2F"></span>Centro de Prueba</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Inicio</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mi perfil</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mensajes</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 20px 12px 6px">MÓDULOS</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Fichas y Pacientes</a>
+<a href="#" style="text-decoration: none; color: #2F3B1F; padding: 10px 12px; border-radius: 10px; background: #E1E8CF; font-weight: 600">Agenda y Espacios</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Cobros</a>
+<div style="margin-top: auto; padding: 12px; font-size: 13px; color: #5E5247">Rol activo: <strong>Profesional</strong></div>
+</nav>
+
+<main style="flex: 999 1 640px; min-width: 0; box-sizing: border-box; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 16px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<div style="display: flex; flex-direction: column">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px; line-height: 1.1">Mi agenda</h1>
+<span style="font-size: 13px; color: #5E5247">Tus sesiones presenciales y online, con la disponibilidad de los boxes</span>
+</div>
+<div role="group" aria-label="Rango" style="display: flex; background: #F4ECE0; border: 1px solid #DCCFBB; border-radius: 999px; padding: 4px; gap: 4px; margin-left: 16px">
+<button type="button" aria-pressed="false" style="min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: #2B2420; font-weight: 600">Día</button>
+<button type="button" aria-pressed="true" style="min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: #8A4B1F; color: #FFFFFF; font-weight: 700">Semana</button>
+<button type="button" aria-pressed="false" style="min-height: 38px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: #2B2420; font-weight: 600">Mes</button>
+</div>
+<div style="display: flex; align-items: center; gap: 4px">
+<button type="button" aria-label="Semana anterior" style="width: 40px; height: 40px; border: 0; border-radius: 999px; background: transparent; color: #2B2420; font-size: 18px">&lt;</button>
+<button type="button" style="min-height: 38px; padding: 0 14px; border: 1px solid #DCCFBB; border-radius: 999px; background: #F4ECE0; color: #2B2420; font-weight: 600">Hoy</button>
+<button type="button" aria-label="Semana siguiente" style="width: 40px; height: 40px; border: 0; border-radius: 999px; background: transparent; color: #2B2420; font-size: 18px">&gt;</button>
+<span style="font-weight: 700; padding-left: 6px">2 - 8 nov 2026</span>
+</div>
+<button type="button" style="margin-left: auto; min-height: 44px; padding: 0 20px; border: 0; border-radius: 999px; background: #8A4B1F; color: #FFFFFF; font-weight: 700">Agendar sesión</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-size: 12px; color: #4A3F36">
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 14px; border-radius: 4px; background: #F2D3BE; border: 1px solid #B9764B"></span>Presencial</span>
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 14px; border-radius: 4px; background: #DCE6F2; border: 1px solid #5B7CA3"></span>Online</span>
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 14px; border-radius: 4px; background: #FFF4D6; border: 2px dashed #A06E0E; box-sizing: border-box"></span>Pago pendiente</span>
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: #2B2420; color: #F4ECE0">SIN EVOL.</span>Falta registrar evolución</span>
+<sc-if value="{{ hayBox }}" hint-placeholder-val="{{ false }}">
+<span style="display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-weight: 700; color: #2F3B1F"><span style="width: 14px; height: 14px; border-radius: 4px; border: 2px dashed #4F6B2F; box-sizing: border-box"></span>Horas libres de {{ boxNombre }}</span>
+</sc-if>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section aria-label="Calendario semanal" style="flex: 999 1 640px; min-width: 0; background: #F4ECE0; border: 1px solid #DCCFBB; border-radius: 18px; overflow: hidden">
+<div style="display: flex; border-bottom: 1px solid #DCCFBB; background: #EFE5D6">
+<div style="flex: none; width: 56px"></div>
+<sc-for list="{{ dias }}" as="d" hint-placeholder-count="5">
+<div style="flex: 1 1 0; min-width: 0; padding: 10px 10px; border-left: 1px solid #DCCFBB; display: flex; flex-direction: column; background: {{ d.cabecera }}">
+<span style="font-weight: 700">{{ d.nombre }}</span>
+<span style="font-size: 11px; color: #5E5247">{{ d.resumen }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex">
+<div style="flex: none; width: 56px; display: flex; flex-direction: column">
+<sc-for list="{{ horas }}" as="h" hint-placeholder-count="10">
+<div style="height: 54px; box-sizing: border-box; padding: 4px 8px 0 0; text-align: right; font-size: 11px; color: #5E5247">{{ h }}</div>
+</sc-for>
+</div>
+<sc-for list="{{ dias }}" as="d" hint-placeholder-count="5">
+<div style="flex: 1 1 0; min-width: 0; position: relative; height: 540px; border-left: 1px solid #DCCFBB; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, #E3D7C4 53px, #E3D7C4 54px)">
+<sc-for list="{{ d.libres }}" as="l" hint-placeholder-count="0">
+<button type="button" style="position: absolute; left: 4px; right: 4px; top: {{ l.top }}; height: 46px; border: 2px dashed #4F6B2F; border-radius: 10px; background: rgba(225,232,207,0.55); color: #2F3B1F; font-size: 11px; font-weight: 700; text-align: left; padding: 0 8px">{{ l.texto }}</button>
+</sc-for>
+<sc-for list="{{ d.eventos }}" as="e" hint-placeholder-count="3">
+<button type="button" style="position: absolute; left: 4px; right: 4px; top: {{ e.top }}; height: 46px; box-sizing: border-box; border-radius: 10px; border: {{ e.borde }}; background: {{ e.fondo }}; color: {{ e.texto }}; text-align: left; padding: 5px 8px; display: flex; flex-direction: column; gap: 1px; overflow: hidden">
+<span style="font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%">{{ e.hora }} {{ e.nombre }}</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 11px; width: 100%">
+<sc-if value="{{ e.online }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"></rect><path d="M16 10l6-3v10l-6-3"></path></svg></sc-if>
+<sc-if value="{{ e.presencial }}" hint-placeholder-val="{{ true }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18M14 12h.01"></path></svg></sc-if>
+<span>{{ e.lugar }}</span>
+<sc-if value="{{ e.sinEvol }}" hint-placeholder-val="{{ false }}"><span style="margin-left: auto; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 999px; background: #2B2420; color: #F4ECE0">SIN EVOL.</span></sc-if>
+<sc-if value="{{ e.pendiente }}" hint-placeholder-val="{{ false }}"><span style="margin-left: auto; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 999px; background: #A06E0E; color: #FFFFFF">PAGO</span></sc-if>
+</span>
+</button>
+</sc-for>
+<sc-if value="{{ d.hoy }}" hint-placeholder-val="{{ false }}">
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 324px; height: 2px; background: #8A4B1F"><span style="position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 999px; background: #8A4B1F"></span></div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</section>
+
+<aside aria-label="Panel de la agenda" style="flex: 1 1 280px; max-width: 330px; display: flex; flex-direction: column; gap: 14px">
+
+<section aria-labelledby="t-mod" style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<h2 id="t-mod" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; font-weight: 700">Modalidad</h2>
+<div role="group" aria-label="Filtrar modalidad" style="display: flex; background: #EFE5D6; border-radius: 12px; padding: 4px; gap: 4px">
+<sc-for list="{{ modos }}" as="m" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{ m.on }}" onClick="{{ m.pick }}" style="flex: 1; min-height: 38px; border: 0; border-radius: 9px; background: {{ m.fondo }}; color: {{ m.color }}; font-weight: 700; font-size: 13px">{{ m.label }}</button>
+</sc-for>
+</div>
+<span style="font-size: 12px; color: #5E5247">Esta semana: 19 presenciales · 5 online</span>
+</section>
+
+<section aria-labelledby="t-box" style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: baseline; gap: 8px">
+<h2 id="t-box" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; font-weight: 700">Boxes</h2>
+<span style="font-size: 12px; color: #5E5247">ahora · mar 15:00</span>
+</div>
+<span style="font-size: 12px; color: #5E5247">Toca un box para ver sus horas libres sobre tu semana.</span>
+<sc-for list="{{ boxes }}" as="b" hint-placeholder-count="6">
+<button type="button" aria-pressed="{{ b.on }}" onClick="{{ b.pick }}" style="display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 10px 12px; border-radius: 12px; border: {{ b.borde }}; background: {{ b.fondo }}; color: #2B2420">
+<span style="display: flex; align-items: center; gap: 8px; width: 100%">
+<span style="font-weight: 700">{{ b.nombre }}</span>
+<span style="margin-left: auto; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: {{ b.chipFondo }}; color: {{ b.chipColor }}">{{ b.ahora }}</span>
+</span>
+<span style="display: flex; align-items: center; gap: 8px; width: 100%">
+<span style="flex: 1; height: 6px; border-radius: 999px; background: #E3D7C4; overflow: hidden"><span style="display: block; height: 100%; width: {{ b.pct }}; background: {{ b.barra }}"></span></span>
+<span style="font-size: 11px; color: #4A3F36; min-width: 88px; text-align: right">{{ b.libres }}</span>
+</span>
+</button>
+</sc-for>
+</section>
+
+<section aria-labelledby="t-pend" style="background: #FFF8E6; border: 1px solid #E8D09A; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px">
+<h2 id="t-pend" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 16px; font-weight: 700">Por confirmar</h2>
+<span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #A06E0E; color: #FFFFFF">2</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: #FFFDF9; border-radius: 12px; border: 1px solid #EBDDBB">
+<span style="font-weight: 700">Diego Demo Derivación</span>
+<span style="font-size: 12px; color: #4A3F36">Mié 11 nov, 11:00 · Box 1</span>
+<span style="height: 6px; border-radius: 999px; background: #F1E4C4; overflow: hidden"><span style="display: block; width: 70%; height: 100%; background: #A06E0E"></span></span>
+<span style="font-size: 12px; font-weight: 600; color: #7A520A">Vence en 6 días si no se paga</span>
+<div style="display: flex; gap: 6px"><button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 999px; border: 0; background: #2B2420; color: #F4ECE0; font-weight: 600; font-size: 12px">Registrar pago</button><button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #DCCFBB; background: #FFFDF9; color: #2B2420; font-weight: 600; font-size: 12px">Recordar al paciente</button></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: #FFFDF9; border-radius: 12px; border: 1px solid #EBDDBB">
+<span style="font-weight: 700">Rodrigo Demo Moroso</span>
+<span style="font-size: 12px; color: #4A3F36">Jue 12 nov, 11:00 · Box 1</span>
+<span style="height: 6px; border-radius: 999px; background: #F1E4C4; overflow: hidden"><span style="display: block; width: 55%; height: 100%; background: #A06E0E"></span></span>
+<span style="font-size: 12px; font-weight: 600; color: #7A520A">Vence en 7 días si no se paga</span>
+</div>
+<div style="font-size: 12px; color: #4A3F36; border-top: 1px solid #EBDDBB; padding-top: 8px">Por reprogramar: ninguna</div>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+var DIAS = ['Lun 2', 'Mar 3', 'Mié 4', 'Jue 5', 'Vie 6'];
+var EV = [
+  [0, 9, 'Paciente Prueba', 'p', 'Box 1', 'se'], [0, 10, 'Lucas Riquelme Demo', 'p', 'Box 1', 'se'], [0, 11, 'Diego Demo Derivación', 'p', 'Box 1', 'se'], [0, 16, 'Paciente Prueba', 'o', 'Online', 'se'], [0, 18, 'Olivia Zamora Demo', 'p', 'Box 4', 'se'],
+  [1, 9, 'Vicente Carrasco Demo', 'p', 'Box 1', 'se'], [1, 11, 'Daniela Donoso Demo', 'p', 'Box 1', 'se'], [1, 12, 'Benjamín Fuentes Demo', 'p', 'Box 1', 'se'], [1, 16, 'María José Aguilera Demo', 'p', 'Box 4', 'ok'], [1, 18, 'Hernán Bustos Demo', 'p', 'Box 4', 'ok'],
+  [2, 9, 'Nicolás Espinoza Demo', 'p', 'Box 1', 'ok'], [2, 10, 'Lucas Gallardo Demo', 'p', 'Box 1', 'ok'], [2, 12, 'Ximena Henríquez Demo', 'p', 'Box 1', 'ok'], [2, 15, 'Gabriela Ibarra Demo', 'p', 'Box 4', 'ok'], [2, 16, 'Sebastián Carrasco Demo', 'p', 'Box 4', 'ok'], [2, 17, 'Renata Jara Demo', 'p', 'Box 4', 'ok'],
+  [3, 9, 'Sara Demo Pago', 'o', 'Online', 'pp'], [3, 10, 'Paciente Prueba', 'p', 'Box 1', 'ok'], [3, 11, 'Daniela Quiroz Demo', 'p', 'Box 1', 'ok'], [3, 12, 'Olivia Jara Demo', 'p', 'Box 1', 'ok'], [3, 15, 'Antonia Lagos Demo', 'p', 'Box 4', 'ok'], [3, 17, 'Javiera Morales Demo', 'p', 'Box 4', 'ok'], [3, 18, 'Hernán Olivares Demo', 'p', 'Box 4', 'ok'],
+  [4, 9, 'Nicolás Riquelme Demo', 'o', 'Online', 'ok'], [4, 11, 'Florencia Sepúlveda Demo', 'o', 'Online', 'ok'], [4, 16, 'Sebastián Pizarro Demo', 'o', 'Online', 'ok'], [4, 18, 'Benjamín Quiroz Demo', 'o', 'Online', 'ok']
+];
+var BOXES = [
+  { id: 'b1', nombre: 'Box 1', ahora: 'Libre', pct: 80, libres: '8 h libres' },
+  { id: 'b2', nombre: 'Box 2', ahora: 'Ocupado', pct: 100, libres: 'Sin horas' },
+  { id: 'b3', nombre: 'Sala grupal', ahora: 'Libre', pct: 60, libres: '16 h libres' },
+  { id: 'b4', nombre: 'Box 4', ahora: 'Ocupado', pct: 80, libres: '8 h libres' },
+  { id: 'b5', nombre: 'Box 5', ahora: 'Ocupado', pct: 100, libres: 'Sin horas' },
+  { id: 'b6', nombre: 'Box 6', ahora: 'Libre', pct: 94, libres: '2 h libres' }
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { modo: 'todas', box: 'b1' };
+  }
+  renderVals() {
+    var s = this.state;
+    var self = this;
+    var boxSel = null;
+    BOXES.forEach(function (b, i) { if (b.id === s.box) boxSel = { b: b, i: i }; });
+    var dias = DIAS.map(function (nombre, di) {
+      var propios = EV.filter(function (e) { return e[0] === di; });
+      var ocupadas = {};
+      propios.forEach(function (e) { ocupadas[e[1]] = true; });
+      var visibles = propios.filter(function (e) {
+        return s.modo === 'todas' || (s.modo === 'p' && e[3] === 'p') || (s.modo === 'o' && e[3] === 'o');
+      });
+      var eventos = visibles.map(function (e) {
+        var online = e[3] === 'o';
+        var pend = e[5] === 'pp';
+        return {
+          top: ((e[1] - 9) * 54 + 4) + 'px',
+          hora: (e[1] < 10 ? '0' : '') + e[1] + ':00',
+          nombre: e[2], lugar: e[4], online: online, presencial: !online,
+          sinEvol: e[5] === 'se', pendiente: pend,
+          fondo: pend ? '#FFF4D6' : (online ? '#DCE6F2' : '#F2D3BE'),
+          borde: pend ? '2px dashed #A06E0E' : (online ? '1px solid #5B7CA3' : '1px solid #B9764B'),
+          texto: online ? '#1F3550' : '#3E2410'
+        };
+      });
+      var libres = [];
+      if (boxSel && boxSel.b.pct < 100) {
+        for (var h = 9; h < 19; h++) {
+          if (!ocupadas[h] && ((di * 3 + h + boxSel.i) % 3 === 0)) {
+            libres.push({ top: ((h - 9) * 54 + 4) + 'px', texto: (h < 10 ? '0' : '') + h + ':00 Libre en ' + boxSel.b.nombre });
+          }
+        }
+      }
+      var nP = propios.filter(function (e) { return e[3] === 'p'; }).length;
+      var nO = propios.length - nP;
+      return {
+        nombre: nombre, hoy: di === 1,
+        cabecera: di === 1 ? '#F6D9C7' : 'transparent',
+        resumen: nP + ' presencial' + (nP === 1 ? '' : 'es') + ' · ' + nO + ' online',
+        eventos: eventos, libres: libres
+      };
+    });
+    var horas = [];
+    for (var h = 9; h < 19; h++) horas.push((h < 10 ? '0' : '') + h + ':00');
+    var modos = [['todas', 'Todas'], ['p', 'Presencial'], ['o', 'Online']].map(function (m) {
+      var on = s.modo === m[0];
+      return { label: m[1], on: on, fondo: on ? '#8A4B1F' : 'transparent', color: on ? '#FFFFFF' : '#2B2420',
+        pick: function () { self.setState({ modo: m[0] }); } };
+    });
+    var boxes = BOXES.map(function (b) {
+      var on = s.box === b.id;
+      var libre = b.ahora === 'Libre';
+      return {
+        nombre: b.nombre, ahora: b.ahora, libres: b.libres, pct: b.pct + '%', on: on,
+        fondo: on ? '#E1E8CF' : '#FFFDF9',
+        borde: on ? '2px solid #4F6B2F' : '1px solid #DCCFBB',
+        chipFondo: libre ? '#E1E8CF' : '#EFE5D6', chipColor: libre ? '#2F3B1F' : '#4A3F36',
+        barra: b.pct >= 100 ? '#8A4B1F' : '#4F6B2F',
+        pick: function () { self.setState({ box: self.state.box === b.id ? null : b.id }); }
+      };
+    });
+    return {
+      dias: dias, horas: horas, modos: modos, boxes: boxes,
+      hayBox: !!boxSel, boxNombre: boxSel ? boxSel.b.nombre : ''
+    };
+  }
+}
+</script>
+</body>
+</html>

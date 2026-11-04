@@ -133,6 +133,12 @@ export class AgendaService {
       SELECT espacio_id, inicio, fin FROM ocupacion_espacios(${desde}, ${hasta})`;
   }
 
+  /** Espacio, inicio y fin de cada sesion presencial (sin pacientes ni profesionales). Max. 62 dias. */
+  sesionesEspacios(desde: Date, hasta: Date) {
+    return this.bd.tx().$queryRaw<{ espacio_id: string; inicio: Date; fin: Date }[]>`
+      SELECT espacio_id, inicio, fin FROM sesiones_espacios(${desde}, ${hasta})`;
+  }
+
   /** Huecos libres (descuenta citas, bloqueos, soft-locks y margen de traslado). Max. 62 dias. */
   huecos(profesionalId: string, desde: Date, hasta: Date): Promise<Hueco[]> {
     return this.bd.tx().$queryRaw<Hueco[]>`

@@ -7,7 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { useMiCuenta, useModulos } from '@/lib/consultas';
-import { menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
+import { conSelectorEquipo, menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
 import { esAdministracion, NOMBRE_ROL } from '@/lib/roles';
 import type { SesionActiva } from '@/lib/sesion';
 import { BotonSalir } from './BotonSalir';
@@ -95,7 +95,7 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
             {modulos.error && <p className="m-0 px-2 text-xs font-semibold text-neutral-700">No pudimos cargar los módulos del centro.</p>}
 
             <div className="mt-auto flex flex-col gap-4">
-              {esAdministracion(sesion.rol) && <SelectorEquipo />}
+              {conSelectorEquipo(sesion.rol) && <SelectorEquipo />}
               <SelectorRol rol={sesion.rol} roles={sesion.roles} />
               <div className="flex items-center gap-2.5 border-t border-divider px-2.5 pt-2.5">
                 <Avatar name={nombre || NOMBRE_ROL[sesion.rol]} />

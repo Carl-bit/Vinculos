@@ -20,6 +20,41 @@ async function abrirFichaPrueba(page: Page) {
   await expect(page).toHaveURL(/\/admin\/fichas\/[^/]+\?vista=evoluciones/);
 }
 
+test('Evoluciones: editor con formato y bloques; archivo en pilas con lectura y versiones', async ({ page }) => {
+  await ingresarEquipo(page, 'profesional1');
+  await abrirFichaPrueba(page);
+
+  // Archivo: la pila del mes mas reciente abierta; Corregidas lleva a la lectura con versiones.
+  await expect(page.getByRole('heading', { name: 'Evoluciones guardadas' })).toBeVisible();
+  await page.getByRole('button', { name: 'Corregidas' }).click();
+  await page.getByRole('button', { name: 'Desplegar' }).first().click();
+  await page.getByRole('button', { name: /^Evaluacion inicial \(corregida\)/ }).click();
+  await expect(page.getByRole('heading', { level: 3 })).toBeVisible();
+  await page.getByRole('button', { name: 'Ver versiones' }).click();
+  await expect(page.getByRole('list', { name: 'Versiones de este registro' }).getByRole('listitem')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Volver a la pila' }).click();
+  await page.getByRole('button', { name: 'Todas' }).click();
+
+  // Editor: formato en el texto, bloque de escala y borrador en su pila.
+  await page.getByRole('button', { name: 'Nueva evolución' }).click();
+  await expect(page.getByRole('heading', { name: 'Para escribir esta sesión' })).toBeVisible();
+  await page.getByLabel('Título de la evolución').fill('Seguimiento e2e');
+  const notas = page.getByLabel('Notas de la sesión');
+  await notas.fill('Texto ficticio');
+  await notas.selectText();
+  await page.getByRole('button', { name: 'Negrita' }).click();
+  await expect(notas).toHaveValue('**Texto ficticio**');
+  await page.getByRole('button', { name: 'Insertar', exact: true }).click();
+  await page.getByRole('menuitem', { name: /Escala/ }).click();
+  await page.getByRole('radiogroup', { name: 'Ánimo' }).getByText('7', { exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar como borrador' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Tu progreso queda en la pila Borradores' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Seguimiento e2e/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Descartar borrador' }).click();
+  await page.getByRole('dialog', { name: '¿Descartar el borrador?' }).getByRole('button', { name: 'Descartar' }).click();
+  await expect(page.getByRole('button', { name: 'Nueva evolución' })).toBeVisible();
+});
+
 test('Ficha: el borrador se guarda solo, exige tipo y riesgo para confirmar y se puede descartar', async ({ page }) => {
   await ingresarEquipo(page, 'profesional1');
   await abrirFichaPrueba(page);

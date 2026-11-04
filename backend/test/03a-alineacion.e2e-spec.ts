@@ -89,7 +89,7 @@ describe('03a alineacion con el diseño', () => {
   beforeAll(async () => {
     t = await crearApp();
     await t.dueno.configuracionCentro.update({ where: { id: true }, data: { rolGestionHabilitado: true } });
-    await t.dueno.horarioCentro.deleteMany({});
+    await t.datos.centroAbierto();
     // Box libre para las solicitudes presenciales del portal.
     await t.datos.espacio();
     admin = await t.datos.usuario('ADMIN');
@@ -364,11 +364,14 @@ describe('03a alineacion con el diseño', () => {
         .set(await tk(admin))
         .send({ bloques: [{ diaSemana: 1, inicioMin: 540, finMin: 1200 }] });
       expect(h.body).toHaveLength(1);
+      // Sin dias = centro cerrado (2026-11-05): se acepta y se vuelve a abrir para el resto de los tests.
       await t
         .http()
         .put('/api/configuracion/horario')
         .set(await tk(admin))
-        .send({ bloques: [] });
+        .send({ bloques: [] })
+        .expect(200);
+      await t.datos.centroAbierto();
 
       // Imagen con EXIF: se publica como WebP, redimensionada y sin metadatos.
       const png = await sharp({ create: { width: 2000, height: 1000, channels: 3, background: '#aa5500' } })
@@ -711,8 +714,18 @@ describe('03a alineacion con el diseño', () => {
         .http()
         .post(`/api/fichas/${paciente.fichaId}/borradores`)
         .set(await tk(prof))
-        .send({ contenido: 'Primer borrador', citaId: cita.id });
+        .send({ contenido: 'Primer borrador', citaId: cita.id, nivelRiesgo: 'ALTO' });
       expect(b.status).toBe(201);
+      expect(b.body.nivelRiesgo).toBe('ALTO');
+      // Reabrir el borrador conserva el riesgo; un PUT sin riesgo lo deja sin indicar.
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/borradores')
+            .set(await tk(prof))
+        ).body.find((x: { id: string }) => x.id === b.body.id)?.nivelRiesgo,
+      ).toBe('ALTO');
       // 03b-5: la lista de pendientes trae el paciente de cada borrador.
       expect(
         (
@@ -722,15 +735,13 @@ describe('03a alineacion con el diseño', () => {
             .set(await tk(prof))
         ).body.find((x: { id: string }) => x.id === b.body.id)?.pacienteId,
       ).toBe(paciente.pacienteId);
-      expect(
-        (
-          await t
-            .http()
-            .put(`/api/borradores/${b.body.id}`)
-            .set(await tk(prof))
-            .send({ contenido: 'Borrador corregido', citaId: cita.id })
-        ).body.contenido,
-      ).toBe('Borrador corregido');
+      const corregido = await t
+        .http()
+        .put(`/api/borradores/${b.body.id}`)
+        .set(await tk(prof))
+        .send({ contenido: 'Borrador corregido', citaId: cita.id });
+      expect(corregido.body.contenido).toBe('Borrador corregido');
+      expect(corregido.body.nivelRiesgo).toBeNull();
       expect(
         (
           await t

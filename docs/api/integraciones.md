@@ -66,7 +66,9 @@ reprogramacion.
   `{{nombre_profesional}}`, `{{fecha}}`, `{{hora}}`, `{{modalidad}}`,
   `{{enlace}}`, `{{nombre_centro}}`. Nunca motivo, diagnostico, notas ni
   contenido clinico. Validado en la BD al guardar (CHECK
-  `plantillas_mensaje_variables_permitidas` -> 422).
+  `plantillas_mensaje_variables_permitidas` -> 422). En pantalla ADMIN escribe
+  `{paciente}`, `{profesional}`, `{centro}`, etc.; el front las traduce
+  (`frontend/src/lib/variablesMensaje.ts`) y la API sigue recibiendo `{{...}}`.
 - `nombre_paciente` solo se llena cuando el destinatario es el propio
   paciente; a un integrante del equipo nunca se le envia el nombre de un
   paciente (p. ej. una oferta de derivacion). `enlace`: la videollamada, el

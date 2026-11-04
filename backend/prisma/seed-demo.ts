@@ -73,6 +73,79 @@ const horario = (dias: number, hora: string, minutos = 50) => {
 
 type Cuerpo = Record<string, unknown>;
 
+// Carga del centro: nombres y notas ficticias para que cada agenda se vea como en un centro real.
+const NOMBRES = [
+  'Antonia',
+  'Benjamin',
+  'Catalina',
+  'Daniela',
+  'Emilia',
+  'Felipe',
+  'Gabriela',
+  'Hernan',
+  'Isidora',
+  'Javiera',
+  'Lucas',
+  'Martina',
+  'Nicolas',
+  'Olivia',
+  'Pablo',
+  'Renata',
+  'Sebastian',
+  'Trinidad',
+  'Vicente',
+  'Ximena',
+  'Agustin',
+  'Florencia',
+  'Maria Jose',
+  'Juan Pablo',
+];
+const APELLIDOS = [
+  'Aguilera',
+  'Bustos',
+  'Carrasco',
+  'Donoso',
+  'Espinoza',
+  'Fuentes',
+  'Gallardo',
+  'Henriquez',
+  'Ibarra',
+  'Jara',
+  'Lagos',
+  'Morales',
+  'Navarrete',
+  'Olivares',
+  'Pizarro',
+  'Quiroz',
+  'Riquelme',
+  'Sepulveda',
+  'Toro',
+  'Urrutia',
+  'Valenzuela',
+  'Zamora',
+];
+const NOTAS: [string, string][] = [
+  ['Seguimiento', 'Llega puntual. Refiere una semana mas tranquila y **menos episodios** de ansiedad.'],
+  ['Registro de pensamientos', 'Se revisa el autorregistro. Identifica pensamientos automaticos ligados al trabajo.'],
+  ['Psicoeducacion', 'Se explica el ciclo de la ansiedad y se entrega material de apoyo.'],
+  ['Objetivos terapeuticos', 'Se definen objetivos en conjunto.\n\n- Dormir mejor\n- Retomar actividades\n- Pedir ayuda antes de saturarse'],
+  ['Vinculos y red de apoyo', 'Se exploran vinculos cercanos y a quien recurre en momentos dificiles.'],
+  ['Manejo del estres', 'Practica respiracion diafragmatica en sesion. Buena disposicion.'],
+];
+const TAREAS = ['Completar el autorregistro diario', 'Practicar respiracion antes de dormir', 'Anotar una situacion agradable por dia'];
+
+/** Ejecuta `tarea` sobre la lista con `n` trabajadores (el demo hace miles de llamadas a la API). */
+async function enParalelo<T>(lista: readonly T[], n: number, tarea: (x: T) => Promise<unknown>): Promise<void> {
+  const cola = [...lista];
+  await Promise.all(
+    Array.from({ length: n }, async () => {
+      for (let x = cola.shift(); x !== undefined; x = cola.shift()) {
+        await tarea(x);
+      }
+    }),
+  );
+}
+
 async function main(): Promise<void> {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('seed:demo es solo de desarrollo (NODE_ENV=production)');
@@ -323,13 +396,30 @@ async function main(): Promise<void> {
       enfoques: ['Humanista', 'Ánimo'],
       perfilPublico: false,
     });
+    const directoraProfesional = await loginComo(`directora@${DOMINIO}`, 'PROFESIONAL');
+    await llamar(directoraProfesional, 'POST', '/profesionales/yo/tarifas', { monto: 42000 });
+    await llamar(directoraProfesional, 'PUT', '/profesionales/yo/perfil', {
+      especialidad: 'Psicologia clinica adultos',
+      modalidad: 'MIXTA',
+      nombrePublico: 'Ps. Directora Demo',
+      bio: 'Perfil ficticio de la directora del centro de demostracion: dirige el centro y atiende algunas horas.',
+      enfoques: ['Sistémico', 'Familia'],
+      perfilPublico: false,
+    });
+    for (const [token, id] of [
+      [adminProfesional, adminId],
+      [directoraProfesional, directoraId],
+    ] as const) {
+      await llamar(token, 'POST', '/profesionales/yo/tipos-atencion', { tipoAtencionId: adultos });
+      await llamar(admin, 'PATCH', `/profesionales/${id}/tipos-atencion/${adultos}`, { estado: 'APROBADO' });
+    }
     await llamar(practicante, 'PUT', '/profesionales/yo/videollamada', {
       modo: 'ENLACE_PROPIO',
       enlace: `https://meet.jit.si/vinculos-demo-${practicanteId.slice(0, 8)}`,
     });
     const soloOnline = [prof4.id];
     const soloPresencial = [prof5.id];
-    for (const id of [prof1Id, prof2Id, prof3Id, practicanteId, prof4.id, prof5.id, prof6.id]) {
+    for (const id of [prof1Id, prof2Id, prof3Id, practicanteId, prof4.id, prof5.id, prof6.id, adminId, directoraId]) {
       for (let diaSemana = 1; diaSemana <= 5; diaSemana++) {
         for (const modalidad of soloOnline.includes(id) ? ['ONLINE'] : soloPresencial.includes(id) ? ['PRESENCIAL'] : ['PRESENCIAL', 'ONLINE']) {
           await llamar(admin, 'POST', `/profesionales/${id}/disponibilidad`, { diaSemana, inicioMin: 9 * 60, finMin: 19 * 60, modalidad });
@@ -337,18 +427,29 @@ async function main(): Promise<void> {
       }
     }
     // 03b: la agenda sale del box. ADMIN define cuando se usa cada box; cada profesional aparta sus horas
-    // (de una semana atras a seis adelante, para las citas pasadas y futuras del demo). Box 3 abre solo este
+    // (de seis semanas atras a seis adelante, para las citas pasadas y futuras del demo). Box 3 abre solo este
     // trimestre (horario por periodo) y queda sin apartar para probarlo desde el backoffice.
+    // Horario general del centro (sin dias el centro esta cerrado): lunes a viernes 08:00-21:00 y sabado 09:00-14:00.
+    await llamar(admin, 'PUT', '/configuracion/horario', {
+      bloques: [
+        ...[1, 2, 3, 4, 5].map((diaSemana) => ({ diaSemana, inicioMin: 8 * 60, finMin: 21 * 60 })),
+        { diaSemana: 6, inicioMin: 9 * 60, finMin: 14 * 60 },
+      ],
+    });
     const box1 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 1 (Demo)' })).id;
     const box2 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 2 (Demo)' })).id;
     const box3 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 3 Sala grupal (Demo)', nota: 'Solo este trimestre' })).id;
     const habiles = [1, 2, 3, 4, 5].map((diaSemana) => ({ diaSemana, inicioMin: 9 * 60, finMin: 19 * 60 }));
-    await llamar(admin, 'PUT', `/espacios/${box1}/horario`, { bloques: habiles });
-    await llamar(admin, 'PUT', `/espacios/${box2}/horario`, { bloques: habiles });
+    const box4 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 4 (Demo)' })).id;
+    const box5 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 5 (Demo)' })).id;
+    const box6 = (await llamar(admin, 'POST', '/espacios', { nombre: 'Box 6 (Demo)' })).id;
+    for (const box of [box1, box2, box4, box5, box6]) {
+      await llamar(admin, 'PUT', `/espacios/${box}/horario`, { bloques: habiles });
+    }
     await llamar(admin, 'PUT', `/espacios/${box3}/horario`, {
       bloques: habiles.map((h) => ({ ...h, finMin: 13 * 60, vigenteDesde: diaHabil(0), vigenteHasta: diaHabil(63) })),
     });
-    const fechas = [...new Set(Array.from({ length: 37 }, (_v, i) => diaHabil(i - 6)))];
+    const fechas = [...new Set(Array.from({ length: 61 }, (_v, i) => diaHabil(i - 30)))];
     const diaSemana = (fecha: string) => new Date(`${fecha}T12:00:00Z`).getUTCDay();
     const apartar = (token: string, id: string, espacioId: string, desde: string, hasta: string, dias = [1, 2, 3, 4, 5], desdeFecha = '') =>
       llamar(token, 'POST', `/profesionales/${id}/bloques`, {
@@ -356,14 +457,26 @@ async function main(): Promise<void> {
           .filter((f) => dias.includes(diaSemana(f)) && f >= desdeFecha)
           .map((f) => ({ espacioId, inicio: enChile(f, desde).toISOString(), fin: enChile(f, hasta).toISOString() })),
       });
-    await apartar(prof1, prof1Id, box1, '09:00', '14:00');
-    await apartar(prof2, prof2Id, box1, '14:00', '19:00');
+    // Box 1 y Box 4: Profesional Uno y Dos dejan libre de 13:00 a 15:00, para ver horas de box sin apartar.
+    await apartar(prof1, prof1Id, box1, '09:00', '13:00');
+    await apartar(prof2, prof2Id, box1, '15:00', '19:00');
     await apartar(prof3, prof3Id, box2, '09:00', '13:00', [1, 3, 5]);
     await apartar(practicante, practicanteId, box2, '15:00', '19:00');
     await apartar(prof4.token, prof4.id, box2, '13:00', '15:00');
     await apartar(prof6.token, prof6.id, box2, '09:00', '13:00', [2, 4]);
     // Box 3: Profesional Cinco lunes, miercoles y viernes (martes y jueves quedan libres para probar "Apartar horas").
     await apartar(prof5.token, prof5.id, box3, '09:00', '13:00', [1, 3, 5], diaHabil(0));
+    // Boxes 4 a 6: las horas que hacen falta para la carga real del centro (ver "Carga del centro"), incluida la
+    // cuenta madre y la directora, que tambien atienden.
+    await apartar(prof2, prof2Id, box4, '09:00', '13:00');
+    await apartar(prof1, prof1Id, box4, '15:00', '19:00');
+    await apartar(prof6.token, prof6.id, box5, '09:00', '13:00', [1, 3, 5]);
+    await apartar(prof3, prof3Id, box5, '09:00', '13:00', [2, 4]);
+    await apartar(prof6.token, prof6.id, box5, '13:00', '15:00');
+    await apartar(prof4.token, prof4.id, box5, '15:00', '19:00');
+    await apartar(prof5.token, prof5.id, box6, '14:00', '19:00');
+    await apartar(directoraProfesional, directoraId, box6, '09:00', '13:00', [1, 3, 5]);
+    await apartar(adminProfesional, adminId, box6, '09:00', '14:00', [2, 4]);
 
     // Datos para la copia de autoria de las evoluciones y para las liquidaciones (cifrados).
     await llamar(prof1, 'PUT', '/profesionales/yo/datos-privados', {
@@ -393,6 +506,7 @@ async function main(): Promise<void> {
         [prof5.token, prof5.id],
         [prof6.token, prof6.id],
         [adminProfesional, adminId],
+        [directoraProfesional, directoraId],
       ] as const
     ).entries()) {
       await llamar(token, 'PUT', '/profesionales/yo/registro-sis', { numero: String(100001 + i) });
@@ -647,8 +761,8 @@ async function main(): Promise<void> {
       for (const [pacienteId, profesionalId, modalidad, hora] of [
         [pacientePrueba, prof1Id, 'PRESENCIAL', '09:00'],
         [diego.id, prof1Id, 'PRESENCIAL', '11:00'],
-        [pacientePrueba, prof1Id, 'ONLINE', '13:00'],
-        [sofia.id, prof2Id, 'PRESENCIAL', '14:00'],
+        [pacientePrueba, prof1Id, 'ONLINE', '16:00'],
+        [sofia.id, prof2Id, 'PRESENCIAL', '15:00'],
         [tomas.id, prof2Id, 'ONLINE', '17:00'],
         [camila.id, practicanteId, 'ONLINE', '15:00'],
       ] as const) {
@@ -782,7 +896,201 @@ async function main(): Promise<void> {
     await dueno.cita.update({ where: { id: vencida.citaId }, data: { pagoVenceEn: new Date(Date.now() - 60_000) } });
     await app.get(JobsService).liberarReservasVencidas();
 
-    // --- 03b-4.2: paciente moroso, protocolo del centro y comision por derivacion --------
+    // Comision por derivacion: monto fijo por sesion de pacientes traidos por el centro; el resto, 20% general.
+    await llamar(admin, 'PATCH', '/configuracion', {
+      comisionCentroPorcentaje: 20,
+      comisionDerivacionTipo: 'MONTO_FIJO',
+      comisionDerivacionValor: 5000,
+    });
+
+    // --- Carga del centro: entre 10 y 50 pacientes por profesional (cuenta madre y directora incluidas) -------
+    // Para ver la agenda y los listados con el volumen de un centro real. Cada paciente tiene un horario fijo,
+    // semanal o quincenal, de seis semanas atras a cuatro adelante; va antes del moroso porque morosidad_desde
+    // todavia es la hora del seed. Las citas van como dueño (las pasadas la API no las agenda, y asi las futuras
+    // no generan avisos), saltando las horas ya tomadas. Pasadas y las de mañana quedan pagadas (solo Rodrigo
+    // debe); las pasadas tienen evolucion, salvo algunas de los ultimos dias para "fichas por cerrar".
+    // Las horas online de Rodrigo (abajo) y las contiguas, por el margen de traslado.
+    const reservadas = [horario(-2, '09:00'), horario(-2, '10:00'), horario(-2, '11:00'), horario(9, '10:00'), horario(9, '11:00'), horario(9, '12:00')].map(
+      (h) => h.inicio,
+    );
+    const cargaCentro = [
+      {
+        login: () => login(`profesional1@${DOMINIO}`),
+        id: prof1Id,
+        pacientes: 42,
+        tipoAtencionId: adultos,
+        menores: false,
+        franjas: [
+          [[1, 2, 3, 4, 5], 9, 13],
+          [[1, 2, 3, 4, 5], 15, 19],
+        ],
+      },
+      {
+        login: () => login(`profesional2@${DOMINIO}`),
+        id: prof2Id,
+        pacientes: 34,
+        tipoAtencionId: infanto,
+        menores: true,
+        franjas: [
+          [[1, 2, 3, 4, 5], 9, 13],
+          [[1, 2, 3, 4, 5], 15, 19],
+        ],
+      },
+      {
+        login: () => login(`profesional3@${DOMINIO}`),
+        id: prof3Id,
+        pacientes: 18,
+        tipoAtencionId: adultos,
+        menores: false,
+        franjas: [[[1, 2, 3, 4, 5], 9, 13]],
+      },
+      {
+        login: () => login(`profesional4@${DOMINIO}`),
+        id: prof4.id,
+        pacientes: 26,
+        tipoAtencionId: adultos,
+        menores: false,
+        franjas: [[[1, 2, 3, 4, 5], 13, 19]],
+      },
+      {
+        login: () => login(`profesional5@${DOMINIO}`),
+        id: prof5.id,
+        pacientes: 22,
+        tipoAtencionId: infanto,
+        menores: true,
+        franjas: [[[1, 2, 3, 4, 5], 14, 19]],
+      },
+      {
+        login: () => login(`profesional6@${DOMINIO}`),
+        id: prof6.id,
+        pacientes: 30,
+        tipoAtencionId: adultos,
+        menores: false,
+        franjas: [[[1, 2, 3, 4, 5], 9, 15]],
+      },
+      {
+        login: () => loginComo(`admin@${DOMINIO}`, 'PROFESIONAL'),
+        id: adminId,
+        pacientes: 12,
+        tipoAtencionId: adultos,
+        menores: false,
+        franjas: [[[2, 4], 9, 14]],
+      },
+      {
+        login: () => loginComo(`directora@${DOMINIO}`, 'PROFESIONAL'),
+        id: directoraId,
+        pacientes: 15,
+        tipoAtencionId: adultos,
+        menores: false,
+        franjas: [[[1, 3, 5], 9, 13]],
+      },
+    ] as { login: () => Promise<string>; id: string; pacientes: number; tipoAtencionId: string; menores: boolean; franjas: [number[], number, number][] }[];
+    const semanaDe = (fecha: string) => Math.floor((Date.parse(fecha) / DIA + 3) / 7);
+    const ultimaFecha = diaHabil(20);
+    const ultimaPagada = diaHabil(1);
+    const cierreReciente = diaHabil(-4);
+    const gestionCarga = await login(MARCA);
+    let correlativo = 0;
+    for (const p of cargaCentro) {
+      const token = await p.login();
+      const tomadas = new Set(
+        (await dueno.cita.findMany({ where: { profesionalId: p.id }, select: { inicio: true } }))
+          .map((c) => c.inicio.toISOString())
+          .concat(p.id === prof1Id ? reservadas : []),
+      );
+      // Horario de la semana repartido por la grilla (no todos a primera hora).
+      const horas = p.franjas.flatMap(([dias, desde, hasta]) =>
+        dias.flatMap((dia) => Array.from({ length: hasta - desde }, (_v, i) => ({ dia, hora: `${String(desde + i).padStart(2, '0')}:00` }))),
+      );
+      const paso = horas.length % 7 === 0 ? 5 : 7;
+      const repartidas = horas.map((_h, i) => horas[(i * paso) % horas.length]!);
+      let quincenaLibre: { dia: number; hora: string } | undefined;
+      const pacientes: { pacienteId: string; fichaId: string; dia: number; hora: string; paridad: number | null; soloPasadas: boolean }[] = [];
+      for (let j = 0; j < p.pacientes; j++) {
+        // Un tercio semanal y el resto quincenal, de a dos por hora (semanas alternas).
+        const semanal = j % 3 === 0;
+        const media = !semanal && quincenaLibre;
+        const lugar = media ? quincenaLibre! : repartidas.shift()!;
+        quincenaLibre = semanal ? quincenaLibre : media ? undefined : lugar;
+        const paridad = semanal ? null : media ? 1 : 0;
+        // Paciente Prueba abre la carga de Profesional Uno: historial de evoluciones, sin mas horas futuras.
+        if (p.id === prof1Id && j === 0) {
+          pacientes.push({ pacienteId: pacientePrueba, fichaId: fichaPrueba, ...lugar, paridad, soloPasadas: true });
+          continue;
+        }
+        correlativo++;
+        const menor = p.menores && (p.id === prof5.id || j % 2 === 0);
+        const nacimiento = menor ? `${new Date().getFullYear() - 8 - (j % 9)}-05-1${j % 9}` : `${1965 + ((j * 3) % 40)}-0${(j % 9) + 1}-1${j % 9}`;
+        const nuevo = await llamar(token, 'POST', '/pacientes', {
+          nombre: NOMBRES[correlativo % NOMBRES.length],
+          apellido: `${APELLIDOS[(correlativo * 5) % APELLIDOS.length]} Demo`,
+          rut: rut(String(30_000_000 + correlativo)),
+          fechaNacimiento: nacimiento,
+          telefono: `+569${70_000_000 + correlativo}`,
+          tipoAtencionId: p.tipoAtencionId,
+        });
+        if (menor) {
+          await llamar(token, 'POST', `/pacientes/${nuevo.id}/adultos-responsables`, {
+            nombre: `${NOMBRES[(correlativo + 7) % NOMBRES.length]} ${APELLIDOS[(correlativo * 5) % APELLIDOS.length]} Demo`,
+            parentesco: j % 4 === 0 ? 'Padre' : 'Madre',
+            rut: rut(String(40_000_000 + correlativo)),
+            telefono: `+569${80_000_000 + correlativo}`,
+            email: `responsable${correlativo}@${DOMINIO}`,
+          });
+        }
+        pacientes.push({ pacienteId: nuevo.id, fichaId: String(nuevo.fichaId), ...lugar, paridad, soloPasadas: false });
+      }
+      // Online por dia completo: entre modalidades distintas la BD exige el margen de traslado.
+      const modalidadDe = (dia: number): ModalidadAtencion => (p.id === prof4.id ? 'ONLINE' : p.id === prof5.id || dia !== 5 ? 'PRESENCIAL' : 'ONLINE');
+      const citasCarga: { id: string; monto: number | null; fin: Date; fecha: string; fichaId: string; n: number }[] = [];
+      for (const fecha of fechas.filter((f) => f <= ultimaFecha)) {
+        for (const c of pacientes) {
+          const inicio = enChile(fecha, c.hora);
+          const pasa = inicio.getTime() + 50 * 60_000 <= Date.now();
+          if (diaSemana(fecha) !== c.dia || (c.paridad !== null && semanaDe(fecha) % 2 !== c.paridad)) continue;
+          if (tomadas.has(inicio.toISOString()) || (c.soloPasadas && !pasa)) continue;
+          const creada = await dueno.cita
+            .create({
+              data: { pacienteId: c.pacienteId, profesionalId: p.id, modalidad: modalidadDe(c.dia), inicio, fin: new Date(inicio.getTime() + 50 * 60_000) },
+              select: { id: true, monto: true, fin: true },
+            })
+            // Junto a una hora fija de otra modalidad no cabe (citas_margen_traslado): esa semana no se agenda.
+            .catch((e: unknown) => {
+              if (String(e).includes('23P01')) return null;
+              throw e;
+            });
+          if (!creada) continue;
+          citasCarga.push({ ...creada, fecha, fichaId: c.fichaId, n: citasCarga.length });
+        }
+      }
+      await enParalelo(
+        citasCarga.filter((c) => c.monto && c.fecha <= ultimaPagada),
+        6,
+        (c) => llamar(gestionCarga, 'POST', `/cobros/citas/${c.id}/pagos`, { monto: c.monto, medioPago: c.n % 3 === 0 ? 'EFECTIVO' : 'TRANSFERENCIA' }),
+      );
+      const realizadas = citasCarga.filter((c) => c.fin.getTime() <= Date.now() && !(c.fecha >= cierreReciente && c.n % 4 === 0));
+      await enParalelo(realizadas, 6, (c) => {
+        const [titulo, texto] = NOTAS[c.n % NOTAS.length]!;
+        const tarea = c.n % 3 === 0 ? `\nTarea · ${TAREAS[c.n % TAREAS.length]}` : '';
+        return llamar(token, 'POST', `/fichas/${c.fichaId}/evoluciones`, {
+          notas: `# ${titulo}\n\n${texto} (texto ficticio).\n\nEscala · Ánimo: ${4 + (c.n % 5)}/10${tarea}`,
+          tipoSesionId: tiposSesion[0].id,
+          nivelRiesgo: c.n % 17 === 0 ? 'MEDIO' : c.n % 6 === 0 ? 'BAJO' : 'NINGUNO',
+          citaId: c.id,
+        });
+      });
+    }
+    // Una correccion de ejemplo en el historial de Paciente Prueba (filtro "Corregidas" y "Ver versiones").
+    const prof1Final = await login(`profesional1@${DOMINIO}`);
+    const [corregible] = (await llamar(prof1Final, 'GET', `/fichas/${fichaPrueba}/evoluciones`)) as unknown as { id: string }[];
+    await llamar(prof1Final, 'POST', `/fichas/${fichaPrueba}/evoluciones`, {
+      notas: '# Evaluacion inicial (corregida)\n\nCorreccion demo: se precisa la fecha del antecedente (texto ficticio).',
+      tipoSesionId: tiposSesion[0].id,
+      nivelRiesgo: 'BAJO',
+      corrigeAId: corregible.id,
+    });
+
+    // --- 03b-4.2: paciente moroso y protocolo del centro ---------------------------
     // morosidad_desde la fija la migracion (hora del reseed), asi que ninguna sesion anterior cuenta como deuda.
     // Para dejar un caso registrado, Rodrigo (llego por el centro) tiene una sesion realizada hace 2 dias habiles
     // sin pagar y morosidad_desde se adelanta (como dueño) a justo antes de esa sesion. Las demas sesiones
@@ -813,12 +1121,34 @@ async function main(): Promise<void> {
     // Prueba acusa el de pacientes en el portal. El resto del equipo figura pendiente para la direccion.
     await llamar(prof1, 'POST', '/protocolo/lectura');
     await llamar(paciente, 'POST', '/portal/protocolo', {});
-    // Comision por derivacion: monto fijo por sesion de pacientes traidos por el centro; el resto, 20% general.
-    await llamar(admin, 'PATCH', '/configuracion', {
-      comisionCentroPorcentaje: 20,
-      comisionDerivacionTipo: 'MONTO_FIJO',
-      comisionDerivacionValor: 5000,
+    // Acuerdos por profesional (Configuracion > Cobros): B para Profesional Uno y C para la directora desde hoy (cobra el
+    // centro, como el modelo del centro); A para Profesional Dos desde el proximo mes (no cambia los cobros ya cargados).
+    // El resto usa el acuerdo del centro.
+    const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
+    const proximoMes = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+    const acuerdo = (profesionalId: string, datos: Cuerpo) =>
+      llamar(admin, 'POST', '/cobros/acuerdos', {
+        profesionalId,
+        comisionDerivacionTipo: 'GENERAL',
+        comisionDerivacionValor: 0,
+        cuotaMensual: 0,
+        cargoBoxHora: 0,
+        ivaBox: false,
+        vigenteDesde: hoy,
+        ...datos,
+      });
+    await acuerdo(prof1Id, { modelo: 'CENTRO', cobra: 'CENTRO', comisionPorcentaje: 20, comisionDerivacionTipo: 'MONTO_FIJO', comisionDerivacionValor: 5000 });
+    await acuerdo(prof2Id, {
+      modelo: 'DIRECTO',
+      cobra: 'PROFESIONAL',
+      comisionPorcentaje: 0,
+      comisionDerivacionTipo: 'PORCENTAJE',
+      comisionDerivacionValor: 15,
+      cargoBoxHora: 6800,
+      ivaBox: true,
+      vigenteDesde: proximoMes,
     });
+    await acuerdo(directoraId, { modelo: 'MIXTO', cobra: 'CENTRO', comisionPorcentaje: 12, cuotaMensual: 90000 });
   } finally {
     await app.close();
     await dueno.$disconnect();

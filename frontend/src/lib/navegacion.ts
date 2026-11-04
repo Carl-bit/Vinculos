@@ -19,6 +19,8 @@ export interface ItemMenu {
   roles: readonly Rol[];
   /** Sin modulo = siempre visible para sus roles. */
   modulo?: ModuloCentro;
+  /** Roles con acceso a la ruta (enlaces internos) que no la ven en el menu. */
+  fueraDelMenu?: readonly Rol[];
   /** Portal: se oculta en la cuenta restringida del adolescente (14-17, D-4); la API igual no lo entrega. */
   soloCuentaPlena?: boolean;
 }
@@ -33,7 +35,7 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
     { etiqueta: 'Mensajes', icono: 'chat', href: '/admin/mensajes', grupo: 'principal', roles: EQUIPO },
     { etiqueta: 'Fichas y Pacientes', icono: 'folder_shared', href: '/admin/fichas', grupo: 'modulos', roles: EQUIPO, modulo: 'FICHAS' },
     { etiqueta: 'Agenda y Espacios', icono: 'calendar_month', href: '/admin/agenda', grupo: 'modulos', roles: EQUIPO, modulo: 'AGENDA' },
-    { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'modulos', roles: ['ADMIN', 'GESTION'], modulo: 'EQUIPO' },
+    { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'modulos', roles: ['ADMIN', 'GESTION'], modulo: 'EQUIPO', fueraDelMenu: ['ADMIN'] },
     { etiqueta: 'Match Terapéutico', icono: 'join', href: '/admin/match', grupo: 'modulos', roles: ['ADMIN'], modulo: 'MATCH' },
     { etiqueta: 'Cobros', icono: 'payments', href: '/admin/cobros', grupo: 'modulos', roles: ['ADMIN', 'GESTION', 'PROFESIONAL'], modulo: 'COBROS' },
     { etiqueta: 'Configuración', icono: 'settings', href: '/admin/configuracion', grupo: 'centro', roles: ['ADMIN'] },
@@ -62,8 +64,13 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
 };
 
 export function menuVisible(zona: Zona, rol: Rol, activos: readonly ModuloCentro[], opciones: { restringida?: boolean } = {}): ItemMenu[] {
-  return MENU[zona].filter((i) => i.roles.includes(rol) && (!i.modulo || activos.includes(i.modulo)) && !(opciones.restringida && i.soloCuentaPlena));
+  return MENU[zona].filter(
+    (i) => i.roles.includes(rol) && !i.fueraDelMenu?.includes(rol) && (!i.modulo || activos.includes(i.modulo)) && !(opciones.restringida && i.soloCuentaPlena),
+  );
 }
+
+/** Selector "Equipo" del menu lateral: la cuenta madre filtra desde la agenda ("Profesional de la agenda"). */
+export const conSelectorEquipo = (rol: Rol) => rol === 'GESTION';
 
 /**
  * 03b-4.1: entrar por URL a una seccion del menu que el rol activo no tiene

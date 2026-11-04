@@ -105,7 +105,7 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   tokens_correo_sin_destinatario: 'El paciente (o su adulto responsable) no tiene correo registrado',
   aceptaciones_politica_version_vigente: 'Hay una version nueva de la politica: vuelva a leerla y aceptarla',
   aceptaciones_politica_coherente: 'Aceptacion invalida (menor: adulto responsable; presencial: respaldo)',
-  citas_dentro_de_horario_centro: 'La cita cae fuera del horario de atencion del centro',
+  citas_dentro_de_horario_centro: 'La cita cae fuera del horario de atención del centro (o el centro aún no define sus días de atención en Configuración)',
   citas_dentro_de_horario_espacio: 'La cita cae fuera del horario de funcionamiento del box',
   citas_profesional_con_acceso: 'El profesional no es el tratante ni tiene acceso clinico temporal en ese horario: usar derivacion o acceso temporal',
   revocacion_con_sesiones_por_cubrir: 'El profesional tiene sesiones por cubrir con este paciente: reasignelas o cancelelas antes de revocar',
@@ -136,7 +136,8 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   bloques_atencion_profesional: 'Solo un profesional o practicante vigente aparta horas de box',
   bloques_atencion_box_activo: 'El box no existe o esta inactivo',
   bloques_atencion_dentro_de_horario_espacio: 'El bloque cae fuera del horario disponible del box',
-  bloques_atencion_dentro_de_horario_centro: 'El bloque cae fuera del horario de atencion del centro',
+  bloques_atencion_dentro_de_horario_centro:
+    'El bloque cae fuera del horario de atención del centro (o el centro aún no define sus días de atención en Configuración)',
   bloques_atencion_con_citas: 'El bloque tiene citas o reservas en curso: reprograme o cancele antes de liberarlo',
   horarios_espacio_bloques_fuera: 'El horario nuevo deja bloques apartados fuera: liberelos o muevalos primero',
   // Antes de 03b-4: reserva desde la cuenta del paciente.
@@ -164,6 +165,13 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   pagos_caja_monto: 'El pago en caja debe cubrir lo exigido para confirmar sin superar el monto de la sesion',
   citas_liberacion_coherente: 'Liberar la hora exige un motivo (3 a 500 caracteres)',
   resoluciones_cita_justificada: 'La inasistencia justificada exige motivo',
+  preferencias_notificacion_whatsapp_modulo: 'El centro no tiene avisos por WhatsApp',
+  // Acuerdos por profesional (2026-11-05)
+  acuerdos_profesional_validos:
+    'Acuerdo no válido: en el modelo A cobra el profesional y en el B el centro; comisiones entre 0 y 100 % y montos en pesos sin decimales',
+  acuerdos_profesional_profesional: 'El acuerdo es de un profesional vigente del equipo',
+  acuerdos_profesional_periodo_liquidado: 'Esa fecha cae en un período ya liquidado: elige una fecha posterior a la última liquidación emitida',
+  acuerdos_profesional_profesional_id_vigente_desde_key: 'Ya hay una versión del acuerdo con esa fecha',
 };
 
 /**
@@ -198,6 +206,9 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/Liberar exige motivo/, 'citas_liberacion_coherente'],
   [/La inasistencia justificada exige motivo/, 'resoluciones_cita_justificada'],
   [/agenda bloqueada/, 'citas_fuera_de_bloqueos'],
+  [/El centro no tiene avisos por WhatsApp/, 'preferencias_notificacion_whatsapp_modulo'],
+  [/El acuerdo es de un profesional vigente/, 'acuerdos_profesional_profesional'],
+  [/Esa fecha cae en un periodo ya liquidado/, 'acuerdos_profesional_periodo_liquidado'],
   [/menor de 18 sin adulto responsable/, 'citas_menor_requiere_adulto_responsable'],
   [/menor de 18: (responde|el consentimiento lo otorga) un adulto/, 'consentimientos_menor_requiere_adulto_responsable'],
   [/con respaldo documental/, 'consentimientos_respaldo_obligatorio'],

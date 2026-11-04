@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 
 import { Encabezado } from '@/components/shared/Encabezado';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
@@ -77,12 +77,12 @@ export function ConfiguracionMatch() {
         )}
         <Panel
           titulo="Preguntas del cuestionario"
-          bajada="Las preguntas apagadas no se le muestran al paciente ni se usan para filtrar."
+          bajada="Las preguntas apagadas no se le muestran al paciente ni se usan para filtrar. Arrastra el ícono de puntos para cambiar el orden en que aparecen."
           accion={preguntas.data ? <Badge>{`${preguntas.data.filter((p) => p.activa).length} de ${preguntas.data.length} activas`}</Badge> : undefined}
         >
           <div className="mt-4 flex flex-col gap-2.5">
             <EstadoConsulta consulta={preguntas} vacio={(l) => l.length === 0} textoVacio="Sin preguntas">
-              {(l) => l.map((p) => <FilaPregunta key={p.id} pregunta={p} />)}
+              {(l) => <ListaPreguntas preguntas={l} formularioAbierto={nueva} />}
             </EstadoConsulta>
             {nueva ? (
               <NuevaPregunta orden={Math.max(0, ...(preguntas.data ?? []).map((p) => p.orden)) + 1} onCerrar={() => setNueva(false)} />
@@ -125,9 +125,146 @@ export function ConfiguracionMatch() {
   );
 }
 
-function FilaPregunta({ pregunta: p }: { pregunta: Pregunta }) {
+/**
+ * Orden del cuestionario: se arrastra por el asa (mouse o touch) o con las
+ * flechas del teclado. Con una pregunta abierta nada se mueve, para no mezclar
+ * un reordenamiento con una edicion a medio camino. Guarda solo las que cambian.
+ */
+function ListaPreguntas({ preguntas, formularioAbierto }: { preguntas: Pregunta[]; formularioAbierto: boolean }) {
   const cliente = useQueryClient();
-  const [abierta, setAbierta] = useState(false);
+  const filas = useRef(new Map<string, HTMLDivElement>());
+  const [abiertas, setAbiertas] = useState<ReadonlySet<string>>(new Set());
+  const [arrastre, setArrastre] = useState<{ id: string; orden: string[] } | null>(null);
+  const [anuncio, setAnuncio] = useState('');
+  const [error, setError] = useState<string>();
+  const guardar = useMutation({
+    mutationFn: (cambios: { id: string; orden: number }[]) =>
+      Promise.all(cambios.map(({ id, orden }) => datos(api.PATCH('/api/match/preguntas/{id}', { params: { path: { id } }, body: { orden } })))),
+    onSuccess: () => setError(undefined),
+    onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos guardar el nuevo orden.'),
+    onSettled: () => void cliente.invalidateQueries({ queryKey: ['match', 'preguntas'] }),
+  });
+  const bloqueado = abiertas.size > 0 || formularioAbierto || guardar.isPending;
+  const porId = new Map(preguntas.map((p) => [p.id, p]));
+  const visibles = arrastre ? arrastre.orden.map((id) => porId.get(id)!) : preguntas;
+
+  const fijar = (orden: string[]) => {
+    const cambios = orden.map((id, i) => ({ id, orden: i + 1 })).filter((c) => porId.get(c.id)!.orden !== c.orden);
+    if (cambios.length === 0) return;
+    cliente.setQueryData(
+      ['match', 'preguntas'],
+      orden.map((id, i) => ({ ...porId.get(id)!, orden: i + 1 })),
+    );
+    guardar.mutate(cambios);
+  };
+  // Se sigue en window: reordenar mueve la fila en el DOM y el asa perderia la captura del puntero.
+  const tomar = (e: PointerEvent<HTMLButtonElement>, id: string) => {
+    if (bloqueado) return;
+    e.preventDefault();
+    let orden = preguntas.map((p) => p.id);
+    setArrastre({ id, orden });
+    const mover = (ev: globalThis.PointerEvent) => {
+      const resto = orden.filter((x) => x !== id);
+      const antes = resto.findIndex((x) => {
+        const r = filas.current.get(x)!.getBoundingClientRect();
+        return ev.clientY < r.top + r.height / 2;
+      });
+      const destino = antes === -1 ? resto.length : antes;
+      if (orden[destino] === id) return;
+      orden = resto.toSpliced(destino, 0, id);
+      setArrastre({ id, orden });
+    };
+    const terminar = (ev: globalThis.PointerEvent) => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', terminar);
+      window.removeEventListener('pointercancel', terminar);
+      setArrastre(null);
+      if (ev.type === 'pointerup') fijar(orden);
+    };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', terminar);
+    window.addEventListener('pointercancel', terminar);
+  };
+  const teclado = (e: KeyboardEvent, p: Pregunta, i: number) => {
+    const destino = i + (e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0);
+    if (destino === i) return;
+    e.preventDefault();
+    if (bloqueado || destino < 0 || destino >= preguntas.length) return;
+    const ids = preguntas.map((x) => x.id);
+    ids.splice(i, 1);
+    ids.splice(destino, 0, p.id);
+    fijar(ids);
+    setAnuncio(`«${p.texto}» pasó a la posición ${destino + 1} de ${preguntas.length}.`);
+  };
+  const avisoBloqueo = 'Cierra las preguntas abiertas para poder moverlas.';
+
+  return (
+    <>
+      {abiertas.size > 0 && <p className="m-0 text-[12.5px] font-bold text-accent-800">{avisoBloqueo}</p>}
+      <p role="status" className="sr-only">
+        {anuncio}
+      </p>
+      {visibles.map((p, i) => (
+        <FilaPregunta
+          key={p.id}
+          pregunta={p}
+          abierta={abiertas.has(p.id)}
+          arrastrando={arrastre?.id === p.id}
+          refFila={(n) => {
+            if (n) filas.current.set(p.id, n);
+            else filas.current.delete(p.id);
+          }}
+          onAlternar={() => {
+            const siguiente = new Set(abiertas);
+            if (!siguiente.delete(p.id)) siguiente.add(p.id);
+            setAbiertas(siguiente);
+          }}
+          asa={
+            <button
+              type="button"
+              aria-label={`Mover «${p.texto}». Usa las flechas arriba y abajo.`}
+              aria-disabled={bloqueado}
+              title={bloqueado ? avisoBloqueo : 'Arrastra para cambiar el orden'}
+              onPointerDown={(e) => tomar(e, p.id)}
+              onKeyDown={(e) => teclado(e, p, i)}
+              className={`-ml-1.5 grid size-10 flex-none touch-none place-items-center rounded-full ${
+                bloqueado
+                  ? 'cursor-not-allowed text-neutral-500'
+                  : arrastre
+                    ? 'cursor-grabbing text-accent-700'
+                    : 'cursor-grab text-neutral-700 hover:bg-accent-100'
+              }`}
+            >
+              <Icon name="drag_indicator" size={22} />
+            </button>
+          }
+        />
+      ))}
+      {error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {error}
+        </p>
+      )}
+    </>
+  );
+}
+
+function FilaPregunta({
+  pregunta: p,
+  abierta,
+  arrastrando,
+  refFila,
+  onAlternar,
+  asa,
+}: {
+  pregunta: Pregunta;
+  abierta: boolean;
+  arrastrando: boolean;
+  refFila: (n: HTMLDivElement | null) => void;
+  onAlternar: () => void;
+  asa: ReactNode;
+}) {
+  const cliente = useQueryClient();
   const [error, setError] = useState<string>();
   const editar = useMutation({
     mutationFn: (body: components['schemas']['EditarPreguntaMatchDto']) =>
@@ -139,14 +276,13 @@ function FilaPregunta({ pregunta: p }: { pregunta: Pregunta }) {
     onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos guardar la pregunta.'),
   });
   return (
-    <div className={`rounded-[18px] border ${p.activa ? 'border-divider bg-bg' : 'border-divider bg-neutral-100'}`}>
+    <div
+      ref={refFila}
+      className={`rounded-[18px] border ${arrastrando ? 'border-accent-500 shadow-md' : 'border-divider'} ${p.activa ? 'bg-bg' : 'bg-neutral-100'}`}
+    >
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-        <button
-          type="button"
-          aria-expanded={abierta}
-          onClick={() => setAbierta((a) => !a)}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
-        >
+        {asa}
+        <button type="button" aria-expanded={abierta} onClick={onAlternar} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left">
           <Icon name={abierta ? 'expand_less' : 'expand_more'} size={20} className="flex-none text-neutral-700" />
           <span className="min-w-0">
             <span className={`block text-[14.5px] font-extrabold ${p.activa ? '' : 'text-neutral-700'}`}>{p.texto}</span>

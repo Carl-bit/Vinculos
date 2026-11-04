@@ -38,6 +38,7 @@ describe('FeriadosCentro', () => {
 
   it('lista con origen; solo los futuros se pueden quitar o reponer', async () => {
     envolver(<FeriadosCentro />);
+    await userEvent.click(await screen.findByRole('button', { name: /Ver 2026 completo/ }));
     const pasado = (await screen.findByText('Día de las Glorias Navales')).closest('tr')!;
     expect(within(pasado).queryByRole('button')).toBeNull();
     const futuro = screen.getByText('Inmaculada Concepción').closest('tr')!;
@@ -49,9 +50,15 @@ describe('FeriadosCentro', () => {
     expect(post).toHaveBeenCalledWith('/api/feriados', { body: { fecha: '2026-12-15', nombre: 'Feriado regional' } });
   });
 
+  it('muestra los proximos (no quitados, de hoy en adelante)', async () => {
+    envolver(<FeriadosCentro />);
+    expect((await screen.findAllByText(/Inmaculada Concepción/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Glorias Navales/)).toBeNull();
+  });
+
   it('agregar exige fecha de hoy en adelante y nombre', async () => {
     envolver(<FeriadosCentro />);
-    await screen.findByText('Inmaculada Concepción');
+    await screen.findAllByText(/Inmaculada Concepción/);
     await userEvent.click(screen.getByRole('button', { name: 'Agregar feriado' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Elige una fecha de hoy en adelante.');
     expect(post).not.toHaveBeenCalled();

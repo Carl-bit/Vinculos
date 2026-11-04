@@ -17,6 +17,7 @@ import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
+import type { HoraElegida } from './grillaAgenda';
 import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
 
 interface Retencion {
@@ -35,7 +36,9 @@ interface Retencion {
  * profesional: derivacion o "cubrir sesion"). 03b-3.2: con cobro previo
  * habilitado la cita nace pendiente de pago hasta el plazo del centro (lo
  * decide la BD). 03b-3.3: un paciente con deuda no agenda (422); ADMIN/GESTION
- * pueden autorizar la cita con motivo, sin perder la hora retenida.
+ * pueden autorizar la cita con motivo, sin perder la hora retenida. Desde
+ * "Por box" llega una hora elegida: una hora libre del box se aparta para el
+ * profesional al reservarla, y se libera si no se confirma.
  */
 export function AgendarSesion({
   abierto,
@@ -43,6 +46,7 @@ export function AgendarSesion({
   onCerrar,
   pacienteInicial,
   reprogramar,
+  horaElegida,
 }: {
   abierto: boolean;
   rol: Rol;
@@ -50,6 +54,7 @@ export function AgendarSesion({
   pacienteInicial?: string;
   /** Reprogramar una cita existente (mismo paciente y profesional). */
   reprogramar?: CitaVista;
+  horaElegida?: HoraElegida;
 }) {
   const cliente = useQueryClient();
   const pacientes = usePacientes({}, abierto);
@@ -74,10 +79,23 @@ export function AgendarSesion({
   const paciente = pacientes.data?.find((p) => p.id === pacienteId);
   const profesionalId = reprogramar?.profesionalId ?? paciente?.profesionalId ?? undefined;
   const nombreProfesional = profesionales.data?.find((p) => p.id === profesionalId)?.nombre ?? 'el profesional';
+  // Con un profesional en foco solo se ofrecen sus pacientes: la hora es de el.
+  const opcionesPaciente = pacientes.data?.filter((p) => !horaElegida?.profesionalId || p.profesionalId === horaElegida.profesionalId);
+  const [usarHora, setUsarHora] = useState(!!horaElegida);
+  // Bloque apartado aca para la hora elegida: si la cita no se confirma, se libera.
+  const apartado = useRef<{ id: string; profesionalId: string } | null>(null);
 
+  const liberarApartado = async () => {
+    const a = apartado.current;
+    apartado.current = null;
+    if (!a) return;
+    await datos(api.DELETE('/api/profesionales/{profesionalId}/bloques/{id}', { params: { path: a } })).catch(() => undefined);
+    void cliente.invalidateQueries({ queryKey: ['panel', 'espacios'] });
+  };
   const soltar = async () => {
     if (retencion) await datos(api.DELETE('/api/agenda/horarios-tomados/{id}', { params: { path: { id: retencion.id } } })).catch(() => undefined);
     setRetencion(null);
+    await liberarApartado();
   };
   const cerrar = () => {
     void soltar();
@@ -127,9 +145,12 @@ export function AgendarSesion({
       }
       setAviso(`${nombreProfesional} no puede atender a esa hora (otra cita, un bloqueo o el margen de traslado). Te mostramos las horas libres más cercanas.`);
       setAlternativas(v?.alternativas ?? []);
+      setUsarHora(false);
+      void liberarApartado();
       void cliente.invalidateQueries({ queryKey: ['huecos', profesionalId] });
     },
     onError: (e) => {
+      void liberarApartado();
       setAviso(
         e instanceof ApiError && e.status === 409
           ? 'Otra persona está reservando esa hora. Elige otra.'
@@ -138,6 +159,33 @@ export function AgendarSesion({
             : 'No pudimos retener la hora.',
       );
       void cliente.invalidateQueries({ queryKey: ['huecos', profesionalId] });
+    },
+  });
+
+  const reservarHora = useMutation({
+    mutationFn: async (h: HoraElegida) => {
+      if (!h.apartar || !h.espacioId) return;
+      const [b] = await datos(
+        api.POST('/api/profesionales/{profesionalId}/bloques', {
+          params: { path: { profesionalId: profesionalId! } },
+          body: { bloques: [{ espacioId: h.espacioId, inicio: h.inicio.toISOString(), fin: h.fin.toISOString() }] },
+        }),
+      );
+      if (b) apartado.current = { id: b.id, profesionalId: profesionalId! };
+    },
+    onSuccess: (_r, h) => {
+      setAviso(undefined);
+      tomar.mutate({ modalidad: h.espacioId ? 'PRESENCIAL' : 'ONLINE', inicio: h.inicio, fin: h.fin });
+    },
+    onError: (e) => {
+      void cliente.invalidateQueries({ queryKey: ['panel', 'espacios'] });
+      setAviso(
+        e instanceof ApiError && e.status === 409
+          ? 'Alguien apartó esa hora recién. Elige otra.'
+          : e instanceof ApiError
+            ? e.message
+            : 'No pudimos apartar la hora.',
+      );
     },
   });
 
@@ -154,6 +202,7 @@ export function AgendarSesion({
           );
     },
     onSuccess: (c) => {
+      apartado.current = null;
       setRetencion(null);
       setConDeuda(false);
       setMotivoDeuda('');
@@ -164,6 +213,7 @@ export function AgendarSesion({
     onError: (e) => {
       if (e instanceof ApiError && e.status === 409) {
         setRetencion(null);
+        void liberarApartado();
         setAlternativas(e.cuerpo.alternativas ?? []);
         setAviso('Alguien confirmó esa hora antes. Te mostramos las horas libres más cercanas; ninguna queda reservada hasta que la elijas.');
         void cliente.invalidateQueries({ queryKey: ['huecos', profesionalId] });
@@ -228,7 +278,7 @@ export function AgendarSesion({
                   disabled={!!retencion}
                 >
                   <option value="">{pacientes.isPending ? 'Cargando pacientes…' : 'Elige un paciente'}</option>
-                  {pacientes.data?.map((p2) => (
+                  {opcionesPaciente?.map((p2) => (
                     <option key={p2.id} value={p2.id}>
                       {p2.apellido}, {p2.nombre}
                     </option>
@@ -267,6 +317,7 @@ export function AgendarSesion({
                   hasta={retencion.hasta}
                   onVencida={() => {
                     setRetencion(null);
+                    void liberarApartado();
                     setAviso('Se acabó el tiempo de retención y la hora quedó libre. Elige de nuevo.');
                   }}
                 />
@@ -294,6 +345,32 @@ export function AgendarSesion({
                   onClick={() => confirmar.mutate()}
                 >
                   {reprogramar ? 'Confirmar nuevo horario' : conDeuda ? 'Autorizar y confirmar' : 'Confirmar cita'}
+                </Button>
+              </div>
+            </div>
+          ) : usarHora && horaElegida ? (
+            <div className="flex flex-col gap-3">
+              <Aviso tono="info" titulo={`${formatoFechaLarga(horaElegida.inicio)}, ${formatoHora(horaElegida.inicio)} · ${horaElegida.nombreBox}`}>
+                {!horaElegida.espacioId
+                  ? `Sesión online con ${profesionalId ? nombreProfesional : 'el profesional del paciente'}: no ocupa box.`
+                  : horaElegida.apartar
+                    ? `Al reservar, esta hora del box se aparta para ${profesionalId ? nombreProfesional : 'el profesional del paciente'}.`
+                    : 'Hora sin sesión dentro de las horas de box apartadas.'}
+              </Aviso>
+              <div className="flex flex-wrap justify-end gap-2.5">
+                {profesionalId && (
+                  <Button variant="ghost" onClick={() => setUsarHora(false)}>
+                    Ver otras horas
+                  </Button>
+                )}
+                <Button
+                  variant="team"
+                  icon="event"
+                  disabled={!profesionalId}
+                  loading={reservarHora.isPending || tomar.isPending}
+                  onClick={() => reservarHora.mutate(horaElegida)}
+                >
+                  Reservar esta hora
                 </Button>
               </div>
             </div>

@@ -97,15 +97,56 @@ test('Cobros: resumen del periodo y "registrar asistencia y pago" de una sesion'
 test('Configuracion (ADMIN): politicas versionadas y plantillas de mensaje', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/configuracion');
-  await expect(page.getByRole('heading', { name: 'Identidad del centro' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Consentimiento y políticas' }).click();
+  await expect(page.getByRole('heading', { name: 'Identidad y contacto' })).toBeVisible();
+  const secciones = page.getByRole('navigation', { name: 'Secciones de configuración' });
+  await secciones.getByRole('button', { name: /^Consentimientos y políticas/ }).click();
   await expect(page.getByRole('heading', { name: 'Consentimiento informado' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Reglas del sistema' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Notificaciones' }).click();
-  await page.getByRole('button', { expanded: false }).first().click();
+  await secciones.getByRole('button', { name: /^Avisos al paciente y equipo/ }).click();
+  await page.getByRole('button', { name: /^Cita cancelada, equipo · correo/ }).click();
+  await expect(page.getByRole('complementary', { name: 'Editar plantilla' })).toContainText('Equipo · correo');
   await expect(page.getByRole('button', { name: 'Restaurar ejemplo' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Reglas y plazos' }).click();
+  await secciones.getByRole('button', { name: /^Cobros y acuerdos/ }).click();
   await expect(page.getByLabel('Cargo por inasistencia')).toBeVisible();
+  await expect(page.getByRole('radio', { name: /Cobra el centro/ })).toBeChecked();
+  // El buscador filtra el submenu.
+  await page.getByLabel('Buscar un ajuste').fill('feriado');
+  await expect(secciones.getByRole('button')).toHaveText([/Horario y feriados/]);
+});
+
+test('Match: el asa mueve preguntas salvo con una abierta', async ({ page }) => {
+  await ingresarAdmin(page);
+  await page.goto('/admin/match');
+  const asas = page.getByRole('button', { name: /^Mover «/ });
+  await expect(asas.first()).toHaveAttribute('aria-disabled', 'false');
+  // Arrastre real: la primera pasa al tercer lugar y sobrevive a recargar; las flechas la devuelven.
+  const nombre = (await asas.first().getAttribute('aria-label'))!;
+  const origen = (await asas.nth(0).boundingBox())!;
+  const destino = (await asas.nth(2).boundingBox())!;
+  await page.mouse.move(origen.x + origen.width / 2, origen.y + origen.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(destino.x + destino.width / 2, destino.y + destino.height / 2 + 20, { steps: 12 });
+  await page.mouse.up();
+  await expect(asas.nth(2)).toHaveAttribute('aria-label', nombre);
+  await expect(asas.first()).toHaveAttribute('aria-disabled', 'false');
+  await page.reload();
+  await expect(asas.nth(2)).toHaveAttribute('aria-label', nombre);
+  await asas.nth(2).press('ArrowUp');
+  await expect(asas.nth(1)).toHaveAttribute('aria-label', nombre);
+  await expect(asas.first()).toHaveAttribute('aria-disabled', 'false');
+  await asas.nth(1).press('ArrowUp');
+  await expect(asas.first()).toHaveAttribute('aria-label', nombre);
+  await expect(asas.first()).toHaveAttribute('aria-disabled', 'false');
+  await page.getByRole('button', { expanded: false }).first().click();
+  await expect(page.getByText('Cierra las preguntas abiertas para poder moverlas.')).toBeVisible();
+  await expect(asas.first()).toHaveAttribute('aria-disabled', 'true');
+});
+
+test('Notificaciones: datos con llaves simples', async ({ page }) => {
+  await ingresarAdmin(page);
+  await page.goto('/admin/configuracion?vista=notificaciones');
+  await expect(page.getByRole('textbox', { name: 'Mensaje' })).toHaveValue(/\{paciente\}/);
+  await expect(page.getByRole('textbox', { name: 'Mensaje' })).not.toHaveValue(/\{\{/);
 });
 
 test('Equipo: ficha de un profesional con revisiones y cuenta; practicantes con fecha de acceso', async ({ page }) => {
@@ -182,10 +223,10 @@ test('Agenda: Semana | Mes y Hoy; la vista mensual se recuerda', async ({ page }
     .click();
 });
 
-test('selector de equipo: "Viendo a" con volver a todo el equipo', async ({ page }) => {
+test('filtro de la agenda: "Viendo a" con volver a todo el equipo', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/agenda');
-  await page.getByLabel('Equipo', { exact: true }).selectOption({ label: 'Profesional Uno' });
+  await page.getByLabel('Profesional de la agenda').selectOption({ label: 'Profesional Uno' });
   await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
   // 03b-4.1 (pendiente 19): va en la URL, sobrevive a recargar y a navegar por el menu.
   await expect(page).toHaveURL(/[?&]equipo=[0-9a-f-]{36}/);
@@ -193,9 +234,9 @@ test('selector de equipo: "Viendo a" con volver a todo el equipo', async ({ page
   await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
   await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Cobros' }).click();
   await expect(page).toHaveURL(/\/admin\/cobros\?equipo=/);
-  await expect(page.getByLabel('Equipo', { exact: true })).not.toHaveValue('');
+  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
   await page.getByRole('button', { name: 'Volver a todo el equipo' }).click();
-  await expect(page.getByLabel('Equipo', { exact: true })).toHaveValue('');
+  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toHaveCount(0);
   await expect(page).not.toHaveURL(/equipo=/);
 });
 
@@ -217,22 +258,22 @@ test('Mi perfil de la cuenta madre (punto 22): su perfil profesional con ADMIN a
 });
 
 for (const usuario of ['admin', 'profesional1'] as const) {
-  test(`Agenda 1920x1080 (${usuario}): sin scroll de la pagina, grilla 08-24 entera en la ventana y vistas Semana | Mes`, async ({ page }) => {
+  test(`Agenda 1920x1080 (${usuario}): sin scroll de la pagina, grilla 08-24 entera en la ventana y vistas Día | Semana | Mes`, async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await ingresarEquipo(page, usuario);
     await page.goto('/admin/agenda');
     await expect(page.getByRole('heading', { level: 1, name: usuario === 'admin' ? 'Coordinación del centro' : 'Mi agenda' })).toBeVisible();
     await expect(page.getByRole('tab', { name: usuario === 'admin' ? 'Por profesional' : 'Mi horario' })).toBeVisible();
     const vistas = page.getByRole('group', { name: 'Vista de la agenda' });
-    for (const vista of ['Semana', 'Mes']) await expect(vistas.getByRole('radio', { name: vista })).toHaveCount(1);
-    await expect(vistas.getByRole('radio', { name: 'Día' })).toHaveCount(0);
+    // Opcion A (semana unificada): Dia | Semana | Mes.
+    for (const vista of ['Día', 'Semana', 'Mes']) await expect(vistas.getByRole('radio', { name: vista })).toHaveCount(1);
     const grilla = page.getByRole('region', { name: 'Calendario' });
     await expect(grilla).toBeVisible();
     // Tras la animacion de entrada (desplaza el main unos px al aparecer).
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeLessThanOrEqual(0);
     // 08:00 a 24:00 caben enteras: la grilla no necesita scroll vertical.
-    await expect(grilla.getByText('08:00')).toBeVisible();
-    await expect(grilla.getByText('23:00')).toBeVisible();
+    await expect(grilla.getByText('08:00', { exact: true }).first()).toBeVisible();
+    await expect(grilla.getByText('23:00', { exact: true }).first()).toBeVisible();
     expect(await grilla.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
     await vistas.locator('label').filter({ hasText: /Mes$/ }).click();
     await expect(page.getByRole('region', { name: 'Calendario del mes' })).toBeVisible();

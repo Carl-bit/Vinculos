@@ -5,8 +5,18 @@ import { RespuestaArchivo, TAGS } from '../../core/docs/openapi';
 import { Modulo } from '../../core/modulos/modulos';
 import { Roles } from '../../core/auth/decoradores';
 import { CobrosService } from './cobros.service';
-import { ArriendoVista, DetalleCobroCita, DeudaPaciente, EstadoPagoCitaVista, LiquidacionVista, PagoVista, ReporteCobros } from './dto/cobros-respuestas.dto';
 import {
+  AcuerdoProfesionalVista,
+  ArriendoVista,
+  DetalleCobroCita,
+  DeudaPaciente,
+  EstadoPagoCitaVista,
+  LiquidacionVista,
+  PagoVista,
+  ReporteCobros,
+} from './dto/cobros-respuestas.dto';
+import {
+  AcuerdoProfesionalDto,
   AnularPagoDto,
   ArriendoDto,
   FiltroCobrosDto,
@@ -118,6 +128,20 @@ export class CobrosController {
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
   async liquidacionPdf(@Param('id', Uuid) id: string) {
     return pdf(await this.cobros.liquidacionPdf(id), 'liquidacion.pdf');
+  }
+
+  /** Acuerdos por profesional (versiones). ADMIN/GESTION todos; el profesional los suyos (RLS). */
+  @Get('acuerdos')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  acuerdos(@Query('profesionalId', new ParseUUIDPipe({ optional: true })) profesionalId?: string): Promise<AcuerdoProfesionalVista[]> {
+    return this.cobros.acuerdos(profesionalId);
+  }
+
+  /** Nueva version del acuerdo de un profesional (solo la cuenta madre). */
+  @Post('acuerdos')
+  @Roles('ADMIN')
+  registrarAcuerdo(@Body() dto: AcuerdoProfesionalDto): Promise<AcuerdoProfesionalVista> {
+    return this.cobros.registrarAcuerdo(dto);
   }
 
   /** ADMIN/GESTION todas; el profesional las suyas ya emitidas (RLS). */

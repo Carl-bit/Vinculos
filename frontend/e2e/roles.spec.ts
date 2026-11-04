@@ -30,7 +30,6 @@ const MENU_ADMIN = [
   'Mensajes',
   'Fichas y Pacientes',
   'Agenda y Espacios',
-  'Equipo',
   'Match Terapéutico',
   'Cobros',
   'Configuración',

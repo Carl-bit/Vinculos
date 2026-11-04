@@ -15546,6 +15546,116 @@
         ]
       }
     },
+    "/api/espacios/sesiones": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "EspaciosController_sesiones",
+        "parameters": [
+          {
+            "name": "desde",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasta",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OcupacionBox"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Cada sesion presencial de los boxes, sin pacientes ni profesionales (vista \"Por box\"). Max. 62 dias.",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
     "/api/espacios/bloques": {
       "get": {
         "description": "Roles: ADMIN, GESTION",
@@ -30615,6 +30725,202 @@
         ]
       }
     },
+    "/api/cobros/acuerdos": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "CobrosController_acuerdos",
+        "parameters": [
+          {
+            "name": "profesionalId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AcuerdoProfesionalVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Acuerdos por profesional (versiones). ADMIN/GESTION todos; el profesional los suyos (RLS).",
+        "tags": [
+          "Cobros"
+        ]
+      },
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "CobrosController_registrarAcuerdo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcuerdoProfesionalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcuerdoProfesionalVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Nueva version del acuerdo de un profesional (solo la cuenta madre).",
+        "tags": [
+          "Cobros"
+        ]
+      }
+    },
     "/api/cobros/liquidaciones": {
       "get": {
         "description": "Roles: ADMIN, GESTION, PROFESIONAL",
@@ -34104,7 +34410,8 @@
           "AGENDA",
           "EQUIPO",
           "MATCH",
-          "COBROS"
+          "COBROS",
+          "WHATSAPP"
         ]
       },
       "MedioConfirmacion": {
@@ -37993,6 +38300,14 @@
             "additionalProperties": true,
             "nullable": true
           },
+          "nivelRiesgo": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NivelRiesgo"
+              }
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -38015,6 +38330,7 @@
           "citaId",
           "plantillaId",
           "valores",
+          "nivelRiesgo",
           "id",
           "fichaClinicaId",
           "contenido",
@@ -38042,6 +38358,16 @@
           "valores": {
             "type": "object",
             "additionalProperties": true
+          },
+          "nivelRiesgo": {
+            "description": "Opcional aca; al confirmar es obligatorio. Omitirlo en un PUT lo deja sin indicar.",
+            "enum": [
+              "NINGUNO",
+              "BAJO",
+              "MEDIO",
+              "ALTO"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -44485,6 +44811,160 @@
           "medios"
         ]
       },
+      "CobradorAcuerdo": {
+        "type": "string",
+        "enum": [
+          "CENTRO",
+          "PROFESIONAL"
+        ]
+      },
+      "AcuerdoProfesionalVista": {
+        "type": "object",
+        "properties": {
+          "modelo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModeloCobro"
+              }
+            ]
+          },
+          "cobra": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CobradorAcuerdo"
+              }
+            ]
+          },
+          "comisionPorcentaje": {
+            "type": "string",
+            "description": "Decimal (porcentaje sobre lo cobrado)"
+          },
+          "comisionDerivacionTipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoComisionDerivacion"
+              }
+            ]
+          },
+          "comisionDerivacionValor": {
+            "type": "string",
+            "description": "Decimal (porcentaje o pesos segun el tipo)"
+          },
+          "vigenteDesde": {
+            "type": "string",
+            "format": "date"
+          },
+          "id": {
+            "type": "string"
+          },
+          "profesionalId": {
+            "type": "string"
+          },
+          "cuotaMensual": {
+            "type": "number"
+          },
+          "cargoBoxHora": {
+            "type": "number"
+          },
+          "ivaBox": {
+            "type": "boolean"
+          },
+          "creadoPorId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "modelo",
+          "cobra",
+          "comisionPorcentaje",
+          "comisionDerivacionTipo",
+          "comisionDerivacionValor",
+          "vigenteDesde",
+          "id",
+          "profesionalId",
+          "cuotaMensual",
+          "cargoBoxHora",
+          "ivaBox",
+          "creadoPorId",
+          "createdAt"
+        ]
+      },
+      "AcuerdoProfesionalDto": {
+        "type": "object",
+        "properties": {
+          "profesionalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modelo": {
+            "type": "string",
+            "enum": [
+              "CENTRO",
+              "DIRECTO",
+              "MIXTO"
+            ]
+          },
+          "cobra": {
+            "type": "string",
+            "enum": [
+              "PROFESIONAL",
+              "CENTRO"
+            ]
+          },
+          "comisionPorcentaje": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "comisionDerivacionTipo": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "PORCENTAJE",
+              "MONTO_FIJO"
+            ]
+          },
+          "comisionDerivacionValor": {
+            "type": "number",
+            "description": "Porcentaje (0 a 100) o monto en pesos segun el tipo; 0 con GENERAL.",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "cuotaMensual": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "cargoBoxHora": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "ivaBox": {
+            "type": "boolean"
+          },
+          "vigenteDesde": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profesionalId",
+          "modelo",
+          "cobra",
+          "comisionPorcentaje",
+          "comisionDerivacionTipo",
+          "comisionDerivacionValor",
+          "cuotaMensual",
+          "cargoBoxHora",
+          "ivaBox",
+          "vigenteDesde"
+        ]
+      },
       "EstadoLiquidacion": {
         "type": "string",
         "enum": [
@@ -44507,6 +44987,15 @@
           "comisionPorcentaje": {
             "type": "string",
             "description": "Decimal (porcentaje de comision del centro)"
+          },
+          "acuerdoId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Acuerdo del profesional que rigio (null = reglas del centro)."
+          },
+          "horasBox": {
+            "type": "string",
+            "description": "Decimal (horas de box apartadas en el periodo)"
           },
           "estado": {
             "allOf": [
@@ -44552,8 +45041,21 @@
           "arriendos": {
             "type": "number"
           },
+          "cuotaFija": {
+            "type": "number",
+            "description": "Cuota fija del acuerdo: una por cada dia 1 de mes dentro del periodo."
+          },
+          "usoBox": {
+            "type": "number",
+            "description": "Cargo por hora de box del acuerdo x horasBox."
+          },
+          "comisionCobroPropio": {
+            "type": "number",
+            "description": "Comision de captados que cobro el propio profesional (se la debe al centro)."
+          },
           "total": {
-            "type": "number"
+            "type": "number",
+            "description": "total = cobrado - comision - arriendos - cuotaFija - usoBox - comisionCobroPropio; negativo = el profesional le debe al centro."
           },
           "creadaPorId": {
             "type": "string"
@@ -44567,6 +45069,8 @@
           "periodoDesde",
           "periodoHasta",
           "comisionPorcentaje",
+          "acuerdoId",
+          "horasBox",
           "estado",
           "emitidaEn",
           "pagadaEn",
@@ -44578,6 +45082,9 @@
           "comisionDerivacion",
           "sesionesDerivadas",
           "arriendos",
+          "cuotaFija",
+          "usoBox",
+          "comisionCobroPropio",
           "total",
           "creadaPorId",
           "creadaEn"

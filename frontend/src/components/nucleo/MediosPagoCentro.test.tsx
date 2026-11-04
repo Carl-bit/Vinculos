@@ -37,11 +37,12 @@ describe('MediosPagoCentro', () => {
     };
   });
 
-  it('no ofrece la pasarela, pero la conserva si ya estaba habilitada', async () => {
+  it('el link de pago es de ejemplo (no se activa), pero la pasarela se conserva si ya estaba habilitada', async () => {
     centro.mediosPagoHabilitados = ['PAGO_EN_CENTRO', 'PASARELA'];
     montar();
     await screen.findByRole('switch', { name: /Transferencia/ });
-    expect(screen.queryByText(/Pasarela/i)).toBeNull();
+    expect(screen.getByRole('switch', { name: /Link de pago/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Conectar' })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: 'Guardar medios de pago' }));
     expect(PATCH).toHaveBeenCalledWith('/api/configuracion', {
       body: { mediosPagoHabilitados: ['PAGO_EN_CENTRO', 'PASARELA'], plazoValidacionTransferenciaHoras: 24, porcentajePagoConfirmacion: 50 },

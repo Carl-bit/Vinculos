@@ -1,6 +1,22 @@
-import { DecisionCita, MedioPago, TipoDocumentoTributario } from '@prisma/client';
+import { CobradorAcuerdo, DecisionCita, MedioPago, ModeloCobro, TipoComisionDerivacion, TipoDocumentoTributario } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsDate, IsEnum, IsInt, IsISO8601, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import {
+  IsBoolean,
+  IsDate,
+  IsEnum,
+  IsInt,
+  IsISO8601,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 
 import { Recortar } from '../../../core/validacion/validadores';
 
@@ -104,6 +120,53 @@ export class ArriendoDto extends PeriodoDto {
   @Min(1)
   @Max(100_000_000)
   monto!: number;
+}
+
+/**
+ * Version nueva del acuerdo de un profesional (ADMIN). modelo DIRECTO = A
+ * (cobra el profesional), CENTRO = B (cobra el centro), MIXTO = C (`cobra`
+ * decide). Rige desde vigenteDesde; nunca dentro de un periodo liquidado (422).
+ */
+export class AcuerdoProfesionalDto {
+  @IsUUID()
+  profesionalId!: string;
+
+  @IsEnum(ModeloCobro)
+  modelo!: ModeloCobro;
+
+  @IsEnum(CobradorAcuerdo)
+  cobra!: CobradorAcuerdo;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  comisionPorcentaje!: number;
+
+  @IsEnum(TipoComisionDerivacion)
+  comisionDerivacionTipo!: TipoComisionDerivacion;
+
+  /** Porcentaje (0 a 100) o monto en pesos segun el tipo; 0 con GENERAL. */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(1_000_000)
+  comisionDerivacionValor!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(100_000_000)
+  cuotaMensual!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(10_000_000)
+  cargoBoxHora!: number;
+
+  @IsBoolean()
+  ivaBox!: boolean;
+
+  @Type(() => Date)
+  @IsDate()
+  vigenteDesde!: Date;
 }
 
 export class LiquidacionDto extends PeriodoDto {

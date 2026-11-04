@@ -96,7 +96,7 @@ describe('03b-3.3 morosidad y caja de la hora retenida', () => {
 
   beforeAll(async () => {
     t = await crearApp();
-    await t.dueno.horarioCentro.deleteMany({});
+    await t.datos.centroAbierto();
     await t.dueno.configuracionCentro.update({
       where: { id: true },
       data: { rolGestionHabilitado: true, morosidadDesde: new Date(Date.now() - 30 * DIA), mediosPagoHabilitados: ['PAGO_EN_CENTRO'] },

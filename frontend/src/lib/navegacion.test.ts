@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { menuVisible } from './navegacion';
+import { conSelectorEquipo, menuVisible, rutaPermitida } from './navegacion';
 
 const etiquetas = (items: { etiqueta: string }[]) => items.map((i) => i.etiqueta);
 
@@ -12,6 +12,15 @@ describe('menuVisible', () => {
     expect(items).not.toContain('Cobros');
     expect(items).not.toContain('Match Terapéutico');
     expect(items).toContain('Configuración');
+  });
+
+  it('la cuenta madre no ve Equipo en el menu, pero conserva la ruta', () => {
+    const todos = ['EQUIPO'] as const;
+    expect(etiquetas(menuVisible('admin', 'ADMIN', todos))).not.toContain('Equipo');
+    expect(etiquetas(menuVisible('admin', 'GESTION', todos))).toContain('Equipo');
+    expect(rutaPermitida('admin', 'ADMIN', '/admin/equipo')).toBe(true);
+    expect(conSelectorEquipo('ADMIN')).toBe(false);
+    expect(conSelectorEquipo('GESTION')).toBe(true);
   });
 
   it('oculta opciones que el rol activo no tiene', () => {

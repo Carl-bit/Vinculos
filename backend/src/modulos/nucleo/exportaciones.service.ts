@@ -263,6 +263,20 @@ function filtrarPaciente(d: Tablas, pacienteId: string): Tablas {
   };
 }
 
+/**
+ * Notas de una evolucion sin las marcas del editor (mismas que
+ * frontend/src/lib/notasEvolucion.ts), para el PDF. Se limpian al exportar: lo
+ * guardado no cambia (append-only) y el JSON conserva el texto tal cual. Solo
+ * pares que no tocan una palabra: "2*3 y 4*5" no es una cursiva.
+ */
+export function notasSinMarcas(notas: string): string {
+  return notas
+    .replace(/^(?:#{1,2}|>) /gm, '')
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/(?<!\w)__([^_\n]+)__(?!\w)/g, '$1')
+    .replace(/(?<![\w*])\*([^*\n]+)\*(?![\w*])/g, '$1');
+}
+
 /** Texto para el PDF: secciones con lo esencial de cada bloque, en lenguaje simple. */
 export function textoLegible(d: Tablas): string {
   const f = (v: unknown): string => {
@@ -297,7 +311,7 @@ export function textoLegible(d: Tablas): string {
   lista('POLITICAS Y CONSENTIMIENTOS ACEPTADOS', d.aceptaciones_politica, (x) => `- ${f(x.aceptada_en)} · ${f(x.canal)}`);
   lista('SOLICITUDES SOBRE TUS DATOS', d.solicitudes_derechos, (x) => `- ${f(x.recibida_en)} · ${f(x.tipo)} · ${f(x.estado)}`);
   lista('INGRESO A LA FICHA', d.ingresos_ficha, (x) => `- ${f(x.created_at)}`);
-  lista('EVOLUCIONES', d.evoluciones, (e) => `- ${f(e.created_at)} · ${f(e.autor_nombre)}\n${f(e.notas)}`);
+  lista('EVOLUCIONES', d.evoluciones, (e) => `- ${f(e.created_at)} · ${f(e.autor_nombre)}\n${notasSinMarcas(f(e.notas))}`);
   lista('DOCUMENTOS CLINICOS EMITIDOS', d.documentos_clinicos, (x) => `- ${f(x.emitido_en ?? x.created_at)}`);
   lista('ADJUNTOS DE LA FICHA', d.adjuntos_ficha, (x) => `- ${f(x.nombre_archivo)} (${f(x.tipo_mime)})`);
   return secciones.join('\n\n') || 'Sin datos registrados.';
