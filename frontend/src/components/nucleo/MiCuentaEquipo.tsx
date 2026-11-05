@@ -100,8 +100,8 @@ function Formulario({ c, enPanel }: { c: NonNullable<ReturnType<typeof useMiCuen
   if (!enPanel) return formulario;
   return (
     <Panel
-      titulo="Mi cuenta"
-      bajada="Datos de contacto dentro del equipo. El rol y el acceso los administra la cuenta madre."
+      titulo="Contacto privado"
+      bajada="Con tu correo ingresas y recibes el código de verificación. El rol y el acceso los administra la cuenta madre."
       accion={
         <div className="flex flex-wrap gap-1.5">
           {[c.rol, ...c.rolesAdicionales.filter((r) => r.activo).map((r) => r.rol)].map((r) => (

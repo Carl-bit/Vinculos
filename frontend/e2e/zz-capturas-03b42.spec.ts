@@ -52,10 +52,8 @@ for (const usuario of ['profesional1', 'admin'] as const) {
       await foto(page, 'paciente-profesional1-evoluciones');
       // Registro SIS: informar y verificar (simulado sin apikey).
       await page.goto('/admin/perfil');
-      const panel = page
-        .getByRole('region', { name: 'Registro en la Superintendencia' })
-        .or(page.locator('section', { hasText: 'Registro en la Superintendencia' }))
-        .first();
+      await page.getByRole('button', { name: 'Editar Registro profesional' }).click();
+      const panel = page.getByRole('complementary', { name: 'Editor del perfil' });
       await panel.scrollIntoViewIfNeeded();
       const campo = panel.getByLabel(/Número de registro|Cambiar número/);
       await campo.fill('123456');

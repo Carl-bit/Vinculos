@@ -638,3 +638,23 @@ Roadmap: `docs/cumplimiento/roadmap_aud01.md`. Informe: `docs/cumplimiento/brech
   sola pagina con indice (`DetallePaciente`).
 - Tests: `seguridad_bd.sql` caso 158; Vitest `DetallePaciente`,
   `pendientesFichas`; Playwright `ficha`, `cierre-flujos` (actualizados).
+
+## Mi perfil y Mi cuenta segun diseño (2026-11-05)
+
+- Sin migraciones. `PerfilDto` (PUT `profesionales/yo/perfil`): `nombrePublico`,
+  `bio` y `citaDestacada` aceptan `null` para quitarlos (`undefined` = sin
+  cambio, como antes). OpenAPI y `esquema.d.ts` regenerados.
+- Front: `/admin/perfil` = editor del perfil publico en lienzo con inspector
+  (`EditorPerfil`, vista previa con `vistaPreviaPerfil`, mismas reglas que
+  `perfiles_publicos()`); `/admin/perfil/cuenta` = Mi cuenta privada
+  (`SeccionesCuenta`: contacto, seguridad, mis pacientes, avisos,
+  videollamada, protocolo, acuerdo, datos para pagos y liquidaciones).
+  Sin perfil profesional (GESTION, practicante, cuenta madre como ADMIN)
+  "Mi perfil" lleva a Mi cuenta.
+- Formacion: el front pide el enlace https al respaldo (`documentoRespaldoUrl`,
+  ya existente en la API) al agregar o editar un titulo.
+- Tests: integracion `02e-equipo` (quitar frase con null); Vitest
+  `vistaPreviaPerfil`; Playwright `panel` (Mi perfil, Mi cuenta, cuenta
+  madre) y `protocolo-morosidad` (actualizados).
+- Pendiente: subir el respaldo como archivo (hoy solo enlace); sesiones
+  abiertas del diseño (la API no las expone).

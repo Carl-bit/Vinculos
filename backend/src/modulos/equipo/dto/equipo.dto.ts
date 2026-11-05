@@ -44,6 +44,7 @@ export const BANCOS = [
 ] as const;
 export const TIPOS_CUENTA = ['CORRIENTE', 'VISTA', 'AHORRO', 'CUENTA_RUT'] as const;
 
+/** Mi perfil: nombre publico, bio y frase aceptan null para quitarlos (undefined = sin cambio). */
 export class PerfilDto {
   @Recortar()
   @IsString()
@@ -64,13 +65,13 @@ export class PerfilDto {
   @Recortar()
   @IsString()
   @Length(2, 120)
-  nombrePublico?: string;
+  nombrePublico?: string | null;
 
   @IsOptional()
   @Recortar()
   @IsString()
   @MaxLength(2000)
-  bio?: string;
+  bio?: string | null;
 
   @IsOptional()
   @IsUrl({ protocols: ['https'], require_protocol: true })
@@ -106,12 +107,12 @@ export class PerfilDto {
   @MaxLength(40, { each: true })
   idiomas?: string[];
 
-  /** Frase destacada del perfil publico. */
+  /** Frase destacada del perfil publico. null = quitarla (Mi perfil). */
   @IsOptional()
   @Recortar()
   @IsString()
   @MaxLength(300)
-  citaDestacada?: string;
+  citaDestacada?: string | null;
 }
 
 export class EditarPerfilDto {

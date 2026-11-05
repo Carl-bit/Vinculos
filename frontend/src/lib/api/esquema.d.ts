@@ -7213,8 +7213,8 @@ export interface components {
             enfoques?: string[];
             /** @enum {string} */
             modalidad: "PRESENCIAL" | "ONLINE" | "MIXTA";
-            nombrePublico?: string;
-            bio?: string;
+            nombrePublico?: string | null;
+            bio?: string | null;
             /** Format: uri */
             fotoUrl?: string;
             /** @description Solo el propio lo enciende y exige tarifa general vigente (BD). */
@@ -7226,8 +7226,8 @@ export interface components {
             /** @description D-7: convenios con los que atiende (FONASA, isapres...). Filtra el match por prevision. */
             convenios?: string[];
             idiomas?: string[];
-            /** @description Frase destacada del perfil publico. */
-            citaDestacada?: string;
+            /** @description Frase destacada del perfil publico. null = quitarla (Mi perfil). */
+            citaDestacada?: string | null;
         };
         /** @enum {string} */
         Modalidad: "PRESENCIAL" | "ONLINE" | "MIXTA";

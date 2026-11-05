@@ -21,7 +21,7 @@ type Modelo = Acuerdo['modelo'];
 type Miembro = components['schemas']['MiembroDirectorio'];
 
 /** A = cobra el profesional, B = cobra el centro, C = mixto (cuota, box y comisiones). */
-const LETRA: Record<Modelo, string> = { DIRECTO: 'A', CENTRO: 'B', MIXTO: 'C' };
+export const LETRA: Record<Modelo, string> = { DIRECTO: 'A', CENTRO: 'B', MIXTO: 'C' };
 const MODELOS: { valor: Modelo; texto: string }[] = [
   { valor: 'DIRECTO', texto: 'A · Cobra el profesional' },
   { valor: 'CENTRO', texto: 'B · Cobra el centro' },
@@ -77,7 +77,7 @@ const borradorDe = (a: Acuerdo | undefined, c: ConfiguracionCentro, hoy: string)
       };
 
 /** Resumen de "Cargos del centro" de una fila. */
-function cargos(a: Pick<Acuerdo, 'comisionPorcentaje' | 'comisionDerivacionTipo' | 'comisionDerivacionValor' | 'cuotaMensual' | 'cargoBoxHora' | 'cobra'>) {
+export function cargos(a: Pick<Acuerdo, 'comisionPorcentaje' | 'comisionDerivacionTipo' | 'comisionDerivacionValor' | 'cuotaMensual' | 'cargoBoxHora' | 'cobra'>) {
   const partes: string[] = [];
   if (a.cuotaMensual > 0) partes.push(`Cuota ${formatoClp(a.cuotaMensual)}`);
   if (a.cargoBoxHora > 0) partes.push(`Box ${formatoClp(a.cargoBoxHora)} por hora`);

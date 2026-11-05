@@ -87,18 +87,21 @@ export function EquipoPublico({ perfiles, atencion, agenda, match }: { perfiles:
   );
 }
 
-/** Perfil publico completo: contenido a la izquierda; agenda y reseñas fijas a la derecha. */
-export function PaginaPerfil({ perfil, resenas, agenda }: { perfil: PerfilPublico; resenas: ResenaPublica[]; agenda: boolean }) {
+/**
+ * Perfil publico completo: contenido a la izquierda; agenda y reseñas fijas a
+ * la derecha. Columnas segun el ancho del contenedor (container query): asi
+ * la vista previa de Mi perfil en "Teléfono" se ve como en un celular.
+ */
+export function ContenidoPerfil({ perfil, resenas, agenda }: { perfil: PerfilPublico; resenas: ResenaPublica[]; agenda: boolean }) {
   return (
-    <div className="entrada pt-[clamp(10px,2vw,24px)]">
-      <EnlaceVolver href="/equipo">Todo el equipo</EnlaceVolver>
-      <div className="grid items-start gap-[clamp(24px,4vw,48px)] lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="@container">
+      <div className="grid items-start gap-[clamp(24px,4vw,48px)] @[880px]:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-7">
           <CabeceraPerfil perfil={perfil} nivel={1} size={112} />
           <DatosPerfil perfil={perfil} />
           <SeccionesPerfil perfil={perfil} />
         </div>
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+        <aside className="flex flex-col gap-4 @[880px]:sticky @[880px]:top-6">
           {agenda && (
             <div className="rounded-lg border border-accent-2-500 bg-accent-2-200 p-6 shadow-md">
               <p className="m-0 mb-1 text-lg font-black tracking-[-0.02em] text-accent-2-900">Agenda con {nombreCorto(perfil)}</p>
@@ -111,6 +114,15 @@ export function PaginaPerfil({ perfil, resenas, agenda }: { perfil: PerfilPublic
           <Resenas perfil={perfil} resenas={resenas} />
         </aside>
       </div>
+    </div>
+  );
+}
+
+export function PaginaPerfil({ perfil, resenas, agenda }: { perfil: PerfilPublico; resenas: ResenaPublica[]; agenda: boolean }) {
+  return (
+    <div className="entrada pt-[clamp(10px,2vw,24px)]">
+      <EnlaceVolver href="/equipo">Todo el equipo</EnlaceVolver>
+      <ContenidoPerfil perfil={perfil} resenas={resenas} agenda={agenda} />
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { ingresar, ingresarEquipo } from './apoyo';
  */
 test('Moroso del demo: Rodrigo figura con deuda en Mis pacientes del profesional y llegó por el centro', async ({ page }) => {
   await ingresarEquipo(page, 'profesional1');
-  await page.goto('/admin/perfil');
+  await page.goto('/admin/perfil/cuenta?seccion=pacientes');
   const fila = page.getByRole('listitem').filter({ hasText: 'Rodrigo' });
   await expect(fila.getByText(/Con deuda · \$/)).toBeVisible();
 
@@ -25,10 +25,10 @@ test('Moroso del demo: Rodrigo figura con deuda en Mis pacientes del profesional
   await expect(page.getByText('Llegó por el centro')).toBeVisible();
 });
 
-test('Protocolo interno: Profesional Uno lo tiene leído en Mi perfil', async ({ page }) => {
+test('Protocolo interno: Profesional Uno lo tiene leído en Mi cuenta', async ({ page }) => {
   await ingresarEquipo(page, 'profesional1');
-  await page.goto('/admin/perfil');
-  await expect(page.getByRole('heading', { name: 'Protocolo del centro' })).toBeVisible();
+  await page.goto('/admin/perfil/cuenta?seccion=protocolo');
+  await expect(page.getByRole('heading', { level: 2, name: 'Protocolo del centro' })).toBeVisible();
   await expect(page.getByText(/Lo marcaste como leído el/)).toBeVisible();
 });
 

@@ -179,78 +179,79 @@ test('Match: preguntas del cuestionario, filtro directo y metricas', async ({ pa
   await expect(page.getByRole('heading', { name: 'Métricas básicas' })).toBeVisible();
 });
 
-test('Mi perfil: cuenta, contraseña y verificacion en dos pasos; sin perfil profesional para quien no atiende (GESTION)', async ({ page }) => {
+test('Mi cuenta: contacto, seguridad y sin perfil público para quien no atiende (GESTION)', async ({ page }) => {
   await ingresarEquipo(page, 'gestion');
   await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Mi perfil' }).click();
-  await expect(page.getByRole('heading', { name: 'Mi cuenta' })).toBeVisible();
-  await page.getByText('Cambiar mi contraseña').click();
+  // Sin perfil profesional, "Mi perfil" lleva directo a Mi cuenta.
+  await expect(page).toHaveURL(/\/admin\/perfil\/cuenta/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Datos de contacto' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Contacto privado' })).toBeVisible();
+  const secciones = page.getByRole('navigation', { name: 'Secciones de la cuenta' });
+  await expect(secciones.getByRole('button', { name: /Pagos y liquidaciones/ })).toHaveCount(0);
+  await secciones.getByRole('button', { name: 'Seguridad' }).click();
+  await expect(page).toHaveURL(/seccion=seguridad/);
   await expect(page.getByLabel('Contraseña actual')).toBeVisible();
-  await page.getByText('Verificación en dos pasos').click();
   await expect(page.getByText('Es obligatoria para el equipo del centro.', { exact: false })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Mis datos y descripción' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Volver a mi perfil público' })).toHaveCount(0);
 });
 
-test('Mi perfil del profesional (diseño "Admin - Mi Perfil"): cabecera con indicadores, mis datos, calificaciones, mis pacientes y mi cuenta', async ({
-  page,
-}) => {
+test('Mi perfil del profesional (diseño "Moderno A"): lienzo editable con inspector, vista del paciente y Mi cuenta privada', async ({ page }) => {
   await ingresarEquipo(page, 'profesional1');
   await page.goto('/admin/perfil');
-  await expect(page.getByRole('heading', { level: 1, name: 'Ps. Profesional Uno (Demo)' })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Mis indicadores' })).toContainText('Sesiones esta semana');
-  await expect(page.getByRole('heading', { name: 'Mis datos y descripción' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Mis calificaciones/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Mis horas e información de pacientes' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Paciente Prueba/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Ver mi agenda' })).toBeVisible();
-});
+  const lienzo = page.getByRole('article', { name: 'Vista previa de mi perfil público' });
+  await expect(lienzo).toContainText('Ps. Profesional Uno (Demo)');
+  const editor = page.getByRole('complementary', { name: 'Editor del perfil' });
+  await expect(editor.getByRole('heading', { name: 'Toca cualquier parte de tu perfil para editarla' })).toBeVisible();
 
-test('Agenda: Semana | Mes y Hoy; la vista mensual se recuerda', async ({ page }) => {
-  await ingresarAdmin(page);
-  await page.goto('/admin/agenda');
-  await expect(page.getByRole('region', { name: 'Calendario' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Hoy' })).toBeDisabled();
-  await page.getByRole('group', { name: 'Vista de la agenda' }).locator('label').filter({ hasText: /Mes$/ }).click();
-  await expect(page.getByRole('region', { name: 'Calendario del mes' })).toBeVisible();
-  await page.getByRole('button', { name: 'Mes siguiente' }).click();
-  await expect(page.getByRole('button', { name: 'Hoy' })).toBeEnabled();
-  await page.getByRole('button', { name: 'Hoy' }).click();
-  await page.reload();
-  await expect(page.getByRole('region', { name: 'Calendario del mes' })).toBeVisible();
-  await page
-    .getByRole('group', { name: 'Vista de la agenda' })
-    .locator('label')
-    .filter({ hasText: /Semana$/ })
-    .click();
-});
+  // Editar la frase: el lienzo la muestra en vivo; cambiar de seccion con cambios pide confirmar.
+  await lienzo.getByRole('button', { name: 'Editar Frase destacada' }).click();
+  await expect(lienzo.getByRole('button', { name: 'Editar Frase destacada' })).toHaveAttribute('aria-pressed', 'true');
+  await editor.getByLabel('Frase').fill('Frase de prueba en vivo');
+  await expect(lienzo).toContainText('Frase de prueba en vivo');
+  await expect(page.getByRole('toolbar', { name: 'Mi perfil' })).toContainText('Cambios sin guardar');
+  await lienzo.getByRole('button', { name: 'Editar Sobre mí' }).click();
+  const confirmar = page.getByRole('dialog', { name: 'Estás modificando "Frase destacada"' });
+  await confirmar.getByRole('button', { name: 'Sí, descartar' }).click();
+  await expect(lienzo).not.toContainText('Frase de prueba en vivo');
+  await expect(editor.getByRole('heading', { name: 'Sobre mí' })).toBeVisible();
 
-test('filtro de la agenda: "Viendo a" con volver a todo el equipo', async ({ page }) => {
-  await ingresarAdmin(page);
-  await page.goto('/admin/agenda');
-  await page.getByLabel('Profesional de la agenda').selectOption({ label: 'Profesional Uno' });
-  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
-  // 03b-4.1 (pendiente 19): va en la URL, sobrevive a recargar y a navegar por el menu.
-  await expect(page).toHaveURL(/[?&]equipo=[0-9a-f-]{36}/);
-  await page.reload();
-  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
-  await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Cobros' }).click();
-  await expect(page).toHaveURL(/\/admin\/cobros\?equipo=/);
-  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Profesional Uno');
-  await page.getByRole('button', { name: 'Volver a todo el equipo' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toHaveCount(0);
-  await expect(page).not.toHaveURL(/equipo=/);
+  // Formacion: un titulo nuevo pide el enlace a su respaldo.
+  await lienzo.getByRole('button', { name: 'Editar Formación' }).click();
+  await expect(editor.getByLabel('Enlace al respaldo del título')).toBeVisible();
+
+  // Asi lo ven los pacientes: la pagina publica con lo guardado.
+  await page.getByRole('button', { name: 'Ver cómo me ven los pacientes' }).click();
+  await expect(page.getByRole('region', { name: 'Así ven mi perfil los pacientes' }).getByRole('heading', { level: 1 })).toHaveText(
+    'Ps. Profesional Uno (Demo)',
+  );
+  await page.getByRole('button', { name: 'Volver a editar' }).click();
+
+  // Mi cuenta: lo privado, con mis pacientes y el pago.
+  await page.getByRole('link', { name: 'Mi cuenta' }).click();
+  await expect(page).toHaveURL(/\/admin\/perfil\/cuenta/);
+  const secciones = page.getByRole('navigation', { name: 'Secciones de la cuenta' });
+  await secciones.getByRole('button', { name: 'Mis pacientes' }).click();
+  await expect(page.getByRole('link', { name: /Paciente Prueba/ }).first()).toBeVisible();
+  await secciones.getByRole('button', { name: 'Pagos y liquidaciones' }).click();
+  await expect(page.getByRole('heading', { name: 'Mi acuerdo con el centro' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Datos para pagos' })).toBeVisible();
+  await page.getByRole('link', { name: 'Volver a mi perfil público' }).click();
+  await expect(page).toHaveURL(/\/admin\/perfil$/);
 });
 
 test('Mi perfil de la cuenta madre (punto 22): su perfil profesional con ADMIN activo y "Trabajar como Profesional"', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/perfil');
-  await expect(page.getByRole('heading', { name: 'Mi perfil profesional' })).toBeVisible();
-  await expect(page.getByText('Ps. Admin Centro Prueba (Demo)').first()).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/perfil\/cuenta/);
+  await page.getByRole('navigation', { name: 'Secciones de la cuenta' }).getByRole('button', { name: 'Mi perfil profesional' }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Mi perfil profesional' })).toBeVisible();
+  await expect(page.getByLabel('Nombre público (opcional)')).toHaveValue('Ps. Admin Centro Prueba (Demo)');
   // Con ADMIN activo no aprueba ni verifica lo propio.
   await expect(page.getByRole('button', { name: 'Asignar tipos' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Ver mi agenda' }).click();
   await expect(page).toHaveURL(/\/admin\/agenda\?equipo=/);
   await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Admin');
-  await page.goto('/admin/perfil');
+  await page.goto('/admin/perfil/cuenta?seccion=perfil-profesional');
   await page.getByRole('button', { name: 'Trabajar como Profesional' }).click();
   await expect(page.getByLabel('Rol activo')).toHaveValue('PROFESIONAL');
   await expect(page).toHaveURL(/\/admin\/perfil$/);

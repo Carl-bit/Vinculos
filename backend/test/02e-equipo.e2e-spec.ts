@@ -79,6 +79,21 @@ describe('02e equipo y practicantes', () => {
         .send({ ...perfil, perfilPublico: true });
       expect(publicado.status).toBe(200);
       expect(publicado.body.perfilPublicoConsentidoEn).toBeTruthy();
+      // Mi perfil (2026-11-05): frase y bio se quitan con null; undefined las deja como estaban.
+      const conFrase = await t
+        .http()
+        .put('/api/profesionales/yo/perfil')
+        .set(await tk(profesional))
+        .send({ ...perfil, perfilPublico: true, citaDestacada: 'Frase', bio: 'Bio' });
+      expect(conFrase.body.citaDestacada).toBe('Frase');
+      const sinFrase = await t
+        .http()
+        .put('/api/profesionales/yo/perfil')
+        .set(await tk(profesional))
+        .send({ ...perfil, perfilPublico: true, citaDestacada: null });
+      expect(sinFrase.status).toBe(200);
+      expect(sinFrase.body.citaDestacada).toBeNull();
+      expect(sinFrase.body.bio).toBe('Bio');
       // Otro (GESTION) no publica el perfil de nadie.
       await t
         .http()

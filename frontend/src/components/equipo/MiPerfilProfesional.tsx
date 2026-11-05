@@ -19,19 +19,17 @@ import {
   useDatosPrivados,
   useEspecialidades,
   useEspecialidadesDe,
-  usePerfilProfesional,
   useTarifas,
   useTiposDeProfesional,
   useTrayectoria,
   type Trayectoria,
 } from '@/lib/equipo';
 import { formatoClp, formatoFecha, rutValido } from '@/lib/formato';
-import { useMiCuenta } from '@/lib/consultas';
 import { useTiposAtencion } from '@/lib/panel';
 
-import { FormularioPerfil } from './FormularioPerfil';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
-import { RegistroSisPanel } from './RegistroSis';
+
+import { ReportarResena } from './ReportarResena';
 
 type DatosPrivadosDto = components['schemas']['DatosPrivadosDto'];
 const BANCOS: NonNullable<DatosPrivadosDto['banco']>[] = [
@@ -60,76 +58,8 @@ const CUENTAS: Record<NonNullable<DatosPrivadosDto['tipoCuenta']>, string> = {
 };
 const ESTADO_RESENA = { PENDIENTE: 'Por moderar', PUBLICADA: 'Publicada', OCULTA: 'Oculta', RETIRADA: 'Retirada' } as const;
 
-/**
- * "Mis datos y descripcion" (diseño "Admin - Mi Perfil"): lo que sale en el
- * perfil publico. Años de experiencia y registro profesional salen de la
- * trayectoria verificada (solo lectura: se editan en Trayectoria).
- */
-export function MisDatosDescripcion({ usuarioId }: { usuarioId: string }) {
-  const perfil = usePerfilProfesional(usuarioId);
-  const yo = useMiCuenta().data;
-  const trayectoria = useTrayectoria(usuarioId).data ?? [];
-  const verificada = trayectoria.filter((t) => t.verificado);
-  const primerAnio = Math.min(...verificada.filter((t) => t.tipo === 'TITULO').map((t) => t.anio));
-  const registro = verificada.find((t) => t.registroSuperintendencia)?.registroSuperintendencia;
-  const soloLectura = (etiqueta: string, valor: string) => (
-    <div className="flex flex-col gap-[7px]">
-      <span className="text-[12.5px] font-extrabold">{etiqueta}</span>
-      <span className="rounded-full border-[1.5px] border-dashed border-neutral-400 px-[18px] py-3 text-[15px] font-semibold text-neutral-800">{valor}</span>
-    </div>
-  );
-  return (
-    <Panel
-      titulo="Mis datos y descripción"
-      bajada={
-        <span className="inline-flex items-center gap-1.5">
-          <Icon name="public" size={16} />
-          Lo de abajo se muestra en mi perfil público del centro; mis datos de contacto, no.
-        </span>
-      }
-    >
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {soloLectura('Años de experiencia', Number.isFinite(primerAnio) ? `${new Date().getFullYear() - primerAnio} años` : 'Según tu título verificado')}
-        {soloLectura('Registro profesional', registro ? `Superintendencia de Salud · ${registro}` : 'Sin registro verificado')}
-      </div>
-      <div className="mt-4">
-        <EstadoConsulta consulta={perfil}>
-          {(p) =>
-            yo && (
-              <FormularioPerfil
-                key={p?.updatedAt ?? 'nuevo'}
-                modo="propio"
-                profesionalId={usuarioId}
-                perfil={p}
-                puedeFoto={false}
-                cuenta={{ nombre: yo.nombre ?? '', email: yo.email ?? '', telefono: yo.telefono ?? '' }}
-              />
-            )
-          }
-        </EstadoConsulta>
-      </div>
-    </Panel>
-  );
-}
-
-/**
- * Lo demas que el profesional gestiona de si mismo: tipos de atencion y
- * especialidades que declara (ADMIN aprueba), trayectoria, tarifas y datos
- * para pagos. El practicante solo trayectoria y datos para pagos.
- */
-export function MasDeMiPerfil({ usuarioId, practicante }: { usuarioId: string; practicante: boolean }) {
-  return (
-    <div className="flex flex-col gap-6">
-      {!practicante && <MisDeclaraciones usuarioId={usuarioId} />}
-      <RegistroSisPanel profesionalId={usuarioId} practicante={practicante} propio admin={false} />
-      <MiTrayectoria usuarioId={usuarioId} />
-      {!practicante && <MisTarifas usuarioId={usuarioId} />}
-      <MisDatosPrivados usuarioId={usuarioId} />
-    </div>
-  );
-}
-
-function MisDeclaraciones({ usuarioId }: { usuarioId: string }) {
+/** Tipos de atencion y especialidades que el profesional declara (la cuenta madre los aprueba). */
+export function MisDeclaraciones({ usuarioId }: { usuarioId: string }) {
   const cliente = useQueryClient();
   const tipos = useTiposDeProfesional(usuarioId);
   const catalogo = useTiposAtencion();
@@ -222,9 +152,11 @@ function MisDeclaraciones({ usuarioId }: { usuarioId: string }) {
   );
 }
 
-const TRAYECTORIA_VACIA = { tipo: 'TITULO' as Trayectoria['tipo'], titulo: '', institucion: '', anio: '', registroSuperintendencia: '' };
+const TRAYECTORIA_VACIA = { tipo: 'TITULO' as Trayectoria['tipo'], titulo: '', institucion: '', anio: '', registroSuperintendencia: '', respaldo: '' };
+const URL_HTTPS = /^https:\/\/[^\s]+\.[^\s]+$/i;
 
-function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
+/** Formacion: un registro nuevo o editado queda en revision hasta que el centro revisa su respaldo. */
+export function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
   const cliente = useQueryClient();
   const lista = useTrayectoria(usuarioId);
   const [f, setF] = useState(TRAYECTORIA_VACIA);
@@ -244,6 +176,7 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
         institucion: f.institucion.trim(),
         anio: Number(f.anio),
         registroSuperintendencia: f.registroSuperintendencia.trim() || undefined,
+        documentoRespaldoUrl: f.respaldo.trim() || undefined,
       };
       return editando ? datos(api.PUT('/api/trayectoria/{id}', { params: { path: { id: editando } }, body })) : datos(api.POST('/api/trayectoria', { body }));
     },
@@ -260,10 +193,14 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
     const anio = Number(f.anio);
     if (!f.titulo.trim() || !f.institucion.trim() || !Number.isInteger(anio) || anio < 1950 || anio > new Date().getFullYear())
       return setError('Completa título, institución y un año válido.');
+    if (!URL_HTTPS.test(f.respaldo.trim())) return setError('Agrega el enlace al respaldo del título (https): el centro lo revisa antes de publicarlo.');
     guardar.mutate();
   };
   return (
-    <Panel titulo="Trayectoria" bajada="Títulos y formación. La cuenta madre los verifica; editar uno lo vuelve a dejar sin verificar.">
+    <Panel
+      titulo="Formación"
+      bajada="Un título nuevo o editado queda en revisión hasta que el centro revise su respaldo. Solo la formación verificada sale en tu perfil público."
+    >
       <div className="mt-4 flex flex-col gap-3">
         <EstadoConsulta consulta={lista} vacio={(l) => l.length === 0} textoVacio="Todavía no agregas tu formación">
           {(l) => (
@@ -276,7 +213,7 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
                       {TIPO_TRAYECTORIA[t.tipo]} · {t.institucion} · {t.anio}
                     </p>
                   </div>
-                  <Badge tono={t.verificado ? 'positivo' : 'neutro'}>{t.verificado ? 'Verificado' : 'Sin verificar'}</Badge>
+                  <Badge tono={t.verificado ? 'positivo' : 'atencion'}>{t.verificado ? 'Verificado' : 'En revisión'}</Badge>
                   <button
                     type="button"
                     aria-label={`Editar ${t.titulo}`}
@@ -288,6 +225,7 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
                         institucion: t.institucion,
                         anio: String(t.anio),
                         registroSuperintendencia: t.registroSuperintendencia ?? '',
+                        respaldo: t.documentoRespaldoUrl ?? '',
                       });
                     }}
                     className="grid size-9 cursor-pointer place-items-center rounded-full hover:bg-accent-200"
@@ -346,7 +284,10 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
               />
             )}
           </Field>
-          <div className="flex items-end justify-end gap-2">
+          <Field label="Enlace al respaldo del título" required hint="Documento en tu nube (https), visible para el centro.">
+            {(x) => <Input {...x} type="url" value={f.respaldo} maxLength={500} onChange={(e) => setF((y) => ({ ...y, respaldo: e.target.value }))} />}
+          </Field>
+          <div className="flex items-end justify-end gap-2 sm:col-span-2">
             {editando && (
               <Button variant="ghost" onClick={refrescar}>
                 Cancelar
@@ -367,7 +308,7 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
   );
 }
 
-function MisTarifas({ usuarioId }: { usuarioId: string }) {
+export function MisTarifas({ usuarioId }: { usuarioId: string }) {
   const cliente = useQueryClient();
   const tarifas = useTarifas(usuarioId);
   const catalogo = useTiposAtencion();
@@ -463,7 +404,7 @@ function MisTarifas({ usuarioId }: { usuarioId: string }) {
   );
 }
 
-function MisDatosPrivados({ usuarioId }: { usuarioId: string }) {
+export function MisDatosPrivados({ usuarioId }: { usuarioId: string }) {
   const [abierto, setAbierto] = useState(false);
   const privados = useDatosPrivados(usuarioId, abierto);
   return (
@@ -613,6 +554,7 @@ export function MisResenas() {
                     </Badge>
                   </div>
                   {r.texto && <p className="m-0 mt-1.5 text-[13.5px] leading-relaxed text-neutral-800">{r.texto}</p>}
+                  {r.estado === 'PUBLICADA' && <ReportarResena resenaId={r.id} />}
                   {r.feedbackPrivado && (
                     <p className="m-0 mt-2 rounded-[12px] border-[1.5px] border-dashed border-neutral-400 px-3 py-2 text-[13px] text-neutral-800">
                       <span className="font-extrabold">Comentario privado: </span>

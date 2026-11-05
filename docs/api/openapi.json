@@ -39923,11 +39923,13 @@
           },
           "nombrePublico": {
             "type": "string",
+            "nullable": true,
             "minLength": 2,
             "maxLength": 120
           },
           "bio": {
             "type": "string",
+            "nullable": true,
             "maxLength": 2000
           },
           "fotoUrl": {
@@ -39965,7 +39967,8 @@
           },
           "citaDestacada": {
             "type": "string",
-            "description": "Frase destacada del perfil publico.",
+            "nullable": true,
+            "description": "Frase destacada del perfil publico. null = quitarla (Mi perfil).",
             "maxLength": 300
           }
         },
