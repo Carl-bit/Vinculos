@@ -21,7 +21,7 @@ const DESTINO: Partial<Record<TipoAviso, string>> = {
   SOLICITUD_HORA: '/admin/agenda?vista=pendientes',
   CIERRE_REQUERIDO: '/admin/fichas?filtro=sin-cerrar',
   POSIBLE_DUPLICADO: '/admin/fichas?filtro=duplicados',
-  CONSENTIMIENTO_POR_VENCER: '/admin/fichas?vista=consentimientos',
+  CONSENTIMIENTO_POR_VENCER: '/admin/fichas?vista=practicas',
   CITA_CONFIRMADA: '/admin/agenda',
   CITA_CANCELADA: '/admin/agenda',
   CITA_REPROGRAMADA: '/admin/agenda',

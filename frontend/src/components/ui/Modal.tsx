@@ -28,7 +28,7 @@ export function Modal({
   descripcion?: ReactNode;
   children?: ReactNode;
   acciones?: ReactNode;
-  ancho?: 'md' | 'lg';
+  ancho?: 'md' | 'lg' | 'xl';
   /** false = sin boton de cerrar ni Escape (p. ej. una aceptacion obligatoria). */
   cerrable?: boolean;
 }) {
@@ -55,7 +55,7 @@ export function Modal({
         if (cerrable) onCerrar();
       }}
       className={`m-auto w-[calc(100%-32px)] rounded-lg border border-divider bg-bg p-0 text-text shadow-lg backdrop:bg-neutral-900/40 open:entrada ${
-        ancho === 'lg' ? 'max-w-[680px]' : 'max-w-[480px]'
+        ancho === 'xl' ? 'max-w-[1120px]' : ancho === 'lg' ? 'max-w-[680px]' : 'max-w-[480px]'
       }`}
     >
       {abierto && (

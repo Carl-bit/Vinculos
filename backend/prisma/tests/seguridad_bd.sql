@@ -6042,6 +6042,32 @@ DO $$ BEGIN
   ASSERT NOT cobro_directo(test.u('b3')), 'caso 157: sin acuerdo rige el centro';
 END $$;
 
+\echo 158 Pendientes de las fichas (2026-11-06): ADMIN/GESTION ven los de todos (solo metadata y codigo seudonimo); el profesional solo los suyos; PACIENTE no; las sesiones sin evolucion cuadran con estado_fichas_profesional
+\connect :app_url
+DO $$ DECLARE v_total int; v_estado int; BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM pendientes_fichas() WHERE profesional_id <> test.u('b1')), 'caso 158: el profesional ve solo lo suyo';
+  BEGIN
+    PERFORM pendientes_fichas(test.u('b2'));
+    RAISE EXCEPTION 'caso 158: pendientes de otro profesional';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  SELECT count(*) INTO v_total FROM pendientes_fichas() WHERE tipo = 'SIN_EVOLUCION';
+  SELECT coalesce(sum(sesiones_sin_cerrar), 0) INTO v_estado FROM estado_fichas_profesional(test.u('b1'));
+  ASSERT v_total >= v_estado, 'caso 158: toda sesion sin cerrar de sus pacientes aparece como pendiente';
+  ASSERT NOT EXISTS (SELECT 1 FROM pendientes_fichas() WHERE tipo = 'SIN_EVOLUCION' AND (vence IS NULL OR vence <= fecha)),
+    'caso 158: la sesion sin evolucion trae su plazo';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  BEGIN
+    PERFORM pendientes_fichas();
+    RAISE EXCEPTION 'caso 158: PACIENTE no ve pendientes';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(DISTINCT profesional_id) FROM pendientes_fichas()) >= (SELECT count(DISTINCT profesional_id) FROM pendientes_fichas(test.u('b1'))),
+    'caso 158: GESTION ve todos o uno';
+  ASSERT NOT EXISTS (SELECT 1 FROM pendientes_fichas() WHERE codigo IS NULL), 'caso 158: siempre con codigo seudonimo';
+END $$;
+\connect :owner_url
+
 \echo 78 Sin texto plano: toda columna bytea cifrada tiene el formato; seed sin datos sensibles; copia de autoria intacta tras cerrar cuentas
 DO $$ DECLARE c record; n int; BEGIN
   FOR c IN SELECT table_name, column_name FROM information_schema.columns

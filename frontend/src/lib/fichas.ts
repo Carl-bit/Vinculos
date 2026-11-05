@@ -165,3 +165,47 @@ export function correccionesDe<T extends { id: string; corrigeAId: string | null
   }
   return mapa;
 }
+
+export type PendienteFicha = components['schemas']['PendienteFicha'];
+
+/**
+ * Pendientes administrativos de las fichas (pendientes_fichas): sesiones sin
+ * evolucion, consentimiento, RUT y adulto responsable. Metadata con codigo de
+ * ficha, sin contenido clinico. ADMIN/GESTION: todos o uno; el profesional,
+ * los suyos (la BD decide).
+ */
+export function usePendientesFichas(profesionalId?: string, habilitado = true) {
+  return useQuery({
+    queryKey: ['panel', 'pendientes-fichas', profesionalId ?? 'todos'],
+    queryFn: () => datos(api.GET('/api/pendientes-fichas', { params: { query: profesionalId ? { profesionalId } : {} } })),
+    enabled: habilitado,
+    refetchInterval: 2 * MINUTO,
+  });
+}
+
+const DIA = 86_400_000;
+
+/** Dias que quedan (negativo: vencido) hasta `vence`, por dia calendario. */
+export const diasHasta = (vence: string, ahora = Date.now()) => Math.ceil((new Date(vence).getTime() - ahora) / DIA);
+
+/** Texto y tono del plazo de una sesion sin evolucion: vencido, por vencer (7 dias o menos) o en plazo. */
+export function plazoEvolucion(vence: string, ahora = Date.now()): { texto: string; tono: 'vencido' | 'pronto' | 'plazo' } {
+  const d = diasHasta(vence, ahora);
+  if (d < 0) return { texto: 'Plazo vencido', tono: 'vencido' };
+  if (d === 0) return { texto: 'Vence hoy', tono: 'pronto' };
+  return { texto: d === 1 ? 'Vence mañana' : `Vence en ${d} días`, tono: d <= 7 ? 'pronto' : 'plazo' };
+}
+
+/** Sesiones sin evolucion agrupadas por paciente, la mas antigua primero (plazo mas cercano). */
+export function sinEvolucionPorPaciente(lista: readonly PendienteFicha[]) {
+  const grupos = new Map<string, { pacienteId: string; codigo: string; profesionalId: string; sesiones: PendienteFicha[] }>();
+  for (const p of lista) {
+    if (p.tipo !== 'SIN_EVOLUCION') continue;
+    const g = grupos.get(p.paciente_id) ?? { pacienteId: p.paciente_id, codigo: p.codigo, profesionalId: p.profesional_id, sesiones: [] };
+    g.sesiones.push(p);
+    grupos.set(p.paciente_id, g);
+  }
+  return [...grupos.values()]
+    .map((g) => ({ ...g, sesiones: g.sesiones.sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? '')) }))
+    .sort((a, b) => (a.sesiones[0]!.vence ?? '').localeCompare(b.sesiones[0]!.vence ?? ''));
+}

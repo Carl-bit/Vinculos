@@ -14,9 +14,12 @@ test('Moroso del demo: Rodrigo figura con deuda en Mis pacientes del profesional
   const fila = page.getByRole('listitem').filter({ hasText: 'Rodrigo' });
   await expect(fila.getByText(/Con deuda · \$/)).toBeVisible();
 
-  await page.goto('/admin/fichas?vista=pacientes');
-  await page
-    .getByRole('link', { name: /Rodrigo/ })
+  await page.goto('/admin/fichas');
+  const riel = page.getByRole('region', { name: 'Mis pacientes' });
+  await riel.getByRole('tab', { name: 'Todos' }).click();
+  await riel.getByRole('searchbox', { name: 'Buscar paciente' }).fill('Rodrigo');
+  await riel
+    .getByRole('button', { name: /Rodrigo/ })
     .first()
     .click();
   await expect(page.getByText('Llegó por el centro')).toBeVisible();

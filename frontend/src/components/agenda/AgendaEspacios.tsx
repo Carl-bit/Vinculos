@@ -15,7 +15,7 @@ import { AgendarSesion } from './AgendarSesion';
 import { CalendarioAgenda } from './CalendarioAgenda';
 import { DetalleCita } from './DetalleCita';
 import { EspaciosAgenda } from './EspaciosAgenda';
-import type { HoraElegida } from './grillaAgenda';
+import type { HoraElegida } from '@/lib/grillaAgenda';
 import { HorariosEquipo } from './HorariosEquipo';
 import { PendientesAgenda } from './PendientesAgenda';
 

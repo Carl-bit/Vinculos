@@ -56,6 +56,8 @@ import {
   EnlaceEnviado,
   EnviarDocumentoDto,
   EstadoFichaPaciente,
+  PendienteFicha,
+  PendientesFichasDto,
   EvolucionVista,
   FichaVista,
   InvitacionEnviada,
@@ -308,6 +310,13 @@ export class SeguimientoController {
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
   estadoFichas(@Param('id', Uuid) id: string): Promise<EstadoFichaPaciente[]> {
     return this.seguimiento.estadoFichas(id);
+  }
+
+  /** Seguimiento del equipo y "Por hacer": pendientes de las fichas (metadata y codigo seudonimo, sin contenido clinico). */
+  @Get('pendientes-fichas')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  pendientesFichas(@Query() filtro: PendientesFichasDto): Promise<PendienteFicha[]> {
+    return this.seguimiento.pendientesFichas(filtro.profesionalId);
   }
 }
 

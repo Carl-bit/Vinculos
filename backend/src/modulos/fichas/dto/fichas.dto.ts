@@ -989,3 +989,35 @@ export class RangoCitasEvolucionDto {
   @IsDate()
   hasta!: Date;
 }
+
+/** Seguimiento del equipo y "Por hacer": un profesional (ADMIN/GESTION; vacio = todos). */
+export class PendientesFichasDto {
+  @IsOptional()
+  @IsUUID()
+  profesionalId?: string;
+}
+
+/**
+ * Pendiente administrativo de una ficha (pendientes_fichas): solo metadata y
+ * codigo seudonimo, nunca contenido clinico ni nombre.
+ */
+export class PendienteFicha {
+  @ApiProperty({ format: 'uuid' })
+  profesional_id!: string;
+  @ApiProperty({ format: 'uuid' })
+  paciente_id!: string;
+  /** Codigo seudonimo de la ficha (C-XXXXXXXXXX). */
+  codigo!: string;
+  @ApiProperty({ enum: ['SIN_EVOLUCION', 'CONSENTIMIENTO', 'SIN_RUT', 'SIN_RESPONSABLE'] })
+  tipo!: 'SIN_EVOLUCION' | 'CONSENTIMIENTO' | 'SIN_RUT' | 'SIN_RESPONSABLE';
+  /** SIN_EVOLUCION: la sesion. */
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  cita_id!: string | null;
+  /** SIN_EVOLUCION: inicio de la sesion; el resto: proxima hora. */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  fecha!: Date | null;
+  /** SIN_EVOLUCION: plazo para registrar la evolucion (dias de Configuracion > Agenda y plazos). */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  vence!: Date | null;
+  menor!: boolean;
+}

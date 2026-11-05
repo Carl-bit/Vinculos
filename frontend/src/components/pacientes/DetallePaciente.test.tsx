@@ -63,11 +63,13 @@ vi.mock('./SeccionesPaciente', () => ({
   useConsentimientoAtencion: () => ({ vigente: lista({ version: 2 }), aceptaciones: lista([]), alDia: false }),
 }));
 vi.mock('./FichaClinica', () => ({
-  ContactoEmergencia: () => <p>contacto</p>,
   useMotivoConsulta: () => 'Sin ficha de ingreso registrada.',
-  ConversacionesCaso: () => null,
-  EvolucionesFicha: () => <p>evoluciones</p>,
+  EvolucionesFicha: () => <p>editor-evoluciones</p>,
 }));
+vi.mock('./IngresoFicha', () => ({ IngresoFicha: () => <p>ingreso</p> }));
+// La ficha monta todas las secciones a la vez: las de Datos tienen sus propias pruebas.
+vi.mock('./AccesosTemporales', () => ({ AccesosPaciente: () => <p>accesos</p> }));
+vi.mock('./AltaPaciente', () => ({ AltaPaciente: () => <p>alta</p> }));
 vi.mock('./CobrosPaciente', () => ({ CobrosPaciente: () => <p>cobros</p>, usePagosPaciente: () => lista([]) }));
 vi.mock('./CrearDerivacion', () => ({ CrearDerivacion: () => null }));
 vi.mock('./DocumentosFicha', () => ({ DocumentosFicha: () => <p>documentos</p> }));
@@ -75,9 +77,9 @@ vi.mock('./AdjuntosFicha', () => ({ AdjuntosFicha: () => <p>adjuntos</p> }));
 vi.mock('./SolicitudesEpicrisis', () => ({ SolicitudesEpicrisis: () => null }));
 vi.mock('./ExportacionClinicaPendiente', () => ({ ExportacionClinicaPendiente: () => null }));
 
-const pestanas = () =>
-  within(screen.getByRole('tablist', { name: 'Secciones del paciente' }))
-    .getAllByRole('tab')
+const indice = () =>
+  within(screen.getByRole('navigation', { name: 'Índice de la ficha' }))
+    .getAllByRole('link')
     .map((t) => t.textContent);
 const montar = (rol: Rol) => render(<DetallePaciente id="pa1" rol={rol} />);
 
@@ -89,38 +91,44 @@ describe('Vista del paciente (03b-4.2)', () => {
     useFicha.mockImplementation((_: string, habilitado: boolean) => (habilitado ? lista({ id: 'f1', fechaApertura: '2026-01-01' }) : vacia));
   });
 
-  it('tratante: pestañas clinicas, encabezado de identidad fijo, avisos y panel lateral', () => {
+  it('tratante: ficha en una pagina con indice, encabezado fijo y siguiente paso', () => {
     montar('PROFESIONAL');
-    expect(pestanas()).toEqual(['Sesiones', 'Evoluciones', 'Ingreso', 'Documentos y adjuntos', 'Cobros', 'Consentimientos', 'Datos']);
+    // 2 sesiones sin evolucion + 1 borrador en Evoluciones; consentimiento pendiente.
+    expect(indice()).toEqual(['Resumen', 'Datos', 'Sesiones', 'Evolucionespendientes: 3', 'Documentos', 'Cobros', 'Consentimientospendientes: 1']);
     const encabezado = screen.getByRole('heading', { level: 1, name: 'Ana Demo' }).closest('header')!;
     expect(encabezado.className).toMatch(/sticky/);
     expect(within(encabezado).getByText(/RUT 12\.345\.678-5/)).toBeInTheDocument();
     expect(within(encabezado).getByText(/Tratante: Profesional Uno/)).toBeInTheDocument();
-    expect(within(encabezado).getByRole('button', { name: /Copiar correo/ })).toBeInTheDocument();
-    const avisos = within(encabezado).getByRole('list', { name: 'Avisos de acción' });
-    expect(within(avisos).getByText('Consentimiento pendiente')).toBeInTheDocument();
-    expect(within(avisos).getByText('2 sesiones sin evolución')).toBeInTheDocument();
-    expect(within(avisos).getByText('Borrador sin confirmar')).toBeInTheDocument();
-    expect(within(encabezado).getByRole('button', { name: /Registrar evolución/ })).toBeEnabled();
-    expect(screen.getByRole('complementary', { name: 'Resumen clínico' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Copiar correo/ })).toBeInTheDocument();
+    // Datos rapidos y siguiente paso van bajo el encabezado fijo (que no cambia de alto).
+    const paso = screen.getByRole('status', { name: 'Siguiente paso' });
+    expect(paso).toHaveTextContent('Siguiente paso');
+    expect(paso).toHaveTextContent('Hay 2 sesiones realizadas sin evolución registrada.');
+    expect(within(encabezado).getAllByRole('button', { name: /Registrar evolución/ })[0]).toBeEnabled();
+    for (const s of ['Resumen', 'Sesiones', 'Evoluciones', 'Documentos y adjuntos', 'Consentimientos', 'Datos'])
+      expect(screen.getByRole('region', { name: s })).toBeInTheDocument();
     // Sin paso intermedio: no hay boton "Abrir ficha clínica".
     expect(screen.queryByText('Abrir ficha clínica')).toBeNull();
   });
 
-  it('?vista= de la antigua pagina /ficha llega a la pestaña equivalente', () => {
-    vista = 'adjuntos';
+  it('?vista=evoluciones abre el editor y archivo a pantalla completa, con vuelta a la ficha', () => {
+    vista = 'evoluciones';
     montar('PROFESIONAL');
-    expect(screen.getByRole('tab', { name: 'Documentos y adjuntos' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('editor-evoluciones')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Volver a la ficha' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Sesiones' })).toBeNull();
   });
 
   it('ADMIN/GESTION: Sesiones, Cobros, Consentimientos y Datos; nunca contenido clinico', () => {
     miId = 'a1';
     for (const rol of ['ADMIN', 'GESTION'] as const) {
       const { unmount } = montar(rol);
-      expect(pestanas()).toEqual(['Sesiones', 'Cobros', 'Consentimientos', 'Datos']);
+      expect(indice()).toEqual(['Datos', 'Sesiones', 'Cobros', 'Consentimientospendientes: 1']);
       expect(useFicha).toHaveBeenCalledWith('pa1', false);
-      expect(screen.queryByRole('complementary', { name: 'Resumen clínico' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Resumen' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Evoluciones' })).toBeNull();
       expect(screen.queryByRole('button', { name: /Registrar evolución/ })).toBeNull();
+      expect(screen.getByRole('status', { name: 'Siguiente paso' })).toHaveTextContent('El consentimiento informado sigue pendiente.');
       expect(screen.getByRole('heading', { level: 1, name: 'Ana Demo' }).closest('header')).not.toBeNull();
       unmount();
     }

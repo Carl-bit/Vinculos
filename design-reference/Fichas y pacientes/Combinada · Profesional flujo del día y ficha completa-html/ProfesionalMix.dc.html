@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Fichas y Pacientes, profesional, combinada</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8A4B1F}a:hover{color:#6B3714}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1100px; box-sizing: border-box; background: #E6DED1; color: #2B2420; font-family: 'Figtree', system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-wrap: wrap">
+
+<nav aria-label="Menú principal" style="flex: 1 1 200px; max-width: 210px; box-sizing: border-box; background: #F4ECE0; padding: 24px 14px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #DCCFBB">
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 17px; padding: 0 10px 24px"><span style="width: 8px; height: 8px; border-radius: 999px; background: #4F6B2F"></span>Centro de Prueba</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Inicio</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mi perfil</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mensajes</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 20px 12px 6px">MÓDULOS</div>
+<a href="#" style="text-decoration: none; color: #2F3B1F; padding: 10px 12px; border-radius: 10px; background: #E1E8CF; font-weight: 600">Fichas y Pacientes</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Agenda y Espacios</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Cobros</a>
+<div style="margin-top: auto; padding: 12px; font-size: 13px; color: #5E5247">Rol activo: <strong>Profesional</strong></div>
+</nav>
+
+<main style="flex: 999 1 640px; min-width: 0; box-sizing: border-box; padding: 18px 22px 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+<section aria-labelledby="t-rail" style="flex: 1 1 260px; max-width: 290px; background: #F4ECE0; border: 1px solid #DCCFBB; border-radius: 18px; padding: 14px 10px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 8px; padding: 0 6px"><h1 id="t-rail" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px">Mis pacientes</h1><button type="button" aria-label="Nuevo paciente" style="margin-left: auto; width: 40px; height: 40px; border-radius: 999px; border: 0; background: #8A4B1F; color: #FFFFFF; font-size: 20px; font-weight: 700">+</button></div>
+<div role="tablist" aria-label="Vista" style="display: flex; background: #EFE5D6; border-radius: 12px; padding: 4px; gap: 4px">
+<sc-for list="{{ vistas }}" as="v" hint-placeholder-count="3">
+<button type="button" role="tab" aria-selected="{{ v.on }}" onClick="{{ v.pick }}" style="flex: 1; min-height: 38px; border: 0; border-radius: 9px; background: {{ v.fondo }}; color: {{ v.color }}; font-weight: 700; font-size: 13px">{{ v.l }}</button>
+</sc-for>
+</div>
+
+<sc-if value="{{ vHoy }}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 12px; color: #5E5247; padding: 0 6px">Miércoles 4 de noviembre · 5 sesiones</span>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<sc-for list="{{ hoy }}" as="h" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{ h.on }}" onClick="{{ h.pick }}" style="display: flex; gap: 10px; align-items: stretch; width: 100%; padding: 6px 8px; border-radius: 12px; border: {{ h.borde }}; background: {{ h.fondo }}; color: #2B2420; text-align: left; opacity: {{ h.op }}">
+<span style="flex: none; width: 42px; font-weight: 700; font-size: 13px; padding-top: 2px">{{ h.hora }}</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px"><strong style="font-size: 13px">{{ h.nombre }}</strong><span style="font-size: 11px; color: #4A3F36">{{ h.lugar }}</span>
+<sc-if value="{{ h.hayEstado }}" hint-placeholder-val="{{ false }}"><span style="align-self: flex-start; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: {{ h.cf }}; color: {{ h.cc }}">{{ h.estado }}</span></sc-if></span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ vPend }}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{ pend }}" as="g" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: {{ g.color }}; padding: 4px 6px 0">{{ g.t }} · {{ g.n }}</span>
+<sc-for list="{{ g.items }}" as="i" hint-placeholder-count="2">
+<button type="button" aria-pressed="{{ i.on }}" onClick="{{ i.pick }}" style="display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 48px; padding: 6px 10px; border-radius: 12px; border: {{ i.borde }}; background: {{ i.fondo }}; color: #2B2420; text-align: left">
+<strong style="font-size: 13px">{{ i.nombre }}</strong><span style="font-size: 11px; color: #4A3F36">{{ i.d }}</span>
+</button>
+</sc-for>
+</div>
+</sc-for>
+</sc-if>
+
+<sc-if value="{{ vTodos }}" hint-placeholder-val="{{ false }}">
+<input type="search" aria-label="Buscar paciente" placeholder="Buscar entre 46 pacientes" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: #FFFDF9; font-size: 13px">
+<div style="display: flex; flex-direction: column; gap: 3px">
+<sc-for list="{{ todos }}" as="p" hint-placeholder-count="10">
+<button type="button" aria-pressed="{{ p.on }}" onClick="{{ p.pick }}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 4px 10px; border-radius: 12px; border: {{ p.borde }}; background: {{ p.fondo }}; color: #2B2420; text-align: left">
+<span aria-hidden="true" style="flex: none; width: 10px; height: 10px; border-radius: 999px; background: {{ p.punto }}"></span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><strong style="font-size: 13px">{{ p.nombre }}</strong><span style="font-size: 11px; color: #4A3F36">{{ p.sub }}</span></span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+</section>
+
+<div onScroll="{{ alScroll }}" style="flex: 999 1 620px; min-width: 0; height: 1040px; overflow-y: auto; position: relative; padding: 0 4px 24px">
+
+<header style="position: sticky; top: 0; z-index: 5; background: #FFFDF9; border: 1px solid #CDBFAE; border-radius: 0 0 20px 20px; padding: {{ cab.pad }}; display: flex; flex-direction: column; gap: {{ cab.gap }}; box-shadow: 0 16px 32px -8px rgba(43,36,32,0.30)">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px">
+<span aria-hidden="true" style="flex: none; width: {{ cab.av }}; height: {{ cab.av }}; border-radius: 999px; background: #F6D9C7; color: #7A2E10; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; font-size: 15px">{{ pac.ini }}</span>
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: {{ cab.tam }}; line-height: 1.1">{{ pac.nombre }}</h2>
+<span style="font-size: 11px; font-weight: 800; letter-spacing: 0.06em; padding: 3px 9px; border-radius: 999px; background: #E1E8CF; color: #2F3B1F">ACTIVO</span>
+</div>
+<span style="font-size: 13px; color: #4A3F36">{{ pac.meta }}</span>
+</div>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="min-height: 42px; padding: 0 16px; border-radius: 999px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 700">Registrar evolución</button>
+<button type="button" style="min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F4ECE0; color: #2B2420; font-weight: 700">Agendar</button>
+<button type="button" style="min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F4ECE0; color: #2B2420; font-weight: 700">Derivar</button>
+<button type="button" aria-label="Más acciones" style="width: 42px; height: 42px; border-radius: 999px; border: 1px solid #DCCFBB; background: #F4ECE0; color: #2B2420; font-weight: 800">...</button>
+</div>
+</div>
+<sc-if value="{{ pac.hayPaso }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: #2B2420; color: #F4ECE0">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #F2C46B">SIGUIENTE PASO</span>
+<span style="flex: 1 1 240px; font-size: 13px; font-weight: 600">{{ pac.paso }}</span>
+<button type="button" style="min-height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: #F2C46B; color: #3A2600; font-weight: 800; font-size: 13px">{{ pac.pasoBoton }}</button>
+</div>
+</sc-if>
+<nav aria-label="Índice de la ficha" style="display: flex; flex-wrap: wrap; gap: 2px; padding-top: {{ cab.sep }}; border-top: 1px solid #EBDDCB">
+<sc-for list="{{ indice }}" as="i" hint-placeholder-count="7">
+<a href="{{ i.href }}" onClick="{{ i.pick }}" aria-current="{{ i.actual }}" style="min-height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border-radius: 999px; background: {{ i.fondo }}; color: {{ i.color }}; font-weight: 700; font-size: 13px; text-decoration: none">{{ i.l }}<sc-if value="{{ i.hayN }}" hint-placeholder-val="{{ false }}"><span style="font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #F2C46B; color: #3A2600">{{ i.n }}</span></sc-if></a>
+</sc-for>
+</nav>
+</header>
+
+<div style="display: flex; flex-direction: column; gap: 16px; padding-top: 18px">
+
+<section id="m-resumen" style="scroll-margin-top: 190px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+<div style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247">MOTIVO DE CONSULTA</span>
+<span>Sin ficha de ingreso registrada.</span>
+<a href="#" style="font-weight: 700; font-size: 13px">Completar ingreso</a>
+</div>
+<div style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247">ÚLTIMA EVOLUCIÓN · 3 NOV</span>
+<span>Practica respiración diafragmática en sesión. Buena disposición. (texto ficticio)</span>
+<span style="align-self: flex-start; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: #E1E8CF; color: #2F3B1F">En proceso</span>
+</div>
+<div style="background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247">EQUIPO Y CONTACTO</span>
+<span style="font-size: 13px">Contacto de emergencia: <strong style="color: #7A520A">sin registrar</strong></span>
+<span style="font-size: 13px">1 mensaje de administración sobre esta ficha</span>
+<a href="#" style="font-weight: 700; font-size: 13px">Abrir conversación del caso</a>
+</div>
+</section>
+
+<section id="m-sesiones" style="scroll-margin-top: 190px; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: baseline; gap: 10px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Sesiones</h3><span style="font-size: 12px; color: #5E5247">3 realizadas · 2 próximas</span></div>
+<sc-for list="{{ sesiones }}" as="s" hint-placeholder-count="5">
+<div style="display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 12px; background: #FFFDF9; border: 1px solid #E3D7C4">
+<span style="width: 56px; display: flex; flex-direction: column"><strong>{{ s.d }}</strong><span style="font-size: 12px; color: #5E5247">16:00</span></span>
+<span style="flex: 1; display: flex; flex-direction: column"><strong style="font-size: 13px">Presencial · Box 4</strong><span style="font-size: 12px; color: #5E5247">{{ s.t }}</span></span>
+<span style="font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: {{ s.cf }}; color: {{ s.cc }}">{{ s.e }}</span>
+</div>
+</sc-for>
+</section>
+
+<section id="m-evoluciones" style="scroll-margin-top: 190px; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: baseline; gap: 10px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Evoluciones</h3><span style="font-size: 12px; color: #5E5247">Archivo por mes</span><a href="#" style="margin-left: auto; font-size: 13px; font-weight: 700">Abrir archivo en pilas</a></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ evoluciones }}" as="e" hint-placeholder-count="3">
+<article style="padding: 14px; border-radius: 14px; background: {{ e.fondo }}; border: 1px solid #E3D7C4; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #8A4B1F">{{ e.f }}</span>
+<strong>{{ e.t }}</strong>
+<span style="font-size: 13px; color: #4A3F36">{{ e.x }}</span>
+</article>
+</sc-for>
+</div>
+</section>
+
+<section id="m-documentos" style="scroll-margin-top: 190px; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Documentos y adjuntos</h3>
+<span style="flex: 1 1 300px; font-size: 13px; color: #4A3F36">Aún no se emiten documentos para este paciente.</span>
+<button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #DCCFBB; background: #FFFDF9; font-weight: 700; color: #2B2420">Emitir documento</button>
+</section>
+
+<section id="m-cobros" style="scroll-margin-top: 190px; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: baseline; gap: 10px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Cobros</h3><span style="font-size: 12px; color: #7A520A; font-weight: 700">Saldo $70.000</span></div>
+<sc-for list="{{ cobros }}" as="c" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #FFFDF9; border: 1px solid #E3D7C4; font-size: 13px">
+<span style="flex: 1">{{ c.s }}</span><span style="width: 90px">$35.000</span><span style="width: 110px; color: #4A3F36">saldo {{ c.sa }}</span>
+<span style="font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: {{ c.cf }}; color: {{ c.cc }}">{{ c.e }}</span>
+</div>
+</sc-for>
+</section>
+
+<section id="m-consentimientos" style="scroll-margin-top: 190px; background: #FFF8E6; border: 1px solid #E8D09A; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px">
+<h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Consentimientos</h3>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px"><span style="flex: 1 1 300px">Consentimiento informado, versión 1: <strong>pendiente</strong>. Protocolo para pacientes: sin confirmar.</span><button type="button" style="min-height: 38px; padding: 0 12px; border-radius: 999px; border: 1px solid #DCCFBB; background: #FFFDF9; font-weight: 700; font-size: 12px; color: #2B2420">Reenviar enlace</button></div>
+</section>
+
+<section id="m-datos" style="scroll-margin-top: 190px; background: #F7F1E8; border: 1px solid #DCCFBB; border-radius: 18px; padding: 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 4px"><h3 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Datos</h3><span style="font-size: 13px; color: #4A3F36">Ficha abierta el 6 oct 2026. Se conserva al menos 15 años.</span></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 11px; font-weight: 700; color: #5E5247">CUENTA DEL PORTAL</span><span style="font-size: 13px">Activa</span></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 11px; font-weight: 700; color: #5E5247">ACCESOS TEMPORALES</span><span style="font-size: 13px">Ninguno vigente</span><a href="#" style="font-size: 13px; font-weight: 700">Pedir segunda opinión</a></div>
+</section>
+
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+var P = {
+  mj: ['Maria Jose Aguilera Demo', 'MA', '35 años · RUT 30.000.022-3 · Psicoterapia individual adultos · Presencial · $35.000', 'El consentimiento informado sigue pendiente y la próxima sesión es el 17 nov.', 'Reenviar enlace', 'falta'],
+  vc: ['Vicente Carrasco Demo', 'VC', '42 años · Psicoterapia individual adultos · Presencial · Box 1', 'La sesión de hoy a las 09:00 no tiene evolución.', 'Registrar evolución', 'sc'],
+  dd: ['Daniela Donoso Demo', 'DD', '30 años · Psicoterapia individual adultos · Presencial · Box 1', 'La sesión de hoy a las 11:00 no tiene evolución.', 'Registrar evolución', 'sc'],
+  bf: ['Benjamin Fuentes Demo', 'BF', '27 años · Psicoterapia individual adultos · Presencial · Box 1', 'Sesión en curso (12:00). La evolución se puede dejar como borrador.', 'Abrir borrador', 'ok'],
+  pp: ['Paciente Prueba', 'PP', '35 años · Online · videollamada con tu enlace fijo', 'Próxima sesión hoy a las 16:00. Tiene 2 sesiones anteriores sin cerrar.', 'Ver sesiones sin cerrar', 'sc'],
+  hb: ['Hernan Bustos Demo', 'HB', '48 años · Psicoterapia individual adultos · Presencial · Box 4', '', '', 'ok'],
+  di: ['Diego Demo Derivacion', 'DI', '41 años · Psicoterapia individual adultos · derivación enviada', 'Derivación ofrecida a Profesional Dos: responde en 18 h. Mientras, sigues a cargo.', 'Ver derivación', 'sc'],
+  li: ['Lina Demo Pago', 'LI', '27 años · Online', 'Falta el RUT: se exige antes de la primera evolución (sesión el 19 nov).', 'Pedir en recepción', 'falta'],
+  ro: ['Rodrigo Demo Moroso', 'RO', '38 años · Presencial · deuda pendiente', 'Sesión del 2 nov sin evolución. Tiene deuda: no puede agendar la siguiente.', 'Registrar evolución', 'sc'],
+  em: ['Emilia Ibarra Demo', 'EI', '29 años · Presencial', '', '', 'ok']
+};
+var HOY = [['vc', '09:00', 'Presencial · Box 1', 'SIN EVOLUCIÓN', 'sc', true], ['dd', '11:00', 'Presencial · Box 1', 'SIN EVOLUCIÓN', 'sc', true], ['bf', '12:00', 'Presencial · Box 1', 'EN CURSO', 'now', false], ['pp', '16:00', 'Online · videollamada', '', '', false], ['hb', '18:00', 'Presencial · Box 4', '', '', false]];
+var PEND = [['EVOLUCIONES POR REGISTRAR', '#7A2E10', [['vc', 'Hoy 09:00'], ['dd', 'Hoy 11:00'], ['ro', '2 nov · vence en 28 días'], ['pp', '22 y 27 oct · vence en 18 días']]], ['CONSENTIMIENTOS', '#7A520A', [['mj', 'Informado v1 · plazo vencido']]], ['DATOS FALTANTES', '#7A520A', [['li', 'Sin RUT · sesión el 19 nov']]], ['DERIVACIONES', '#2B2420', [['di', 'Enviada a Profesional Dos · 18 h']]]];
+var TODOS = ['pp', 'di', 'em', 'mj', 'hb', 'li', 'ro', 'vc', 'dd', 'bf'];
+var PUNTO = { sc: '#B5532A', falta: '#C9962B', ok: '#6F8A4A' };
+var IDX = [['m-resumen', 'Resumen', ''], ['m-sesiones', 'Sesiones', ''], ['m-evoluciones', 'Evoluciones', ''], ['m-documentos', 'Documentos', ''], ['m-cobros', 'Cobros', '2'], ['m-consentimientos', 'Consentimientos', '1'], ['m-datos', 'Datos', '']];
+
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { vista: 'pend', pac: 'mj', sec: 'm-resumen', compacto: false }; }
+  renderVals() {
+    var s = this.state, self = this, c = s.compacto;
+    function pick(id) { return function () { self.setState({ pac: id }); }; }
+    function marca(id) { var on = s.pac === id; return { on: on, borde: on ? '2px solid #2B2420' : '1px solid transparent', fondo: on ? '#FFFDF9' : 'transparent' }; }
+    var vistas = [['hoy', 'Hoy'], ['pend', 'Por hacer 7'], ['todos', 'Todos']].map(function (v) { var on = s.vista === v[0];
+      return { l: v[1], on: on, fondo: on ? '#2B2420' : 'transparent', color: on ? '#F4ECE0' : '#2B2420', pick: function () { self.setState({ vista: v[0] }); } }; });
+    var hoy = HOY.map(function (h) { var m = marca(h[0]); var t = h[4] === 'sc' ? ['#F6D9C7', '#7A2E10'] : ['#DCE6F2', '#1F3550'];
+      return { hora: h[1], nombre: P[h[0]][0], lugar: h[2], estado: h[3], hayEstado: !!h[3], cf: t[0], cc: t[1], op: '1', on: m.on, borde: m.borde, fondo: m.fondo, pick: pick(h[0]) }; });
+    var pend = PEND.map(function (g) { return { t: g[0], color: g[1], n: g[2].length, items: g[2].map(function (i) { var m = marca(i[0]); return { nombre: P[i[0]][0], d: i[1], on: m.on, borde: m.borde, fondo: m.fondo === 'transparent' ? '#F7F1E8' : m.fondo, pick: pick(i[0]) }; }) }; });
+    var todos = TODOS.map(function (id) { var m = marca(id); return { nombre: P[id][0], sub: P[id][2].split(' · ').slice(1, 3).join(' · '), punto: PUNTO[P[id][5]], on: m.on, borde: m.borde, fondo: m.fondo, pick: pick(id) }; });
+    var p = P[s.pac];
+    var ok = ['#E1E8CF', '#2F3B1F'], am = ['#FFF4D6', '#7A520A'], ne = ['#EFE5D6', '#4A3F36'];
+    return {
+      vistas: vistas, vHoy: s.vista === 'hoy', vPend: s.vista === 'pend', vTodos: s.vista === 'todos', hoy: hoy, pend: pend, todos: todos,
+      pac: { nombre: p[0], ini: p[1], meta: p[2], hayPaso: !!p[3] && !c, paso: p[3], pasoBoton: p[4] },
+      cab: { pad: c ? '10px 18px' : '18px 22px', gap: c ? '6px' : '12px', tam: c ? '20px' : '28px', av: c ? '36px' : '52px', sep: c ? '6px' : '10px' },
+      alScroll: function (e) { var v = e.currentTarget.scrollTop > 30; if (v !== self.state.compacto) self.setState({ compacto: v }); },
+      indice: IDX.map(function (i) { var on = s.sec === i[0];
+        return { l: i[1], href: '#' + i[0], n: i[2], hayN: !!i[2], actual: on ? 'true' : 'false', fondo: on ? '#2B2420' : 'transparent', color: on ? '#F4ECE0' : '#2B2420', pick: function () { self.setState({ sec: i[0] }); } }; }),
+      sesiones: [['1 dic', 'Próxima', 'Confirmada', ok], ['17 nov', 'Próxima', 'Pago pendiente', am], ['3 nov', 'Sesión 3 · Manejo del estrés', 'Evolución registrada', ne], ['20 oct', 'Sesión 2 · Registro de pensamientos', 'Evolución registrada', ne], ['6 oct', 'Sesión 1 · Evaluación inicial', 'Evolución registrada', ne]].map(function (x) { return { d: x[0], t: x[1], e: x[2], cf: x[3][0], cc: x[3][1] }; }),
+      evoluciones: [['3 NOV · SESIÓN 3', 'Manejo del estrés', 'Practica respiración diafragmática en sesión. (texto ficticio)', '#FBEBDD'], ['20 OCT · SESIÓN 2', 'Registro de pensamientos', 'Identifica pensamientos automáticos ligados al trabajo. (texto ficticio)', '#FFFDF9'], ['6 OCT · SESIÓN 1', 'Evaluación inicial', 'Primera entrevista y acuerdos de trabajo. (texto ficticio)', '#FFFDF9']].map(function (x) { return { f: x[0], t: x[1], x: x[2], fondo: x[3] }; }),
+      cobros: [['3 nov, 16:00', '$35.000', 'Pendiente', am], ['20 oct, 16:00', '$35.000', 'Pendiente', am], ['6 oct, 16:00', '$0', 'Pagado', ok]].map(function (x) { return { s: x[0], sa: x[1], e: x[2], cf: x[3][0], cc: x[3][1] }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

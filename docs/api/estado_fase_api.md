@@ -624,3 +624,17 @@ Roadmap: `docs/cumplimiento/roadmap_aud01.md`. Informe: `docs/cumplimiento/brech
 - Tests: `seguridad_bd.sql` casos 154 (app_user) y 155 (dueño); integracion
   `test/mvp-cierre.e2e-spec.ts`; Vitest `TransferenciasPorValidar`,
   `MediosPagoCentro`, `CalendarioAgenda`; Playwright `e2e/cumplimiento.spec.ts`.
+
+## Fichas y Pacientes segun diseño (2026-11-06)
+
+- Migracion `20261106000000_pendientes_fichas`: funcion `pendientes_fichas(profesional)`
+  (SECURITY DEFINER, solo lectura, Categoria A). Sin tablas nuevas.
+- API: `GET pendientes-fichas?profesionalId=` (ADMIN, GESTION, PROFESIONAL,
+  PRACTICANTE; la BD restringe al propio). DTO `PendienteFicha`.
+- Seed demo: consentimiento de atencion firmado en el centro para todos los
+  pacientes salvo Maria Jose Aguilera (adulta) y Agustin Aguilera (menor).
+- Front: `SeguimientoEquipo` (ADMIN/GESTION), `RielPacientes` +
+  `FichasProfesional` (profesional y practicante), ficha del paciente en una
+  sola pagina con indice (`DetallePaciente`).
+- Tests: `seguridad_bd.sql` caso 158; Vitest `DetallePaciente`,
+  `pendientesFichas`; Playwright `ficha`, `cierre-flujos` (actualizados).

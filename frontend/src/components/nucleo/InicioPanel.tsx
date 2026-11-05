@@ -406,7 +406,7 @@ function PendientesPropios({ r, rol }: { r: ReporteDashboard; rol: Rol }) {
                 icono: 'verified_user' as Icono,
                 titulo: plural(consentimientos, 'consentimiento pendiente', 'consentimientos pendientes'),
                 meta: 'Atención con practicante supervisado',
-                href: '/admin/fichas?vista=consentimientos',
+                href: '/admin/fichas?vista=practicas',
                 tono: 'neutra' as const,
               },
             ]
@@ -476,7 +476,7 @@ function pendientesCentro(r: ReporteDashboard, rol: Rol): Pendiente[] {
       icono: 'verified_user',
       titulo: plural(p.consentimientos_pendientes, 'consentimiento pendiente', 'consentimientos pendientes'),
       meta: 'Atención con practicante supervisado',
-      href: '/admin/fichas?vista=consentimientos',
+      href: '/admin/fichas?vista=practicas',
       tono: 'neutra',
     },
     p.practicantes_por_vencer > 0 && {

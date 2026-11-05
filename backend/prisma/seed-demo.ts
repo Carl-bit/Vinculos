@@ -1149,6 +1149,23 @@ async function main(): Promise<void> {
       vigenteDesde: proximoMes,
     });
     await acuerdo(directoraId, { modelo: 'MIXTO', cobra: 'CENTRO', comisionPorcentaje: 12, cuotaMensual: 90000 });
+
+    // Fichas y Pacientes (2026-11-06): consentimiento informado de atencion firmado en el centro (respaldo en papel)
+    // para todos menos dos, que quedan pendientes en el seguimiento del equipo y en el "Por hacer" del tratante:
+    // Maria Jose Aguilera (adulta, Profesional Uno) y Agustin Aguilera (menor, lo otorga su adulto responsable).
+    const pendientes = new Set(['Maria Jose Aguilera Demo', 'Agustin Aguilera Demo']);
+    const todos = (await llamar(admin, 'GET', '/pacientes')) as unknown as { id: string; nombre: string; apellido: string; fechaNacimiento: string }[];
+    for (const p of todos) {
+      if (pendientes.has(`${p.nombre} ${p.apellido}`)) continue;
+      const nacido = new Date(p.fechaNacimiento);
+      const menor = Date.now() - nacido.getTime() < 18 * 365.25 * DIA;
+      const [adulto] = menor ? ((await llamar(admin, 'GET', `/pacientes/${p.id}/adultos-responsables`)) as unknown as { id: string }[]) : [];
+      if (menor && !adulto) continue;
+      await llamar(admin, 'POST', `/pacientes/${p.id}/consentimiento-atencion`, {
+        respaldoRef: 'Firmado en recepcion (demo)',
+        adultoResponsableId: adulto?.id,
+      });
+    }
   } finally {
     await app.close();
     await dueno.$disconnect();

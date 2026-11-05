@@ -2161,6 +2161,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pendientes-fichas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Seguimiento del equipo y "Por hacer": pendientes de las fichas (metadata y codigo seudonimo, sin contenido clinico).
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        get: operations["SeguimientoController_pendientesFichas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plantillas-clinicas": {
         parameters: {
             query?: never;
@@ -6769,6 +6789,32 @@ export interface components {
             paciente_id: string;
             /** @description Sesiones realizadas con este profesional sin evolucion vinculada. */
             sesiones_sin_cerrar: number;
+        };
+        PendienteFicha: {
+            /** Format: uuid */
+            profesional_id: string;
+            /** Format: uuid */
+            paciente_id: string;
+            /** @enum {string} */
+            tipo: "SIN_EVOLUCION" | "CONSENTIMIENTO" | "SIN_RUT" | "SIN_RESPONSABLE";
+            /**
+             * Format: uuid
+             * @description SIN_EVOLUCION: la sesion.
+             */
+            cita_id: string | null;
+            /**
+             * Format: date-time
+             * @description SIN_EVOLUCION: inicio de la sesion; el resto: proxima hora.
+             */
+            fecha: string | null;
+            /**
+             * Format: date-time
+             * @description SIN_EVOLUCION: plazo para registrar la evolucion (dias de Configuracion > Agenda y plazos).
+             */
+            vence: string | null;
+            /** @description Codigo seudonimo de la ficha (C-XXXXXXXXXX). */
+            codigo: string;
+            menor: boolean;
         };
         ProponerPlantillaDto: {
             /** Format: uuid */
@@ -19461,6 +19507,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EstadoFichaPaciente"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    SeguimientoController_pendientesFichas: {
+        parameters: {
+            query?: {
+                profesionalId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendienteFicha"][];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */

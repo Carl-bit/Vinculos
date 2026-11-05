@@ -14014,6 +14014,107 @@
         ]
       }
     },
+    "/api/pendientes-fichas": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "SeguimientoController_pendientesFichas",
+        "parameters": [
+          {
+            "name": "profesionalId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PendienteFicha"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Seguimiento del equipo y \"Por hacer\": pendientes de las fichas (metadata y codigo seudonimo, sin contenido clinico).",
+        "tags": [
+          "Fichas y pacientes"
+        ]
+      }
+    },
     "/api/plantillas-clinicas": {
       "get": {
         "description": "Roles: ADMIN, PROFESIONAL, PRACTICANTE",
@@ -38457,6 +38558,63 @@
           "alta_en",
           "paciente_id",
           "sesiones_sin_cerrar"
+        ]
+      },
+      "PendienteFicha": {
+        "type": "object",
+        "properties": {
+          "profesional_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "paciente_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tipo": {
+            "enum": [
+              "SIN_EVOLUCION",
+              "CONSENTIMIENTO",
+              "SIN_RUT",
+              "SIN_RESPONSABLE"
+            ],
+            "type": "string"
+          },
+          "cita_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "SIN_EVOLUCION: la sesion.",
+            "format": "uuid"
+          },
+          "fecha": {
+            "type": "string",
+            "nullable": true,
+            "description": "SIN_EVOLUCION: inicio de la sesion; el resto: proxima hora.",
+            "format": "date-time"
+          },
+          "vence": {
+            "type": "string",
+            "nullable": true,
+            "description": "SIN_EVOLUCION: plazo para registrar la evolucion (dias de Configuracion > Agenda y plazos).",
+            "format": "date-time"
+          },
+          "codigo": {
+            "type": "string",
+            "description": "Codigo seudonimo de la ficha (C-XXXXXXXXXX)."
+          },
+          "menor": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "profesional_id",
+          "paciente_id",
+          "tipo",
+          "cita_id",
+          "fecha",
+          "vence",
+          "codigo",
+          "menor"
         ]
       },
       "ProponerPlantillaDto": {

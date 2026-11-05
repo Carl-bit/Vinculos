@@ -17,7 +17,7 @@ import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
-import type { HoraElegida } from './grillaAgenda';
+import type { HoraElegida } from '@/lib/grillaAgenda';
 import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
 
 interface Retencion {

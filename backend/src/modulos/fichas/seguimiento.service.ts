@@ -7,7 +7,7 @@ import { registrarAcceso } from '../../core/bd/auditoria';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
-import type { AccesoTemporalDto, BorradorDto, ConfirmarBorradorDto } from './dto/fichas.dto';
+import type { AccesoTemporalDto, BorradorDto, ConfirmarBorradorDto, PendienteFicha } from './dto/fichas.dto';
 import { EvolucionesService } from './evoluciones.service';
 import { PlantillasService } from './plantillas.service';
 
@@ -196,5 +196,14 @@ export class SeguimientoService {
     return this.bd.tx().$queryRaw<
       { paciente_id: string; ultima_sesion: Date | null; proxima_sesion: Date | null; sesiones_sin_cerrar: number; alta_en: Date | null }[]
     >`SELECT * FROM estado_fichas_profesional(${profesionalId}::uuid)`;
+  }
+
+  /**
+   * Pendientes de las fichas (sin evolucion, consentimiento, RUT, adulto
+   * responsable): metadata y codigo seudonimo. ADMIN/GESTION todos o uno; el
+   * profesional o practicante, los propios (lo decide la BD).
+   */
+  pendientesFichas(profesionalId?: string) {
+    return this.bd.tx().$queryRaw<PendienteFicha[]>`SELECT * FROM pendientes_fichas(${profesionalId ?? null}::uuid) ORDER BY fecha NULLS LAST`;
   }
 }
