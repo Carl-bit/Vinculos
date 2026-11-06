@@ -445,10 +445,7 @@ function Parametros({
 /** Diseño: retencion de honorarios por año e IVA del box (solo para los calculos informativos). */
 function ParametrosTributarios() {
   return (
-    <section
-      aria-labelledby="parametros-tributarios"
-      className="flex flex-wrap items-center gap-4 rounded-lg border border-divider bg-neutral-100 p-5 shadow-sm"
-    >
+    <section aria-labelledby="parametros-tributarios" className="flex flex-wrap items-center gap-4 rounded-lg border border-divider bg-bg p-5 shadow-suave">
       <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-1">
         <h3 id="parametros-tributarios" className="m-0 text-[17px] font-black">
           Parámetros tributarios

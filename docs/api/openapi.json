@@ -36138,6 +36138,31 @@
           "colorMarca": {
             "type": "string",
             "nullable": true,
+            "description": "#RRGGBB, principal del sitio publico"
+          },
+          "colorFondoPublico": {
+            "type": "string",
+            "nullable": true,
+            "description": "#RRGGBB"
+          },
+          "colorPortal": {
+            "type": "string",
+            "nullable": true,
+            "description": "#RRGGBB"
+          },
+          "colorFondoPortal": {
+            "type": "string",
+            "nullable": true,
+            "description": "#RRGGBB"
+          },
+          "colorPanel": {
+            "type": "string",
+            "nullable": true,
+            "description": "#RRGGBB"
+          },
+          "colorFondoPanel": {
+            "type": "string",
+            "nullable": true,
             "description": "#RRGGBB"
           },
           "logoImagenId": {
@@ -36161,6 +36186,11 @@
           "mision",
           "vision",
           "colorMarca",
+          "colorFondoPublico",
+          "colorPortal",
+          "colorFondoPortal",
+          "colorPanel",
+          "colorFondoPanel",
           "logoImagenId",
           "updatedAt"
         ]
@@ -36249,6 +36279,41 @@
             "maxLength": 2000
           },
           "colorMarca": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$",
+            "minLength": 7,
+            "maxLength": 7
+          },
+          "colorFondoPublico": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$",
+            "minLength": 7,
+            "maxLength": 7
+          },
+          "colorPortal": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$",
+            "minLength": 7,
+            "maxLength": 7
+          },
+          "colorFondoPortal": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$",
+            "minLength": 7,
+            "maxLength": 7
+          },
+          "colorPanel": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$",
+            "minLength": 7,
+            "maxLength": 7
+          },
+          "colorFondoPanel": {
             "type": "string",
             "nullable": true,
             "pattern": "^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$",
@@ -43525,6 +43590,27 @@
             "type": "string",
             "nullable": true
           },
+          "color_fondo_publico": {
+            "type": "string",
+            "nullable": true,
+            "description": "03c: marca por zona (ver contenido_publico_colores)."
+          },
+          "color_portal": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_fondo_portal": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_panel": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_fondo_panel": {
+            "type": "string",
+            "nullable": true
+          },
           "logo_imagen_id": {
             "type": "string",
             "nullable": true,
@@ -43576,6 +43662,11 @@
           "mision",
           "vision",
           "color_marca",
+          "color_fondo_publico",
+          "color_portal",
+          "color_fondo_portal",
+          "color_panel",
+          "color_fondo_panel",
           "logo_imagen_id",
           "modulos",
           "modelo_cobro",

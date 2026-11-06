@@ -5931,8 +5931,18 @@ export interface components {
             instagram: string | null;
             mision: string | null;
             vision: string | null;
-            /** @description #RRGGBB */
+            /** @description #RRGGBB, principal del sitio publico */
             colorMarca: string | null;
+            /** @description #RRGGBB */
+            colorFondoPublico: string | null;
+            /** @description #RRGGBB */
+            colorPortal: string | null;
+            /** @description #RRGGBB */
+            colorFondoPortal: string | null;
+            /** @description #RRGGBB */
+            colorPanel: string | null;
+            /** @description #RRGGBB */
+            colorFondoPanel: string | null;
             logoImagenId: string | null;
             /** Format: date-time */
             updatedAt: string;
@@ -5955,6 +5965,11 @@ export interface components {
             mision?: string | null;
             vision?: string | null;
             colorMarca?: string | null;
+            colorFondoPublico?: string | null;
+            colorPortal?: string | null;
+            colorFondoPortal?: string | null;
+            colorPanel?: string | null;
+            colorFondoPanel?: string | null;
         };
         LogoSubido: {
             logoImagenId: string;
@@ -8009,6 +8024,12 @@ export interface components {
             mision: string | null;
             vision: string | null;
             color_marca: string | null;
+            /** @description 03c: marca por zona (ver contenido_publico_colores). */
+            color_fondo_publico: string | null;
+            color_portal: string | null;
+            color_fondo_portal: string | null;
+            color_panel: string | null;
+            color_fondo_panel: string | null;
             /** @description GET publico/imagenes/{id} */
             logo_imagen_id: string | null;
             modulos: components["schemas"]["ModuloCentro"][];

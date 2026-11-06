@@ -29,7 +29,7 @@ export function FichasProfesional({ rol, seleccionado }: { rol: Rol; seleccionad
             <DetallePaciente id={seleccionado} rol={rol} embebido />
           </>
         ) : (
-          <div className="rounded-md border border-dashed border-neutral-400 bg-neutral-100">
+          <div className="rounded-md border border-dashed border-neutral-400 bg-bg">
             <EstadoVista
               estado="vacio"
               titulo="No has seleccionado ningún paciente"

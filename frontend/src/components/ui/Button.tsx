@@ -15,6 +15,10 @@ const VARIANTES = {
   /** Borde verde sobre superficies accent-2 (bloques de llamado a la accion). */
   outlinePatient: 'border-[1.5px] border-accent-2-700 text-accent-2-900 hover:bg-accent-2-100',
   ghost: 'bg-transparent text-text hover:bg-accent-200',
+  /** Moderno: accion principal sobre el bloque oscuro (tinta) del sitio publico. Texto 900 sobre 400: >= 7:1. */
+  sobreOscuro: 'bg-accent-400 text-accent-900 shadow-sm hover:bg-accent-300',
+  /** Moderno: accion secundaria sobre el bloque oscuro (borde claro, sin relleno). */
+  contornoOscuro: 'border-[1.5px] border-neutral-600 text-neutral-100 hover:border-neutral-400 hover:bg-neutral-900',
 } as const;
 
 const TAMANOS = {

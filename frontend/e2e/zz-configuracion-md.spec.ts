@@ -43,7 +43,7 @@ test('configuracion del centro a markdown', async ({ page }) => {
   for (const s of SECCIONES) {
     await page
       .getByRole('navigation', { name: 'Secciones de configuración' })
-      .getByRole('button', { name: new RegExp(`^${s.etiqueta}`) })
+      .getByRole('link', { name: new RegExp(`^${s.etiqueta}`) })
       .click();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(700);

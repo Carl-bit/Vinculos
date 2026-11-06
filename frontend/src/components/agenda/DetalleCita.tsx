@@ -148,7 +148,7 @@ export function DetalleCita({
         )}
 
         {!pasada && cita.pacienteId && cita.estado !== 'CANCELADA' && (
-          <div className="flex flex-col gap-2 rounded-lg border border-divider bg-neutral-100 px-[18px] py-4">
+          <div className="flex flex-col gap-2 rounded-lg border border-divider bg-bg px-[18px] py-4">
             <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Cambio definitivo de profesional</p>
             {esTratante ? (
               <>

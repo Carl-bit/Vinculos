@@ -131,7 +131,7 @@ function Conversacion({ id, hilo, nombrePaciente }: { id: string; hilo?: Hilo; n
         return (
           <section
             aria-label={d.hilo.asunto ?? 'Conversación'}
-            className="flex flex-col gap-3.5 rounded-lg border border-divider bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-4"
+            className="flex flex-col gap-3.5 rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-4"
           >
             <header className="flex flex-wrap items-start justify-between gap-2 border-b border-divider pb-3">
               <div className="min-w-0">

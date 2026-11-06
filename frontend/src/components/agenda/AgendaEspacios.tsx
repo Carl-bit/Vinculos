@@ -12,7 +12,14 @@ import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
 import { AgendarSesion } from './AgendarSesion';
-import { CalendarioAgenda } from './CalendarioAgenda';
+import dynamic from 'next/dynamic';
+
+import { EstadoVista } from '@/components/shared/EstadoVista';
+
+// 03b-6: el calendario es el componente mas pesado de la agenda; va en su propio chunk.
+const CalendarioAgenda = dynamic(() => import('./CalendarioAgenda').then((m) => m.CalendarioAgenda), {
+  loading: () => <EstadoVista estado="carga" titulo="Cargando el calendario…" />,
+});
 import { DetalleCita } from './DetalleCita';
 import { EspaciosAgenda } from './EspaciosAgenda';
 import type { HoraElegida } from '@/lib/grillaAgenda';

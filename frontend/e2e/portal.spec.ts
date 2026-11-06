@@ -1,4 +1,7 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from './prueba';
+import type { Page } from '@playwright/test';
+
+import { ingresarEquipo } from './apoyo';
 
 /** Seed demo (docs/pruebas/guion_manual.md): pacientes y adulto responsable del portal (03b-3). */
 const PASSWORD = 'dev-password';
@@ -110,4 +113,33 @@ test('adolescente: no pide horas desde su cuenta', async ({ page }) => {
   await ingresar(page, 'adolescente');
   await page.goto('/portal/pedir-hora');
   await expect(page.getByText('Tus horas las pide tu adulto responsable')).toBeVisible();
+});
+
+test('03b-6: reseña con moderación: editarla la deja en revisión y ADMIN la publica en el perfil', async ({ page, browser }) => {
+  test.setTimeout(180_000);
+  const texto = `Muy buena atención, me sentí escuchada (e2e ${Date.now()}).`;
+  await ingresar(page, 'paciente');
+  await page.goto('/portal/resenas');
+  const mia = page.getByRole('listitem').filter({ hasText: 'Profesional Uno' });
+  await mia.getByRole('button', { name: 'Editar' }).click();
+  await page.getByLabel('Tu reseña (opcional)').fill(texto);
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: texto }).getByText('En revisión')).toBeVisible();
+
+  const admin = await (await browser.newContext()).newPage();
+  await ingresarEquipo(admin, 'admin');
+  await admin.goto('/admin/equipo?vista=resenas');
+  const resena = admin.getByRole('article').filter({ hasText: texto });
+  await expect(resena.getByText('Por moderar')).toBeVisible();
+  await resena.getByRole('button', { name: 'Publicar' }).click();
+  await expect(resena.getByText('Publicada')).toBeVisible();
+
+  // El perfil publico se renderiza en el servidor (Data Cache de 60 s, se revalida al pedirlo vencido): se recarga hasta verla.
+  await page.goto('/equipo');
+  await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
+  await expect(page).toHaveURL(/\/equipo\/[0-9a-f-]{36}$/);
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByText(texto)).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 90_000, intervals: [5_000] });
 });

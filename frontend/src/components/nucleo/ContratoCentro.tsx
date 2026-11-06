@@ -41,7 +41,7 @@ function useAceptar() {
 
 function Documento({ texto }: { texto: string }) {
   return (
-    <div className="max-h-[320px] overflow-y-auto rounded-[14px] border border-divider bg-neutral-100 px-4 py-3 text-[13.5px] leading-relaxed whitespace-pre-line">
+    <div className="max-h-[320px] overflow-y-auto rounded-[14px] border border-divider bg-bg px-4 py-3 text-[13.5px] leading-relaxed whitespace-pre-line">
       {texto}
     </div>
   );

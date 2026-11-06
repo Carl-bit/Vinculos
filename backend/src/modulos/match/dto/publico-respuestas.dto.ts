@@ -37,6 +37,17 @@ export class CentroPublico {
   vision!: string | null;
   @ApiProperty({ type: String, nullable: true })
   color_marca!: string | null;
+  /** 03c: marca por zona (ver contenido_publico_colores). */
+  @ApiProperty({ type: String, nullable: true })
+  color_fondo_publico!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  color_portal!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  color_fondo_portal!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  color_panel!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  color_fondo_panel!: string | null;
   @ApiProperty({ type: String, nullable: true, description: 'GET publico/imagenes/{id}' })
   logo_imagen_id!: string | null;
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })

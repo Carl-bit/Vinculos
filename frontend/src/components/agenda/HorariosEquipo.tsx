@@ -141,7 +141,7 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
   const nombre = miembro.nombre ?? 'Profesional';
 
   return (
-    <article className="rounded-lg border border-divider bg-bg px-6 py-[22px] shadow-sm">
+    <article className="rounded-lg border border-divider bg-bg px-6 py-[22px] shadow-suave">
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <Avatar name={nombre} size={38} />
         <div className="min-w-0">
@@ -177,10 +177,7 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
         {diasConHabitual.map((d, i) => {
           const del = (habitual.data ?? []).filter((h) => h.diaSemana === i + 1);
           return (
-            <div
-              key={d}
-              className={`rounded-[14px] border px-[13px] py-[11px] ${del.length ? 'border-accent-500 bg-accent-100' : 'border-divider bg-neutral-100'}`}
-            >
+            <div key={d} className={`rounded-[14px] border px-[13px] py-[11px] ${del.length ? 'border-accent-500 bg-accent-100' : 'border-divider bg-bg'}`}>
               <div className="mb-1 text-[11px] font-extrabold tracking-[0.08em] text-neutral-700 uppercase">{d}</div>
               <div className="text-[13.5px] font-extrabold tabular-nums">
                 {del.length ? (
@@ -345,7 +342,7 @@ function HorarioHabitual({
         ) : (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {ordenadas.map((h) => (
-              <li key={h.id} className="flex items-center gap-3 rounded-[14px] border border-divider bg-neutral-100 px-3.5 py-2 text-[13.5px] font-bold">
+              <li key={h.id} className="flex items-center gap-3 rounded-[14px] border border-divider bg-bg px-3.5 py-2 text-[13.5px] font-bold">
                 <span className="w-[100px] font-extrabold">{DIAS_SEMANA[h.diaSemana - 1]}</span>
                 <span className="flex-1 tabular-nums">
                   {h.horaInicio} – {h.horaFin} · {NOMBRE_MODALIDAD_CITA[h.modalidad]}

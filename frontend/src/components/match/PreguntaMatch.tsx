@@ -77,7 +77,7 @@ export function PreguntaMatch({ pregunta: q, valor, onChange }: { pregunta: Preg
           aria-describedby={`${id}-minimo ${id}-cuenta ${id}-privado`}
           aria-invalid={texto.trim() !== '' && faltan > 0 ? true : undefined}
           placeholder="Por ejemplo: hace unos meses que duermo mal y me cuesta concentrarme en el trabajo."
-          className="w-full resize-y rounded-[20px] border-[1.5px] border-neutral-400 bg-neutral-100 px-5 py-[18px] text-[15.5px] leading-[1.65] font-medium placeholder:text-neutral-700 focus-visible:border-accent-500"
+          className="w-full resize-y rounded-[20px] border-[1.5px] border-neutral-400 bg-bg px-5 py-[18px] text-[15.5px] leading-[1.65] font-medium placeholder:text-neutral-700 focus-visible:border-accent-500"
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span id={`${id}-minimo`} aria-live="polite" className={`text-[13px] font-extrabold ${faltan > 0 ? 'text-accent-800' : 'text-accent-2-800'}`}>
@@ -96,7 +96,7 @@ export function PreguntaMatch({ pregunta: q, valor, onChange }: { pregunta: Preg
         </div>
         <p
           id={`${id}-privado`}
-          className="m-0 flex gap-[11px] rounded-[18px] border border-divider bg-neutral-100 px-[17px] py-[15px] text-[13px] font-bold text-pretty text-neutral-700"
+          className="m-0 flex gap-[11px] rounded-[18px] border border-divider bg-bg px-[17px] py-[15px] text-[13px] font-bold text-pretty text-neutral-700"
         >
           <Icon name="lock" size={19} />
           El match no guarda lo que escribes. Si después pides hora, viaja cifrado con tu solicitud y lo lee solo el profesional que te atienda.

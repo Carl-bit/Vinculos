@@ -876,3 +876,50 @@ Pendiente: en "Por box" con un box elegido, lo apartado por otro profesional se 
 | impeccable `nested-cards` | Excepción aceptada: esas vistas copian el diseño del handoff (`inventario_ui.md`) |
 | Fusión de duplicados | Fuera del MVP: se mantiene `MISMO_PACIENTE` y conciliación manual |
 | Menores D-4 | Sin código: pendiente la revisión legal antes de pacientes reales |
+
+## 24. 03b-6 Pulido (2026-11-06)
+
+El usuario dio por valido el flujo del MVP y pidio aplicar 03b-6 (version
+ampliada: rendimiento, Playwright movil y red 3G lenta).
+
+| Punto | Resolucion |
+|---|---|
+| Animaciones | Sin cambios de sistema: `entrada`/`revelar` (ease-out, sin rebote), apagadas con `prefers-reduced-motion` |
+| Carga y vacio | `shared/EstadoVista`: carga = skeleton (`esqueleto`, aparece pasados 300 ms); vacio, error y sin permiso con ilustracion (icono en circulo suave, sin tile) |
+| Responsive | `e2e/responsive.spec.ts`: sin desborde horizontal a 390 px (publico y portal) ni a 768 px (panel) |
+| Accesibilidad | `e2e/accesibilidad.spec.ts`: axe-core WCAG 2.0/2.1 A y AA en 21 vistas (publico, portal, panel) sin violaciones; "Saltar al contenido" como primer foco; corregido el contraste de la sesion "Ahora" del inicio del panel (2.4:1, tinta sobre arcilla) |
+| SSR | Publico ya era SSR (server components); backoffice en cliente |
+| Imagenes | Fotos publicas del equipo con `next/image` (AVIF/WebP, lazy, `sizes`); solo `/api/publico/imagenes/**` pasa por el optimizador. Las privadas (respaldos, documentos) no |
+| Fuentes | Figtree con next/font (6 grosores, todos en uso). **Pendiente:** Material Symbols sigue en `fonts.googleapis.com` (unico recurso de terceros, tambien en vistas clinicas); alojarlo exige descargar una vez el woff2 recortado (autorizacion del usuario) |
+| Division del JS | `CalendarioAgenda` y `EditorEvolucion` con `next/dynamic` y skeleton |
+| Scripts de terceros | Ninguno (sin analitica) |
+| Debounce | `lib/useRetardado` (300 ms) en la busqueda de pacientes (consulta la API); el resto de los buscadores filtra datos ya cargados |
+| Duplicados y paralelo | React Query deduplica por clave; SSR con `Promise.all`; politicas sin Data Cache (version vigente) |
+| Listas largas | La API las acota (auditoria 300). Listas del portal con `content-visibility: auto` (utilidad `fila-diferida`). ponytail: tablas sin windowing; si superan miles de filas, paginar en la API o windowing |
+| Optimista | Solo "marcar leido" de mensajes de pacientes (con vuelta atras). Ninguna en reservas, pagos, confirmaciones ni expediente |
+| Estaticos | `/_next/static/*` con `public, max-age=31536000, immutable` (verificado con `next start`); Traefik sin middleware de encabezados |
+| Tamaño del JS | JS inicial por ruta (gzip, con lo compartido, build de produccion): landing 110 KB, login 134, portal 144, agenda 149, ficha 170, fichas 202 (la mayor) |
+| Dependencias | Ninguna sin uso (`@testing-library/dom` es peer de `@testing-library/react`). Nueva de desarrollo: `@axe-core/playwright` |
+| Profiler React | No ejecutado (manual, con React DevTools); queda para la revision de agenda y ficha |
+
+Playwright (flujos de 02j y nuevos; enlaces leidos desde Mailpit):
+
+| Flujo | Prueba |
+|---|---|
+| Reserva sin cuenta: retencion y verificacion | `publico.spec`: pago en el centro y pasarela simulada (ya existian) |
+| Verificacion en otra pestaña | `publico.spec` 03b-6: la original avanza sola |
+| Vencimiento | `publico.spec` 03b-6: `sqlPrueba` adelanta `pago_vence_en` (simula 30 min) y el job libera; solicitud EXPIRADA |
+| "Ya soy paciente" | `publico.spec` (ya existia) |
+| Cambio de rol activo | `sesion.spec` (ya existia) |
+| Consentimiento por token | `publico.spec` 03b-6: recepcion envia, el paciente acepta desde el correo, enlace de un uso |
+| Reseña con moderacion | `portal.spec` 03b-6: editar la deja por moderar; ADMIN publica; se ve en el perfil |
+| Adolescente y adulto responsable | `portal.spec` (ya existian) |
+| Borrador confirmado al expediente | `ficha.spec` 03b-6: paciente nuevo (no toca el seed) |
+| Cubrir sesion con acceso temporal | `panel.spec` 03b-6: la cita cambia de profesional, el tratante no; acceso registrado |
+| Hilo CASO | `equipo-clinico.spec` 03b-6: lo ve quien tiene acceso y desaparece al revocarlo |
+| Lista de espera | **Omitido:** retirada (seccion 16, migracion `quitar_lista_espera`) |
+| Recordatorio por token | **Pendiente:** el job corre cada 10 min y solo para citas dentro de `recordatorio_horas_antes`; falta un modo de prueba sin esperar |
+| Movil + 3G lenta | `playwright.movil.config.ts` (Pixel 7, 400 ms / 400 kbit/s) sobre build de produccion: `publico.spec` y `portal.spec` |
+
+Notas: los pacientes de prueba nuevos (`pacienteNuevo`) llevan RUT al azar
+valido porque la BD exige RUT antes de la primera evolucion.

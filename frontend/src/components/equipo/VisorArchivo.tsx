@@ -72,7 +72,7 @@ export function VisorArchivo({
         ) : !url ? (
           <p className="m-0 text-[13.5px] font-semibold text-neutral-700">Abriendo el documento…</p>
         ) : tipoMime === 'application/pdf' ? (
-          <iframe src={url} title={nombre} className="h-[65vh] w-full rounded-[14px] border border-divider bg-neutral-100" />
+          <iframe src={url} title={nombre} className="h-[65vh] w-full rounded-[14px] border border-divider bg-bg" />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element -- object URL local del documento
           <img src={url} alt={nombre} className="max-h-[65vh] w-full rounded-[14px] border border-divider object-contain" />

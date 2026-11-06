@@ -2495,7 +2495,14 @@ model ContenidoPublico {
   instagram        String?
   mision           String?
   vision           String?
+  /// 03c: color principal del sitio publico. Los colores (#RRGGBB) los valida
+  /// la BD: principal >= 4.5:1 sobre crema #F5EAD8, fondo >= 10:1 con la tinta.
   colorMarca       String?  @map("color_marca")
+  colorFondoPublico String? @map("color_fondo_publico")
+  colorPortal      String?  @map("color_portal")
+  colorFondoPortal String?  @map("color_fondo_portal")
+  colorPanel       String?  @map("color_panel")
+  colorFondoPanel  String?  @map("color_fondo_panel")
   logoImagenId     String?  @map("logo_imagen_id") @db.Uuid
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

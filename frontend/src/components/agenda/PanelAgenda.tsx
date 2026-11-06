@@ -91,7 +91,7 @@ export function PanelAgenda({
 
   return (
     <aside aria-label="Panel de la agenda" className="flex min-w-0 flex-col gap-3.5 lg:w-[300px] lg:flex-none lg:overflow-y-auto lg:pr-0.5">
-      <section aria-labelledby="panel-modalidad" className="flex flex-col gap-2.5 rounded-[var(--radius-md)] border border-divider bg-neutral-100 p-4">
+      <section aria-labelledby="panel-modalidad" className="flex flex-col gap-2.5 rounded-[var(--radius-md)] border border-divider bg-bg p-4">
         <h2 id="panel-modalidad" className="m-0 text-[15px] font-black tracking-[-0.01em]">
           Modalidad
         </h2>
@@ -116,7 +116,7 @@ export function PanelAgenda({
         </p>
       </section>
 
-      <section aria-labelledby="panel-boxes" className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-divider bg-neutral-100 p-4">
+      <section aria-labelledby="panel-boxes" className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-divider bg-bg p-4">
         <div className="flex items-baseline gap-2">
           <h2 id="panel-boxes" className="m-0 text-[15px] font-black tracking-[-0.01em]">
             Boxes
@@ -212,7 +212,7 @@ export function PanelAgenda({
                 key={c.id}
                 type="button"
                 onClick={() => onElegir(c)}
-                className="flex cursor-pointer flex-col gap-1.5 rounded-[12px] border border-pendiente-700/30 bg-neutral-100 px-3 py-2.5 text-left transition-shadow duration-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent-700 motion-reduce:transition-none"
+                className="flex cursor-pointer flex-col gap-1.5 rounded-[12px] border border-pendiente-700/30 bg-bg px-3 py-2.5 text-left transition-shadow duration-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent-700 motion-reduce:transition-none"
               >
                 <span className="truncate text-[14px] font-extrabold">{nombreDeCita(nombres, c)}</span>
                 <span className="text-[12px] font-semibold text-neutral-800 first-letter:uppercase">

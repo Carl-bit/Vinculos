@@ -175,7 +175,7 @@ export function RielPacientes({ rol, seleccionado }: { rol: Rol; seleccionado?: 
         </h2>
         <span className="ml-auto flex gap-1.5">{rol === 'PROFESIONAL' && <NuevoPaciente rol={rol} compacto />}</span>
       </div>
-      <div role="tablist" aria-label="Vista" className="flex gap-1 rounded-sm bg-neutral-300 p-1">
+      <div role="tablist" aria-label="Vista" className="flex gap-1 rounded-full border border-borde bg-lienzo p-1">
         {vistas.map((v) => (
           <button
             key={v.valor}
@@ -183,8 +183,8 @@ export function RielPacientes({ rol, seleccionado }: { rol: Rol; seleccionado?: 
             role="tab"
             aria-selected={vista === v.valor}
             onClick={() => setVista(v.valor)}
-            className={`min-h-[38px] flex-1 cursor-pointer rounded-[9px] text-[13px] font-extrabold transition-colors duration-200 ${
-              vista === v.valor ? 'bg-text text-neutral-100' : 'text-text hover:bg-neutral-100'
+            className={`min-h-10 flex-1 cursor-pointer rounded-full px-2.5 text-[13px] font-extrabold whitespace-nowrap transition-colors duration-200 ${
+              vista === v.valor ? 'bg-tinta text-lienzo shadow-sm' : 'text-tinta hover:bg-bg'
             }`}
           >
             {v.etiqueta}
@@ -259,7 +259,7 @@ export function RielPacientes({ rol, seleccionado }: { rol: Rol; seleccionado?: 
                         aria-pressed={i.pacienteId === seleccionado}
                         onClick={() => ir(i.pacienteId)}
                         className={`flex min-h-12 w-full cursor-pointer flex-col gap-0.5 rounded-sm px-2.5 py-1.5 text-left ${
-                          i.pacienteId === seleccionado ? 'border-2 border-text bg-bg' : 'border border-transparent bg-neutral-100 hover:border-divider'
+                          i.pacienteId === seleccionado ? 'border-2 border-tinta bg-papel' : 'border border-divider bg-bg hover:border-accent-500'
                         }`}
                       >
                         <strong className="text-[13px]">{nombre(i.pacienteId)}</strong>

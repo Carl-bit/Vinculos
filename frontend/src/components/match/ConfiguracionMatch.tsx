@@ -107,7 +107,7 @@ export function ConfiguracionMatch() {
               return (
                 <li
                   key={d.id}
-                  className={`flex items-start gap-3 rounded-[18px] border px-4 py-3 ${activo ? 'border-accent-2-500 bg-accent-2-200' : 'border-divider bg-neutral-100'}`}
+                  className={`flex items-start gap-3 rounded-[18px] border px-4 py-3 ${activo ? 'border-accent-2-500 bg-accent-2-200' : 'border-divider bg-bg'}`}
                 >
                   <Icon name={d.id === 'EQUIPO' ? 'groups' : 'calendar_month'} className="mt-0.5" />
                   <div className="min-w-0 flex-1">

@@ -718,3 +718,22 @@ Decisiones del usuario sobre la ficha del integrante. Detalle en
 - Seed demo: titulo verificado para los seis profesionales del sitio y
   documentos del practicante demo.
 
+
+## 03c Moderno A, fase 1: sistema y marca por zona (2026-11-05)
+
+- Tokens y piezas del estilo en `design-system/vinculos/MASTER.md` (sección Moderno A); muestrario en `/dev/estilo` (solo desarrollo).
+- Fondo de todos los módulos del panel: trama de puntos (`trama` en el `<main>` de `LayoutAdmin`). Todas las tarjetas en crema (`bg`): `Panel`, `Card`, `Aviso` y 76 superficies sueltas en 50 componentes.
+- Marca por zona (migración `20261109000000_marca_por_zona`): `contenido_publico` suma `color_fondo_publico`, `color_portal`, `color_fondo_portal`, `color_panel`, `color_fondo_panel`; `color_marca` sigue siendo el principal del sitio público. CHECK `contenido_publico_colores` con `contraste_wcag()` (IMMUTABLE): principal >= 4.5:1 sobre crema #F5EAD8, fondo >= 10:1 con la tinta #2B2420. Un `color_marca` previo sin contraste vuelve a NULL. Error 422 con texto claro (`sqlstate.ts`).
+- Corrección: `color_marca` se editaba pero ninguna pantalla lo aplicaba. Ahora cada layout (`LayoutPublico`, `LayoutPortal`, `LayoutAdmin`) monta `shared/MarcaZona`, que reemplaza los tokens con un `<style>` (SSR y modales en `<body>`). Principal: terracota (accent/arcilla) en sitio público y panel, verde (accent-2/oliva) en el portal. El sitio público toma el cambio en hasta 60 s (revalidación de `publico/centro`).
+- Configuración > El centro > **Marca y apariencia** (solo ADMIN): por zona, principal y fondo con selector, hexadecimal, sugeridos, contraste en vivo, vista previa y "Usar los del sistema". El bloque "Color de marca" sale de "Datos y página pública".
+- Pruebas: `seguridad_bd.sql` caso 113 (contraste, principal claro y fondo oscuro rechazados), `03a-alineacion` (422, 403 GESTION, lectura pública), Vitest `lib/marca.test.ts` y `shared/EdicionSegura.test.tsx`.
+- Ajustes (2026-11-05): búsqueda de color por nombre (`lib/coloresNombrados.ts`, 119 tonos: primarios, secundarios y nombres de objetos; los que no cumplen el contraste se ofrecen ajustados con `tonoLegible`; test: todo tono sirve en ambos campos); muestra de color circular completa; el portal del paciente también va sobre el lienzo con puntos (`LayoutPortal`, fondo del sistema #F1EBE2) y la vista previa de portal y panel lo muestra.
+
+## 03c Moderno A, fase 2: todas las pantallas (2026-11-06)
+
+Aprobadas por pantalla: Mi perfil, Mi cuenta, Configuración. El resto (Fichas y Pacientes, Agenda, Cobros, Inicio, Match, Mensajes, Equipo, portal del paciente y sitio público) queda para la revisión del usuario.
+- Sistema: radio grande = 24 px (`--radius-lg`), sombra suave en tarjetas, paneles, tablas y modales (sombra flotante); pestañas (`ui/Pestanas`, 14 usos) agrupadas en una pastilla crema de 44 px, con la activa en el color de la zona (marca del centro).
+- Portal: lienzo con puntos, secciones en barra flotante translúcida.
+- Confirmación al salir sin guardar (`useGuardaCambios` + `DialogoDescartar`): Mi perfil, Mi cuenta, todas las secciones de Configuración (vía `BarraGuardado`), evolución (borrador pendiente o corrección a medias), plantilla clínica, mensaje del paciente a su profesional y Mis datos del portal. Los menús de Mi cuenta y Configuración pasan a enlaces para que la confirmación los intercepte.
+- Teléfono (390 px): sin desplazamiento horizontal en las 24 pantallas revisadas (se corrigieron la tabla de Cobros, "Esta semana" del Inicio y el portal).
+- Pruebas: Playwright completo 74 ok / 8 omitidas; Vitest 135 ok. impeccable solo corre sin sesión (páginas públicas: fondo crema y rótulo sobre el título, ambos del diseño).

@@ -18,9 +18,10 @@ export default function InicioPortal() {
         <div className="flex min-w-0 flex-col gap-[18px]">
           <MiProfesional />
           <MisHoras />
-          <MensajeProfesional />
         </div>
         <div className="flex min-w-0 flex-col gap-[18px]">
+          {/* Arriba a la derecha: acceso rapido a escribirle al profesional (pedido 2026-11-06). */}
+          <MensajeProfesional />
           <MisDatos />
           <NotaFicha />
         </div>

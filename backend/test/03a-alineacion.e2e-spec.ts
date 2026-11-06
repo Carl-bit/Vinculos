@@ -309,7 +309,7 @@ describe('03a alineacion con el diseño', () => {
       const contenido = {
         heroTitulo: 'Acompañamiento psicologico',
         servicios: [{ titulo: 'Terapia individual', texto: 'Sesiones de 50 minutos.' }],
-        colorMarca: '#B5532D',
+        colorMarca: '#8A4B1F',
       };
       expect(
         (
@@ -330,8 +330,19 @@ describe('03a alineacion con el diseño', () => {
         ).status,
       ).toBe(200);
       const centro = await t.http().get('/api/publico/centro');
-      expect(centro.body).toEqual(expect.objectContaining({ hero_titulo: 'Acompañamiento psicologico', color_marca: '#B5532D' }));
+      expect(centro.body).toEqual(expect.objectContaining({ hero_titulo: 'Acompañamiento psicologico', color_marca: '#8A4B1F' }));
       expect(centro.body.modulos).toContain('MATCH');
+
+      // 03c: marca por zona. Sin contraste sobre las tarjetas crema -> 422 (lo exige la BD).
+      const zona = (body: object, quien = admin) => tk(quien).then((h) => t.http().patch('/api/configuracion/contenido-publico').set(h).send(body));
+      expect((await zona({ colorPanel: '#D6A15A' })).status).toBe(422);
+      expect((await zona({ colorFondoPortal: '#2B2420' })).status).toBe(422);
+      expect((await zona({ colorPortal: '#4F6B2F' }, gestion)).status).toBe(403);
+      expect((await zona({ colorPortal: '#4F6B2F', colorPanel: '#8A4B1F', colorFondoPanel: '#F1EBE2' })).status).toBe(200);
+      expect((await t.http().get('/api/publico/centro')).body).toEqual(
+        expect.objectContaining({ color_portal: '#4F6B2F', color_panel: '#8A4B1F', color_fondo_panel: '#F1EBE2', color_fondo_publico: null }),
+      );
+      expect((await zona({ colorPortal: null, colorPanel: null, colorFondoPanel: null })).status).toBe(200);
 
       const antes = (await t.http().get('/api/publico/politicas/CONSENTIMIENTO_ATENCION')).body.version;
       expect(

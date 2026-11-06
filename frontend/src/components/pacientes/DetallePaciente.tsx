@@ -556,7 +556,7 @@ function EncabezadoPaciente({
           <div className="flex flex-wrap gap-2">{acciones}</div>
         </div>
 
-        <dl className="m-0 grid gap-x-6 gap-y-2.5 rounded-sm bg-neutral-100 px-4 py-3 text-[14px] [grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr))]">
+        <dl className="m-0 grid gap-x-6 gap-y-2.5 rounded-sm bg-bg px-4 py-3 text-[14px] [grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr))]">
           {p.email && <DatoRapido etiqueta="Correo" valor={p.email} copiar />}
           {p.telefono && <DatoRapido etiqueta="Teléfono" valor={formatoTelefono(p.telefono)} copiar={p.telefono} />}
           {e.habitual && <DatoRapido etiqueta="Modalidad habitual" valor={e.habitual === 'ONLINE' ? 'Online' : 'Presencial'} />}
@@ -644,7 +644,7 @@ function DatoRapido({ etiqueta, valor, copiar }: { etiqueta: string; valor: stri
   );
 }
 
-const TARJETA = 'flex min-w-0 flex-col gap-1.5 rounded-md border border-divider bg-neutral-100 p-4';
+const TARJETA = 'flex min-w-0 flex-col gap-1.5 rounded-md border border-divider bg-bg p-4';
 const ROTULO = 'm-0 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase';
 
 /**

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
-import { EstadoConsulta } from '@/components/shared/EstadoVista';
+import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
 import { Aviso } from '@/components/ui/Aviso';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -18,7 +18,12 @@ import { separarNotas } from '@/lib/notasEvolucion';
 import { useAdultosResponsables, useCitas, useEvoluciones, useRespuestasMatch, type PacienteVista } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
 
-import { EditorEvolucion } from './EditorEvolucion';
+import dynamic from 'next/dynamic';
+
+// 03b-6: el editor de evoluciones solo se descarga al escribir o corregir un registro.
+const EditorEvolucion = dynamic(() => import('./EditorEvolucion').then((m) => m.EditorEvolucion), {
+  loading: () => <EstadoVista estado="carga" titulo="Abriendo el editor…" />,
+});
 import { FichaClinicaTimeline } from './FichaClinicaTimeline';
 
 /**
@@ -175,7 +180,7 @@ function ContextoEscritura({ pacienteId, fichaId, evoluciones }: { pacienteId: s
     .filter((a): a is { id: string; fecha: string; valor: number } => a.valor !== undefined)
     .slice(0, 5)
     .reverse();
-  const tarjeta = 'flex flex-col gap-1.5 rounded-[14px] border border-divider bg-neutral-100 p-4';
+  const tarjeta = 'flex flex-col gap-1.5 rounded-[14px] border border-divider bg-bg p-4';
   return (
     <aside aria-labelledby="titulo-contexto" className="flex min-w-0 flex-col gap-3.5">
       <h2 id="titulo-contexto" className="m-0 text-[17px] font-black">

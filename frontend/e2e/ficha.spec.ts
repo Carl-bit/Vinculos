@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ingresarEquipo } from './apoyo';
+import { ingresarEquipo, pacienteNuevo } from './apoyo';
 
 /**
  * Ficha clinica 03b-5.1 contra la API local y el seed demo. Idempotentes: la
@@ -117,4 +117,27 @@ test('Ficha: ADMIN no ve el contenido clinico; administra plantillas, catalogos 
   await expect(page.getByRole('heading', { name: 'Tipos de sesión' })).toBeVisible();
   await config.getByText('Retención', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Revisar' })).toBeVisible();
+});
+
+test('03b-6: borrador confirmado al expediente (paciente nuevo, no toca el seed): queda en la línea de tiempo y ya no se edita', async ({ page, browser }) => {
+  const { pacienteId } = await pacienteNuevo(page, 'expediente');
+  const tratante = await (await browser.newContext()).newPage();
+  await ingresarEquipo(tratante, 'profesional1');
+  await tratante.goto(`/admin/fichas/${pacienteId}?vista=evoluciones`);
+  const texto = `Evolución e2e ${Date.now()} (texto ficticio)`;
+  await tratante.getByRole('button', { name: 'Nueva evolución' }).click();
+  await tratante.getByLabel('Notas de la sesión').fill(texto);
+  await expect(tratante.getByText('Borrador guardado')).toBeVisible();
+
+  await tratante.getByRole('button', { name: 'Confirmar en el expediente' }).click();
+  const modal = tratante.getByRole('dialog', { name: 'Confirmar en el expediente' });
+  await modal.getByLabel('Tipo de sesión').selectOption({ index: 1 });
+  await modal.getByRole('radio').first().check();
+  await modal.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(modal).toBeHidden();
+  // Append-only: la evolucion aparece, el borrador desaparece y no hay "Descartar".
+  await expect(tratante.getByText(texto)).toBeVisible();
+  await expect(tratante.getByRole('button', { name: 'Descartar borrador' })).toHaveCount(0);
+  await tratante.reload();
+  await expect(tratante.getByText(texto)).toBeVisible();
 });

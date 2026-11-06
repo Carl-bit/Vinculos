@@ -102,7 +102,7 @@ export function ConsentimientoEnlace() {
         </ul>
       )}
       {c.tipo !== 'AVISO_SUPERVISOR' && (
-        <div className="mb-6 max-h-[46vh] overflow-y-auto rounded-lg border border-divider bg-neutral-100 px-6 py-5 shadow-sm">
+        <div className="mb-6 max-h-[46vh] overflow-y-auto rounded-lg border border-divider bg-bg px-6 py-5 shadow-suave">
           <p className="m-0 mb-3 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Documento, versión {c.politica_version}</p>
           <div className="text-[15px] leading-[1.75] whitespace-pre-line text-pretty text-neutral-800">{c.politica_texto}</div>
         </div>

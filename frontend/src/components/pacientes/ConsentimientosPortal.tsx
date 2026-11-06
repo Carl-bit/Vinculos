@@ -369,7 +369,7 @@ function ProtocoloPaciente() {
                   )
                 }
               >
-                <div className="max-h-[50vh] overflow-y-auto rounded-[16px] border border-divider bg-neutral-100 px-5 py-4 text-[14.5px] leading-[1.7] whitespace-pre-line text-pretty">
+                <div className="max-h-[50vh] overflow-y-auto rounded-[16px] border border-divider bg-bg px-5 py-4 text-[14.5px] leading-[1.7] whitespace-pre-line text-pretty">
                   {e.vigente.texto}
                 </div>
                 {leido.error && (
@@ -451,7 +451,7 @@ function ConsentimientoAtencion() {
                   )
                 }
               >
-                <div className="max-h-[50vh] overflow-y-auto rounded-[16px] border border-divider bg-neutral-100 px-5 py-4 text-[14.5px] leading-[1.7] whitespace-pre-line text-pretty">
+                <div className="max-h-[50vh] overflow-y-auto rounded-[16px] border border-divider bg-bg px-5 py-4 text-[14.5px] leading-[1.7] whitespace-pre-line text-pretty">
                   {e.vigente.texto}
                 </div>
                 {!alDia && <p className="m-0 text-[13px] font-semibold text-neutral-700">{t.rechaza.consecuencia}</p>}

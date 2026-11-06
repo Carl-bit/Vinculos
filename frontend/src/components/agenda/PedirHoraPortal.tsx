@@ -1,10 +1,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
+import { clavePolitica, EnlacePolitica, esVersionNueva, MENSAJE_VERSION_NUEVA } from '@/components/shared/EnlacePolitica';
 import { usePortal } from '@/components/shared/ContextoPortal';
 import { EstadoVista } from '@/components/shared/EstadoVista';
 import { PagoCitaPortal } from '@/components/shared/PagoCitaPortal';
@@ -37,15 +37,20 @@ export function PedirHoraPortal() {
   const perfiles = useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 10 * 60_000 });
   const centro = useQuery({ queryKey: ['publico', 'centro'], queryFn: () => datos(api.GET('/api/publico/centro')), staleTime: 10 * 60_000 });
   const politica = useQuery({
-    queryKey: ['publico', 'politica', 'POLITICA_DATOS'],
+    queryKey: clavePolitica('POLITICA_DATOS'),
     queryFn: () => datos(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo: 'POLITICA_DATOS' } } })),
   });
   const terminos = useQuery({
-    queryKey: ['publico', 'politica', 'TERMINOS_AGENDAMIENTO'],
+    queryKey: clavePolitica('TERMINOS_AGENDAMIENTO'),
     queryFn: () => datos(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo: 'TERMINOS_AGENDAMIENTO' } } })),
   });
   const [hora, setHora] = useState<Bloque | null>(null);
-  const [acepta, setAcepta] = useState(false);
+  // Se guardan los ids aceptados: si el modal o la API traen otra version, la
+  // casilla queda sin marcar sola y se envia siempre el id vigente.
+  const [aceptadas, setAceptadas] = useState<string | null>(null);
+  const idsVigentes = politica.data && terminos.data ? `${politica.data.id}|${terminos.data.id}` : null;
+  const acepta = aceptadas !== null && aceptadas === idsVigentes;
+  const setAcepta = (v: boolean) => setAceptadas(v ? idsVigentes : null);
   const [errorAcepta, setErrorAcepta] = useState<string>();
   const [aviso, setAviso] = useState<string>();
   const alerta = useRef<HTMLDivElement>(null);
@@ -75,6 +80,11 @@ export function PedirHoraPortal() {
         setHora(null);
         setAviso('Otra persona tomó esa hora mientras elegías. Te mostramos las horas libres actualizadas.');
         void cliente.invalidateQueries({ queryKey: ['disponibilidad-portal'] });
+      } else if (esVersionNueva(e)) {
+        // Se trae la version vigente y se pide aceptarla otra vez.
+        setAceptadas(null);
+        setAviso(MENSAJE_VERSION_NUEVA);
+        void cliente.invalidateQueries({ queryKey: ['publico', 'politica'] });
       } else setAviso(e instanceof ApiError ? e.message : 'No pudimos reservar la hora. Intenta de nuevo.');
     },
   });
@@ -118,7 +128,7 @@ export function PedirHoraPortal() {
       <div className="entrada flex max-w-[680px] flex-col gap-5">
         <h2 className="m-0 text-[clamp(26px,3.4vw,36px)] leading-[1.05] font-black tracking-[-0.03em]">Falta el pago para confirmar tu hora</h2>
         {reservar.variables && (
-          <p className="m-0 rounded-lg border border-divider bg-neutral-100 px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-sm first-letter:uppercase">
+          <p className="m-0 rounded-lg border border-divider bg-bg px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-suave first-letter:uppercase">
             {formatoFechaLarga(reservar.variables.inicio)} a las {formatoHora(reservar.variables.inicio)} ·{' '}
             {NOMBRE_MODALIDAD_CITA[reservar.variables.modalidad]}
           </p>
@@ -149,7 +159,7 @@ export function PedirHoraPortal() {
             : `${nombre} revisa las horas de pacientes nuevos y te avisará por correo cuando la apruebe.`}
         </p>
         {reservar.variables && (
-          <p className="m-0 mb-6 rounded-lg border border-divider bg-neutral-100 px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-sm first-letter:uppercase">
+          <p className="m-0 mb-6 rounded-lg border border-divider bg-bg px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-suave first-letter:uppercase">
             {formatoFechaLarga(reservar.variables.inicio)} a las {formatoHora(reservar.variables.inicio)} ·{' '}
             {NOMBRE_MODALIDAD_CITA[reservar.variables.modalidad]}
           </p>
@@ -160,6 +170,12 @@ export function PedirHoraPortal() {
       </div>
     );
   }
+
+  // Una sola casilla para ambos documentos. "Leí y acepto" en el modal la marca.
+  const aceptarDesdeModal = () => {
+    setAcepta(true);
+    setErrorAcepta(undefined);
+  };
 
   const confirmar = () => {
     setAviso(undefined);
@@ -231,13 +247,13 @@ export function PedirHoraPortal() {
               error={errorAcepta}
             >
               Acepto la{' '}
-              <Link href="/politicas/POLITICA_DATOS" target="_blank" className="font-extrabold underline underline-offset-2">
+              <EnlacePolitica tipo="POLITICA_DATOS" onAceptar={aceptarDesdeModal}>
                 política de datos
-              </Link>{' '}
+              </EnlacePolitica>{' '}
               (v{politica.data.version}) y los{' '}
-              <Link href="/politicas/TERMINOS_AGENDAMIENTO" target="_blank" className="font-extrabold underline underline-offset-2">
+              <EnlacePolitica tipo="TERMINOS_AGENDAMIENTO" onAceptar={aceptarDesdeModal}>
                 términos de agendamiento
-              </Link>{' '}
+              </EnlacePolitica>{' '}
               (v{terminos.data.version}).
             </Casilla>
           ) : (

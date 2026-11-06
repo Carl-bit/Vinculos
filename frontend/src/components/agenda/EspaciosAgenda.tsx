@@ -276,7 +276,7 @@ function EditarEspacio({
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
           <legend className="mb-2 text-[12.5px] font-extrabold">Horario base (rige siempre)</legend>
           {dias.map((d, i) => (
-            <div key={DIAS_SEMANA[i]} className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-neutral-100 px-3.5 py-2">
+            <div key={DIAS_SEMANA[i]} className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-bg px-3.5 py-2">
               <label className="flex w-[118px] cursor-pointer items-center gap-2 text-[13.5px] font-extrabold">
                 <input type="checkbox" checked={d.abre} onChange={(e) => cambiarDia(i, { abre: e.target.checked })} className="size-4 accent-accent-700" />
                 {DIAS_SEMANA[i]}

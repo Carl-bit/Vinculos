@@ -163,7 +163,7 @@ export function RegistrarAsistenciaPago({
                   {c.pagos.map((p) => (
                     <div
                       key={p.id}
-                      className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-neutral-100 px-3.5 py-2 text-[13.5px] font-bold"
+                      className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-bg px-3.5 py-2 text-[13.5px] font-bold"
                     >
                       <span className="tabular-nums">{formatoClp(p.monto)}</span>
                       <span className="flex-1 font-semibold text-neutral-800">
@@ -370,7 +370,7 @@ export function RegistrarAsistenciaPago({
 
 function Cifra({ etiqueta, valor, destacado }: { etiqueta: string; valor: string; destacado?: boolean }) {
   return (
-    <div className={`rounded-[14px] border px-3.5 py-3 ${destacado ? 'border-accent-500 bg-accent-100' : 'border-divider bg-neutral-100'}`}>
+    <div className={`rounded-[14px] border px-3.5 py-3 ${destacado ? 'border-accent-500 bg-accent-100' : 'border-divider bg-bg'}`}>
       <div className="mb-1 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{etiqueta}</div>
       <div className="text-[18px] font-black tracking-[-0.02em] tabular-nums">{valor}</div>
     </div>

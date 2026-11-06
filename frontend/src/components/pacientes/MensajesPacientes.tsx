@@ -24,9 +24,17 @@ export function MensajesPacientes() {
   const mensajes = useMensajesPacientes(true);
   const pacientes = usePacientes();
   const paciente = new Map((pacientes.data ?? []).map((p) => [p.id, p]));
+  // 03b-6: optimista (accion reversible y sin efecto clinico): se ve leido al instante y vuelve atras si falla.
   const leer = useMutation({
     mutationFn: (id: string) => datos(api.POST('/api/mensajes/{id}/leido', { params: { path: { id } } })),
-    onSuccess: () => {
+    onMutate: async (id: string) => {
+      await cliente.cancelQueries({ queryKey: ['mensajes-pacientes'] });
+      const antes = cliente.getQueryData<typeof mensajes.data>(['mensajes-pacientes']);
+      cliente.setQueryData<typeof mensajes.data>(['mensajes-pacientes'], (l) => l?.map((m) => (m.id === id ? { ...m, leidoEn: new Date().toISOString() } : m)));
+      return { antes };
+    },
+    onError: (_e, _id, ctx) => cliente.setQueryData(['mensajes-pacientes'], ctx?.antes),
+    onSettled: () => {
       void cliente.invalidateQueries({ queryKey: ['mensajes-pacientes'] });
       void cliente.invalidateQueries({ queryKey: ['panel', 'dashboard'] });
     },
@@ -48,10 +56,7 @@ export function MensajesPacientes() {
               const p = m.pacienteId ? paciente.get(m.pacienteId) : undefined;
               const nuevo = !m.leidoEn;
               return (
-                <li
-                  key={m.id}
-                  className={`rounded-lg border bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-4 ${nuevo ? 'border-accent-500' : 'border-divider'}`}
-                >
+                <li key={m.id} className={`rounded-lg border bg-bg px-[clamp(16px,2.6vw,22px)] py-4 ${nuevo ? 'border-accent-500' : 'border-divider'}`}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="m-0 flex flex-wrap items-center gap-2 text-[15px] font-black">
@@ -74,7 +79,7 @@ export function MensajesPacientes() {
                         <Button
                           variant="secondary"
                           icon="mark_email_read"
-                          loading={leer.isPending && leer.variables === m.id}
+                          disabled={leer.isPending && leer.variables === m.id}
                           onClick={() => leer.mutate(m.id)}
                           className="!px-4 !py-2 !text-[13px]"
                         >

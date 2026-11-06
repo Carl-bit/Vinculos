@@ -35,7 +35,7 @@ export function AltaPaciente({ pacienteId }: { pacienteId: string }) {
   });
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[1fr_1fr]">
-      <section className="flex flex-col gap-4 rounded-lg border border-divider bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-5">
+      <section className="flex flex-col gap-4 rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-5">
         <h2 className="m-0 text-[16px] font-black">Registrar alta</h2>
         <Field label="Fecha del alta" required>
           {(p) => <Input {...p} type="date" max={fechaHoyChile()} value={fecha} onChange={(e) => setFecha(e.target.value)} />}
@@ -77,7 +77,7 @@ export function AltaPaciente({ pacienteId }: { pacienteId: string }) {
           {(lista) => (
             <ul className="m-0 flex list-none flex-col gap-3 p-0">
               {lista.map((a) => (
-                <li key={a.id} className="rounded-lg border border-divider bg-neutral-100 px-4 py-3.5">
+                <li key={a.id} className="rounded-lg border border-divider bg-bg px-4 py-3.5">
                   <p className="m-0 text-[14.5px] font-extrabold">Alta del {formatoFecha(a.fecha.slice(0, 10))}</p>
                   {a.motivo && <p className="m-0 mt-1 text-[14px] font-semibold whitespace-pre-line text-pretty">{a.motivo}</p>}
                   <p className="m-0 mt-1.5 text-xs font-semibold text-neutral-700">Registrada el {formatoFechaHora(a.creadaEn)}</p>

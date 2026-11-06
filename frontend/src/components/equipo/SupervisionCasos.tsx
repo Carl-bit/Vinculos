@@ -93,7 +93,7 @@ function EvolucionCaso({ evolucion: e, campos }: { evolucion: EvolucionSupervisa
   const riesgo = NIVEL_RIESGO[e.nivelRiesgo];
   const visibles = campos.filter((c) => e.valores && c.clave in e.valores);
   return (
-    <article className="rounded-lg border border-divider bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-4">
+    <article className="rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="m-0 text-[15px] font-black">{e.tipoSesion}</p>

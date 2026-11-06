@@ -66,7 +66,8 @@ export function DocumentosTributarios({
     onError: fallo('No pudimos registrar el documento.'),
   });
   const anular = useMutation({
-    mutationFn: (id: string) => datos(api.POST('/api/cobros/documentos-tributarios/{id}/anulacion', { params: { path: { id } }, body: { motivo: motivo.trim() } })),
+    mutationFn: (id: string) =>
+      datos(api.POST('/api/cobros/documentos-tributarios/{id}/anulacion', { params: { path: { id } }, body: { motivo: motivo.trim() } })),
     onSuccess: () => {
       listo();
       setAnulando(null);
@@ -90,10 +91,7 @@ export function DocumentosTributarios({
         Documento tributario (SII)
       </h3>
       {documentos.map((doc) => (
-        <div
-          key={doc.id}
-          className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-neutral-100 px-3.5 py-2 text-[13.5px] font-bold"
-        >
+        <div key={doc.id} className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-bg px-3.5 py-2 text-[13.5px] font-bold">
           <span className={doc.estado === 'ANULADO' ? 'line-through' : undefined}>
             {TIPO_DOCUMENTO_TRIBUTARIO[doc.tipo]} folio {doc.folio}
           </span>

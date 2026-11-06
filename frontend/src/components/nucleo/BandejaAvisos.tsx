@@ -41,7 +41,7 @@ export function BandejaAvisos() {
           {lista.map((a) => {
             const destino = DE_CITA.includes(a.tipo) && a.referenciaId ? `/admin/agenda?cita=${a.referenciaId}` : DESTINO[a.tipo];
             return (
-              <li key={a.id} className="rounded-lg border border-divider bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-4">
+              <li key={a.id} className="rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="m-0 text-[15px] font-black">{a.asunto ?? 'Aviso'}</p>
                   <span className="text-[12.5px] font-semibold text-neutral-700">{formatoFechaHora(a.creadaEn)}</span>

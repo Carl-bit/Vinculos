@@ -49,4 +49,13 @@ export const resenasPublicas = cache(
 
 export const cuestionario = cache(() => leer(api.GET('/api/publico/cuestionario')));
 
-export const politica = cache((tipo: TipoPolitica) => leer(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo } } })));
+/**
+ * Politicas sin Data Cache: la BD exige aceptar la version vigente; con 60 s
+ * de cache el formulario podia enviar el id de una version ya reemplazada.
+ */
+const apiSinCache = createClient<paths>({
+  baseUrl: process.env.API_URL ?? 'http://localhost:3001',
+  fetch: (request) => fetch(request, { cache: 'no-store' }),
+});
+
+export const politica = cache((tipo: TipoPolitica) => leer(apiSinCache.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo } } })));

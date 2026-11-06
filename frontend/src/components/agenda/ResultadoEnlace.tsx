@@ -27,7 +27,7 @@ export function ResultadoEnlace({
       <h1 className="m-0 mb-3.5 text-[clamp(30px,4vw,44px)] leading-[1.02] font-black tracking-[-0.035em] text-balance">{titulo}</h1>
       <p className="m-0 mb-6 text-[16.5px] leading-relaxed text-pretty text-neutral-700">{texto}</p>
       {detalle && (
-        <div className="mb-6 flex items-center gap-3 rounded-lg border border-divider bg-neutral-100 px-6 py-5 shadow-sm">
+        <div className="mb-6 flex items-center gap-3 rounded-lg border border-divider bg-bg px-6 py-5 shadow-suave">
           <Icon name="event_available" size={20} className="text-accent-2-700" />
           <span className="text-[15.5px] font-black tracking-[-0.02em] first-letter:uppercase">{detalle}</span>
         </div>

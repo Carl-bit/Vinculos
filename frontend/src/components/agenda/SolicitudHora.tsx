@@ -1,10 +1,10 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
+import { EnlacePolitica, esVersionNueva, MENSAJE_VERSION_NUEVA, vigentePolitica } from '@/components/shared/EnlacePolitica';
 import { PasoPago } from '@/components/shared/PasoPago';
 import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
@@ -97,14 +97,18 @@ const tarifaPara = (p: Perfil, m: Bloque['modalidad']) =>
 export function SolicitudHora({
   perfil,
   centro,
-  politicaDatos,
-  terminos,
+  politicaDatos: politicaInicial,
+  terminos: terminosInicial,
 }: {
   perfil: Perfil;
   centro: Centro;
   politicaDatos: Politica;
   terminos: Politica | null;
 }) {
+  // Version que se acepta: parte con la del servidor y se actualiza al abrir el
+  // documento o si la BD avisa que hay una nueva (entonces se vuelve a aceptar).
+  const [politicaDatos, setPoliticaDatos] = useState(politicaInicial);
+  const [terminos, setTerminos] = useState(terminosInicial);
   const [paso, setPaso] = useState(0);
   const [bloque, setBloque] = useState<Bloque | null>(null);
   const [d, setD] = useState<Datos>(VACIO);
@@ -130,6 +134,19 @@ export function SolicitudHora({
     // El error de un campo se vuelve a revisar al salir de el (03b-4.1), no al final.
     if (errores[k]) setErrores((e) => ({ ...e, [k]: undefined }));
   };
+  // Version distinta a la aceptada: se guarda el id nuevo y se desmarca su casilla.
+  const versionDatos = useCallback((p: Politica) => {
+    setPoliticaDatos((a) => {
+      if (a.id !== p.id) setD((x) => ({ ...x, aceptaDatos: false }));
+      return a.id === p.id ? a : p;
+    });
+  }, []);
+  const versionTerminos = useCallback((p: Politica) => {
+    setTerminos((a) => {
+      if (a?.id !== p.id) setD((x) => ({ ...x, aceptaTerminos: false }));
+      return a?.id === p.id ? a : p;
+    });
+  }, []);
   const alSalir = (k: 'email' | 'telefono' | 'adultoTelefono') => () => {
     const v = d[k].trim();
     const mensaje = k === 'email' ? (v !== '' && !CORREO.test(v) ? MENSAJE_CORREO : undefined) : reglaTelefono(v);
@@ -213,6 +230,14 @@ export function SolicitudHora({
         setBloque(null);
         setPaso(0);
       }
+      if (esVersionNueva(e)) {
+        // El centro publico otra version mientras se llenaba el formulario.
+        const [pd, pt] = await Promise.all([vigentePolitica(cliente, 'POLITICA_DATOS'), terminos ? vigentePolitica(cliente, 'TERMINOS_AGENDAMIENTO') : null]);
+        if (pd) versionDatos(pd);
+        if (pt) versionTerminos(pt);
+        setError(MENSAJE_VERSION_NUEVA);
+        return;
+      }
       setError(e instanceof ApiError ? e.message : 'No pudimos enviar la solicitud. Intenta de nuevo.');
     } finally {
       setEnviando(false);
@@ -271,7 +296,7 @@ export function SolicitudHora({
             <p className="m-0 mb-6 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
               Estas son las horas libres de {nombreCorto(perfil)}. Al enviar tus datos, te guardamos la hora unos minutos mientras pagas.
             </p>
-            <div className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+            <div className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
               <SelectorHorario
                 profesionalId={perfil.id}
                 valor={bloque}
@@ -307,7 +332,7 @@ export function SolicitudHora({
               Con el pago confirmamos tu hora y te enviamos al correo la confirmación y la invitación para crear tu cuenta.
             </p>
 
-            <fieldset className="m-0 grid gap-4 rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm sm:grid-cols-2">
+            <fieldset className="m-0 grid gap-4 rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave sm:grid-cols-2">
               <legend className="sr-only">Datos del paciente</legend>
               <label className="flex cursor-pointer items-center gap-2.5 text-[14px] font-bold sm:col-span-2">
                 <input
@@ -373,7 +398,7 @@ export function SolicitudHora({
             </fieldset>
 
             {sinMatch && (
-              <section className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+              <section className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
                 <Field
                   label="¿Qué te gustaría trabajar en la sesión?"
                   hint="Opcional. Con tus palabras: ayuda a que tu profesional prepare mejor la primera sesión. Solo lo lee tu profesional."
@@ -424,7 +449,7 @@ export function SolicitudHora({
               </fieldset>
             )}
 
-            <section className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+            <section className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
               <h2 className="m-0 mb-3.5 text-[19px] font-black tracking-[-0.025em]">Condiciones de agendamiento</h2>
               <ul className="m-0 mb-[18px] flex flex-col gap-2 pl-5">
                 {condicionesAgendamiento(centro, menor).map((c) => (
@@ -436,17 +461,17 @@ export function SolicitudHora({
               <div className="flex flex-col gap-2.5">
                 <Casilla checked={d.aceptaDatos} onChange={(v) => cambiar('aceptaDatos', v)} error={errores.aceptaDatos}>
                   Leí y acepto la{' '}
-                  <Link href="/politicas/POLITICA_DATOS" target="_blank" className="font-extrabold underline underline-offset-2">
+                  <EnlacePolitica tipo="POLITICA_DATOS" onVersion={versionDatos} onAceptar={() => cambiar('aceptaDatos', true)}>
                     política de datos personales
-                  </Link>{' '}
+                  </EnlacePolitica>{' '}
                   (versión {politicaDatos.version}).
                 </Casilla>
                 {terminos && (
                   <Casilla checked={d.aceptaTerminos} onChange={(v) => cambiar('aceptaTerminos', v)} error={errores.aceptaTerminos}>
                     Acepto los{' '}
-                    <Link href="/politicas/TERMINOS_AGENDAMIENTO" target="_blank" className="font-extrabold underline underline-offset-2">
+                    <EnlacePolitica tipo="TERMINOS_AGENDAMIENTO" onVersion={versionTerminos} onAceptar={() => cambiar('aceptaTerminos', true)}>
                       términos de agendamiento y cancelación
-                    </Link>{' '}
+                    </EnlacePolitica>{' '}
                     (versión {terminos.version}).
                   </Casilla>
                 )}
@@ -592,7 +617,7 @@ function ResultadoReserva({
             `Enviamos un enlace a ${email}. Ábrelo antes de que termine el tiempo: la hora queda reservada a tu nombre y pagas al llegar a tu sesión. Si no lo ves, revisa la carpeta de spam. Puedes abrirlo en este u otro dispositivo: esta pantalla avanza sola.`,
           )}
         {estado.venceEn && !estado.comprobanteRecibido && (
-          <div className="rounded-lg border border-divider bg-neutral-100 p-6 shadow-sm">
+          <div className="rounded-lg border border-divider bg-bg p-6 shadow-suave">
             <CuentaRegresiva desde={desde} hasta={new Date(estado.venceEn)} onVencida={onVencida} />
           </div>
         )}
@@ -633,7 +658,7 @@ function ResultadoReserva({
           ? 'Venció el plazo y la hora quedó disponible para otras personas. Elige otra hora: tus datos se conservan.'
           : 'Esta hora ya no está vigente. Elige otra hora: tus datos se conservan.',
       )}
-      <div className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+      <div className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
         <SelectorHorario profesionalId={perfil.id} valor={otra} onElegir={setOtra} sinHoras={<SinHoras perfil={perfil} centro={centro} />} />
       </div>
       <div>

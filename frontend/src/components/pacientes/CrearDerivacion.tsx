@@ -112,7 +112,7 @@ export function CrearDerivacion({ paciente, abierto, onCerrar }: { paciente: Pac
           )}
           <ol className="m-0 flex list-none flex-col gap-2 p-0">
             {candidatos.map((id, i) => (
-              <li key={id} className="flex items-center gap-2 rounded-[14px] border border-divider bg-neutral-100 px-3.5 py-2">
+              <li key={id} className="flex items-center gap-2 rounded-[14px] border border-divider bg-bg px-3.5 py-2">
                 <span className="w-5 text-[13px] font-black tabular-nums">{i + 1}.</span>
                 <span className="flex-1 text-[14px] font-bold">{nombre.get(id) ?? 'Profesional'}</span>
                 <button

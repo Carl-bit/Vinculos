@@ -126,7 +126,7 @@ export function FichaValidacion({
       <section
         aria-label={`Ficha de ${miembro.nombre}`}
         // Fijo arriba al desplazarse, sin cambiar de tamaño (mismo alto siempre).
-        className="sticky top-0 z-20 flex flex-wrap items-center gap-[18px] rounded-lg border border-divider bg-bg p-[22px] shadow-md"
+        className="sticky top-0 z-20 flex flex-wrap items-center gap-[18px] rounded-lg border border-divider bg-bg p-[22px] shadow-suave"
       >
         {perfil.data?.fotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- imagen publica servida por la API
@@ -355,7 +355,7 @@ function FilaTitulo({ t, profesionalId, admin }: { t: Trayectoria; profesionalId
     />
   );
   return (
-    <li className="flex flex-col gap-2.5 rounded-[14px] bg-neutral-100 px-3 py-2.5">
+    <li className="flex flex-col gap-2.5 rounded-[14px] bg-bg px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2.5">
         <span className="min-w-0 flex-[1_1_220px]">
           <span className="block text-[13.5px] font-extrabold">{t.titulo}</span>
@@ -498,7 +498,7 @@ function TiposPorRevisar({ profesionalId, admin }: { profesionalId: string; admi
     <div className="flex flex-col gap-2 pl-[46px]">
       {aprobados.length > 0 && <p className="m-0 text-[12.5px] font-semibold text-neutral-800">Aprobados: {aprobados.join(' · ')}</p>}
       {pendientes.map((p) => (
-        <div key={`${p.tipo}-${p.id}`} className="flex flex-wrap items-center gap-2 rounded-[14px] bg-neutral-100 px-3 py-2">
+        <div key={`${p.tipo}-${p.id}`} className="flex flex-wrap items-center gap-2 rounded-[14px] bg-bg px-3 py-2">
           <span className="min-w-0 flex-1 text-[13.5px] font-bold">
             {p.nombre ?? (p.tipo === 'tipo' ? 'Tipo de atención' : 'Especialidad')}
             <span className="ml-1.5 text-[12px] font-semibold text-neutral-700">{p.tipo === 'tipo' ? 'tipo de atención' : 'especialidad'}</span>
@@ -590,7 +590,7 @@ function PerfilPublico({ miembro, admin, profesional }: { miembro: Integrante; a
           <p className="m-0 text-[13.5px] font-semibold text-neutral-800">Todavía no completa su perfil. Lo crea desde «Mi perfil».</p>
         ) : (
           <>
-            <div className="flex flex-col gap-1.5 rounded-[18px] bg-neutral-100 px-4 py-4">
+            <div className="flex flex-col gap-1.5 rounded-[18px] bg-bg px-4 py-4">
               <span className="flex flex-wrap items-center gap-2">
                 <strong className="text-[18px] font-black tracking-[-0.02em]">{p.nombrePublico || miembro.nombre}</strong>
                 <Badge tono={p.perfilPublico ? 'positivo' : 'neutro'}>{p.perfilPublico ? 'Publicado' : 'Sin publicar'}</Badge>
@@ -807,7 +807,7 @@ function CorregirCampo({ miembro, campo, actual, onListo }: { miembro: Integrant
 
 function Fila({ etiqueta, valor, accion, tono }: { etiqueta: string; valor: string; accion?: ReactNode; tono?: 'alerta' | 'ok' }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-[14px] bg-neutral-100 px-3 py-2.5">
+    <div className="flex items-center gap-2.5 rounded-[14px] bg-bg px-3 py-2.5">
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="text-[12px] font-semibold text-neutral-700">{etiqueta}</span>
         <strong className={`text-[13.5px] first-letter:uppercase ${tono === 'alerta' ? 'text-accent-800' : tono === 'ok' ? 'text-accent-2-800' : ''}`}>

@@ -107,7 +107,7 @@ export function MisHoras({ limite }: { limite?: number }) {
                 const modalidad = c.modalidad === 'ONLINE' ? 'Online' : c.espacioNombre ? `Presencial, ${c.espacioNombre}` : 'Presencial';
                 const invita = puedeResenar && invitar.has(c.id);
                 return (
-                  <li key={c.id} className={`rounded-[18px] border bg-bg px-[18px] py-4 ${invita ? 'border-accent-500' : 'border-divider'}`}>
+                  <li key={c.id} className={`fila-diferida rounded-[18px] border bg-bg px-[18px] py-4 ${invita ? 'border-accent-500' : 'border-divider'}`}>
                     <div className="flex flex-wrap items-center gap-3.5">
                       <span
                         className={`grid size-10 flex-none place-items-center rounded-full border ${

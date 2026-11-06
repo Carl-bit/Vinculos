@@ -79,7 +79,7 @@ export function CabeceraPerfil({ perfil, nivel = 2, size = 88 }: { perfil: Perfi
 /** Tarjeta del equipo publico: datos clave, bajada y acciones. */
 export function TarjetaPerfil({ perfil, agenda }: { perfil: PerfilPublico; agenda: boolean }) {
   return (
-    <article className="revelar flex flex-col gap-4 rounded-lg border border-divider bg-neutral-100 p-6 shadow-sm transition-shadow duration-300 ease-out hover:shadow-lg">
+    <article className="revelar flex flex-col gap-4 rounded-lg border border-divider bg-bg p-6 shadow-suave transition-shadow duration-300 ease-out hover:shadow-lg">
       <CabeceraPerfil perfil={perfil} />
       <DatosPerfil perfil={perfil} />
       {(perfil.cita_destacada ?? perfil.bio) && (

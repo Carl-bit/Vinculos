@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 
 import { Encabezado } from '@/components/shared/Encabezado';
@@ -11,6 +12,7 @@ import { useConfiguracionCentro, useContenidoPublico, useDirectorioEquipo, useHo
 import { AuditoriaAccesos } from './AuditoriaAccesos';
 import { ContratoCentroPanel } from './ContratoCentro';
 import { DatosCentro } from './DatosCentro';
+import { MarcaCentro } from './MarcaCentro';
 import { ExportacionCentro } from './ExportacionCentro';
 import { FeriadosCentro } from './FeriadosCentro';
 import { AvisoSinHorario, HorarioCentroEditor, PoliticasCentro } from './HorarioPoliticasCentro';
@@ -20,7 +22,7 @@ import { MODULOS, ReglasCentro } from './ReglasCentro';
 import { SolicitudesDerechos } from './SolicitudesDerechos';
 import { SoporteCentro } from './SoporteCentro';
 
-type Seccion = 'datos' | 'horario' | 'agenda' | 'cobros' | 'medios' | 'avisos' | 'equipo' | 'legal' | 'privacidad' | 'vinculos';
+type Seccion = 'datos' | 'marca' | 'horario' | 'agenda' | 'cobros' | 'medios' | 'avisos' | 'equipo' | 'legal' | 'privacidad' | 'vinculos';
 type Tono = 'atencion' | 'positivo' | 'neutro';
 
 /** Diseño "Opcion A submenu agrupado por tema": secciones por tema, con titulo, bajada y palabras para el buscador. */
@@ -28,7 +30,12 @@ const SECCIONES: Record<Seccion, { nombre: string; bajada: string; claves: strin
   datos: {
     nombre: 'Datos y página pública',
     bajada: 'Lo que se edita acá aparece en correos, comprobantes y la página pública.',
-    claves: 'nombre rut correo teléfono dirección whatsapp instagram logo portada misión visión servicios color marca contacto',
+    claves: 'nombre rut correo teléfono dirección whatsapp instagram logo portada misión visión servicios contacto',
+  },
+  marca: {
+    nombre: 'Marca y apariencia',
+    bajada: 'Colores del sitio público, del portal del paciente y del panel del equipo. Las tarjetas quedan en crema.',
+    claves: 'color colores marca apariencia estilo tema fondo principal portal panel sitio',
   },
   horario: {
     nombre: 'Horario y feriados',
@@ -78,7 +85,7 @@ const SECCIONES: Record<Seccion, { nombre: string; bajada: string; claves: strin
 };
 
 const GRUPOS: { titulo: string; secciones: Seccion[] }[] = [
-  { titulo: 'El centro', secciones: ['datos', 'horario'] },
+  { titulo: 'El centro', secciones: ['datos', 'marca', 'horario'] },
   { titulo: 'Operación', secciones: ['agenda'] },
   { titulo: 'Finanzas', secciones: ['cobros', 'medios'] },
   { titulo: 'Comunicación', secciones: ['avisos'] },
@@ -152,7 +159,6 @@ function useChips(): Partial<Record<Seccion, { texto: string; tono: Tono }>> {
  * modulo Cobros: la pagina los pasa como `acuerdosProfesionales`.
  */
 export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesionales?: ReactNode } = {}) {
-  const router = useRouter();
   const parametros = useSearchParams();
   const pedida = parametros.get('vista') ?? 'datos';
   const seccion: Seccion = pedida in SECCIONES ? (pedida as Seccion) : (ALIAS[pedida] ?? 'datos');
@@ -161,7 +167,7 @@ export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesi
   const filtro = normalizar(busqueda.trim());
   const coincide = (s: Seccion) => !filtro || normalizar(`${SECCIONES[s].nombre} ${SECCIONES[s].claves}`).includes(filtro);
   const grupos = GRUPOS.map((g) => ({ ...g, secciones: g.secciones.filter(coincide) })).filter((g) => g.secciones.length);
-  const ir = (s: Seccion) => router.replace(s === 'datos' ? '/admin/configuracion' : `/admin/configuracion?vista=${s}`, { scroll: false });
+  const enlace = (s: Seccion) => (s === 'datos' ? '/admin/configuracion' : `/admin/configuracion?vista=${s}`);
   const actual = SECCIONES[seccion];
 
   return (
@@ -182,14 +188,14 @@ export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesi
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Ej.: comisión, recordatorio, feriado"
-            className="min-h-11 rounded-full border border-neutral-400 bg-neutral-100 px-4 text-[14px] text-text placeholder:text-neutral-600"
+            className="min-h-11 rounded-full border border-neutral-400 bg-bg px-4 text-[14px] text-text placeholder:text-neutral-700"
           />
         </label>
       </div>
       <div className="flex flex-col items-start gap-6 lg:flex-row">
         <nav
           aria-label="Secciones de configuración"
-          className="flex w-full flex-none flex-col gap-0.5 rounded-[18px] border border-divider bg-surface px-2.5 py-3.5 lg:sticky lg:top-4 lg:w-[260px]"
+          className="translucida flex w-full flex-none flex-col gap-0.5 rounded-panel border border-borde px-2.5 py-3.5 text-tinta shadow-flotante lg:sticky lg:top-4 lg:w-[260px]"
         >
           {grupos.map((g) => (
             <div key={g.titulo} className="flex flex-col gap-0.5">
@@ -198,18 +204,20 @@ export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesi
                 const activa = s === seccion;
                 const chip = chips[s];
                 return (
-                  <button
+                  <Link
                     key={s}
-                    type="button"
+                    href={enlace(s)}
+                    replace
+                    scroll={false}
                     aria-current={activa ? 'page' : undefined}
-                    onClick={() => ir(s)}
-                    className={`flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-[10px] pr-2.5 pl-3 text-left text-[14px] transition-colors duration-200 ease-out ${
-                      activa ? 'bg-accent-2-200 font-extrabold text-accent-2-900' : 'font-semibold text-text hover:bg-neutral-200'
+                    className={`flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-campo pr-2.5 pl-3 text-left text-[14px] text-tinta transition-colors duration-200 ease-out hover:text-tinta ${
+                      activa ? 'bg-papel font-extrabold shadow-md' : 'font-semibold hover:bg-lienzo'
                     }`}
                   >
+                    <span aria-hidden className={`size-2 flex-none rounded-full ${activa ? 'bg-accent-700' : 'bg-neutral-400'}`} />
                     <span className="flex-1">{SECCIONES[s].nombre}</span>
                     {chip && <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold whitespace-nowrap ${CHIP[chip.tono]}`}>{chip.texto}</span>}
-                  </button>
+                  </Link>
                 );
               })}
             </div>
@@ -222,6 +230,7 @@ export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesi
             <span className="text-[13px] font-semibold text-neutral-700">{actual.bajada}</span>
           </div>
           {seccion === 'datos' && <DatosCentro />}
+          {seccion === 'marca' && <MarcaCentro />}
           {seccion === 'horario' && <AvisoSinHorario />}
           {seccion === 'horario' && (
             <div className="flex flex-col items-start gap-[18px] xl:flex-row">

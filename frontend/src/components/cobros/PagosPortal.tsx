@@ -70,7 +70,7 @@ function FilaPago({ c, profesional }: { c: EstadoPagoCita; profesional: string }
     enabled: abierto,
   });
   return (
-    <li className="rounded-[18px] border border-divider bg-bg px-[18px] py-4">
+    <li className="fila-diferida rounded-[18px] border border-divider bg-bg px-[18px] py-4">
       <div className="flex flex-wrap items-center gap-3.5">
         <div className="min-w-0 flex-[1_1_200px]">
           <p className="m-0 text-[14.5px] font-black tracking-[-0.015em] first-letter:uppercase">{formatoFechaLarga(c.inicio)}</p>

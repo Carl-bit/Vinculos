@@ -150,10 +150,7 @@ export function PlantillasMensaje() {
         const columnasGrid = { gridTemplateColumns: `minmax(0, 2.2fr) repeat(${columnas.length}, minmax(0, 1fr))` };
         return (
           <div className="flex flex-col items-start gap-[18px] 2xl:flex-row">
-            <section
-              aria-label="Avisos"
-              className="flex w-full min-w-0 flex-1 flex-col gap-2.5 rounded-lg border border-divider bg-neutral-100 p-[18px] shadow-sm"
-            >
+            <section aria-label="Avisos" className="flex w-full min-w-0 flex-1 flex-col gap-2.5 rounded-lg border border-divider bg-bg p-[18px] shadow-suave">
               <div role="group" aria-label="Filtrar avisos" className="flex flex-wrap gap-1.5">
                 {['Todos', ...grupos.map((g) => g.titulo)].map((f) => (
                   <button
@@ -225,7 +222,7 @@ export function PlantillasMensaje() {
             <aside
               aria-label="Editar plantilla"
               ref={editor}
-              className="order-first flex w-full scroll-mt-4 flex-col gap-2.5 rounded-lg border border-divider bg-neutral-100 p-[18px] shadow-sm 2xl:sticky 2xl:top-4 2xl:order-none 2xl:w-[380px] 2xl:flex-none"
+              className="order-first flex w-full scroll-mt-4 flex-col gap-2.5 rounded-lg border border-divider bg-bg p-[18px] shadow-suave 2xl:sticky 2xl:top-4 2xl:order-none 2xl:w-[380px] 2xl:flex-none"
             >
               <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{textoDestino(destinoDe(actual))}</p>
               <h3 className="m-0 text-[18px] leading-tight font-black">{nombreEvento(actual.evento)}</h3>

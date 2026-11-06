@@ -149,8 +149,8 @@ export default function Pagina() {
   ).filter((s): s is SeccionCuenta => !!s);
 
   return (
-    <div data-lienzo className="flex flex-col gap-5">
-      <BarraFlotante etiqueta="Mi cuenta">
+    <div className="flex flex-col gap-5">
+      <BarraFlotante etiqueta="Mi cuenta" variante="moderno">
         <strong className="text-[15px] font-black">Mi cuenta</strong>
         <Badge tono="neutro">
           <Icon name="lock" size={12} />

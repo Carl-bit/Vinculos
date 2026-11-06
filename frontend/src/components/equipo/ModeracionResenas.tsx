@@ -100,7 +100,7 @@ export function ModeracionResenas() {
             .map((r) => {
               const e = ESTADO[r.estado];
               return (
-                <article key={r.id} className="flex flex-col gap-3 rounded-lg border border-divider bg-bg px-5 py-4 shadow-sm">
+                <article key={r.id} className="flex flex-col gap-3 rounded-lg border border-divider bg-bg px-5 py-4 shadow-suave">
                   <div className="flex flex-wrap items-center gap-3">
                     <Estrellas valor={r.calificacion} />
                     <span className="text-[13.5px] font-extrabold">{nombre.get(r.profesional_id) ?? 'Profesional'}</span>

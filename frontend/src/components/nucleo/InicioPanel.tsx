@@ -120,7 +120,7 @@ function SesionFoco({ lista }: { lista: CitaVista[] }) {
   const foco = actual ?? lista.find((c) => new Date(c.inicio).getTime() > ahora);
   if (!foco) {
     return (
-      <section className="rounded-lg border border-divider bg-bg px-6 py-5 shadow-md">
+      <section className="rounded-lg border border-divider bg-bg px-6 py-5 shadow-suave">
         <EstadoVista estado="vacio" titulo="Sin sesiones en los próximos 7 días" mensaje="Cuando agendes una, aparecerá aquí con sus accesos." />
       </section>
     );
@@ -184,7 +184,7 @@ function AhoraCentro({ deHoy }: { deHoy: CitaVista[] }) {
   const enCurso = deHoy.filter((c) => new Date(c.inicio).getTime() <= ahora && new Date(c.fin).getTime() > ahora);
   const proximas = deHoy.filter((c) => new Date(c.inicio).getTime() > ahora).slice(0, 3);
   return (
-    <section aria-labelledby="ahora-centro" className="rounded-lg border border-divider bg-bg px-6 py-5 shadow-md">
+    <section aria-labelledby="ahora-centro" className="rounded-lg border border-divider bg-bg px-6 py-5 shadow-suave">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 id="ahora-centro" className="m-0 text-[18px] font-black tracking-[-0.02em]">
           Hoy en el centro
@@ -229,7 +229,7 @@ function LineaDia({ deHoy, admin }: { deHoy: CitaVista[]; admin: boolean }) {
   const n = useNombres();
   const ahora = useAhora();
   return (
-    <section aria-label="Sesiones de hoy" className="rounded-lg border border-divider bg-bg p-2 shadow-md">
+    <section aria-label="Sesiones de hoy" className="rounded-lg border border-divider bg-bg p-2 shadow-suave">
       <ol className="m-0 flex list-none gap-2 overflow-x-auto p-0">
         {deHoy.length === 0 && (
           <li className="flex flex-1 items-center px-3 py-2 text-[13.5px] font-semibold text-neutral-700">Sin sesiones agendadas para hoy.</li>
@@ -242,12 +242,13 @@ function LineaDia({ deHoy, admin }: { deHoy: CitaVista[]; admin: boolean }) {
               <Link
                 href={admin || !c.pacienteId ? `/admin/agenda?cita=${c.id}` : `/admin/fichas/${c.pacienteId}`}
                 aria-current={actual ? 'true' : undefined}
-                className={`flex h-full flex-col rounded-md border px-3 py-2 text-text hover:text-text ${
+                // 03b-6 (axe): el color del texto va en cada rama; con text-text fijo, la sesion actual quedaba en tinta sobre arcilla (2.4:1).
+                className={`flex h-full flex-col rounded-md border px-3 py-2 ${
                   actual
                     ? 'border-accent-700 bg-accent-700 text-neutral-100 hover:text-neutral-100'
                     : pasada
-                      ? 'border-divider bg-neutral-100'
-                      : 'border-divider bg-bg hover:border-accent-500'
+                      ? 'border-divider bg-neutral-100 text-text hover:text-text'
+                      : 'border-divider bg-bg text-text hover:border-accent-500 hover:text-text'
                 }`}
               >
                 <span className="text-[13px] font-black tabular-nums">
@@ -341,7 +342,7 @@ function IndicadoresPropios({ r }: { r: ReporteDashboard }) {
 function EstaSemana({ lista, admin }: { lista: CitaVista[]; admin: boolean }) {
   const n = useNombres();
   return (
-    <section aria-labelledby="esta-semana" className="rounded-lg border border-divider bg-bg px-5 pt-4 pb-5 shadow-md">
+    <section aria-labelledby="esta-semana" className="min-w-0 rounded-lg border border-divider bg-bg px-5 pt-4 pb-5 shadow-suave">
       <div className="mb-2 flex items-baseline justify-between gap-4">
         <h2 id="esta-semana" className="m-0 text-[17px] font-black tracking-[-0.02em]">
           Esta semana
@@ -549,7 +550,7 @@ function pendientesPropios(r: ReporteDashboard): Pendiente[] {
 
 function Pendientes({ items }: { items: Pendiente[] }): ReactNode {
   return (
-    <section className="rounded-lg border border-divider bg-bg px-[22px] pt-5 pb-[22px] shadow-md">
+    <section className="rounded-lg border border-divider bg-bg px-[22px] pt-5 pb-[22px] shadow-suave">
       <h2 className="m-0 mb-4 text-[18px] font-black tracking-[-0.02em]">Pendientes</h2>
       {items.length === 0 ? (
         <EstadoVista estado="vacio" titulo="Nada pendiente" mensaje="Cuando haya algo que revisar, aparecerá aquí." />

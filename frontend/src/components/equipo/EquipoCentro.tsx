@@ -14,7 +14,15 @@ import { NOMBRE_ROL, useCuentasEquipo, usePracticantes, useSupervisiones, type C
 import { useEquipoAgenda } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
-import { ESTADO_INTEGRANTE, checksIntegrante, estadoIntegrante, useDatosProfesionales, useTiposDocumentoPracticantes, type Check, type EstadoIntegrante } from '@/lib/validacionEquipo';
+import {
+  ESTADO_INTEGRANTE,
+  checksIntegrante,
+  estadoIntegrante,
+  useDatosProfesionales,
+  useTiposDocumentoPracticantes,
+  type Check,
+  type EstadoIntegrante,
+} from '@/lib/validacionEquipo';
 
 import { AlertasEquipo } from './AlertasEquipo';
 import { CatalogosEquipo } from './CatalogosEquipo';
@@ -70,11 +78,12 @@ export function EquipoCentro({ rol }: { rol: Rol }) {
   };
 
   return (
-    <div data-lienzo className="flex min-w-0 flex-col gap-[18px]">
+    <div className="flex min-w-0 flex-col gap-[18px]">
       <div className="mx-auto flex w-full max-w-[1240px] flex-wrap items-center gap-3.5">
         <div className="flex max-w-full flex-wrap items-center gap-1.5 rounded-[28px] border border-divider bg-bg py-2 pr-2 pl-4 shadow-lg">
           <h1 className="m-0 pr-1.5 text-[15px] font-black">Equipo del centro</h1>
           <Pestanas
+            sinFondo
             etiqueta="Secciones del equipo"
             tono="team"
             valor={vista}
@@ -227,7 +236,7 @@ function Integrantes({
           <div className="flex flex-wrap items-start gap-5">
             <section
               aria-labelledby="t-integrantes"
-              className="flex w-full flex-col gap-2 rounded-lg border border-divider bg-bg/95 p-3.5 shadow-lg backdrop-blur-[10px] lg:sticky lg:top-5 lg:w-[300px] lg:flex-none"
+              className="translucida flex w-full flex-col gap-2 rounded-panel border border-borde p-3.5 text-tinta shadow-flotante lg:sticky lg:top-5 lg:w-[300px] lg:flex-none"
             >
               <h2 id="t-integrantes" className="m-0 px-1.5 pt-1 text-[17px] font-black">
                 Integrantes
@@ -241,7 +250,7 @@ function Integrantes({
                   placeholder="Buscar por nombre"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  className="min-h-[42px] w-full rounded-[14px] border border-divider bg-neutral-100 pr-11 pl-3.5 text-[13px] focus-visible:border-accent-500 [&::-webkit-search-cancel-button]:hidden"
+                  className="min-h-[42px] w-full rounded-[14px] border border-divider bg-bg pr-11 pl-3.5 text-[13px] focus-visible:border-accent-500 [&::-webkit-search-cancel-button]:hidden"
                 />
                 <button
                   type="submit"

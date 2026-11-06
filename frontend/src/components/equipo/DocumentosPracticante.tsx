@@ -95,7 +95,7 @@ function FilaDocumento({
   };
   const ruta = ultimo ? `/api/practicantes/documentos/${ultimo.id}` : '';
   return (
-    <li className="flex flex-col gap-2 rounded-[14px] bg-neutral-100 px-3 py-2.5">
+    <li className="flex flex-col gap-2 rounded-[14px] bg-bg px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2.5">
         <Icon name={ultimo ? 'description' : 'warning'} size={20} className={ultimo ? 'text-accent-800' : 'text-accent-700'} />
         <span className="min-w-0 flex-[1_1_200px]">

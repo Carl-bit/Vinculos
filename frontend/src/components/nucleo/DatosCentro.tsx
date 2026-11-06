@@ -12,7 +12,7 @@ import { ApiError } from '@/lib/api/errores';
 import { useConfiguracionCentro, useContenidoPublico, type ConfiguracionCentro, type ContenidoPublico } from '@/lib/centro';
 import { rutValido } from '@/lib/formato';
 import { subirArchivo } from '@/lib/subidas';
-import { reglaCorreo, reglaTelefono, useValidacionCampos, type Regla } from '@/lib/validacion';
+import { reglaCorreo, reglaTelefono, useValidacionCampos } from '@/lib/validacion';
 import { CampoRut, rutMientrasEscribe, rutNormalizado } from '@/components/shared/CampoRut';
 
 import { BarraGuardado } from './BarraGuardado';
@@ -34,8 +34,7 @@ type Formulario = Record<
   | 'whatsapp'
   | 'instagram'
   | 'mision'
-  | 'vision'
-  | 'colorMarca',
+  | 'vision',
   string
 >;
 
@@ -51,34 +50,13 @@ const desde = (c: ConfiguracionCentro, p: ContenidoPublico): Formulario => ({
   instagram: p.instagram ?? '',
   mision: p.mision ?? '',
   vision: p.vision ?? '',
-  colorMarca: p.colorMarca ?? '',
 });
-
-/** Colores sugeridos del diseño; el hexadecimal admite cualquier otro. */
-const COLORES: [string, string][] = [
-  ['Arcilla', '#8a4a1f'],
-  ['Bosque', '#4f6b2f'],
-  ['Océano', '#2f5a7a'],
-  ['Ciruela', '#6b3a5c'],
-  ['Arena', '#c9a227'],
-];
-const COLOR_BASE = '#8a4a1f';
-
-/** Contraste WCAG del texto blanco sobre un color #RRGGBB. */
-function contrasteConBlanco(hex: string): number {
-  const canal = (i: number) => {
-    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
-    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-  };
-  const l = 0.2126 * canal(1) + 0.7152 * canal(3) + 0.0722 * canal(5);
-  return 1.05 / (l + 0.05);
-}
 
 /**
  * Datos y pagina publica (diseño "Opcion A submenu agrupado"): identidad y
  * contacto (nombre y RUT: remitente de correos y emisor de comprobantes del
- * modelo CENTRO), logo, textos de la portada, mision, vision y servicios; al
- * costado, el color de marca con vista previa y contraste. Un campo vacio se
+ * modelo CENTRO), logo, textos de la portada, mision, vision y servicios. Los
+ * colores de marca estan en "Marca y apariencia" (03c). Un campo vacio se
  * borra (null). Solo ADMIN.
  */
 export function DatosCentro() {
@@ -96,9 +74,7 @@ export function DatosCentro() {
   );
 }
 
-const COLOR: Regla = (v) => (!v || /^#[0-9a-fA-F]{6}$/.test(v) ? undefined : 'El color de marca debe tener el formato #RRGGBB.');
-
-const SECCION = 'rounded-lg border border-divider bg-neutral-100 p-5 shadow-sm';
+const SECCION = 'rounded-lg border border-divider bg-bg p-5 shadow-suave';
 
 function Formulario({ c, p, onDescartar }: { c: ConfiguracionCentro; p: ContenidoPublico; onDescartar: () => void }) {
   const cliente = useQueryClient();
@@ -110,11 +86,10 @@ function Formulario({ c, p, onDescartar }: { c: ConfiguracionCentro; p: Contenid
   const [cambiado, setCambiado] = useState(false);
   const [logo, setLogo] = useState(p.logoImagenId);
   const archivo = useRef<HTMLInputElement>(null);
-  const formato = useValidacionCampos<'contactoCorreo' | 'contactoTelefono' | 'whatsapp' | 'colorMarca'>({
+  const formato = useValidacionCampos<'contactoCorreo' | 'contactoTelefono' | 'whatsapp'>({
     contactoCorreo: reglaCorreo(),
     contactoTelefono: reglaTelefono,
     whatsapp: reglaTelefono,
-    colorMarca: COLOR,
   });
   const tocar = () => {
     setGuardado(false);
@@ -122,7 +97,7 @@ function Formulario({ c, p, onDescartar }: { c: ConfiguracionCentro; p: Contenid
   };
   const poner = (k: keyof Formulario, v: string) => {
     tocar();
-    if (k === 'contactoCorreo' || k === 'contactoTelefono' || k === 'whatsapp' || k === 'colorMarca') formato.limpiar(k);
+    if (k === 'contactoCorreo' || k === 'contactoTelefono' || k === 'whatsapp') formato.limpiar(k);
     setF((x) => ({ ...x, [k]: v }));
   };
   const cambiar = (k: keyof Formulario) => (e: { target: { value: string } }) => poner(k, e.target.value);
@@ -148,7 +123,6 @@ function Formulario({ c, p, onDescartar }: { c: ConfiguracionCentro; p: Contenid
             instagram: o(f.instagram),
             mision: o(f.mision),
             vision: o(f.vision),
-            colorMarca: o(f.colorMarca),
             servicios: servicios.filter((s) => s.titulo.trim() && s.texto.trim()),
           },
         }),
@@ -178,8 +152,6 @@ function Formulario({ c, p, onDescartar }: { c: ConfiguracionCentro; p: Contenid
     guardar.mutate();
   };
 
-  const color = /^#[0-9a-fA-F]{6}$/.test(f.colorMarca) ? f.colorMarca : COLOR_BASE;
-  const contrasteBajo = contrasteConBlanco(color) < 4.5;
   const avisoVacio = (texto: string) => <span className="font-bold text-pendiente-900">{texto}</span>;
 
   return (
@@ -371,47 +343,6 @@ function Formulario({ c, p, onDescartar }: { c: ConfiguracionCentro; p: Contenid
             </div>
           </section>
         </div>
-
-        <aside aria-label="Vista previa" className="flex w-full flex-col gap-3.5 xl:w-[300px] xl:flex-none">
-          <section aria-labelledby="datos-color" className={`${SECCION} flex flex-col gap-3`}>
-            <h3 id="datos-color" className="m-0 text-[17px] font-black">
-              Color de marca
-            </h3>
-            <span className="text-[12px] font-semibold text-neutral-700">Solo cambia la página pública; el panel mantiene la paleta del sistema.</span>
-            <div role="group" aria-label="Colores sugeridos" className="flex flex-wrap gap-2">
-              {COLORES.map(([nombre, hex]) => {
-                const elegido = color.toLowerCase() === hex;
-                return (
-                  <button
-                    key={hex}
-                    type="button"
-                    aria-label={nombre}
-                    aria-pressed={elegido}
-                    onClick={() => poner('colorMarca', hex)}
-                    className={`size-11 cursor-pointer rounded-full border-[3px] ${elegido ? 'border-text' : 'border-neutral-100'}`}
-                    style={{ background: hex }}
-                  />
-                );
-              })}
-            </div>
-            <Field label="Hexadecimal" error={formato.errores.colorMarca}>
-              {(x) => <Input {...x} value={f.colorMarca} maxLength={7} placeholder="#RRGGBB" onChange={cambiar('colorMarca')} className="!py-2.5" />}
-            </Field>
-            <div className="flex flex-col gap-2.5 rounded-[14px] border border-divider bg-bg p-4">
-              <span className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Así se ve en la portada</span>
-              <span className="text-[18px] leading-tight font-black">{f.heroTitulo.trim() || f.nombreCentro}</span>
-              <span
-                className="inline-flex min-h-10 items-center self-start rounded-full px-[18px] text-[14px] font-extrabold text-white"
-                style={{ background: color }}
-              >
-                Reservar una hora
-              </span>
-              <span className={`text-[12px] font-bold ${contrasteBajo ? 'text-accent-800' : 'text-accent-2-800'}`}>
-                {contrasteBajo ? 'El texto blanco no se lee bien sobre este color (contraste bajo AA).' : 'Contraste AA correcto para el texto blanco.'}
-              </span>
-            </div>
-          </section>
-        </aside>
       </div>
 
       <BarraGuardado

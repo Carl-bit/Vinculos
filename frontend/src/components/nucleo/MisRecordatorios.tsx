@@ -56,7 +56,7 @@ export function MisRecordatorios() {
   const hoy = fechaHoyChile();
 
   return (
-    <section aria-labelledby="mis-recordatorios" className="rounded-lg border border-divider bg-bg px-5 pt-4 pb-5 shadow-md">
+    <section aria-labelledby="mis-recordatorios" className="rounded-lg border border-divider bg-bg px-5 pt-4 pb-5 shadow-suave">
       <h2 id="mis-recordatorios" className="m-0 text-[17px] font-black tracking-[-0.02em]">
         Mis recordatorios
       </h2>

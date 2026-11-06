@@ -401,6 +401,12 @@ export class ContenidoPublicoDto {
   @IsOptional() @Recortar() @IsString() @Length(1, 2000) mision?: string | null;
   @IsOptional() @Recortar() @IsString() @Length(1, 2000) vision?: string | null;
   @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorMarca?: string | null;
+  // 03c: marca por zona. El contraste lo exige la BD (contenido_publico_colores -> 422).
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorFondoPublico?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorPortal?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorFondoPortal?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorPanel?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorFondoPanel?: string | null;
 }
 
 export class PoliticaDto {
@@ -669,8 +675,18 @@ export class ContenidoPublicoVista {
   mision!: string | null;
   @ApiProperty({ type: String, nullable: true })
   vision!: string | null;
-  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB, principal del sitio publico' })
   colorMarca!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorFondoPublico!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorPortal!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorFondoPortal!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorPanel!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorFondoPanel!: string | null;
   @ApiProperty({ type: String, nullable: true })
   logoImagenId!: string | null;
   updatedAt!: Date;

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sitio del centro, estilo Moderno</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8A4B1F}a:hover{color:#6B3714}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1600px; box-sizing: border-box; color: #2B2420; font-family: 'Figtree', system-ui, sans-serif; font-size: 15px; line-height: 1.5; background-color: #F3EDE4; background-image: radial-gradient(#D9CEBF 1px, transparent 1px); background-size: 20px 20px; padding: 18px 24px 48px; display: flex; flex-direction: column; align-items: center; gap: 28px">
+
+<header style="position: sticky; top: 12px; z-index: 5; width: 100%; max-width: 1180px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 8px 8px 20px; border-radius: 999px; background: rgba(255,253,249,0.9); backdrop-filter: blur(12px); border: 1px solid #EBE2D5; box-shadow: 0 10px 30px rgba(43,36,32,0.10)">
+<button type="button" onClick="{{ irInicio }}" style="display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: #2B2420; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 17px; min-height: 44px; padding: 0"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 999px; background: #4F6B2F"></span>Centro de Prueba</button>
+<nav aria-label="Principal" style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 2px">
+<sc-for list="{{ nav }}" as="n" hint-placeholder-count="4"><button type="button" onClick="{{ n.pick }}" aria-current="{{ n.actual }}" style="min-height: 42px; padding: 0 16px; border-radius: 999px; border: 0; background: {{ n.fondo }}; color: #2B2420; font-weight: 700; font-size: 14px">{{ n.l }}</button></sc-for>
+</nav>
+<button type="button" style="min-height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: #2B2420; color: #F4ECE0; font-weight: 700">Iniciar sesión</button>
+</header>
+
+<sc-if value="{{ sInicio }}" hint-placeholder-val="{{ true }}">
+<section style="width: 100%; max-width: 1180px; display: flex; flex-wrap: wrap; gap: 32px; align-items: center; padding: 30px 0 10px">
+<div style="flex: 999 1 480px; display: flex; flex-direction: column; gap: 18px">
+<span style="align-self: flex-start; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; padding: 6px 12px; border-radius: 999px; background: #E1E8CF; color: #2F3B1F">CENTRO DE PRUEBA VINCULOS</span>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 64px; line-height: 1.0; letter-spacing: -0.02em">Acompañamiento psicológico, con orden detrás.</h1>
+<p style="margin: 0; font-size: 18px; color: #4A3F36; max-width: 560px">Atendemos consultas individuales, de pareja y familiares. Reserva en línea y un equipo que se coordina en la misma plataforma.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 10px"><button type="button" onClick="{{ irHorario }}" style="min-height: 54px; padding: 0 26px; border-radius: 18px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800; font-size: 16px; box-shadow: 0 14px 30px rgba(138,75,31,0.30)">Pedir una hora</button><button type="button" onClick="{{ irMatch }}" style="min-height: 54px; padding: 0 22px; border-radius: 18px; border: 1px solid #DCCFBB; background: #FFFDF9; color: #2B2420; font-weight: 700; font-size: 16px">No sé con quién: hacer el match</button></div>
+</div>
+<div style="flex: 1 1 380px; position: relative; min-height: 380px">
+<div style="position: absolute; inset: 0 40px 40px 0; border-radius: 40px; background: #DDE6C8"></div>
+<sc-for list="{{ heroPros }}" as="h" hint-placeholder-count="3">
+<div style="position: absolute; left: {{ h.x }}; top: {{ h.y }}; width: 250px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 22px; background: rgba(255,253,249,0.92); backdrop-filter: blur(10px); box-shadow: 0 16px 40px rgba(43,36,32,0.16)">
+<span aria-hidden="true" style="width: 46px; height: 46px; border-radius: 16px; background: #F6D9C7; color: #7A2E10; font-weight: 800; display: inline-flex; align-items: center; justify-content: center">{{ h.ini }}</span>
+<span style="display: flex; flex-direction: column"><strong style="font-size: 14px">{{ h.corto }}</strong><span style="font-size: 12px; color: #5E5247">{{ h.esp }}</span></span>
+</div>
+</sc-for>
+<div style="position: absolute; right: 0; bottom: 0; padding: 14px 18px; border-radius: 20px; background: #2B2420; color: #F4ECE0"><span style="font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: #CDBFAE">EQUIPO</span><br><strong style="font-size: 16px">6 profesionales · desde $25.000</strong></div>
+</div>
+</section>
+
+<section style="width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.12em; color: #8A4B1F">SERVICIOS</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+<sc-for list="{{ servicios }}" as="s" hint-placeholder-count="3">
+<article style="padding: 24px; border-radius: 26px; background: #FBF6EE; box-shadow: 0 14px 40px rgba(43,36,32,0.08); display: flex; flex-direction: column; gap: 10px">
+<span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 14px; background: #F6D9C7; color: #7A2E10; font-weight: 800; display: inline-flex; align-items: center; justify-content: center">{{ s.n }}</span>
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 21px">{{ s.t }}</h2>
+<p style="margin: 0; color: #4A3F36; font-size: 14px">{{ s.d }}</p>
+</article>
+</sc-for>
+</div>
+</section>
+
+<section style="width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px"><div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 800; letter-spacing: 0.12em; color: #8A4B1F">EQUIPO</span><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 32px">Formación verificada por el centro</h2></div><button type="button" onClick="{{ irEquipo }}" style="margin-left: auto; min-height: 46px; padding: 0 18px; border-radius: 16px; border: 1px solid #DCCFBB; background: #FFFDF9; color: #2B2420; font-weight: 700">Conoce a todo el equipo</button></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px">
+<sc-for list="{{ equipoPrev }}" as="p" hint-placeholder-count="4">
+<button type="button" onClick="{{ p.ver }}" style="display: flex; flex-direction: column; gap: 10px; text-align: left; padding: 16px; border-radius: 26px; border: 0; background: #FBF6EE; box-shadow: 0 14px 40px rgba(43,36,32,0.08); color: #2B2420">
+<span aria-hidden="true" style="width: 100%; aspect-ratio: 1 / 1; border-radius: 20px; background: #DDE6C8; color: #2F3B1F; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 46px; display: flex; align-items: center; justify-content: center">{{ p.ini }}</span>
+<strong style="font-size: 15px">{{ p.n }}</strong><span style="font-size: 13px; color: #5E5247">{{ p.esp }}</span>
+</button>
+</sc-for>
+</div>
+</section>
+
+<section style="width: 100%; max-width: 1180px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 34px; border-radius: 32px; background: #2B2420; color: #F4ECE0">
+<div style="flex: 999 1 400px; display: flex; flex-direction: column; gap: 8px"><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 34px">¿Quieres reservar una hora?</h2><span style="color: #D9CBB8">Elige profesional y horario en línea, sin crear una cuenta antes.</span><span style="font-size: 13px; color: #CDBFAE">contacto@centro-prueba.cl · +56 2 2222 2222 · Dirección ficticia 123, Santiago</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px"><button type="button" onClick="{{ irHorario }}" style="min-height: 52px; padding: 0 22px; border-radius: 16px; border: 0; background: #D98A5B; color: #2B1408; font-weight: 800">Pedir una hora en línea</button><button type="button" onClick="{{ irMatch }}" style="min-height: 52px; padding: 0 20px; border-radius: 16px; border: 1px solid #6B5D51; background: transparent; color: #F4ECE0; font-weight: 700">Hacer el match</button></div>
+</section>
+</sc-if>
+
+<sc-if value="{{ sEquipo }}" hint-placeholder-val="{{ false }}">
+<section style="width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 18px; padding-top: 20px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.12em; color: #8A4B1F">CONOCE A NUESTRO EQUIPO</span>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 54px; line-height: 1.02; max-width: 760px">Quiénes somos y con quién puedes atenderte</h1>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border-radius: 999px; background: rgba(255,253,249,0.85); border: 1px solid #EBE2D5; align-self: flex-start">
+<sc-for list="{{ filtros }}" as="f" hint-placeholder-count="6"><button type="button" aria-pressed="{{ f.on }}" onClick="{{ f.pick }}" style="min-height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: {{ f.fondo }}; color: {{ f.color }}; font-weight: 700; font-size: 13px">{{ f.l }}</button></sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{ pros }}" as="p" hint-placeholder-count="6">
+<article style="padding: 20px; border-radius: 28px; background: #FBF6EE; box-shadow: 0 16px 44px rgba(43,36,32,0.10); display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 14px; align-items: center"><span aria-hidden="true" style="flex: none; width: 64px; height: 64px; border-radius: 22px; background: #DDE6C8; color: #2F3B1F; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px; display: inline-flex; align-items: center; justify-content: center">{{ p.ini }}</span><span style="display: flex; flex-direction: column"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px; line-height: 1.15">{{ p.n }}</strong><span style="font-size: 13px; color: #5E5247">{{ p.esp }}</span></span></div>
+<span style="align-self: flex-start; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #E1E8CF; color: #2F3B1F">Registro SIS N.° {{ p.sis }} · verificado</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 12px; background: #FFFDF9">{{ p.tarifa }}</span><span style="font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 12px; background: #FFFDF9">{{ p.mod }}</span><span style="font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 12px; background: #FFFDF9">{{ p.exp }}</span></div>
+<p style="margin: 0; font-size: 14px; color: #4A3F36; font-style: italic">"{{ p.frase }}"</p>
+<div style="display: flex; gap: 8px; margin-top: auto"><button type="button" onClick="{{ p.pedir }}" style="flex: 1; min-height: 46px; border-radius: 16px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800">Pedir hora</button><button type="button" style="min-height: 46px; padding: 0 14px; border-radius: 16px; border: 1px solid #DCCFBB; background: #FFFDF9; color: #2B2420; font-weight: 700">Ver perfil</button></div>
+</article>
+</sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 24px 28px; border-radius: 28px; background: #DDE6C8"><div style="flex: 1 1 300px"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px">¿No sabes con quién atenderte?</strong><br><span style="font-size: 14px; color: #2F3B1F">Responde unas preguntas y te sugerimos a alguien del equipo, con sus horas disponibles.</span></div><button type="button" onClick="{{ irMatch }}" style="min-height: 50px; padding: 0 22px; border-radius: 16px; border: 0; background: #2F3B1F; color: #F1F4E6; font-weight: 800">Hacer el match terapéutico</button></div>
+</section>
+</sc-if>
+
+<sc-if value="{{ sMatch }}" hint-placeholder-val="{{ false }}">
+<section style="width: 100%; max-width: 1080px; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; padding-top: 16px">
+<aside aria-label="Avance" style="flex: 1 1 260px; max-width: 290px; padding: 20px; border-radius: 28px; background: rgba(255,253,249,0.92); backdrop-filter: blur(10px); border: 1px solid #EBE2D5; box-shadow: 0 16px 44px rgba(43,36,32,0.10); display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.12em; color: #8A4B1F">MATCH TERAPÉUTICO</span>
+<strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 38px; line-height: 1">{{ matchPct }}</strong>
+<span style="height: 8px; border-radius: 999px; background: #EFE5D6; overflow: hidden"><span style="display: block; height: 100%; width: {{ matchPct }}; background: #8A4B1F"></span></span>
+<sc-for list="{{ pasos }}" as="p" hint-placeholder-count="9"><div style="display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 12px; background: {{ p.fondo }}"><span aria-hidden="true" style="width: 18px; height: 18px; border-radius: 999px; border: 2px solid {{ p.borde }}; background: {{ p.punto }}"></span><span style="font-size: 13px; font-weight: {{ p.peso }}">{{ p.l }}</span></div></sc-for>
+<span style="font-size: 12px; color: #5E5247; padding-top: 6px; border-top: 1px solid #EBE2D5">Tus respuestas no se guardan: solo sirven para sugerirte a alguien del equipo.</span>
+</aside>
+<div style="flex: 999 1 480px; padding: 32px; border-radius: 32px; background: #FBF6EE; box-shadow: 0 20px 50px rgba(43,36,32,0.12); display: flex; flex-direction: column; gap: 18px">
+<span style="font-size: 13px; font-weight: 700; color: #8A4B1F">Paso 1 de 9</span>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 42px; line-height: 1.05">¿Qué te trae al centro?</h1>
+<span style="color: #4A3F36">Marca todo lo que sientas que te está pasando. Puedes elegir varios.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<sc-for list="{{ motivos }}" as="m" hint-placeholder-count="10"><button type="button" aria-pressed="{{ m.on }}" onClick="{{ m.pick }}" style="min-height: 48px; padding: 0 18px; border-radius: 16px; border: {{ m.borde }}; background: {{ m.fondo }}; color: {{ m.color }}; font-weight: 700">{{ m.l }}</button></sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px"><span style="font-size: 13px; color: #5E5247">{{ motivoTexto }}</span><button type="button" onClick="{{ irResultado }}" style="margin-left: auto; min-height: 52px; padding: 0 24px; border-radius: 16px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800">Continuar</button></div>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ sResultado }}" hint-placeholder-val="{{ false }}">
+<section style="width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 18px; padding-top: 16px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.12em; color: #8A4B1F">TU RESULTADO</span>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 46px; line-height: 1.05">Te sugerimos a {{ sel.n }}</h1>
+<article style="padding: 28px; border-radius: 32px; background: #FBF6EE; box-shadow: 0 24px 60px rgba(43,36,32,0.14); display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center"><span aria-hidden="true" style="width: 84px; height: 84px; border-radius: 28px; background: #DDE6C8; color: #2F3B1F; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px; display: inline-flex; align-items: center; justify-content: center">{{ sel.ini }}</span><div style="display: flex; flex-direction: column; gap: 4px"><span style="align-self: flex-start; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF">MEJOR MATCH</span><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">{{ sel.n }}</strong><span style="color: #5E5247">{{ sel.esp }} · {{ sel.tarifa }} por sesión</span></div></div>
+<div style="padding: 16px 18px; border-radius: 20px; background: #FFFDF9"><span style="font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: #8A4B1F">POR QUÉ TE LO SUGERIMOS</span><p style="margin: 6px 0 0">Trabaja ánimo bajo, duelo y estrés, atiende adultos, tiene convenio Fonasa y horas libres en los días que marcaste.</p></div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px"><button type="button" onClick="{{ irHorario }}" style="flex: 1 1 260px; min-height: 54px; border-radius: 18px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800; font-size: 16px">Pedir hora con este profesional</button><button type="button" onClick="{{ irEquipo }}" style="min-height: 54px; padding: 0 20px; border-radius: 18px; border: 1px solid #DCCFBB; background: #FFFDF9; color: #2B2420; font-weight: 700">Ver otras 5 opciones</button></div>
+</article>
+<button type="button" onClick="{{ irMatch }}" style="align-self: flex-start; min-height: 44px; padding: 0 14px; border: 0; background: transparent; color: #8A4B1F; font-weight: 700">Repetir el match</button>
+</section>
+</sc-if>
+
+<sc-if value="{{ sReserva }}" hint-placeholder-val="{{ false }}">
+<section style="width: 100%; max-width: 1080px; display: flex; flex-direction: column; gap: 18px; padding-top: 16px">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{ etapas }}" as="e" hint-placeholder-count="4"><div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 6px; border-radius: 999px; background: {{ e.barra }}"></span><span style="font-size: 12px; font-weight: 800; letter-spacing: 0.08em; color: {{ e.color }}">{{ e.l }}</span></div></sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<sc-if value="{{ sHorario }}" hint-placeholder-val="{{ true }}">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 40px">Elige el horario de tu sesión</h1>
+<div style="padding: 24px; border-radius: 28px; background: #FBF6EE; box-shadow: 0 16px 44px rgba(43,36,32,0.10); display: flex; flex-direction: column; gap: 16px">
+<div role="group" aria-label="Modalidad" style="display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: #EFE5D6; align-self: flex-start"><sc-for list="{{ modos }}" as="m" hint-placeholder-count="2"><button type="button" aria-pressed="{{ m.on }}" onClick="{{ m.pick }}" style="min-height: 40px; padding: 0 18px; border-radius: 999px; border: 0; background: {{ m.fondo }}; color: {{ m.color }}; font-weight: 700">{{ m.l }}</button></sc-for></div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{ dias }}" as="d" hint-placeholder-count="7"><button type="button" aria-pressed="{{ d.on }}" onClick="{{ d.pick }}" style="min-height: 84px; border-radius: 18px; border: 0; background: {{ d.fondo }}; color: {{ d.color }}; box-shadow: {{ d.sombra }}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px"><span style="font-size: 12px; font-weight: 700">{{ d.dia }}</span><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px">{{ d.num }}</strong><span style="font-size: 11px; font-weight: 700">{{ d.mes }}</span></button></sc-for>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap"><sc-for list="{{ horas }}" as="h" hint-placeholder-count="2"><button type="button" aria-pressed="{{ h.on }}" onClick="{{ h.pick }}" style="min-height: 48px; padding: 0 28px; border-radius: 16px; border: 0; background: {{ h.fondo }}; color: {{ h.color }}; font-weight: 800">{{ h.l }}</button></sc-for></div>
+</div>
+<button type="button" onClick="{{ irDatos }}" style="align-self: flex-start; min-height: 54px; padding: 0 28px; border-radius: 18px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800">Continuar</button>
+</sc-if>
+
+<sc-if value="{{ sDatos }}" hint-placeholder-val="{{ false }}">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 40px">Datos del paciente</h1>
+<div style="padding: 24px; border-radius: 28px; background: #FBF6EE; box-shadow: 0 16px 44px rgba(43,36,32,0.10); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+<label style="grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; font-weight: 600"><input type="checkbox" style="width: 20px; height: 20px">Pido hora para un menor de edad</label>
+<sc-for list="{{ campos }}" as="c" hint-placeholder-count="6"><label style="display: flex; flex-direction: column; gap: 5px"><span style="font-size: 13px; font-weight: 700">{{ c.l }}</span><input placeholder="{{ c.ph }}" style="min-height: 48px; padding: 0 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #FFFDF9; font-size: 15px"><span style="font-size: 12px; color: #5E5247">{{ c.a }}</span></label></sc-for>
+</div>
+<div style="padding: 22px 24px; border-radius: 28px; background: #FBF6EE; box-shadow: 0 16px 44px rgba(43,36,32,0.10); display: flex; flex-direction: column; gap: 10px">
+<strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Condiciones de agendamiento</strong>
+<span style="font-size: 14px; color: #4A3F36">Cancela o cambia sin costo hasta 24 horas antes. Con menos aviso se cobra el 25 %; si no llegas, el 100 %.</span>
+<label style="display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 16px; background: #FFFDF9"><input type="checkbox" style="width: 20px; height: 20px">Leí y acepto la política de datos personales (versión 2)</label>
+<label style="display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 16px; background: #FFFDF9"><input type="checkbox" style="width: 20px; height: 20px">Acepto los términos de agendamiento y cancelación (versión 2)</label>
+</div>
+<div style="display: flex; gap: 10px; align-items: center"><button type="button" onClick="{{ irOk }}" style="min-height: 54px; padding: 0 28px; border-radius: 18px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800">Reservar mi hora</button><button type="button" onClick="{{ irHorario }}" style="min-height: 54px; padding: 0 16px; border: 0; background: transparent; color: #2B2420; font-weight: 700">Cambiar el horario</button></div>
+</sc-if>
+
+<sc-if value="{{ sOk }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 36px; border-radius: 32px; background: #DDE6C8; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 0.12em; color: #2F3B1F">HORA RESERVADA</span>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 40px">¡Listo! Te esperamos.</h1>
+<span>Te enviamos la confirmación y el enlace para pagar. Con el pago la hora queda confirmada.</span>
+<button type="button" onClick="{{ irInicio }}" style="align-self: flex-start; min-height: 48px; padding: 0 20px; border-radius: 16px; border: 0; background: #2F3B1F; color: #F1F4E6; font-weight: 800">Volver al inicio</button>
+</div>
+</sc-if>
+</div>
+
+<aside aria-label="Tu reserva" style="flex: 1 1 280px; max-width: 330px; position: sticky; top: 90px; padding: 20px; border-radius: 28px; background: rgba(255,253,249,0.92); backdrop-filter: blur(10px); border: 1px solid #EBE2D5; box-shadow: 0 20px 50px rgba(43,36,32,0.14); display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 12px; align-items: center"><span aria-hidden="true" style="width: 52px; height: 52px; border-radius: 18px; background: #DDE6C8; color: #2F3B1F; font-weight: 800; display: inline-flex; align-items: center; justify-content: center">{{ sel.ini }}</span><span style="display: flex; flex-direction: column"><strong>{{ sel.n }}</strong><span style="font-size: 13px; color: #5E5247">{{ sel.esp }}</span></span></div>
+<div style="padding: 14px; border-radius: 18px; background: #FBF6EE; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: #8A4B1F">HORA ELEGIDA</span><strong style="font-size: 17px">{{ resumen }}</strong><span style="font-size: 13px; color: #4A3F36">{{ modoTexto }} · {{ sel.tarifa }}</span></div>
+<span style="font-size: 12px; color: #2F3B1F; font-weight: 700">Emite boleta reembolsable en isapre</span>
+</aside>
+</div>
+</section>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1600}}'>
+var PROS = [
+  { id: 'p5', n: 'Ps. Profesional Cinco', ini: 'PC', esp: 'Psicología infanto-juvenil', sis: '100005', tarifa: '$55.000', mod: 'Solo presencial', exp: '8 años', frase: 'Jugar también es una forma de hablar.', tipos: [1, 3] },
+  { id: 'p4', n: 'Ps. Profesional Cuatro', ini: 'PC', esp: 'Terapia de pareja y familia', sis: '100004', tarifa: '$25.000', mod: 'Solo online', exp: '13 años', frase: 'Dos versiones de una misma historia.', tipos: [5] },
+  { id: 'p2', n: 'Ps. Profesional Dos', ini: 'PD', esp: 'Psicología infanto-juvenil', sis: '100002', tarifa: 'Desde $35.000', mod: 'Presencial y online', exp: '14 años', frase: 'Acompañar a la familia completa.', tipos: [3, 4] },
+  { id: 'p6', n: 'Ps. Profesional Seis', ini: 'PS', esp: 'Psicología clínica adultos', sis: '100006', tarifa: '$42.000', mod: 'Presencial y online', exp: '15 años', frase: 'Ordenar lo que pesa, paso a paso.', tipos: [2] },
+  { id: 'p3', n: 'Ps. Profesional Tres', ini: 'PT', esp: 'Psicología clínica adultos', sis: '100003', tarifa: '$38.000', mod: 'Presencial y online', exp: '10 años', frase: 'Sin apuro, con método.', tipos: [1, 2] },
+  { id: 'p1', n: 'Ps. Profesional Uno', ini: 'PU', esp: 'Psicología clínica adultos', sis: '100001', tarifa: 'Desde $30.000', mod: 'Presencial y online', exp: '11 años', frase: 'Cada proceso parte por entender qué te trae.', tipos: [1, 2] }
+];
+var FILTROS = ['Todo el equipo', 'Evaluación psicológica', 'Individual adultos', 'Infanto-juvenil', 'Niños', 'Pareja'];
+var SERV = [['Terapia individual', 'Sesiones presenciales o por videollamada, con seguimiento entre sesiones.'], ['Terapia de pareja', 'Para conflictos de convivencia, comunicación y proyectos en común.'], ['Niños y adolescentes', 'Evaluación y terapia con participación de la familia.']];
+var MOTIVOS = ['Ansiedad', 'Estrés', 'Ánimo bajo', 'Duelo', 'Problemas de sueño', 'Conflictos de pareja', 'Dinámica familiar', 'Trabajo o estudios', 'Autoestima', 'Conducta de un hijo o hija'];
+var PASOS = ['¿Qué te trae al centro?', '¿Para quién es la atención?', '¿Qué tan fuerte lo sientes?', 'Cuéntanos con tus palabras', '¿Qué días puedes venir?', '¿En qué horario?', 'Previsión de salud', 'Modalidad de atención', '¿Cuánto prefieres pagar?'];
+var DIAS = [['Vie', '6', 'nov'], ['Vie', '13', 'nov'], ['Vie', '20', 'nov'], ['Vie', '27', 'nov'], ['Vie', '4', 'dic'], ['Lun', '7', 'dic'], ['Mar', '8', 'dic']];
+var HORAS = ['10:00', '12:00'];
+var CAMPOS = [['Nombre *', '', ''], ['Apellido *', '', ''], ['Fecha de nacimiento *', 'dd/mm/aaaa', ''], ['RUT', '12.345.678-9', 'Opcional: lo pedimos en la primera sesión'], ['Correo *', '', 'Ahí llega la confirmación'], ['Teléfono', '+56 9 1234 5678', 'Opcional']];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { p: 'inicio', filtro: 0, sel: 'p6', dia: 0, hora: 0, mod: 0, mot: { 'Ánimo bajo': true, 'Duelo': true } }; }
+  renderVals() {
+    var s = this.state, self = this;
+    function ir(p, extra) { return function () { self.setState(Object.assign({ p: p }, extra || {})); }; }
+    var sel = PROS.filter(function (x) { return x.id === s.sel; })[0];
+    var navD = [['equipo', 'Equipo'], ['inicio', 'Servicios'], ['match', 'Match terapéutico'], ['horario', 'Pedir una hora']];
+    var reserva = s.p === 'horario' || s.p === 'datos' || s.p === 'ok';
+    var etapaIdx = s.p === 'horario' ? 0 : (s.p === 'datos' ? 1 : 3);
+    var nMot = Object.keys(s.mot).filter(function (k) { return s.mot[k]; }).length;
+    return {
+      sInicio: s.p === 'inicio', sEquipo: s.p === 'equipo', sMatch: s.p === 'match', sResultado: s.p === 'resultado', sReserva: reserva, sHorario: s.p === 'horario', sDatos: s.p === 'datos', sOk: s.p === 'ok',
+      irInicio: ir('inicio'), irEquipo: ir('equipo'), irMatch: ir('match'), irResultado: ir('resultado', { sel: 'p6' }), irHorario: ir('horario'), irDatos: ir('datos'), irOk: ir('ok'),
+      nav: navD.map(function (n) { var on = s.p === n[0] || (n[0] === 'horario' && reserva) || (n[0] === 'match' && s.p === 'resultado'); return { l: n[1], actual: on ? 'page' : 'false', fondo: on ? '#EFE5D6' : 'transparent', pick: ir(n[0]) }; }),
+      heroPros: [['PU', 'Profesional Uno', 'Clínica adultos', '30px', '40px'], ['PD', 'Profesional Dos', 'Infanto-juvenil', '120px', '150px'], ['PS', 'Profesional Seis', 'Clínica adultos', '10px', '260px']].map(function (h) { return { ini: h[0], corto: h[1], esp: h[2], x: h[3], y: h[4] }; }),
+      servicios: SERV.map(function (x, i) { return { t: x[0], d: x[1], n: '0' + (i + 1) }; }),
+      equipoPrev: PROS.slice(0, 4).map(function (p) { return { n: p.n, ini: p.ini, esp: p.esp, ver: ir('equipo') }; }),
+      filtros: FILTROS.map(function (f, i) { var on = s.filtro === i; return { l: f, on: on, fondo: on ? '#2B2420' : 'transparent', color: on ? '#F4ECE0' : '#2B2420', pick: function () { self.setState({ filtro: i }); } }; }),
+      pros: PROS.filter(function (p) { return s.filtro === 0 || p.tipos.indexOf(s.filtro) >= 0; }).map(function (p) { return Object.assign({}, p, { pedir: ir('horario', { sel: p.id }) }); }),
+      motivos: MOTIVOS.map(function (m) { var on = !!s.mot[m]; return { l: m, on: on, fondo: on ? '#2B2420' : '#FFFDF9', color: on ? '#F4ECE0' : '#2B2420', borde: on ? '0' : '1px solid #E3D7C4', pick: function () { var o = Object.assign({}, self.state.mot); o[m] = !o[m]; self.setState({ mot: o }); } }; }),
+      motivoTexto: nMot ? nMot + ' seleccionados' : 'Selecciona al menos una opción',
+      matchPct: '11%',
+      pasos: PASOS.map(function (l, i) { var on = i === 0; return { l: l, fondo: on ? '#E1E8CF' : 'transparent', peso: on ? '800' : '500', borde: on ? '#4F6B2F' : '#CDBFAE', punto: on ? '#4F6B2F' : 'transparent' }; }),
+      sel: sel,
+      etapas: ['HORARIO', 'TUS DATOS', 'PAGO', 'CONFIRMADA'].map(function (l, i) { var hecho = i <= etapaIdx; return { l: l, barra: hecho ? '#4F6B2F' : '#E3D7C4', color: hecho ? '#2F3B1F' : '#8A7B6C' }; }),
+      modos: ['Online', 'Presencial'].map(function (m, i) { var on = s.mod === i; return { l: m, on: on, fondo: on ? '#2F3B1F' : 'transparent', color: on ? '#F1F4E6' : '#2B2420', pick: function () { self.setState({ mod: i }); } }; }),
+      dias: DIAS.map(function (d, i) { var on = s.dia === i; return { dia: d[0], num: d[1], mes: d[2], on: on, fondo: on ? '#2F3B1F' : '#FFFDF9', color: on ? '#F1F4E6' : '#2B2420', sombra: on ? '0 10px 24px rgba(47,59,31,0.30)' : 'none', pick: function () { self.setState({ dia: i }); } }; }),
+      horas: HORAS.map(function (h, i) { var on = s.hora === i; return { l: h, on: on, fondo: on ? '#2F3B1F' : '#FFFDF9', color: on ? '#F1F4E6' : '#2B2420', pick: function () { self.setState({ hora: i }); } }; }),
+      campos: CAMPOS.map(function (c) { return { l: c[0], ph: c[1], a: c[2] }; }),
+      resumen: DIAS[s.dia][0] + ' ' + DIAS[s.dia][1] + ' ' + DIAS[s.dia][2] + ', ' + HORAS[s.hora], modoTexto: s.mod === 0 ? 'Online' : 'Presencial'
+    };
+  }
+}
+</script>
+</body>
+</html>

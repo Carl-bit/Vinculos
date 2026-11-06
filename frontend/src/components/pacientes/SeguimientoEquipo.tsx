@@ -430,7 +430,7 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
                       setItemElegido(undefined);
                     }}
                     className={`flex cursor-pointer flex-col gap-1.5 rounded-md p-4 text-left transition-[border-color,background-color] duration-200 ease-out ${
-                      on ? 'border-2 border-accent-700 bg-accent-100' : 'border border-divider bg-neutral-100 hover:border-accent-500'
+                      on ? 'border-2 border-accent-700 bg-accent-100' : 'border border-divider bg-bg hover:border-accent-500'
                     }`}
                   >
                     <span className="flex items-baseline gap-2">
@@ -482,7 +482,7 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
                       setItemElegido(undefined);
                     }}
                     className={`flex min-h-[58px] w-full cursor-pointer items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left transition-[opacity,background-color] duration-200 ${
-                      on ? 'border-2 border-accent-700 bg-neutral-100' : 'border border-transparent hover:bg-neutral-100'
+                      on ? 'border-2 border-accent-700 bg-papel' : 'border border-transparent hover:bg-lienzo'
                     } ${coincide ? '' : 'opacity-50'}`}
                   >
                     <span
@@ -529,7 +529,7 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
                   items={actual.items}
                   pacientesLista={pacientes.data ?? []}
                 />
-                <div className="flex flex-col gap-3 rounded-md border border-divider bg-neutral-100 p-4">
+                <div className="flex flex-col gap-3 rounded-md border border-divider bg-bg p-4">
                   <div className="flex flex-wrap items-baseline gap-x-2.5">
                     <h3 className="m-0 text-[17px] font-black">Trabajo pendiente</h3>
                     <span className="text-[12.5px] font-semibold text-neutral-700">Toca un punto para intervenir o preguntar</span>
@@ -666,7 +666,7 @@ function Profesional({
     },
   ];
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-divider bg-neutral-100 p-4">
+    <div className="flex flex-col gap-3 rounded-md border border-divider bg-bg p-4">
       <div className="flex flex-wrap items-start gap-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <Avatar name={m.nombre ?? '?'} size={40} />

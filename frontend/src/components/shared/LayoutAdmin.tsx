@@ -5,9 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
-import { FONDO_LIENZO } from '@/components/ui/BarraFlotante';
 import { Icon } from '@/components/ui/Icon';
-import { useMiCuenta, useModulos } from '@/lib/consultas';
+import { useCentroPublico, useMiCuenta, useModulos } from '@/lib/consultas';
 import { conSelectorEquipo, menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
 import { esAdministracion, NOMBRE_ROL } from '@/lib/roles';
 import type { SesionActiva } from '@/lib/sesion';
@@ -15,6 +14,7 @@ import { BotonSalir } from './BotonSalir';
 import { ProveedorEquipoActivo, SelectorEquipo, ViendoA } from './EquipoActivo';
 import { EstadoVista } from './EstadoVista';
 import { Marca } from './Marca';
+import { MarcaZona } from './MarcaZona';
 import { SelectorRol } from './SelectorRol';
 
 const GRUPOS = [
@@ -52,11 +52,13 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
   const nombre = cuenta.data?.nombre ?? '';
   const activo = (href: string) => (href === '/admin' ? ruta === href : ruta.startsWith(href) && href !== '/');
   // Movil: el menu se despliega con un boton y se cierra al navegar (en escritorio siempre visible).
+  const centro = useCentroPublico().data;
   const [menuAbierto, setMenuAbierto] = useState(false);
   useEffect(() => setMenuAbierto(false), [ruta]);
 
   return (
     <ProveedorEquipoActivo key={sesion.rol} habilitado={esAdministracion(sesion.rol)}>
+      <MarcaZona zona="panel" principal={centro?.color_panel} fondo={centro?.color_fondo_panel} />
       <div className="min-h-screen bg-neutral-300 md:grid md:grid-cols-[246px_1fr]">
         <aside className="z-[2] flex flex-col gap-[26px] border-r border-divider bg-bg px-4 pt-[22px] pb-6 shadow-md md:sticky md:top-0 md:h-screen md:overflow-y-auto">
           <div className="flex items-center justify-between gap-3 px-2">
@@ -113,7 +115,7 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
             </div>
           </div>
         </aside>
-        <main key={ruta} className={`entrada min-w-0 px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 ${FONDO_LIENZO}`}>
+        <main id="contenido" tabIndex={-1} key={ruta} className={`entrada min-w-0 outline-none px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 trama`}>
           {esAdministracion(sesion.rol) && <ViendoA />}
           {rutaPermitida('admin', sesion.rol, ruta) ? children : <EstadoVista estado="sin-permiso" />}
         </main>

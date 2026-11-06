@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRef, useState, type ReactNode } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
+import { DialogoDescartar, EditorEnfocado, useGuardaCambios } from '@/components/shared/EdicionSegura';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Badge } from '@/components/ui/Badge';
 import { BarraFlotante, SeparadorBarra } from '@/components/ui/BarraFlotante';
@@ -13,7 +14,6 @@ import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Interruptor } from '@/components/ui/Interruptor';
-import { Modal } from '@/components/ui/Modal';
 import { PanelIncrustado } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import type { components } from '@/lib/api/esquema';
@@ -100,9 +100,10 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
   const [sel, setSel] = useState<Seccion | null>(perfil ? null : 'cab');
   const [paciente, setPaciente] = useState(false);
   const [telefono, setTelefono] = useState(false);
-  const [confirmar, setConfirmar] = useState<Accion | null>(null);
   const [error, setError] = useState<string>();
   const sucio = !iguales(draft, base.current);
+  // Con cambios: confirmar antes de cambiar de seccion, salir por un enlace o cerrar la pestaña.
+  const guarda = useGuardaCambios(sucio);
 
   const trayectoria = useTrayectoria(usuarioId).data ?? [];
   const tarifas = useTarifas(usuarioId).data ?? [];
@@ -164,7 +165,6 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
 
   const ejecutar = (a: Accion) => {
     setDraft(base.current);
-    setConfirmar(null);
     setError(undefined);
     if (a.tipo === 'ir') setSel(a.seccion);
     else {
@@ -172,7 +172,7 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
       setPaciente((v) => !v);
     }
   };
-  const pedir = (a: Accion) => (sucio ? setConfirmar(a) : ejecutar(a));
+  const pedir = (a: Accion) => guarda.confirmar(() => ejecutar(a));
   const elegir = (s: Seccion) => {
     if (paciente || sel === s) return;
     pedir({ tipo: 'ir', seccion: s });
@@ -191,8 +191,8 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
   const bloque = (s: Seccion) => ({ s, sel, paciente, onElegir: () => elegir(s) });
 
   return (
-    <div data-lienzo className="flex flex-col gap-[18px]">
-      <BarraFlotante etiqueta="Mi perfil">
+    <div className="flex flex-col gap-[18px]">
+      <BarraFlotante etiqueta="Mi perfil" variante="moderno">
         <strong className="text-[15px] font-black">Mi perfil</strong>
         <Badge tono={estado.tono}>{estado.texto}</Badge>
         <SeparadorBarra />
@@ -231,20 +231,10 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
       {paciente ? (
         <VistaPaciente perfil={vista} agenda={agenda} telefono={telefono} />
       ) : (
-        <div className="relative flex flex-wrap items-start justify-center gap-[22px]">
-          {sel && (
-            // Tocar fuera del perfil quita la seleccion (con teclado: "Cerrar editor" o Descartar).
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label="Quitar la selección"
-              onClick={() => pedir({ tipo: 'ir', seccion: null })}
-              className="absolute inset-0 z-0 cursor-default"
-            />
-          )}
+        <EditorEnfocado activa={!!sel} onQuitar={() => pedir({ tipo: 'ir', seccion: null })} className="flex flex-wrap items-start justify-center gap-[22px]">
           <article
             aria-label="Vista previa de mi perfil público"
-            className={`relative z-[1] flex min-w-0 flex-[999_1_560px] flex-wrap items-start gap-[26px] rounded-[28px] bg-neutral-100 p-[clamp(18px,3vw,34px)] shadow-lg ${
+            className={`relative z-[1] flex min-w-0 flex-[999_1_560px] flex-wrap items-start gap-[26px] rounded-[28px] bg-bg p-[clamp(18px,3vw,34px)] shadow-lg ${
               telefono ? 'max-w-[420px]' : 'max-w-[900px]'
             }`}
           >
@@ -367,26 +357,12 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
             onElegir={elegir}
             onPublicar={(v) => guardarPerfil.mutate(cuerpo(base.current, v))}
             nombreCuenta={nombreCuenta}
+            base={base.current}
           />
-        </div>
+        </EditorEnfocado>
       )}
 
-      <Modal
-        abierto={!!confirmar}
-        onCerrar={() => setConfirmar(null)}
-        titulo={`Estás modificando "${sel ? SECCIONES[sel].nombre : ''}"`}
-        descripcion="¿Seguro que quieres descartar los cambios? Lo que escribiste no se publicará."
-        acciones={
-          <>
-            <Button variant="secondary" onClick={() => confirmar && ejecutar(confirmar)}>
-              Sí, descartar
-            </Button>
-            <Button variant="team" onClick={() => setConfirmar(null)}>
-              No, seguir editando
-            </Button>
-          </>
-        }
-      />
+      <DialogoDescartar seccion={sel ? SECCIONES[sel].nombre : 'Mi perfil'} {...guarda.dialogo} />
     </div>
   );
 }
@@ -487,6 +463,7 @@ function Inspector({
   onElegir,
   onPublicar,
   nombreCuenta,
+  base,
 }: {
   sel: Seccion | null;
   perfil: PerfilProfesional | null;
@@ -501,12 +478,15 @@ function Inspector({
   onElegir: (s: Seccion) => void;
   onPublicar: (v: boolean) => void;
   nombreCuenta: string;
+  /** Lo guardado: el campo distinto se marca «Modificado». */
+  base: Textos;
 }) {
+  const cambio = (k: keyof Textos) => draft[k] !== base[k];
   const campo = (k: keyof Textos) => (e: { target: { value: string } }) => setDraft((t) => ({ ...t, [k]: e.target.value }));
   return (
     <aside
       aria-label="Editor del perfil"
-      className="relative z-[1] flex max-w-[380px] min-w-0 flex-[1_1_320px] flex-col gap-3.5 self-start rounded-[24px] border border-divider bg-bg/95 p-5 shadow-lg backdrop-blur-[10px] lg:sticky lg:top-[84px]"
+      className="translucida relative z-[1] flex max-w-[380px] min-w-0 flex-[1_1_320px] flex-col gap-3.5 self-start rounded-panel border border-borde p-5 text-tinta shadow-flotante lg:sticky lg:top-[84px]"
     >
       {!sel ? (
         <>
@@ -574,10 +554,10 @@ function Inspector({
             {sel === 'cab' && (
               <>
                 <Foto usuarioId={usuarioId} existe={!!perfil} />
-                <Field label="Nombre que se muestra" hint={`Vacío: se usa el nombre de tu cuenta (${nombreCuenta}).`}>
+                <Field label="Nombre que se muestra" cambiado={cambio('nombrePublico')} hint={`Vacío: se usa el nombre de tu cuenta (${nombreCuenta}).`}>
                   {(x) => <Input {...x} value={draft.nombrePublico} maxLength={120} onChange={campo('nombrePublico')} />}
                 </Field>
-                <Field label="Especialidad principal" required>
+                <Field label="Especialidad principal" cambiado={cambio('especialidad')} required>
                   {(x) => <Input {...x} value={draft.especialidad} maxLength={120} onChange={campo('especialidad')} />}
                 </Field>
                 <p className="m-0 text-[12px] font-semibold text-neutral-700">El título bajo tu nombre sale de tu título verificado más antiguo (Formación).</p>
@@ -586,7 +566,7 @@ function Inspector({
             {sel === 'reg' && <RegistroSisPanel profesionalId={usuarioId} practicante={false} propio admin={false} />}
             {sel === 'dat' && (
               <>
-                <Field label="Modalidad">
+                <Field label="Modalidad" cambiado={cambio('modalidad')}>
                   {(x) => (
                     <Select {...x} value={draft.modalidad} onChange={(e) => setDraft((t) => ({ ...t, modalidad: e.target.value as Textos['modalidad'] }))}>
                       {(Object.keys(NOMBRE_MODALIDAD) as Textos['modalidad'][]).map((m) => (
@@ -597,7 +577,7 @@ function Inspector({
                     </Select>
                   )}
                 </Field>
-                <Field label="Convenios" hint="Separados por coma. Filtran el match por previsión.">
+                <Field label="Convenios" cambiado={cambio('convenios')} hint="Separados por coma. Filtran el match por previsión.">
                   {(x) => <Input {...x} value={draft.convenios} onChange={campo('convenios')} placeholder="Fonasa, Isapre" />}
                 </Field>
                 <Interruptor
@@ -614,22 +594,22 @@ function Inspector({
               </>
             )}
             {sel === 'fra' && (
-              <Field label="Frase" aside={`${draft.citaDestacada.length} / 300`}>
+              <Field label="Frase" cambiado={cambio('citaDestacada')} aside={`${draft.citaDestacada.length} / 300`}>
                 {(x) => <Textarea {...x} rows={3} maxLength={300} value={draft.citaDestacada} onChange={campo('citaDestacada')} />}
               </Field>
             )}
             {sel === 'sob' && (
-              <Field label="Sobre mí" aside={`${draft.bio.length} / 2000`} hint="Separa los párrafos con una línea en blanco.">
+              <Field label="Sobre mí" cambiado={cambio('bio')} aside={`${draft.bio.length} / 2000`} hint="Separa los párrafos con una línea en blanco.">
                 {(x) => <Textarea {...x} rows={8} maxLength={2000} value={draft.bio} onChange={campo('bio')} />}
               </Field>
             )}
             {sel === 'for' && <MiTrayectoria usuarioId={usuarioId} />}
             {sel === 'esp' && (
               <>
-                <Field label="Enfoques" hint="Separados por coma.">
+                <Field label="Enfoques" cambiado={cambio('enfoques')} hint="Separados por coma.">
                   {(x) => <Input {...x} value={draft.enfoques} onChange={campo('enfoques')} placeholder="Cognitivo-conductual, sistémico" />}
                 </Field>
-                <Field label="Idiomas" hint="Separados por coma.">
+                <Field label="Idiomas" cambiado={cambio('idiomas')} hint="Separados por coma.">
                   {(x) => <Input {...x} value={draft.idiomas} onChange={campo('idiomas')} placeholder="Español, inglés" />}
                 </Field>
                 <div className="border-t border-divider pt-3">

@@ -84,7 +84,7 @@ export function AsistenteMatch({ preguntas, agenda, filtroDirecto = false }: { p
 
   return (
     <div className="flex items-start justify-center gap-[clamp(20px,3vw,40px)] pt-[clamp(10px,2vw,26px)] pb-10">
-      <aside className="sticky top-6 hidden w-[292px] flex-none rounded-lg border border-divider bg-neutral-100 px-6 py-[26px] shadow-sm lg:block">
+      <aside className="sticky top-6 hidden w-[292px] flex-none rounded-lg border border-divider bg-bg px-6 py-[26px] shadow-suave lg:block">
         <Eyebrow tone="patient">Match terapéutico</Eyebrow>
         {filtrar ? (
           <p className="m-0 text-[14px] leading-relaxed font-semibold text-pretty text-neutral-800">
@@ -144,7 +144,7 @@ export function AsistenteMatch({ preguntas, agenda, filtroDirecto = false }: { p
         )}
       </aside>
 
-      <section className="w-full max-w-[720px] min-w-0 rounded-lg border border-divider bg-bg p-[clamp(22px,4vw,40px)] shadow-md">
+      <section className="w-full max-w-[720px] min-w-0 rounded-lg border border-divider bg-bg p-[clamp(22px,4vw,40px)] shadow-suave">
         <div className={`mb-[22px] lg:hidden ${filtrar ? 'hidden' : ''}`}>
           <div className="mb-[9px] flex items-center justify-between gap-3">
             <span className="text-[11px] font-extrabold tracking-[0.14em] text-accent-700 uppercase">Match terapéutico</span>
@@ -292,7 +292,7 @@ function ResultadoMatch({
             </section>
           ))
         : resultado.otros.length > 0 && (
-            <details className="group rounded-lg border border-divider bg-neutral-100 px-5 py-4">
+            <details className="group rounded-lg border border-divider bg-bg px-5 py-4">
               <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-black tracking-[-0.02em]">
                 Otras opciones del equipo ({resultado.otros.length})
                 <Icon name="expand_more" className="transition-transform duration-200 group-open:rotate-180" />
@@ -356,7 +356,7 @@ function TarjetaResultado({ opcion: o, agenda, destacada = false }: { opcion: Op
         </div>
       )}
       {o.advertencia && (
-        <p className="m-0 mb-3.5 flex gap-3 rounded-[18px] border border-neutral-500 bg-neutral-100 px-[18px] py-3.5 text-[13.5px] font-bold text-pretty text-neutral-800">
+        <p className="m-0 mb-3.5 flex gap-3 rounded-[18px] border border-neutral-500 bg-bg px-[18px] py-3.5 text-[13.5px] font-bold text-pretty text-neutral-800">
           <Icon name="info" size={19} />
           {o.advertencia}
         </p>

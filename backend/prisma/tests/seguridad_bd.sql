@@ -3883,11 +3883,24 @@ END $$;
 \echo 113 Contenido publico (ADMIN), modulos (solo el operador), imagenes publicas (append-only) y cuestionario del match (ADMIN, nunca DELETE)
 DO $$ DECLARE n int; BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
-  UPDATE contenido_publico SET hero_titulo = 'Centro de prueba', color_marca = '#AA5500';
+  UPDATE contenido_publico SET hero_titulo = 'Centro de prueba', color_marca = '#8A4B1F';
   BEGIN
     UPDATE contenido_publico SET color_marca = 'rojo';
     RAISE EXCEPTION 'caso 113: color #RRGGBB';
   EXCEPTION WHEN check_violation THEN NULL; END;
+  -- 03c: marca por zona con contraste exigido por la BD.
+  ASSERT round(contraste_wcag('#FFFFFF', '#000000'), 2) = 21 AND round(contraste_wcag('#8A4B1F', '#F5EAD8'), 2) = 5.68, 'caso 113: contraste WCAG';
+  UPDATE contenido_publico SET color_portal = '#4F6B2F', color_panel = '#8A4B1F', color_fondo_panel = '#F1EBE2',
+                               color_fondo_publico = '#F5EAD8', color_fondo_portal = '#FFFDF9';
+  BEGIN
+    UPDATE contenido_publico SET color_panel = '#D6A15A';
+    RAISE EXCEPTION 'caso 113: principal sin contraste sobre crema';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    UPDATE contenido_publico SET color_fondo_portal = '#8A4B1F';
+    RAISE EXCEPTION 'caso 113: fondo oscuro';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE contenido_publico SET color_portal = NULL, color_panel = NULL, color_fondo_panel = NULL, color_fondo_publico = NULL, color_fondo_portal = NULL;
   BEGIN
     UPDATE configuracion_centro SET modulos_activos = ARRAY['FICHAS']::modulo_centro[];
     RAISE EXCEPTION 'caso 113: los modulos los cambia el operador';

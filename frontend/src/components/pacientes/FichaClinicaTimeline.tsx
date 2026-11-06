@@ -230,7 +230,7 @@ export function FichaClinicaTimeline({
       )}
 
       {pilas.length === 0 ? (
-        <p className="m-0 rounded-lg border border-divider bg-neutral-100 px-4 py-6 text-center text-[14px] font-semibold text-neutral-800">
+        <p className="m-0 rounded-lg border border-divider bg-bg px-4 py-6 text-center text-[14px] font-semibold text-neutral-800">
           {filtro === 'todas' ? 'Todavía no hay evoluciones registradas' : 'No hay evoluciones con este filtro'}
         </p>
       ) : (
@@ -414,7 +414,7 @@ function LecturaEvolucion({
   return (
     <article
       aria-labelledby="titulo-lectura"
-      className="flex max-w-[860px] flex-col gap-3.5 rounded-[18px] border border-divider bg-neutral-100 px-[clamp(18px,4vw,48px)] py-8 shadow-lg"
+      className="flex max-w-[860px] flex-col gap-3.5 rounded-[18px] border border-divider bg-bg px-[clamp(18px,4vw,48px)] py-8 shadow-lg"
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12px] font-semibold text-neutral-700">

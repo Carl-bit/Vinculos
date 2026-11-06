@@ -413,7 +413,7 @@ function PoliticaTipo({
         </Button>
       </div>
       {modo === 'texto' && vigente && (
-        <p className="m-0 max-h-[200px] overflow-y-auto rounded-[12px] border border-divider bg-neutral-100 p-3.5 text-[13.5px] leading-relaxed whitespace-pre-line text-neutral-800">
+        <p className="m-0 max-h-[200px] overflow-y-auto rounded-[12px] border border-divider bg-bg p-3.5 text-[13.5px] leading-relaxed whitespace-pre-line text-neutral-800">
           {vigente.texto}
         </p>
       )}

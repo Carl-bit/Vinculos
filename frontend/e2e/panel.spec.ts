@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ingresarEquipo } from './apoyo';
+import { ingresarEquipo, pacienteNuevo, sqlPrueba } from './apoyo';
 
 const ingresarAdmin = (page: Page) => ingresarEquipo(page, 'admin');
 
@@ -99,19 +99,19 @@ test('Configuracion (ADMIN): politicas versionadas y plantillas de mensaje', asy
   await page.goto('/admin/configuracion');
   await expect(page.getByRole('heading', { name: 'Identidad y contacto' })).toBeVisible();
   const secciones = page.getByRole('navigation', { name: 'Secciones de configuración' });
-  await secciones.getByRole('button', { name: /^Consentimientos y políticas/ }).click();
+  await secciones.getByRole('link', { name: /^Consentimientos y políticas/ }).click();
   await expect(page.getByRole('heading', { name: 'Consentimiento informado' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Reglas del sistema' })).toBeVisible();
-  await secciones.getByRole('button', { name: /^Avisos al paciente y equipo/ }).click();
+  await secciones.getByRole('link', { name: /^Avisos al paciente y equipo/ }).click();
   await page.getByRole('button', { name: /^Cita cancelada, equipo · correo/ }).click();
   await expect(page.getByRole('complementary', { name: 'Editar plantilla' })).toContainText('Equipo · correo');
   await expect(page.getByRole('button', { name: 'Restaurar ejemplo' })).toBeVisible();
-  await secciones.getByRole('button', { name: /^Cobros y acuerdos/ }).click();
+  await secciones.getByRole('link', { name: /^Cobros y acuerdos/ }).click();
   await expect(page.getByLabel('Cargo por inasistencia')).toBeVisible();
   await expect(page.getByRole('radio', { name: /Cobra el centro/ })).toBeChecked();
   // El buscador filtra el submenu.
   await page.getByLabel('Buscar un ajuste').fill('feriado');
-  await expect(secciones.getByRole('button')).toHaveText([/Horario y feriados/]);
+  await expect(secciones.getByRole('link')).toHaveText([/Horario y feriados/]);
 });
 
 test('Match: el asa mueve preguntas salvo con una abierta', async ({ page }) => {
@@ -199,8 +199,8 @@ test('Mi cuenta: contacto, seguridad y sin perfil público para quien no atiende
   await expect(page.getByRole('heading', { level: 1, name: 'Datos de contacto' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Contacto privado' })).toBeVisible();
   const secciones = page.getByRole('navigation', { name: 'Secciones de la cuenta' });
-  await expect(secciones.getByRole('button', { name: /Pagos y liquidaciones/ })).toHaveCount(0);
-  await secciones.getByRole('button', { name: 'Seguridad' }).click();
+  await expect(secciones.getByRole('link', { name: /Pagos y liquidaciones/ })).toHaveCount(0);
+  await secciones.getByRole('link', { name: 'Seguridad' }).click();
   await expect(page).toHaveURL(/seccion=seguridad/);
   await expect(page.getByLabel('Contraseña actual')).toBeVisible();
   await expect(page.getByText('Es obligatoria para el equipo del centro.', { exact: false })).toBeVisible();
@@ -222,7 +222,7 @@ test('Mi perfil del profesional (diseño "Moderno A"): lienzo editable con inspe
   await expect(lienzo).toContainText('Frase de prueba en vivo');
   await expect(page.getByRole('toolbar', { name: 'Mi perfil' })).toContainText('Cambios sin guardar');
   await lienzo.getByRole('button', { name: 'Editar Sobre mí' }).click();
-  const confirmar = page.getByRole('dialog', { name: 'Estás modificando "Frase destacada"' });
+  const confirmar = page.getByRole('dialog', { name: 'Estás modificando «Frase destacada»' });
   await confirmar.getByRole('button', { name: 'Sí, descartar' }).click();
   await expect(lienzo).not.toContainText('Frase de prueba en vivo');
   await expect(editor.getByRole('heading', { name: 'Sobre mí' })).toBeVisible();
@@ -242,9 +242,9 @@ test('Mi perfil del profesional (diseño "Moderno A"): lienzo editable con inspe
   await page.getByRole('link', { name: 'Mi cuenta' }).click();
   await expect(page).toHaveURL(/\/admin\/perfil\/cuenta/);
   const secciones = page.getByRole('navigation', { name: 'Secciones de la cuenta' });
-  await secciones.getByRole('button', { name: 'Mis pacientes' }).click();
+  await secciones.getByRole('link', { name: 'Mis pacientes' }).click();
   await expect(page.getByRole('link', { name: /Paciente Prueba/ }).first()).toBeVisible();
-  await secciones.getByRole('button', { name: 'Pagos y liquidaciones' }).click();
+  await secciones.getByRole('link', { name: 'Pagos y liquidaciones' }).click();
   await expect(page.getByRole('heading', { name: 'Mi acuerdo con el centro' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Datos para pagos' })).toBeVisible();
   await page.getByRole('link', { name: 'Volver a mi perfil público' }).click();
@@ -255,7 +255,7 @@ test('Mi perfil de la cuenta madre (punto 22): su perfil profesional con ADMIN a
   await ingresarAdmin(page);
   await page.goto('/admin/perfil');
   await expect(page).toHaveURL(/\/admin\/perfil\/cuenta/);
-  await page.getByRole('navigation', { name: 'Secciones de la cuenta' }).getByRole('button', { name: 'Mi perfil profesional' }).click();
+  await page.getByRole('navigation', { name: 'Secciones de la cuenta' }).getByRole('link', { name: 'Mi perfil profesional' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Mi perfil profesional' })).toBeVisible();
   await expect(page.getByLabel('Nombre público (opcional)')).toHaveValue('Ps. Admin Centro Prueba (Demo)');
   // Con ADMIN activo no aprueba ni verifica lo propio.
@@ -296,3 +296,29 @@ for (const usuario of ['admin', 'profesional1'] as const) {
       .click();
   });
 }
+
+test('03b-6: cubrir sesión con acceso temporal: ADMIN otorga el acceso y la sesión cambia de profesional sin cambiar el tratante', async ({
+  page,
+  browser,
+}) => {
+  const { email, pacienteId } = await pacienteNuevo(page, 'cubrir');
+  const citaId = sqlPrueba(`SELECT cita_id FROM solicitudes_hora WHERE email = '${email}'`);
+  const tratante = sqlPrueba(`SELECT profesional_id FROM pacientes WHERE id = '${pacienteId}'`);
+
+  const admin = await (await browser.newContext()).newPage();
+  await ingresarAdmin(admin);
+  await admin.goto(`/admin/agenda?cita=${citaId}`);
+  const modal = admin.getByRole('dialog');
+  await modal.getByRole('button', { name: 'Cubrir sesión' }).click();
+  const selector = modal.getByLabel('Profesional que cubre');
+  const otro = await selector.locator('option', { hasText: 'Profesional Dos' }).getAttribute('value');
+  await selector.selectOption(otro!);
+  await expect(modal.getByLabel('Acceso de reemplazo hasta')).toBeVisible();
+  await modal.getByRole('button', { name: 'Otorgar acceso y cubrir' }).click();
+  await expect(modal.getByRole('button', { name: 'Otorgar acceso y cubrir' })).toHaveCount(0);
+
+  expect(sqlPrueba(`SELECT profesional_id FROM citas WHERE id = '${citaId}'`)).toBe(otro);
+  // El tratante no cambia (eso es una derivacion) y el acceso queda registrado con plazo.
+  expect(sqlPrueba(`SELECT profesional_id FROM pacientes WHERE id = '${pacienteId}'`)).toBe(tratante);
+  expect(Number(sqlPrueba(`SELECT count(*) FROM accesos_clinicos_temporales WHERE paciente_id = '${pacienteId}' AND profesional_id = '${otro}'`))).toBe(1);
+});

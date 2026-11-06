@@ -9,7 +9,7 @@ import { createContext, useContext, type ReactNode } from 'react';
  * Nunca se anida un Panel dentro de otro.
  */
 const VARIANTES = {
-  claro: 'border border-divider bg-neutral-100',
+  claro: 'border border-divider bg-bg',
   paciente: 'border border-accent-2-500 bg-accent-2-200',
   equipo: 'border border-accent-500 bg-accent-200',
 } as const;
@@ -50,7 +50,7 @@ export function Panel({
       </section>
     );
   return (
-    <section id={id} className={`min-w-0 rounded-lg px-[clamp(20px,3vw,28px)] pt-[26px] pb-[26px] shadow-sm ${VARIANTES[variante]} ${className}`}>
+    <section id={id} className={`min-w-0 rounded-lg px-[clamp(20px,3vw,28px)] pt-[26px] pb-[26px] shadow-suave ${VARIANTES[variante]} ${className}`}>
       {(titulo || accion) && (
         <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3.5 gap-y-1">
           {titulo && <H className="m-0 text-[20px] leading-tight font-black tracking-[-0.025em] text-balance">{titulo}</H>}

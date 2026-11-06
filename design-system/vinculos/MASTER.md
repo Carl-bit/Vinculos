@@ -242,3 +242,65 @@ de baja friccion.
 - Filtro directo del match: dentro de la tarjeta del asistente, resultados
   separados por divisores (no tarjetas anidadas); el panel lateral cambia el
   progreso por un texto que explica el modo.
+
+## Moderno A (03c, 2026-11-05)
+
+Referencia: `design-reference/Perfil/` y `design-reference/Equipo/`. Se
+reimplementa con las piezas del repo; solo cambia el estilo (no flujos,
+endpoints, permisos ni textos legales). Muestrario: `/dev/estilo` (solo en
+desarrollo).
+
+Tokens (`globals.css`):
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `tinta` | #2B2420 | texto (13:1 sobre crema) |
+| `arcilla` | #8A4B1F | acción del equipo, anillo de selección, campo modificado (6.6:1) |
+| `oliva` | #4F6B2F | público y paciente (5.9:1) |
+| `papel` | #FFFDF9 | realce: sección enfocada y campo modificado. Las tarjetas van en crema (`bg`, decisión 2026-11-05) |
+| `lienzo` + `punto` | #F1EBE2 + #D6CBBB | fondo de todos los módulos del panel: trama de puntos de 18 px (utilidad `trama` en el `<main>` de `LayoutAdmin`; la barra lateral no) |
+| `borde` | #E3D7C4 | borde de tarjetas y barras |
+| `rounded-campo` / `-tarjeta` / `-panel` / `-full` | 14 / 16 / 24 / 999 px | campos / secciones / paneles / píldoras |
+| `shadow-suave` / `shadow-flotante` | 0 14 40 .10 / 0 24 60 .18 | tarjeta / barra o inspector flotante |
+| utilidad `translucida` | crema 92 % + blur 10 px | inspector y barras; sólida con `prefers-reduced-transparency` |
+
+Piezas (nombre del pedido = nombre en el repo):
+
+- Surface = `ui/Card` con `variante="crema"` o `"translucida"` (`organic` sigue siendo el valor por defecto).
+- FloatingToolbar = `ui/BarraFlotante` con `variante="moderno"`.
+- PillNav = `ui/Pestanas` con `tono="moderno"` (activa en tinta, 44 px).
+- Field = `ui/Field` con `cambiado`: borde arcilla y marca «Modificado» (no solo color).
+- Switch = `ui/Interruptor`. Chip de estado = `ui/Badge` con `tono` (nuevo `pendiente`).
+- `shared/EdicionSegura`: `useGuardaCambios` (useDirtyGuard), `DialogoDescartar`
+  (ConfirmDiscardDialog), `BarraSinGuardar` (UnsavedBar), `EditorEnfocado` +
+  `SeccionEnfocable` (FocusEditor). El botón Atrás del navegador no se intercepta
+  (App Router no bloquea rutas); recargar o cerrar sí (beforeunload).
+
+Tipografía: se mantiene Figtree en todo (el diseño usa Bricolage Grotesque en títulos; decisión 2026-11-05).
+
+Reglas: objetivos de 44 px en lo nuevo; sección enfocada con anillo arcilla
+de 3 px y el resto a opacidad 0.32 con blur de 1.5 px; transiciones de 200 ms
+ease-out, apagadas con `prefers-reduced-motion`.
+
+### Marca del centro por zona (03c)
+
+La cuenta madre elige en Configuración > Marca y apariencia el color principal
+y el de fondo del sitio público, del portal y del panel. `shared/MarcaZona`
+reemplaza los tokens: principal = escala `accent` + `arcilla` (sitio público y
+panel) o `accent-2` + `oliva` (portal), derivada con `color-mix` (700 = el
+color); fondo = `body` (sitio público) o `lienzo` + `punto` (portal y panel, ambos con trama de puntos). Las
+tarjetas siguen en crema. Por eso toda pantalla usa tokens, nunca hex sueltos.
+
+En el campo de color se puede escribir un nombre ("rojo", "azul", "café"):
+`lib/coloresNombrados.ts` despliega los tonos de esa familia como `#RRGGBB (Nombre)`,
+con primarios, secundarios y nombres clásicos de objetos (frutilla, oliva, ladrillo, marfil, vainilla...). Un tono que no se lee bien en ese campo se ofrece ajustado ("más oscuro" para el principal, "más claro" para el fondo, `tonoLegible`); un tono muy claro no se oscurece más de 60 % (queda gris): ese se ofrece solo como fondo.
+
+### Sitio público y login, estilo Moderno (2026-11-06)
+
+Referencia: `design-reference/Landing/` (Main = sitio, Login = inicio de sesión).
+
+- Fondo: trama de puntos (`trama`) en todo el sitio público, igual que portal y panel. El color de fondo del sitio público de la marca por zona ahora reemplaza `lienzo` + `punto` (antes pintaba `body`).
+- Barra: píldora translúcida fija arriba (`translucida`, `rounded-full`, `shadow-suave`), navegación en píldoras con `aria-current` (`shared/NavPublica`), "Iniciar sesión" en tinta; en `/ingreso` no se repite.
+- Landing: portada con bloque oliva y hasta 3 profesionales publicados flotando + tarjeta tinta "Equipo · desde $X"; servicios en tarjetas crema (icono del centro sin tile, por la regla del proyecto); equipo en 4 tarjetas con `AvatarProfesional cuadrado`; llamado final `LlamadoAccion tono="oscuro"` con botones `sobreOscuro` / `contornoOscuro`.
+- Login: presentación del perfil a la izquierda (rótulo, h1, bajada, puntos según módulos activos) y `TarjetaIngreso` translúcida a la derecha (radio 32 px). Las páginas de cuenta (recuperar, acceso, activar, correo, derechos, exportación) heredan la misma tarjeta; se retiraron las manchas difusas.
+- Se mantiene Figtree (no Bricolage) y los botones píldora del sistema (el diseño usa radio 18 px).

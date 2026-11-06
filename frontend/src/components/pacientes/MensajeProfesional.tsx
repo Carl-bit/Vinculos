@@ -1,5 +1,6 @@
 'use client';
 
+import { DialogoDescartar, useGuardaCambios } from '@/components/shared/EdicionSegura';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
@@ -33,6 +34,7 @@ export function MensajeProfesional({ historial = 3 }: { historial?: number }) {
   const [destino, setDestino] = useState<string>();
   const [texto, setTexto] = useState('');
   const [enviado, setEnviado] = useState<string>();
+  const guarda = useGuardaCambios(texto.trim() !== '');
   const alerta = useRef<HTMLDivElement>(null);
   const profesionalId = destino ?? tratante;
   const nombre = profesionalId ? (nombres.get(profesionalId) ?? 'tu profesional') : 'tu profesional';
@@ -73,6 +75,7 @@ export function MensajeProfesional({ historial = 3 }: { historial?: number }) {
         <p className="m-0 text-[13.5px] font-semibold text-neutral-700">Podrás escribirle a tu profesional cuando tengas uno asignado.</p>
       ) : (
         <form onSubmit={onSubmit} className="flex flex-col gap-3.5" noValidate>
+          <DialogoDescartar seccion="tu mensaje" {...guarda.dialogo} />
           {(equipo.data?.length ?? 0) > 1 && (
             <Field label="Para">
               {(p) => (

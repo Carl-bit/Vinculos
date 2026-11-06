@@ -92,7 +92,7 @@ export function PracticantesEquipo({ rol }: { rol: Rol }) {
                   tono: vigente ? 'ok' : 'alerta',
                 });
               return (
-                <section key={p.usuarioId} aria-label={nombre} className="flex flex-col gap-3.5 rounded-lg border border-divider bg-bg p-5 shadow-sm">
+                <section key={p.usuarioId} aria-label={nombre} className="flex flex-col gap-3.5 rounded-lg border border-divider bg-bg p-5 shadow-suave">
                   <div className="flex flex-wrap items-center gap-3.5">
                     <Avatar name={nombre} size={52} tone="patient" />
                     <div className="flex min-w-0 flex-[1_1_240px] flex-col">
@@ -112,7 +112,7 @@ export function PracticantesEquipo({ rol }: { rol: Rol }) {
                   </div>
                   <dl className="m-0 grid gap-2.5 sm:grid-cols-3">
                     {datosTarjeta.map((d) => (
-                      <div key={d.l} className="flex flex-col gap-0.5 rounded-[16px] bg-neutral-100 p-3">
+                      <div key={d.l} className="flex flex-col gap-0.5 rounded-[16px] bg-bg p-3">
                         <dt className="text-[11px] font-extrabold tracking-[0.08em] text-neutral-700 uppercase">{d.l}</dt>
                         <dd
                           className={`m-0 text-[14px] font-extrabold ${d.tono === 'alerta' ? 'text-accent-800' : d.tono === 'ok' ? 'text-accent-2-800' : ''}`}

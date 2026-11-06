@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
+import { DialogoDescartar, useGuardaCambios } from '@/components/shared/EdicionSegura';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -36,7 +37,12 @@ export function MiCuentaEquipo({ enPanel = true }: { enPanel?: boolean }) {
 
 function Formulario({ c, enPanel }: { c: NonNullable<ReturnType<typeof useMiCuenta>['data']>; enPanel: boolean }) {
   const cliente = useQueryClient();
-  const [f, setF] = useState({ nombre: c.nombre ?? '', email: c.email ?? '', telefono: c.telefono ?? '' });
+  const base = { nombre: c.nombre ?? '', email: c.email ?? '', telefono: c.telefono ?? '' };
+  const [f, setF] = useState(base);
+  const cambio = (k: keyof typeof base) => f[k].trim() !== base[k];
+  const sucio = cambio('nombre') || cambio('email') || cambio('telefono');
+  // Con cambios: confirmar antes de cambiar de seccion, salir por un enlace o cerrar la pestaña.
+  const guarda = useGuardaCambios(sucio);
   const [estado, setEstado] = useState<{ error?: string; ok?: boolean }>({});
   const v = useValidacionCampos({ nombre: reglaObligatorio('Escribe tu nombre.'), email: reglaCorreo(true), telefono: reglaTelefono });
   const guardar = useMutation({
@@ -65,13 +71,13 @@ function Formulario({ c, enPanel }: { c: NonNullable<ReturnType<typeof useMiCuen
   const formulario = (
     <form onSubmit={enviar} noValidate className="mt-4 flex flex-col gap-4">
       <div className={`grid gap-4 ${enPanel ? 'sm:grid-cols-3' : ''}`}>
-        <Field label="Nombre" required error={v.errores.nombre}>
+        <Field label="Nombre" required error={v.errores.nombre} cambiado={cambio('nombre')}>
           {(x) => <Input {...x} value={f.nombre} maxLength={120} onChange={cambiar('nombre')} onBlur={() => v.alSalir('nombre', f.nombre)} />}
         </Field>
-        <Field label="Correo" required error={v.errores.email} hint="Con él ingresas al panel y te llega el código de verificación.">
+        <Field label="Correo" required error={v.errores.email} cambiado={cambio('email')} hint="Con él ingresas al panel y te llega el código de verificación.">
           {(x) => <Input {...x} type="email" autoComplete="email" value={f.email} onChange={cambiar('email')} onBlur={() => v.alSalir('email', f.email)} />}
         </Field>
-        <Field label="Teléfono" error={v.errores.telefono} hint="Con código de país, por ejemplo +56 9 1234 5678.">
+        <Field label="Teléfono" error={v.errores.telefono} cambiado={cambio('telefono')} hint="Con código de país, por ejemplo +56 9 1234 5678.">
           {(x) => (
             <Input {...x} type="tel" autoComplete="tel" value={f.telefono} onChange={cambiar('telefono')} onBlur={() => v.alSalir('telefono', f.telefono)} />
           )}
@@ -91,10 +97,23 @@ function Formulario({ c, enPanel }: { c: NonNullable<ReturnType<typeof useMiCuen
             Datos guardados.
           </p>
         )}
+        {sucio && (
+          <Button
+            variant="secondary"
+            disabled={guardar.isPending}
+            onClick={() => {
+              setF(base);
+              setEstado({});
+            }}
+          >
+            Descartar
+          </Button>
+        )}
         <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
           Guardar mis datos
         </Button>
       </div>
+      <DialogoDescartar seccion="Datos de contacto" {...guarda.dialogo} />
     </form>
   );
   if (!enPanel) return formulario;

@@ -134,6 +134,8 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   configuracion_centro_portal_valido: 'Valores fuera de rango para el portal',
   imagenes_publicas_validas: 'Imagen invalida (JPEG, PNG o WebP de hasta 1024 px y 1 MB tras procesar)',
   contenido_publico_valido: 'Contenido publico invalido (hasta 12 servicios, color #RRGGBB)',
+  contenido_publico_colores:
+    'Color sin contraste suficiente: el principal debe leerse sobre las tarjetas crema (4.5:1) y el fondo debe ser claro (la tinta a 10:1)',
   politicas_coherente: 'El texto de la politica no puede estar vacio',
   horario_centro_valido: 'Horario invalido (dia 1-7 y minutos 0-1440, inicio antes del fin)',
   horarios_espacio_valido: 'Horario invalido (dia 1-7 y minutos 0-1440, inicio antes del fin)',

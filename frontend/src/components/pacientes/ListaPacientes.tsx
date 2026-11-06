@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useDeferredValue, useState } from 'react';
+import { useState } from 'react';
 
 import { useEquipoActivo } from '@/components/shared/EquipoActivo';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Field';
 import { Pestanas } from '@/components/ui/Pestanas';
 import { Tabla, Td, Th } from '@/components/ui/Tabla';
 import { edadEn } from '@/lib/condiciones';
+import { useRetardado } from '@/lib/useRetardado';
 import { useMiCuenta, useProfesionales } from '@/lib/consultas';
 import { formatoFechaLarga } from '@/lib/formato';
 import { sinSesionHaceUnMes, useEstadoFichas, usePacientes, type EstadoFicha, type PacienteVista } from '@/lib/panel';
@@ -31,7 +32,8 @@ export function ListaPacientes({ rol }: { rol: Rol }) {
   const parametros = useSearchParams();
   const filtro = (parametros.get('filtro') as Filtro | null) ?? 'todos';
   const [busqueda, setBusqueda] = useState('');
-  const nombre = useDeferredValue(busqueda.trim());
+  // Consulta la API: una peticion al dejar de escribir (03b-6).
+  const nombre = useRetardado(busqueda.trim());
   const { profesionalId } = useEquipoActivo();
   const cuenta = useMiCuenta();
   const consulta = usePacientes({

@@ -66,7 +66,7 @@ function FilaDocumento({ documento: d, tipo }: { documento: DocumentoClinico; ti
     if (r !== 'listo') setDescarga('No pudimos abrir el PDF. Intenta de nuevo.');
   };
   return (
-    <li className="rounded-lg border border-divider bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-4">
+    <li className="rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <Icon name="picture_as_pdf" size={22} className="flex-none text-accent-700" />
@@ -264,7 +264,7 @@ function EmitirDocumento({ pacienteId, onListo }: { pacienteId: string; onListo:
         )}
       </Field>
       {previa && (
-        <div className="overflow-hidden rounded-lg border border-divider bg-neutral-100">
+        <div className="overflow-hidden rounded-lg border border-divider bg-bg">
           <p className="m-0 border-b border-divider px-4 py-2.5 text-[12.5px] font-extrabold text-neutral-700">Vista previa del PDF</p>
           <iframe src={previa} title="Vista previa del documento" className="block h-[min(70vh,620px)] w-full bg-bg" />
         </div>

@@ -54,7 +54,7 @@ export function Modal({
         e.preventDefault();
         if (cerrable) onCerrar();
       }}
-      className={`m-auto w-[calc(100%-32px)] rounded-lg border border-divider bg-bg p-0 text-text shadow-lg backdrop:bg-neutral-900/40 open:entrada ${
+      className={`m-auto w-[calc(100%-32px)] rounded-lg border border-divider bg-bg p-0 text-text shadow-flotante backdrop:bg-neutral-900/40 open:entrada ${
         ancho === 'xl' ? 'max-w-[1120px]' : ancho === 'lg' ? 'max-w-[680px]' : 'max-w-[480px]'
       }`}
     >
@@ -65,14 +65,14 @@ export function Modal({
               {titulo}
             </h2>
             {cerrable && (
-            <button
-              type="button"
-              onClick={onCerrar}
-              aria-label="Cerrar"
-              className="-mt-1 -mr-2 grid size-10 flex-none cursor-pointer place-items-center rounded-full text-neutral-700 hover:bg-accent-200 hover:text-accent-700"
-            >
-              <Icon name="close" size={20} />
-            </button>
+              <button
+                type="button"
+                onClick={onCerrar}
+                aria-label="Cerrar"
+                className="-mt-1 -mr-2 grid size-10 flex-none cursor-pointer place-items-center rounded-full text-neutral-700 hover:bg-accent-200 hover:text-accent-700"
+              >
+                <Icon name="close" size={20} />
+              </button>
             )}
           </div>
           {descripcion && (
