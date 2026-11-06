@@ -11,6 +11,7 @@ import {
   MostrarResena,
   NivelRiesgo,
   Rol,
+  TipoDocumentoPracticante,
   TipoHiloInterno,
   TipoTrayectoria,
 } from '@prisma/client';
@@ -76,6 +77,15 @@ export class MiResenaRecibida {
   editadaEn!: Date | null;
 }
 
+/** Respaldo de un titulo (sin el contenido; se descarga por GET /trayectoria/respaldos/:id). */
+export class RespaldoTrayectoriaVista {
+  id!: string;
+  nombreArchivo!: string;
+  tipoMime!: string;
+  tamanoBytes!: number;
+  subidoEn!: Date;
+}
+
 export class TrayectoriaVista {
   id!: string;
   profesionalId!: string;
@@ -86,6 +96,7 @@ export class TrayectoriaVista {
   anio!: number;
   @ApiProperty({ type: String, nullable: true })
   registroSuperintendencia!: string | null;
+  /** Historico: enlace anterior al respaldo como archivo; ya no cuenta para verificar. */
   @ApiProperty({ type: String, nullable: true })
   documentoRespaldoUrl!: string | null;
   verificado!: boolean;
@@ -95,6 +106,51 @@ export class TrayectoriaVista {
   verificadoEn!: Date | null;
   createdAt!: Date;
   updatedAt!: Date;
+  /** Observacion de la cuenta madre (2026-11-08); se limpia con un respaldo nuevo o al verificar. */
+  @ApiProperty({ type: String, nullable: true })
+  observacion!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  observadaEn!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  observadaPorId!: string | null;
+  /** Versiones del respaldo, de la mas reciente a la mas antigua. */
+  @ApiProperty({ type: [RespaldoTrayectoriaVista] })
+  respaldos!: RespaldoTrayectoriaVista[];
+}
+
+/** Documento del practicante, sin el contenido (2026-11-08). */
+export class DocumentoPracticanteVista {
+  id!: string;
+  practicanteId!: string;
+  @ApiProperty({ enum: TipoDocumentoPracticante, enumName: 'TipoDocumentoPracticante' })
+  tipo!: TipoDocumentoPracticante;
+  nombreArchivo!: string;
+  tipoMime!: string;
+  tamanoBytes!: number;
+  @ApiProperty({ type: String, format: 'date', nullable: true })
+  vigenteHasta!: Date | null;
+  subidoPorId!: string;
+  subidoEn!: Date;
+}
+
+/** Pedido o correccion del perfil publico (2026-11-08). */
+export class CorreccionPerfilVista {
+  id!: string;
+  profesionalId!: string;
+  @ApiProperty({ enum: ['nombre_publico', 'especialidad', 'cita_destacada', 'bio', 'enfoques', 'foto_url'] })
+  campo!: string;
+  @ApiProperty({ enum: ['PEDIDA', 'APLICADA'] })
+  accion!: string;
+  motivo!: string;
+  autorId!: string;
+  creadaEn!: Date;
+}
+
+/** Resultado de pedir una correccion: solicitudes del campo sin cambios (2 o mas = la cuenta madre puede corregirlo). */
+export class SolicitudCorreccion {
+  @ApiProperty({ enum: ['nombre_publico', 'especialidad', 'cita_destacada', 'bio', 'enfoques', 'foto_url'] })
+  campo!: string;
+  solicitudes!: number;
 }
 
 /** Datos privados descifrados (RUT y cuenta bancaria): solo el propio y ADMIN/GESTION. */

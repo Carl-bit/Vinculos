@@ -26,6 +26,10 @@ const titulo = (anio: number, verificado: boolean) => ({
   verificadoEn: null,
   createdAt: '',
   updatedAt: '',
+  respaldos: [],
+  observacion: null,
+  observadaEn: null,
+  observadaPorId: null,
 });
 
 const base: DatosVistaPrevia = {
@@ -72,5 +76,18 @@ describe('vista previa del perfil publico', () => {
     expect(v.registro_sis).toBeNull();
     const verificado = vistaPreviaPerfil({ ...base, registro: { ...base.registro!, estado: 'VERIFICADO_MANUAL', verificadoEn: '2026-10-01T00:00:00Z' } });
     expect(verificado.registro_sis?.numero).toBe('123');
+  });
+  it('tipos de atencion: sin nombre en el catalogo (aun cargando o inactivo) no se muestran', () => {
+    const tipo = (id: string) =>
+      ({
+        estado: 'APROBADO',
+        revisadoPorId: null,
+        revisadoEn: null,
+        profesionalId: 'p',
+        tipoAtencionId: id,
+        createdAt: '',
+      }) as DatosVistaPrevia['tipos'][number];
+    const v = vistaPreviaPerfil({ ...base, tipos: [tipo('a'), tipo('b'), tipo('c')], nombreTipo: new Map([['b', 'Evaluación']]) });
+    expect(v.tipos_atencion).toEqual(['Evaluación']);
   });
 });

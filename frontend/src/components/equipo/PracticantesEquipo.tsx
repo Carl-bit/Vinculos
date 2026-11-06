@@ -4,11 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
-import { Badge } from '@/components/ui/Badge';
+import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Select } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
-import { Tabla, Td, Th } from '@/components/ui/Tabla';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { useProfesionales } from '@/lib/consultas';
@@ -38,65 +37,125 @@ export function PracticantesEquipo({ rol }: { rol: Rol }) {
   const nombrePro = new Map((profesionales.data ?? []).map((p) => [p.id, p.nombre ?? 'Profesional']));
   const [accion, setAccion] = useState<{ tipo: 'extender' | 'supervisor' | 'revocar' | 'historial'; id: string } | null>(null);
 
+  const filas = (practicantes.data ?? []).map((p) => {
+    const cuenta = nombreCuenta.get(p.usuarioId);
+    const sup = (supervisiones.data ?? []).find((s) => s.practicanteId === p.usuarioId && !s.hasta);
+    const expira = cuenta?.fechaExpiracionAcceso;
+    const vigente = !!(cuenta?.activo && expira && new Date(expira).getTime() > Date.now());
+    return { p, nombre: cuenta?.nombre ?? nombreDirectorio.get(p.usuarioId) ?? 'Practicante', sup, expira, vigente };
+  });
+  const resumen = [
+    { n: filas.length, l: filas.length === 1 ? 'practicante' : 'practicantes', c: 'bg-neutral-200 text-neutral-800' },
+    ...(admin
+      ? [
+          { n: filas.filter((f) => f.vigente && f.sup).length, l: 'habilitados', c: 'bg-accent-2-200 text-accent-2-900' },
+          { n: filas.filter((f) => !f.vigente).length, l: 'sin acceso', c: 'bg-accent-200 text-accent-900' },
+        ]
+      : []),
+    { n: filas.filter((f) => !f.sup).length, l: 'sin supervisor', c: 'bg-pendiente-100 text-pendiente-900' },
+  ];
+  const boton = '!min-h-10 !px-3.5 !py-2 !text-[13px]';
+
   return (
     <div className="flex flex-col gap-4">
       <EstadoConsulta consulta={practicantes} vacio={(l) => l.length === 0} textoVacio="No hay practicantes">
-        {(l) => (
-          <Tabla etiqueta="Practicantes">
-            <thead>
-              <tr>
-                <Th>Practicante</Th>
-                <Th>Supervisor</Th>
-                <Th>Práctica</Th>
-                <Th>Acceso</Th>
-                <Th>
-                  <span className="sr-only">Acciones</span>
-                </Th>
-              </tr>
-            </thead>
-            <tbody>
-              {l.map((p) => {
-                const cuenta = nombreCuenta.get(p.usuarioId);
-                const sup = (supervisiones.data ?? []).find((s) => s.practicanteId === p.usuarioId && !s.hasta);
-                const expira = cuenta?.fechaExpiracionAcceso;
-                const vigente = cuenta?.activo && expira && new Date(expira).getTime() > Date.now();
-                return (
-                  <tr key={p.usuarioId}>
-                    <Td className="font-extrabold">{cuenta?.nombre ?? nombreDirectorio.get(p.usuarioId) ?? 'Practicante'}</Td>
-                    <Td className="font-semibold">
-                      {sup ? (nombrePro.get(sup.supervisorId) ?? 'Profesional') : <span className="text-accent-700">Sin supervisor</span>}
-                    </Td>
-                    <Td className="font-semibold text-neutral-800">
-                      {formatoFecha(String(p.fechaInicio).slice(0, 10))} al {formatoFecha(String(p.fechaTerminoPractica).slice(0, 10))}
-                    </Td>
-                    <Td>{admin ? <Badge tono={vigente ? 'positivo' : 'neutro'}>{vigente ? `Hasta ${formatoFecha(expira)}` : 'Sin acceso'}</Badge> : '—'}</Td>
-                    <Td>
-                      <div className="flex flex-wrap justify-end gap-1.5">
-                        <Button variant="ghost" onClick={() => setAccion({ tipo: 'historial', id: p.usuarioId })} className="!px-3 !py-1.5 !text-[12.5px]">
-                          Historial
-                        </Button>
-                        {admin && (
-                          <>
-                            <Button variant="ghost" onClick={() => setAccion({ tipo: 'extender', id: p.usuarioId })} className="!px-3 !py-1.5 !text-[12.5px]">
-                              {vigente ? 'Extender' : 'Dar acceso'}
-                            </Button>
-                            <Button variant="ghost" onClick={() => setAccion({ tipo: 'supervisor', id: p.usuarioId })} className="!px-3 !py-1.5 !text-[12.5px]">
-                              Supervisor
-                            </Button>
-                            {vigente && (
-                              <Button variant="ghost" onClick={() => setAccion({ tipo: 'revocar', id: p.usuarioId })} className="!px-3 !py-1.5 !text-[12.5px]">
-                                Revocar
-                              </Button>
-                            )}
-                          </>
-                        )}
+        {() => (
+          <>
+            <ul aria-label="Resumen de practicantes" className="m-0 flex list-none flex-wrap gap-2.5 p-0">
+              {resumen.map((r) => (
+                <li key={r.l} className={`inline-flex items-baseline gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold ${r.c}`}>
+                  <strong className="text-[18px] font-black">{r.n}</strong>
+                  {r.l}
+                </li>
+              ))}
+            </ul>
+            {filas.map(({ p, nombre, sup, expira, vigente }) => {
+              const habilitado = vigente && !!sup;
+              const datosTarjeta: { l: string; v: string; s: string; tono?: 'alerta' | 'ok' }[] = [
+                {
+                  l: 'Supervisor',
+                  v: sup ? (nombrePro.get(sup.supervisorId) ?? 'Profesional') : 'Sin supervisor',
+                  s: sup ? `Desde ${formatoFecha(sup.desde)}` : 'No puede atender',
+                  tono: sup ? undefined : 'alerta',
+                },
+                {
+                  l: 'Práctica',
+                  v: `${formatoFecha(String(p.fechaInicio).slice(0, 10))} al ${formatoFecha(String(p.fechaTerminoPractica).slice(0, 10))}`,
+                  s: 'Según el convenio con la universidad',
+                },
+              ];
+              if (admin)
+                datosTarjeta.push({
+                  l: 'Acceso',
+                  v: vigente ? `Hasta ${formatoFecha(expira!)}` : 'Sin acceso',
+                  s: vigente ? 'Se cierra solo en esa fecha' : expira ? `Venció el ${formatoFecha(expira)}` : 'Nunca se otorgó',
+                  tono: vigente ? 'ok' : 'alerta',
+                });
+              return (
+                <section key={p.usuarioId} aria-label={nombre} className="flex flex-col gap-3.5 rounded-lg border border-divider bg-bg p-5 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-3.5">
+                    <Avatar name={nombre} size={52} tone="patient" />
+                    <div className="flex min-w-0 flex-[1_1_240px] flex-col">
+                      <strong className="text-[19px] font-black tracking-[-0.02em]">{nombre}</strong>
+                      <span className="text-[13px] font-semibold text-neutral-800">Práctica profesional supervisada</span>
+                    </div>
+                    {admin && (
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-[14px] px-3.5 py-2 text-[13.5px] font-extrabold ${
+                          habilitado ? 'bg-accent-2-200 text-accent-2-900' : 'bg-accent-200 text-accent-900'
+                        }`}
+                      >
+                        <span aria-hidden className="size-2.5 rounded-full bg-current" />
+                        {habilitado ? 'Habilitado para atender' : vigente ? 'Sin supervisor asignado' : 'Sin acceso'}
+                      </span>
+                    )}
+                  </div>
+                  <dl className="m-0 grid gap-2.5 sm:grid-cols-3">
+                    {datosTarjeta.map((d) => (
+                      <div key={d.l} className="flex flex-col gap-0.5 rounded-[16px] bg-neutral-100 p-3">
+                        <dt className="text-[11px] font-extrabold tracking-[0.08em] text-neutral-700 uppercase">{d.l}</dt>
+                        <dd
+                          className={`m-0 text-[14px] font-extrabold ${d.tono === 'alerta' ? 'text-accent-800' : d.tono === 'ok' ? 'text-accent-2-800' : ''}`}
+                        >
+                          {d.v}
+                        </dd>
+                        <dd className="m-0 text-[11.5px] font-semibold text-neutral-700">{d.s}</dd>
                       </div>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Tabla>
+                    ))}
+                  </dl>
+                  <div className="flex flex-wrap gap-1.5">
+                    {admin && !vigente && (
+                      <Button variant="team" onClick={() => setAccion({ tipo: 'extender', id: p.usuarioId })} className={boton}>
+                        Dar acceso
+                      </Button>
+                    )}
+                    <Button variant="secondary" onClick={() => setAccion({ tipo: 'historial', id: p.usuarioId })} className={boton}>
+                      Historial
+                    </Button>
+                    {admin && vigente && (
+                      <Button variant="secondary" onClick={() => setAccion({ tipo: 'extender', id: p.usuarioId })} className={boton}>
+                        Extender acceso
+                      </Button>
+                    )}
+                    {admin && (
+                      <Button variant="secondary" onClick={() => setAccion({ tipo: 'supervisor', id: p.usuarioId })} className={boton}>
+                        Cambiar supervisor
+                      </Button>
+                    )}
+                    {admin && vigente && (
+                      <Button variant="ghost" onClick={() => setAccion({ tipo: 'revocar', id: p.usuarioId })} className={`${boton} !text-accent-800`}>
+                        Revocar acceso
+                      </Button>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+            <p className="m-0 px-1.5 text-[12px] font-semibold text-neutral-700">
+              Un practicante solo atiende con acceso vigente, supervisor asignado y el consentimiento de cada paciente. Cambiar el supervisor no mueve sus
+              sesiones: avisa a sus pacientes, que pueden oponerse dentro del plazo del centro.
+            </p>
+          </>
         )}
       </EstadoConsulta>
       {accion && (
@@ -111,7 +170,7 @@ export function PracticantesEquipo({ rol }: { rol: Rol }) {
   );
 }
 
-function AccionPracticante({
+export function AccionPracticante({
   tipo,
   id,
   nombre,

@@ -149,26 +149,38 @@ test('Notificaciones: datos con llaves simples', async ({ page }) => {
   await expect(page.getByRole('textbox', { name: 'Mensaje' })).not.toHaveValue(/\{\{/);
 });
 
-test('Equipo: ficha de un profesional con revisiones y cuenta; practicantes con fecha de acceso', async ({ page }) => {
+test('Equipo (diseño "version 1"): lista con estado de validacion, ficha con validacion paso a paso y practicantes en tarjetas', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/equipo');
-  // 03b-4.1 (pendientes 1 y 2): tira agrupada por rol y "Rol dentro del centro" en pastillas.
-  await expect(page.getByRole('group', { name: 'Profesional', exact: true })).toBeVisible();
-  // La tira se desplaza dentro de su caja: la pagina no queda con scroll horizontal.
+  const lista = page.getByRole('region', { name: 'Integrantes' });
+  await expect(lista.getByRole('group', { name: 'Profesionales' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Resumen del equipo' })).toContainText('integrantes');
+  // Sin scroll horizontal de la pagina.
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.getByRole('button', { name: /Profesional Uno/ }).click();
-  await expect(page.getByRole('heading', { name: 'Tipos de atención y especialidades' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Cuenta' })).toBeVisible();
+  await lista.getByRole('button', { name: /Profesional Uno/ }).click();
+  await expect(page.getByRole('heading', { name: 'Validación' })).toBeVisible();
+  await expect(page.getByText('Registro en la Superintendencia (RNPI)')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Perfil público' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Administrativo' })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Rol dentro del centro' })).toContainText('Profesional· principal');
-  await page
-    .locator('label')
-    .filter({ hasText: /Ver lista$/ })
-    .click();
-  await expect(page.getByRole('group', { name: 'Profesional', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Profesional Uno/ })).toBeVisible();
-  await page.locator('label').filter({ hasText: /Tira$/ }).click();
-  await page.getByRole('tab', { name: 'Practicantes' }).click();
-  await expect(page.getByRole('table', { name: 'Practicantes' })).toBeVisible();
+  // Pedir una correccion: no edita el perfil; abre una conversacion en Mensajes.
+  await page.getByRole('button', { name: 'Pedir una corrección' }).click();
+  await page.getByRole('button', { name: 'Frase destacada', exact: true }).click();
+  await page.getByLabel('Motivo').fill('Revisa la ortografía de la frase (prueba e2e).');
+  await page.getByRole('button', { name: 'Enviar al profesional' }).click();
+  // Primera vez: pedida. Si ya se habia pedido sin cambios, ofrece corregirla (segunda solicitud).
+  await expect(page.getByRole('status').filter({ hasText: /Corrección pedida|segunda solicitud/ })).toBeVisible();
+  // Agenda en popup (mismo de Fichas y pacientes) y encabezado fijo.
+  await page.getByRole('button', { name: 'Ver su agenda' }).click();
+  await expect(page.getByRole('dialog', { name: /Agenda de/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  // Filtro "Vencidos": solo el practicante con el acceso vencido.
+  await lista.getByRole('button', { name: 'Vencidos' }).click();
+  await expect(lista.getByRole('button', { name: /Practicante Expirado/ })).toBeVisible();
+  await expect(lista.getByRole('button', { name: /Profesional Uno/ })).toHaveCount(0);
+  await page.getByRole('tab', { name: /Practicantes/ }).click();
+  await expect(page.getByRole('list', { name: 'Resumen de practicantes' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Practicante Demo' })).toContainText('Hasta');
 });
 
 test('Match: preguntas del cuestionario, filtro directo y metricas', async ({ page }) => {
@@ -215,9 +227,9 @@ test('Mi perfil del profesional (diseño "Moderno A"): lienzo editable con inspe
   await expect(lienzo).not.toContainText('Frase de prueba en vivo');
   await expect(editor.getByRole('heading', { name: 'Sobre mí' })).toBeVisible();
 
-  // Formacion: un titulo nuevo pide el enlace a su respaldo.
+  // Formacion: un titulo nuevo pide subir su respaldo (archivo, 2026-11-07).
   await lienzo.getByRole('button', { name: 'Editar Formación' }).click();
-  await expect(editor.getByLabel('Enlace al respaldo del título')).toBeVisible();
+  await expect(editor.getByLabel('Respaldo del título')).toBeVisible();
 
   // Asi lo ven los pacientes: la pagina publica con lo guardado.
   await page.getByRole('button', { name: 'Ver cómo me ven los pacientes' }).click();

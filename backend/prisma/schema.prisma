@@ -250,6 +250,12 @@ model Usuario {
   candidatosPropuestos       DerivacionCandidato[]        @relation("CandidatoPropuestoPor")
   trayectoria                ProfesionalTrayectoria[]     @relation("TrayectoriaProfesional")
   trayectoriasVerificadas    ProfesionalTrayectoria[]     @relation("TrayectoriaVerificadaPor")
+  respaldosTrayectoria       TrayectoriaRespaldo[]
+  trayectoriasObservadas     ProfesionalTrayectoria[]     @relation("TrayectoriaObservadaPor")
+  documentosPracticante      PracticanteDocumento[]       @relation("DocumentosPracticante")
+  documentosSubidos          PracticanteDocumento[]       @relation("DocumentosPracticanteSubidos")
+  correccionesRecibidas      CorreccionPerfil[]           @relation("CorreccionesRecibidas")
+  correccionesPedidas        CorreccionPerfil[]           @relation("CorreccionesPedidas")
   datosPrivados              ProfesionalDatosPrivados?
   tarifas                    Tarifa[]
   disponibilidad             DisponibilidadProfesional[]
@@ -449,6 +455,8 @@ model Sesion {
   usadaEn          DateTime? @map("usada_en") @db.Timestamptz(6)
   revocadaEn       DateTime? @map("revocada_en") @db.Timestamptz(6)
   motivoRevocacion String?   @map("motivo_revocacion")
+  /// 2026-11-07: resumen del navegador ("Chrome en Windows"), sin IP ni User-Agent completo.
+  dispositivo      String?
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
 
@@ -1532,18 +1540,48 @@ model ProfesionalTrayectoria {
   institucion              String
   anio                     Int
   registroSuperintendencia String?         @map("registro_superintendencia")
+  /// Historico (2026-11-07): enlace del respaldo anterior al archivo; la API ya no lo recibe ni cuenta para verificar.
   documentoRespaldoUrl     String?         @map("documento_respaldo_url")
   verificado               Boolean         @default(false)
   verificadoPorId          String?         @map("verificado_por_id") @db.Uuid
   verificadoEn             DateTime?       @map("verificado_en") @db.Timestamptz(6)
+  /// 2026-11-08: observacion de la cuenta madre sobre el respaldo (observar_trayectoria); se limpia con un respaldo nuevo o al verificar.
+  observacion              String?
+  observadaEn              DateTime?       @map("observada_en") @db.Timestamptz(6)
+  observadaPorId           String?         @map("observada_por_id") @db.Uuid
   createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profesional   Usuario  @relation("TrayectoriaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  verificadoPor Usuario? @relation("TrayectoriaVerificadaPor", fields: [verificadoPorId], references: [id], onDelete: Restrict)
+  profesional   Usuario               @relation("TrayectoriaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  verificadoPor Usuario?              @relation("TrayectoriaVerificadaPor", fields: [verificadoPorId], references: [id], onDelete: Restrict)
+  observadaPor  Usuario?              @relation("TrayectoriaObservadaPor", fields: [observadaPorId], references: [id], onDelete: Restrict)
+  respaldos     TrayectoriaRespaldo[]
 
   @@index([profesionalId])
   @@map("profesional_trayectoria")
+}
+
+/// Respaldo de un titulo (A, 2026-11-07): archivo PDF, PNG o JPEG cifrado
+/// (IDENTIFICACION, base64) con AAD; id generado por la API. Escritura solo
+/// via subir_respaldo_trayectoria (version nueva, deja el titulo en revision);
+/// leen el propio y ADMIN/GESTION. Verificar un titulo exige un respaldo. Se
+/// borra solo con su titulo (CASCADE: el propio lo elimina o cerrar_cuenta).
+model TrayectoriaRespaldo {
+  id            String   @id @db.Uuid
+  trayectoriaId String   @map("trayectoria_id") @db.Uuid
+  profesionalId String   @map("profesional_id") @db.Uuid
+  nombreArchivo String   @map("nombre_archivo")
+  tipoMime      String   @map("tipo_mime")
+  tamanoBytes   Int      @map("tamano_bytes")
+  /// cifrado (IDENTIFICACION): el archivo en base64
+  contenido     Bytes
+  subidoEn      DateTime @default(now()) @map("subido_en") @db.Timestamptz(6)
+
+  trayectoria ProfesionalTrayectoria @relation(fields: [trayectoriaId], references: [id], onDelete: Cascade)
+  profesional Usuario                @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+
+  @@index([trayectoriaId])
+  @@map("trayectoria_respaldos")
 }
 
 /// Datos privados (A, todo cifrado FINANCIERO salvo rut IDENTIFICACION).
@@ -3272,4 +3310,55 @@ model DestinatarioExportacion {
 
   @@index([exportacionId])
   @@map("destinatarios_exportacion")
+}
+
+/// Documentos del practicante (A, 2026-11-08): certificado de alumno regular y
+/// convenio de practica, cifrados (IDENTIFICACION) y versionados. Suben el
+/// propio y ADMIN (subir_documento_practicante); leen el propio, ADMIN y
+/// GESTION. No habilitan ni cortan el acceso. cerrar_cuenta los borra.
+model PracticanteDocumento {
+  id            String                   @id @db.Uuid
+  practicanteId String                   @map("practicante_id") @db.Uuid
+  tipo          TipoDocumentoPracticante
+  nombreArchivo String                   @map("nombre_archivo")
+  tipoMime      String                   @map("tipo_mime")
+  tamanoBytes   Int                      @map("tamano_bytes")
+  /// cifrado (IDENTIFICACION): el archivo en base64
+  contenido     Bytes
+  vigenteHasta  DateTime?                @map("vigente_hasta") @db.Date
+  subidoPorId   String                   @map("subido_por_id") @db.Uuid
+  subidoEn      DateTime                 @default(now()) @map("subido_en") @db.Timestamptz(6)
+
+  practicante Usuario @relation("DocumentosPracticante", fields: [practicanteId], references: [id], onDelete: Restrict)
+  subidoPor   Usuario @relation("DocumentosPracticanteSubidos", fields: [subidoPorId], references: [id], onDelete: Restrict)
+
+  @@index([practicanteId])
+  @@map("practicante_documentos")
+}
+
+enum TipoDocumentoPracticante {
+  CERTIFICADO_ALUMNO_REGULAR
+  CONVENIO_PRACTICA
+
+  @@map("tipo_documento_practicante")
+}
+
+/// Correcciones del perfil publico (B, 2026-11-08): PEDIDA (la cuenta madre pide
+/// corregir un campo) y APLICADA (la cuenta madre lo corrige a la segunda
+/// solicitud sin cambios, corregir_campo_perfil). huella = md5 del valor.
+model CorreccionPerfil {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId String   @map("profesional_id") @db.Uuid
+  campo         String
+  accion        String
+  motivo        String
+  huella        String
+  autorId       String   @map("autor_id") @db.Uuid
+  creadaEn      DateTime @default(now()) @map("creada_en") @db.Timestamptz(6)
+
+  profesional Usuario @relation("CorreccionesRecibidas", fields: [profesionalId], references: [id], onDelete: Restrict)
+  autor       Usuario @relation("CorreccionesPedidas", fields: [autorId], references: [id], onDelete: Restrict)
+
+  @@index([profesionalId, campo])
+  @@map("correcciones_perfil")
 }

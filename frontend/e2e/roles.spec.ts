@@ -32,10 +32,12 @@ const MENU_ADMIN = [
   'Agenda y Espacios',
   'Match Terapéutico',
   'Cobros',
+  'Equipo',
   'Configuración',
   'Página pública',
 ];
 // 2026-10-27: la seccion Centro (Configuracion y Pagina publica) es solo de la cuenta madre.
+// 2026-11-05: Centro suma Equipo (gestion de profesionales) para la cuenta madre.
 const MENU_GESTION = ['Inicio', 'Mi perfil', 'Mensajes', 'Fichas y Pacientes', 'Agenda y Espacios', 'Equipo', 'Cobros'];
 // 2026-10-29: Equipo es solo de ADMIN/GESTION.
 const MENU_CLINICO = MENU_GESTION.filter((m) => m !== 'Equipo');

@@ -55,6 +55,7 @@ describe('03a alineacion con el diseño', () => {
       .put('/api/profesionales/yo/perfil')
       .set(await tk(u))
       .send({ ...perfil, perfilPublico: true });
+    await t.datos.validar(u.id);
     expect(r.status).toBe(200);
     await t
       .http()

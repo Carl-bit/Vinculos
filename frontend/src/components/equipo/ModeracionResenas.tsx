@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Estrellas } from '@/components/ui/Estrellas';
 import { Input } from '@/components/ui/Field';
 import { api, datos } from '@/lib/api/cliente';
+import type { components } from '@/lib/api/esquema';
 import { ApiError } from '@/lib/api/errores';
 import { useProfesionales } from '@/lib/consultas';
 import { formatoFecha } from '@/lib/formato';
@@ -19,6 +20,23 @@ const ESTADO = {
   OCULTA: { texto: 'Oculta', tono: 'neutro' },
   RETIRADA: { texto: 'Retirada', tono: 'neutro' },
 } as const;
+
+type Resena = components['schemas']['ResenaParaModerar'];
+type Filtro = 'todas' | 'pendientes' | 'publicadas' | 'ocultas' | 'reportadas';
+const FILTROS: [Filtro, string][] = [
+  ['todas', 'Todas'],
+  ['pendientes', 'Por moderar'],
+  ['publicadas', 'Publicadas'],
+  ['ocultas', 'Ocultas'],
+  ['reportadas', 'Reportadas'],
+];
+const CUMPLE: Record<Filtro, (r: Resena) => boolean> = {
+  todas: () => true,
+  pendientes: (r) => r.estado === 'PENDIENTE',
+  publicadas: (r) => r.estado === 'PUBLICADA',
+  ocultas: (r) => r.estado === 'OCULTA',
+  reportadas: (r) => r.reportes.length > 0,
+};
 
 /**
  * Moderacion de reseñas (D-1, solo ADMIN): antes de publicarse en el perfil, o
@@ -33,6 +51,7 @@ export function ModeracionResenas() {
   const [ocultando, setOcultando] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState<string>();
+  const [filtro, setFiltro] = useState<Filtro>('todas');
   const moderar = useMutation({
     mutationFn: ({ id, publicar }: { id: string; publicar: boolean }) =>
       datos(api.POST('/api/resenas/{id}/moderacion', { params: { path: { id } }, body: { publicar, motivo: publicar ? undefined : motivo.trim() } })),
@@ -47,80 +66,104 @@ export function ModeracionResenas() {
   });
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div role="group" aria-label="Filtrar reseñas" className="flex flex-wrap gap-1.5">
+          {FILTROS.map(([v, l]) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={filtro === v}
+              onClick={() => setFiltro(v)}
+              className={`min-h-10 cursor-pointer rounded-full px-4 text-[13px] font-extrabold ${filtro === v ? 'bg-bg shadow-md' : 'hover:bg-neutral-200'}`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        <span className="ml-auto max-w-[560px] text-[12.5px] font-semibold text-neutral-700">
+          Solo pueden dejar reseña pacientes con al menos una sesión. No se editan: se publican o se ocultan con motivo.
+        </span>
+      </div>
       {error && (
         <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
           {error}
         </p>
       )}
-      <EstadoConsulta consulta={cola} vacio={(l) => l.length === 0} textoVacio="No hay reseñas por moderar">
+      <EstadoConsulta
+        consulta={cola}
+        vacio={(l) => l.filter((r) => CUMPLE[filtro](r)).length === 0}
+        textoVacio={filtro === 'todas' ? 'No hay reseñas todavía' : 'No hay reseñas con este filtro'}
+      >
         {(l) =>
-          l.map((r) => {
-            const e = ESTADO[r.estado];
-            return (
-              <article key={r.id} className="flex flex-col gap-3 rounded-lg border border-divider bg-bg px-5 py-4 shadow-sm">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Estrellas valor={r.calificacion} />
-                  <span className="text-[13.5px] font-extrabold">{nombre.get(r.profesional_id) ?? 'Profesional'}</span>
-                  <span className="text-[12.5px] font-semibold text-neutral-700">{formatoFecha(r.creada_en)}</span>
-                  <Badge tono={e.tono} className="ml-auto">
-                    {e.texto}
-                  </Badge>
-                </div>
-                {r.texto ? (
-                  <p className="m-0 text-[14px] leading-relaxed text-neutral-800">{r.texto}</p>
-                ) : (
-                  <p className="m-0 text-[13px] font-semibold text-neutral-700">Sin comentario, solo calificación.</p>
-                )}
-                {r.reportes.length > 0 && (
-                  <div className="rounded-[14px] border border-accent-500 bg-accent-100 px-3.5 py-2.5 text-[13px] font-semibold text-accent-900">
-                    {r.reportes.length === 1 ? '1 reporte' : `${r.reportes.length} reportes`}: {r.reportes.map((x) => x.motivo).join(' · ')}
+          l
+            .filter((r) => CUMPLE[filtro](r))
+            .map((r) => {
+              const e = ESTADO[r.estado];
+              return (
+                <article key={r.id} className="flex flex-col gap-3 rounded-lg border border-divider bg-bg px-5 py-4 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Estrellas valor={r.calificacion} />
+                    <span className="text-[13.5px] font-extrabold">{nombre.get(r.profesional_id) ?? 'Profesional'}</span>
+                    <span className="text-[12.5px] font-semibold text-neutral-700">{formatoFecha(r.creada_en)}</span>
+                    <Badge tono={e.tono} className="ml-auto">
+                      {e.texto}
+                    </Badge>
                   </div>
-                )}
-                {ocultando === r.id ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input
-                      aria-label="Motivo para ocultar"
-                      placeholder="Motivo (queda registrado)"
-                      value={motivo}
-                      maxLength={500}
-                      onChange={(ev) => setMotivo(ev.target.value)}
-                      className="!min-w-[240px] flex-1 !py-2"
-                    />
-                    <Button variant="ghost" onClick={() => setOcultando(null)}>
-                      Volver
-                    </Button>
-                    <Button
-                      variant="team"
-                      disabled={motivo.trim().length < 3}
-                      loading={moderar.isPending}
-                      onClick={() => moderar.mutate({ id: r.id, publicar: false })}
-                    >
-                      Ocultar
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {r.estado !== 'OCULTA' && (
-                      <Button variant="ghost" icon="visibility_off" onClick={() => setOcultando(r.id)} className="!py-2">
-                        Ocultar
+                  {r.texto ? (
+                    <p className="m-0 text-[14px] leading-relaxed text-neutral-800">{r.texto}</p>
+                  ) : (
+                    <p className="m-0 text-[13px] font-semibold text-neutral-700">Sin comentario, solo calificación.</p>
+                  )}
+                  {r.reportes.length > 0 && (
+                    <div className="rounded-[14px] border border-accent-500 bg-accent-100 px-3.5 py-2.5 text-[13px] font-semibold text-accent-900">
+                      {r.reportes.length === 1 ? '1 reporte' : `${r.reportes.length} reportes`}: {r.reportes.map((x) => x.motivo).join(' · ')}
+                    </div>
+                  )}
+                  {ocultando === r.id ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        aria-label="Motivo para ocultar"
+                        placeholder="Motivo (queda registrado)"
+                        value={motivo}
+                        maxLength={500}
+                        onChange={(ev) => setMotivo(ev.target.value)}
+                        className="!min-w-[240px] flex-1 !py-2"
+                      />
+                      <Button variant="ghost" onClick={() => setOcultando(null)}>
+                        Volver
                       </Button>
-                    )}
-                    {r.estado !== 'PUBLICADA' && (
                       <Button
                         variant="team"
-                        icon="check"
+                        disabled={motivo.trim().length < 3}
                         loading={moderar.isPending}
-                        onClick={() => moderar.mutate({ id: r.id, publicar: true })}
-                        className="!py-2"
+                        onClick={() => moderar.mutate({ id: r.id, publicar: false })}
                       >
-                        Publicar
+                        Ocultar
                       </Button>
-                    )}
-                  </div>
-                )}
-              </article>
-            );
-          })
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {r.estado !== 'OCULTA' && (
+                        <Button variant="ghost" icon="visibility_off" onClick={() => setOcultando(r.id)} className="!py-2">
+                          Ocultar
+                        </Button>
+                      )}
+                      {r.estado !== 'PUBLICADA' && (
+                        <Button
+                          variant="team"
+                          icon="check"
+                          loading={moderar.isPending}
+                          onClick={() => moderar.mutate({ id: r.id, publicar: true })}
+                          className="!py-2"
+                        >
+                          Publicar
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })
         }
       </EstadoConsulta>
     </div>

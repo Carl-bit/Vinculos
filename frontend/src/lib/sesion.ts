@@ -23,7 +23,12 @@ export type SesionActiva = Omit<Tokens, 'refreshToken' | 'codigosRespaldo'>;
 /** Respuesta de un ingreso completo: la primera verificacion trae los codigos de respaldo (solo se muestran una vez). */
 export type Ingreso = SesionActiva & { codigosRespaldo?: string[] };
 
-export type EstadoSesion = { tipo: 'desconocida' } | { tipo: 'anonima'; motivo?: 'inactividad' } | { tipo: 'activa'; sesion: SesionActiva };
+/**
+ * Por que se cerro: inactividad (30 min), otro ingreso con la misma cuenta
+ * (sesion unica, 2026-11-07) o cambio de contraseña (la BD cierra todas las sesiones).
+ */
+export type MotivoCierre = 'inactividad' | 'otro-ingreso' | 'clave-cambiada';
+export type EstadoSesion = { tipo: 'desconocida' } | { tipo: 'anonima'; motivo?: MotivoCierre } | { tipo: 'activa'; sesion: SesionActiva };
 
 let estado: EstadoSesion = { tipo: 'desconocida' };
 const oyentes = new Set<() => void>();
@@ -158,14 +163,21 @@ export const activarCuenta = (token: string, password: string) => entrar('activa
 
 /** Renueva con la cookie. Una sola request en vuelo aunque varias la pidan (401 en paralelo). */
 export function renovarSesion(): Promise<SesionActiva | null> {
-  renovando ??= pedir<SesionActiva>('refresh')
+  renovando ??= pedir<SesionActiva | undefined>('refresh')
     .then((sesion) => {
+      // 204: no hay cookie de sesion.
+      if (!sesion) {
+        fijar({ tipo: 'anonima' });
+        return null;
+      }
       fijar({ tipo: 'activa', sesion });
       return sesion;
     })
     .catch((error: unknown) => {
       // Sin red o API caida: no se cierra la sesion por un error transitorio.
-      if (error instanceof ApiError && (error.status === 401 || error.status === 400)) fijar({ tipo: 'anonima' });
+      if (error instanceof ApiError && (error.status === 401 || error.status === 400))
+        // Sesion unica: la API dice si la cerro otro ingreso con la misma cuenta.
+        fijar({ tipo: 'anonima', motivo: (error.cuerpo as { motivo?: string }).motivo === 'NUEVA_SESION' ? 'otro-ingreso' : undefined });
       else if (estado.tipo === 'desconocida') fijar({ tipo: 'anonima' });
       return null;
     })
@@ -183,7 +195,7 @@ export async function cambiarRol(rol: Rol): Promise<SesionActiva> {
 }
 
 /** Cierra la sesion (revoca el refresh en la API) y avisa a las demas pestañas. */
-export async function cerrarSesion(motivo?: 'inactividad'): Promise<void> {
+export async function cerrarSesion(motivo?: MotivoCierre): Promise<void> {
   try {
     await pedir('logout');
   } catch {

@@ -36,6 +36,7 @@ describe('03b agenda publica', () => {
           .send({ ...perfil, perfilPublico: true })
       ).status,
     ).toBe(200);
+    await t.datos.validar(u.id);
     await t
       .http()
       .put(`/api/profesionales/${u.id}/tipos-atencion`)

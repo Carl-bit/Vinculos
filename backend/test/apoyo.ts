@@ -81,6 +81,8 @@ export async function crearApp(extra: Record<string, string> = {}, modulosExtra:
     if (r.status !== 200) {
       throw new Error(`login de prueba fallo (${r.status}) para ${u.rol}`);
     }
+    // Sesion unica (2026-11-07): este login cerro la sesion anterior de la cuenta (y su token guardado).
+    tokens.delete(u.id);
     return r.body as { accessToken: string; refreshToken: string; rol: Rol; roles: Rol[] };
   };
   return {
@@ -252,6 +254,21 @@ export class Fixtures {
     const p = await this.paciente(profesionalId, opciones);
     const u = await this.usuario('PACIENTE', { pacienteId: p.id });
     return { ...u, pacienteId: p.id, fichaId: p.fichaId };
+  }
+
+  /**
+   * 2026-11-08: el sitio publico solo muestra profesionales validados por la
+   * cuenta madre (registro SIS y titulo verificados). Dato de prueba como dueño.
+   */
+  async validar(profesionalId: string) {
+    const numero = String(Math.floor(Math.random() * 9_000_000) + 1_000_000);
+    await this.dueno.$executeRaw`
+      INSERT INTO registros_sis (profesional_id, numero, estado, metodo, verificado_en)
+      VALUES (${profesionalId}::uuid, ${numero}, 'VERIFICADO_AUTOMATICO', 'AUTOMATICO', now())
+      ON CONFLICT (profesional_id) DO NOTHING`; // si ya informo y verificaron su registro, se respeta
+    await this.dueno.$executeRaw`
+      INSERT INTO profesional_trayectoria (profesional_id, tipo, titulo, institucion, anio, verificado, verificado_por_id, verificado_en)
+      VALUES (${profesionalId}::uuid, 'TITULO', 'Psicologo (prueba)', 'U. de Prueba', 2015, true, ${profesionalId}::uuid, now())`;
   }
 
   /**

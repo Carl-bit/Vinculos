@@ -28,6 +28,7 @@ const COSTO_BCRYPT = 12;
 /** Cubre los 10 minutos del codigo por correo y un reenvio. */
 const DESAFIO_MINUTOS = 15;
 const CODIGO_INVALIDO = 'El código no es válido o venció. Puedes pedir uno nuevo.';
+const SESION_REEMPLAZADA = 'Tu sesión se cerró porque se inició sesión con tu cuenta en otro navegador o dispositivo.';
 type Metodo = DesafioSegundoFactor['metodo'];
 
 /**
@@ -53,6 +54,12 @@ type Metodo = DesafioSegundoFactor['metodo'];
  * opcional para pacientes y responsables; la primera verificacion entrega 10
  * codigos de respaldo. El TOTP de 03a queda tras TOTP_HABILITADO (apagado):
  * sus rutas responden 404 y el login nunca lo pide.
+ *
+ * 2026-11-07 (docs/api/sesion_unica_conexiones.md): una sola sesion por
+ * usuario. crear_sesion cierra la anterior (NUEVA_SESION); el access token
+ * lleva la familia (`sid`) y cada request exige sesion_vigente(sid), asi que
+ * la sesion cerrada deja de servir de inmediato. Cada sesion guarda un
+ * resumen del navegador (`dispositivo`) para el registro de conexiones.
  */
 @Injectable()
 export class AuthService {
@@ -73,7 +80,12 @@ export class AuthService {
    * persona paciente y del equipo): entra la que coincide con la contraseña.
    * Mismo mensaje en todo caso de error.
    */
-  async login(identificador: { email?: string; rut?: string }, password: string, rolPedido?: Rol): Promise<Tokens | DesafioSegundoFactor> {
+  async login(
+    identificador: { email?: string; rut?: string },
+    password: string,
+    rolPedido: Rol | undefined,
+    dispositivo: string | null,
+  ): Promise<Tokens | DesafioSegundoFactor> {
     const db = this.bd.sinContexto('login');
     const filas = identificador.rut
       ? await db.$queryRaw<Credenciales[]>`
@@ -96,11 +108,11 @@ export class AuthService {
       await db.$executeRaw`SELECT registrar_login_fallido(${this.llavero.hmacIdentificador(clave)})`.catch(() => undefined);
       throw new UnauthorizedException(NO_AUTORIZADO);
     }
-    return this.segundoPaso(fila.id, rolPedido);
+    return this.segundoPaso(fila.id, rolPedido, dispositivo);
   }
 
   /** Despues de un primer factor valido: rol de la sesion y segundo factor si corresponde. */
-  private async segundoPaso(usuarioId: string, rolPedido?: Rol): Promise<Tokens | DesafioSegundoFactor> {
+  private async segundoPaso(usuarioId: string, rolPedido: Rol | undefined, dispositivo: string | null): Promise<Tokens | DesafioSegundoFactor> {
     const roles = await this.roles(usuarioId);
     const rol = rolPedido ?? roles[0];
     if (!rol || !roles.includes(rol)) {
@@ -109,7 +121,7 @@ export class AuthService {
     const factor = await this.segundoFactor(usuarioId);
     const metodo: Metodo | null = this.totpHabilitado() && factor.activo ? 'TOTP' : factor.requerido || factor.correo ? 'CORREO' : null;
     if (!metodo) {
-      return this.abrirSesion(usuarioId, rol, roles);
+      return this.abrirSesion(usuarioId, rol, roles, dispositivo);
     }
     const desafio = await this.jwt.signAsync({ sub: usuarioId, rol, metodo, tipo: 'desafio' }, { expiresIn: DESAFIO_MINUTOS * 60, algorithm: 'HS256' });
     if (metodo === 'CORREO') {
@@ -157,10 +169,10 @@ export class AuthService {
    * codigo de respaldo. La primera verificacion por correo activa el segundo
    * factor y devuelve los 10 codigos de respaldo.
    */
-  async verificarSegundoFactor(desafio: string, codigo: string): Promise<Tokens> {
+  async verificarSegundoFactor(desafio: string, codigo: string, dispositivo: string | null): Promise<Tokens> {
     const { sub, rol, metodo } = await this.leerDesafio(desafio);
     if (metodo === 'TOTP' && !esCodigoRespaldo(codigo)) {
-      return this.verificarTotp(desafio, codigo);
+      return this.verificarTotp(desafio, codigo, dispositivo);
     }
     const db = this.bd.sinContexto('login');
     const hash = hashCodigo(this.secretoCodigos(), sub, codigo);
@@ -171,7 +183,7 @@ export class AuthService {
       throw new UnauthorizedException(CODIGO_INVALIDO);
     }
     const [{ primera }] = await db.$queryRaw<[{ primera: boolean }]>`SELECT activar_verificacion_correo(${sub}::uuid) AS primera`;
-    const tokens = await this.abrirSesion(sub, rol, await this.roles(sub));
+    const tokens = await this.abrirSesion(sub, rol, await this.roles(sub), dispositivo);
     if (!primera) {
       return tokens;
     }
@@ -201,7 +213,7 @@ export class AuthService {
   }
 
   /** Segundo factor: valida el codigo (activa el TOTP si era el enrolamiento) y abre la sesion. */
-  async verificarTotp(desafio: string, codigo: string): Promise<Tokens> {
+  async verificarTotp(desafio: string, codigo: string, dispositivo: string | null): Promise<Tokens> {
     this.exigirTotp();
     const { sub, rol } = await this.leerDesafio(desafio);
     const factor = await this.segundoFactor(sub);
@@ -212,28 +224,36 @@ export class AuthService {
     if (!factor.activo) {
       await this.bd.sinContexto('login').$executeRaw`SELECT activar_totp(${sub}::uuid)`;
     }
-    return this.abrirSesion(sub, rol, await this.roles(sub));
+    return this.abrirSesion(sub, rol, await this.roles(sub), dispositivo);
   }
 
   async refresh(refreshToken: string): Promise<Tokens> {
     const nuevo = this.nuevoRefresh();
-    const [fila] = await this.bd.sinContexto('login').$queryRaw<{ usuario_id: string; rol: Rol }[]>`
-      SELECT usuario_id::text, rol FROM rotar_sesion(${this.hash(refreshToken)}, ${this.hash(nuevo)}, ${this.vencimientoRefresh()})`;
+    const db = this.bd.sinContexto('login');
+    const [fila] = await db.$queryRaw<{ usuario_id: string; rol: Rol; familia_id: string }[]>`
+      SELECT usuario_id::text, rol, familia_id::text
+      FROM rotar_sesion(${this.hash(refreshToken)}, ${this.hash(nuevo)}, ${this.vencimientoRefresh()})`;
     if (!fila) {
+      // Por que se cerro (solo lo sabe quien tiene el token): el front avisa si fue otro ingreso.
+      const [{ motivo }] = await db.$queryRaw<[{ motivo: string | null }]>`SELECT motivo_fin_sesion(${this.hash(refreshToken)}) AS motivo`;
+      if (motivo === 'NUEVA_SESION') {
+        throw new UnauthorizedException({ message: SESION_REEMPLAZADA, motivo });
+      }
       throw new UnauthorizedException('Sesion invalida, vencida o revocada');
     }
-    return this.tokens(fila.usuario_id, fila.rol, nuevo, await this.roles(fila.usuario_id));
+    return this.tokens(fila.usuario_id, fila.rol, nuevo, await this.roles(fila.usuario_id), fila.familia_id);
   }
 
   /** Cambio de rol sin cerrar sesion: revoca la familia actual y emite tokens nuevos con el rol pedido. */
   async cambiarRol(refreshToken: string, rol: Rol): Promise<Tokens> {
     const nuevo = this.nuevoRefresh();
-    const [fila] = await this.bd.sinContexto('login').$queryRaw<{ id: string | null }[]>`
-      SELECT cambiar_rol_sesion(${this.hash(refreshToken)}, ${this.hash(nuevo)}, ${rol}::rol, ${this.vencimientoRefresh()})::text AS id`;
-    if (!fila?.id) {
+    const [fila] = await this.bd.sinContexto('login').$queryRaw<{ usuario_id: string; familia_id: string }[]>`
+      SELECT usuario_id::text, familia_id::text
+      FROM cambiar_rol_sesion(${this.hash(refreshToken)}, ${this.hash(nuevo)}, ${rol}::rol, ${this.vencimientoRefresh()})`;
+    if (!fila) {
       throw new UnauthorizedException('Sesion invalida o rol no disponible para la cuenta');
     }
-    return this.tokens(fila.id, rol, nuevo, await this.roles(fila.id));
+    return this.tokens(fila.usuario_id, rol, nuevo, await this.roles(fila.usuario_id), fila.familia_id);
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -267,42 +287,43 @@ export class AuthService {
     }
   }
 
-  async usarEnlaceAcceso(token: string): Promise<Tokens | DesafioSegundoFactor> {
+  async usarEnlaceAcceso(token: string, dispositivo: string | null): Promise<Tokens | DesafioSegundoFactor> {
     const [fila] = await this.bd.sinContexto('login').$queryRaw<{ usuario_id: string }[]>`
       SELECT usuario_id::text FROM usar_token_acceso(${hashToken(token)})`;
     if (!fila) {
       throw new UnauthorizedException(NO_AUTORIZADO);
     }
-    return this.segundoPaso(fila.usuario_id);
+    return this.segundoPaso(fila.usuario_id, undefined, dispositivo);
   }
 
   /** Activar una invitacion: fija la contraseña (o crea la cuenta del paciente/responsable) y entra. */
-  async activarInvitacion(token: string, password: string): Promise<Tokens | DesafioSegundoFactor> {
+  async activarInvitacion(token: string, password: string, dispositivo: string | null): Promise<Tokens | DesafioSegundoFactor> {
     const [fila] = await this.bd.sinContexto('login').$queryRaw<{ usuario_id: string }[]>`
       SELECT usuario_id::text FROM activar_invitacion(${hashToken(token)}, ${await bcrypt.hash(password, COSTO_BCRYPT)}, ${randomUUID()}::uuid)`;
     if (!fila) {
       throw new UnauthorizedException(NO_AUTORIZADO);
     }
-    return this.segundoPaso(fila.usuario_id);
+    return this.segundoPaso(fila.usuario_id, undefined, dispositivo);
   }
 
   async confirmarCambioCorreo(token: string): Promise<void> {
     await this.bd.sinContexto('login').$executeRaw`SELECT usar_token_cambio_correo(${hashToken(token)})`;
   }
 
-  private async abrirSesion(usuarioId: string, rol: Rol, roles: Rol[]): Promise<Tokens> {
+  private async abrirSesion(usuarioId: string, rol: Rol, roles: Rol[], dispositivo: string | null): Promise<Tokens> {
     const refreshToken = this.nuevoRefresh();
+    let familia: string;
     try {
-      // La BD valida de nuevo (cuenta cerrada, rol habilitado, supervision del practicante).
-      await this.bd.sinContexto('login').$executeRaw`
-        SELECT crear_sesion(${usuarioId}::uuid, ${rol}::rol, ${this.hash(refreshToken)}, ${this.vencimientoRefresh()})`;
+      // La BD valida de nuevo (cuenta cerrada, rol habilitado, supervision del practicante) y cierra la sesion anterior.
+      [{ familia }] = await this.bd.sinContexto('login').$queryRaw<[{ familia: string }]>`
+        SELECT crear_sesion(${usuarioId}::uuid, ${rol}::rol, ${this.hash(refreshToken)}, ${this.vencimientoRefresh()}, ${dispositivo})::text AS familia`;
     } catch (error) {
       if (esSqlstate(error, '42501')) {
         throw new UnauthorizedException(NO_AUTORIZADO);
       }
       throw error;
     }
-    return this.tokens(usuarioId, rol, refreshToken, roles);
+    return this.tokens(usuarioId, rol, refreshToken, roles, familia);
   }
 
   private async roles(usuarioId: string): Promise<Rol[]> {
@@ -345,9 +366,10 @@ export class AuthService {
     return this.config.getOrThrow<string>('JWT_SECRET');
   }
 
-  private async tokens(id: string, rol: Rol, refreshToken: string, roles: Rol[]): Promise<Tokens> {
+  /** `sid` = familia de la sesion: cada request la valida con sesion_vigente(). */
+  private async tokens(id: string, rol: Rol, refreshToken: string, roles: Rol[], familia: string): Promise<Tokens> {
     const minutos = this.config.getOrThrow<number>('JWT_ACCESO_MINUTOS');
-    const accessToken = await this.jwt.signAsync({ sub: id, rol, tipo: 'acceso' }, { expiresIn: minutos * 60, algorithm: 'HS256' });
+    const accessToken = await this.jwt.signAsync({ sub: id, rol, sid: familia, tipo: 'acceso' }, { expiresIn: minutos * 60, algorithm: 'HS256' });
     return { accessToken, refreshToken, expiraEn: minutos * 60, inactividadMinutos: this.inactividad(), rol, roles };
   }
 

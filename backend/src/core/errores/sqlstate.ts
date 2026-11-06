@@ -44,6 +44,15 @@ export const MENSAJE_POR_SQLSTATE: Record<string, string> = {
 /** Mensajes claros para las reglas que la UI necesita distinguir. */
 export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   citas_no_solapamiento_espacio: 'El box ya esta ocupado en ese horario',
+  trayectoria_verificar_con_respaldo: 'Para verificar el titulo, el profesional debe subir su respaldo (PDF o imagen)',
+  trayectoria_respaldos_archivo: 'El respaldo debe ser PDF, PNG o JPEG',
+  // 2026-11-08: equipo v1 (docs/front/equipo_validacion.md).
+  trayectoria_observacion: 'La observacion debe tener entre 3 y 500 caracteres',
+  practicante_documentos_archivo: 'El documento debe ser PDF, PNG o JPEG',
+  correcciones_perfil_valores: 'Elige campos validos del perfil y un motivo de 3 a 500 caracteres',
+  correccion_requiere_segunda_solicitud: 'La cuenta madre corrige un campo solo a la segunda solicitud sin cambios del profesional',
+  correccion_campo_editable: 'Ese campo lo corrige el profesional (la foto no la cambia la cuenta madre)',
+  correccion_valor: 'El valor no es valido para ese campo',
   citas_no_solapamiento_profesional: 'El profesional ya tiene una cita en ese horario',
   citas_margen_traslado: 'No se respeta el margen de traslado entre citas de distinta modalidad',
   citas_dentro_de_disponibilidad: 'La cita cae fuera de las horas de box que el profesional tiene apartadas',
@@ -181,6 +190,12 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
  */
 const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/fuera de la disponibilidad/, 'citas_dentro_de_disponibilidad'],
+  // 2026-11-07: trigger proteger_trayectoria (UPDATE por Prisma: el error no trae el nombre de la restriccion).
+  [/Para verificar el titulo debe tener un respaldo/, 'trayectoria_verificar_con_respaldo'],
+  [/Se corrige a la segunda solicitud/, 'correccion_requiere_segunda_solicitud'],
+  [/Ese campo no lo corrige la cuenta madre/, 'correccion_campo_editable'],
+  [/Valor invalido para el campo/, 'correccion_valor'],
+  [/Elige al menos un campo/, 'correcciones_perfil_valores'],
   // 03b
   [/Solo un profesional o practicante vigente aparta/, 'bloques_atencion_profesional'],
   [/El box no existe o esta inactivo/, 'bloques_atencion_box_activo'],

@@ -63,6 +63,7 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
             .send({ ...perfil, perfilPublico: true })
         ).status,
       ).toBe(200);
+      await t.datos.validar(p.id);
       await t.datos.disponibleSiempre(p.id);
 
       const propuesta = await t

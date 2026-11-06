@@ -4,7 +4,16 @@
     "/api/auth/login": {
       "post": {
         "operationId": "AuthController_login",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -63,7 +72,16 @@
     "/api/auth/segundo-factor": {
       "post": {
         "operationId": "AuthController_segundoFactor",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -160,7 +178,16 @@
     "/api/auth/totp": {
       "post": {
         "operationId": "AuthController_totp",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -545,7 +572,16 @@
     "/api/auth/enlace-acceso/confirmacion": {
       "post": {
         "operationId": "AuthController_usarEnlaceAcceso",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -603,7 +639,16 @@
     "/api/auth/activacion": {
       "post": {
         "operationId": "AuthController_activar",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "user-agent",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2242,6 +2287,97 @@
           }
         ],
         "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/usuarios/yo/conexiones": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "UsuariosController_conexiones",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConexionVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Registro de conexiones propias (2026-11-07, sesion unica): equipo, en\nMi cuenta > Seguridad. Solo las propias (mis_conexiones).",
         "tags": [
           "Nucleo"
         ]
@@ -19764,122 +19900,6 @@
         ]
       }
     },
-    "/api/profesionales/{id}/foto": {
-      "post": {
-        "description": "Roles: ADMIN",
-        "operationId": "PerfilesController_subirFoto",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "imagen"
-                ],
-                "properties": {
-                  "imagen": {
-                    "type": "string",
-                    "format": "binary"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FotoSubida"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "DTO invalido (class-validator) o campo no declarado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sin token, token vencido o cuenta inactiva/expirada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No existe o no es visible para el usuario (RLS)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Regla de negocio de la BD (23514, 23503)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "jwt": []
-          }
-        ],
-        "summary": "ADMIN sube la foto de otro integrante.",
-        "tags": [
-          "Equipo"
-        ]
-      }
-    },
     "/api/profesionales/yo/resenas": {
       "get": {
         "description": "Roles: PROFESIONAL",
@@ -20168,6 +20188,321 @@
           }
         ],
         "summary": "",
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/api/profesionales/{id}/correcciones": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
+        "operationId": "PerfilesController_correcciones",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CorreccionPerfilVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Pedidos y correcciones del perfil publico (2026-11-08): ADMIN/GESTION todos; el profesional los suyos.",
+        "tags": [
+          "Equipo"
+        ]
+      },
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "PerfilesController_pedirCorreccion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PedirCorreccionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudCorreccion"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "La cuenta madre pide corregir campos del perfil publico (no lo modifica).",
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/api/profesionales/{id}/correcciones/aplicacion": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "PerfilesController_corregirCampo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorregirCampoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilProfesionalVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "A la segunda solicitud del mismo campo sin cambios, la cuenta madre lo corrige (422 si no corresponde).",
         "tags": [
           "Equipo"
         ]
@@ -21598,7 +21933,828 @@
             "jwt": []
           }
         ],
+        "summary": "Verificar exige un respaldo cargado (422 sin el).",
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/api/trayectoria/{id}/observacion": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "TrayectoriaController_observar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservarTrayectoriaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrayectoriaVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Observacion de la cuenta madre sobre el respaldo: el titulo vuelve a revision (2026-11-08).",
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/api/trayectoria/{id}/respaldos": {
+      "post": {
+        "description": "Roles: PROFESIONAL, PRACTICANTE",
+        "operationId": "TrayectoriaController_subirRespaldo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "archivo"
+                ],
+                "properties": {
+                  "archivo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "PDF, PNG o JPEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrayectoriaVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Cuerpo mayor al limite (JSON 1 MB; adjuntos ADJUNTO_MAX_MB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Respaldo del titulo (2026-11-07): PDF, PNG o JPEG por contenido (422),\nhasta ADJUNTO_MAX_MB (413). Version nueva; el titulo vuelve a revision.",
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/api/trayectoria/respaldos/{id}": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "TrayectoriaController_descargarRespaldo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Descarga del respaldo: el propio y ADMIN/GESTION; queda en registro_exportaciones.",
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/api/practicantes/{id}/documentos": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PRACTICANTE",
+        "operationId": "DocumentosPracticanteController_listar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentoPracticanteVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
         "summary": "",
+        "tags": [
+          "Equipo"
+        ]
+      },
+      "post": {
+        "description": "Roles: ADMIN, PRACTICANTE",
+        "operationId": "DocumentosPracticanteController_subir",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tipo",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CERTIFICADO_ALUMNO_REGULAR",
+                "CONVENIO_PRACTICA"
+              ]
+            }
+          },
+          {
+            "name": "vigenteHasta",
+            "required": false,
+            "in": "query",
+            "description": "Solo el certificado de alumno regular: hasta cuando vale (informativo, no corta el acceso).",
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "archivo"
+                ],
+                "properties": {
+                  "archivo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "PDF, PNG o JPEG"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentoPracticanteVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Cuerpo mayor al limite (JSON 1 MB; adjuntos ADJUNTO_MAX_MB)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "PDF, PNG o JPEG por contenido (422), hasta ADJUNTO_MAX_MB (413). Tipo y vigencia en la query.",
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/api/practicantes/documentos/{id}": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PRACTICANTE",
+        "operationId": "DocumentosPracticanteController_descargar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo (Content-Disposition: attachment)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Descarga: el propio, ADMIN y GESTION; queda en registro_exportaciones.",
         "tags": [
           "Equipo"
         ]
@@ -34338,6 +35494,59 @@
           "nueva"
         ]
       },
+      "ConexionVista": {
+        "type": "object",
+        "properties": {
+          "rol": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              }
+            ]
+          },
+          "dispositivo": {
+            "type": "string",
+            "nullable": true,
+            "description": "\"Chrome en Windows\"; null si el navegador no se identifico."
+          },
+          "fin": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "motivo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Por que termino: LOGOUT, NUEVA_SESION (otro ingreso), INACTIVIDAD,\nCAMBIO_ROL, CAMBIO_CUENTA (contraseña, rol o estado), REUTILIZACION\n(token reutilizado: posible robo) o NO_VIGENTE. null si sigue activa."
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "ultimaActividad": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Ultima renovacion del token (aprox. cada JWT_ACCESO_MINUTOS mientras se usa)."
+          },
+          "activa": {
+            "type": "boolean"
+          },
+          "actual": {
+            "type": "boolean",
+            "description": "Es la sesion de esta request."
+          }
+        },
+        "required": [
+          "rol",
+          "dispositivo",
+          "fin",
+          "motivo",
+          "inicio",
+          "ultimaActividad",
+          "activa",
+          "actual"
+        ]
+      },
       "EstadoSegundoFactor": {
         "type": "object",
         "properties": {
@@ -40237,6 +41446,138 @@
           }
         }
       },
+      "CorreccionPerfilVista": {
+        "type": "object",
+        "properties": {
+          "campo": {
+            "type": "string",
+            "enum": [
+              "nombre_publico",
+              "especialidad",
+              "cita_destacada",
+              "bio",
+              "enfoques",
+              "foto_url"
+            ]
+          },
+          "accion": {
+            "type": "string",
+            "enum": [
+              "PEDIDA",
+              "APLICADA"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "profesionalId": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "autorId": {
+            "type": "string"
+          },
+          "creadaEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "campo",
+          "accion",
+          "id",
+          "profesionalId",
+          "motivo",
+          "autorId",
+          "creadaEn"
+        ]
+      },
+      "PedirCorreccionDto": {
+        "type": "object",
+        "properties": {
+          "campos": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "enum": [
+                "nombre_publico",
+                "especialidad",
+                "cita_destacada",
+                "bio",
+                "enfoques",
+                "foto_url"
+              ]
+            }
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "campos",
+          "motivo"
+        ]
+      },
+      "SolicitudCorreccion": {
+        "type": "object",
+        "properties": {
+          "campo": {
+            "type": "string",
+            "enum": [
+              "nombre_publico",
+              "especialidad",
+              "cita_destacada",
+              "bio",
+              "enfoques",
+              "foto_url"
+            ]
+          },
+          "solicitudes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "campo",
+          "solicitudes"
+        ]
+      },
+      "CorregirCampoDto": {
+        "type": "object",
+        "properties": {
+          "campo": {
+            "type": "string",
+            "enum": [
+              "nombre_publico",
+              "especialidad",
+              "cita_destacada",
+              "bio",
+              "enfoques"
+            ]
+          },
+          "valor": {
+            "type": "string",
+            "description": "Valor nuevo (enfoques separados por coma). Vacio = quitar (no para la especialidad).",
+            "maxLength": 2000
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "campo",
+          "valor",
+          "motivo"
+        ]
+      },
       "MargenDto": {
         "type": "object",
         "properties": {
@@ -40263,6 +41604,34 @@
           "OTRO"
         ]
       },
+      "RespaldoTrayectoriaVista": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "nombreArchivo": {
+            "type": "string"
+          },
+          "tipoMime": {
+            "type": "string"
+          },
+          "tamanoBytes": {
+            "type": "number"
+          },
+          "subidoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombreArchivo",
+          "tipoMime",
+          "tamanoBytes",
+          "subidoEn"
+        ]
+      },
       "TrayectoriaVista": {
         "type": "object",
         "properties": {
@@ -40279,7 +41648,8 @@
           },
           "documentoRespaldoUrl": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Historico: enlace anterior al respaldo como archivo; ya no cuenta para verificar."
           },
           "verificadoPorId": {
             "type": "string",
@@ -40289,6 +41659,27 @@
             "type": "string",
             "nullable": true,
             "format": "date-time"
+          },
+          "observacion": {
+            "type": "string",
+            "nullable": true,
+            "description": "Observacion de la cuenta madre (2026-11-08); se limpia con un respaldo nuevo o al verificar."
+          },
+          "observadaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "observadaPorId": {
+            "type": "string",
+            "nullable": true
+          },
+          "respaldos": {
+            "description": "Versiones del respaldo, de la mas reciente a la mas antigua.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RespaldoTrayectoriaVista"
+            }
           },
           "id": {
             "type": "string"
@@ -40323,6 +41714,10 @@
           "documentoRespaldoUrl",
           "verificadoPorId",
           "verificadoEn",
+          "observacion",
+          "observadaEn",
+          "observadaPorId",
+          "respaldos",
           "id",
           "profesionalId",
           "titulo",
@@ -40609,10 +42004,6 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 40
-          },
-          "documentoRespaldoUrl": {
-            "type": "string",
-            "format": "uri"
           }
         },
         "required": [
@@ -40642,6 +42033,76 @@
         },
         "required": [
           "verificado"
+        ]
+      },
+      "ObservarTrayectoriaDto": {
+        "type": "object",
+        "properties": {
+          "observacion": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "observacion"
+        ]
+      },
+      "TipoDocumentoPracticante": {
+        "type": "string",
+        "enum": [
+          "CERTIFICADO_ALUMNO_REGULAR",
+          "CONVENIO_PRACTICA"
+        ]
+      },
+      "DocumentoPracticanteVista": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TipoDocumentoPracticante"
+              }
+            ]
+          },
+          "vigenteHasta": {
+            "type": "string",
+            "nullable": true,
+            "format": "date"
+          },
+          "id": {
+            "type": "string"
+          },
+          "practicanteId": {
+            "type": "string"
+          },
+          "nombreArchivo": {
+            "type": "string"
+          },
+          "tipoMime": {
+            "type": "string"
+          },
+          "tamanoBytes": {
+            "type": "number"
+          },
+          "subidoPorId": {
+            "type": "string"
+          },
+          "subidoEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "vigenteHasta",
+          "id",
+          "practicanteId",
+          "nombreArchivo",
+          "tipoMime",
+          "tamanoBytes",
+          "subidoPorId",
+          "subidoEn"
         ]
       },
       "TipoAtencionVista": {

@@ -63,7 +63,7 @@ export function vistaPreviaPerfil(d: DatosVistaPrevia): PerfilPublicoVista {
     registro_sis: registroVerificado,
     especialidad: d.perfil.especialidad,
     enfoques: d.perfil.enfoques,
-    tipos_atencion: d.tipos.filter((t) => t.estado === 'APROBADO').map((t) => d.nombreTipo.get(t.tipoAtencionId) ?? 'Atención'),
+    tipos_atencion: d.tipos.filter((t) => t.estado === 'APROBADO').flatMap((t) => d.nombreTipo.get(t.tipoAtencionId) ?? []),
     verificado: verificada.length > 0,
     titulos_verificados: titulos.map((t) => t.titulo),
     tarifas: tarifasVigentes(d.tarifas, d.ahora).map((t) => ({

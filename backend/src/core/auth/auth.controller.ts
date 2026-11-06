@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiExtraModels, ApiOkResponse, ApiTags, getSchemaPath } from '@nestjs/swagger';
 
@@ -18,8 +18,13 @@ import {
   TotpDto,
 } from './auth.dto';
 import { AuthService } from './auth.service';
+import { resumirDispositivo } from './dispositivo';
 
-/** Login en uno o dos pasos: tokens, o desafio del segundo factor si la cuenta lo tiene. */
+/**
+ * Login en uno o dos pasos: tokens, o desafio del segundo factor si la cuenta lo tiene.
+ * Abrir sesion cierra la anterior del mismo usuario (sesion unica); el
+ * User-Agent solo se usa para el resumen "Chrome en Windows" del registro de conexiones.
+ */
 const TokensODesafio = () => ApiOkResponse({ schema: { oneOf: [{ $ref: getSchemaPath(Tokens) }, { $ref: getSchemaPath(DesafioSegundoFactor) }] } });
 import { Publico } from './decoradores';
 
@@ -44,8 +49,8 @@ export class AuthController {
   @Post('login')
   @TokensODesafio()
   @HttpCode(200)
-  login(@Body() dto: LoginDto): Promise<Tokens | DesafioSegundoFactor> {
-    return this.auth.login({ email: dto.email, rut: dto.rut }, dto.password, dto.rol);
+  login(@Body() dto: LoginDto, @Headers('user-agent') ua?: string): Promise<Tokens | DesafioSegundoFactor> {
+    return this.auth.login({ email: dto.email, rut: dto.rut }, dto.password, dto.rol, resumirDispositivo(ua));
   }
 
   /**
@@ -54,8 +59,8 @@ export class AuthController {
    */
   @Post('segundo-factor')
   @HttpCode(200)
-  segundoFactor(@Body() dto: SegundoFactorDto): Promise<Tokens> {
-    return this.auth.verificarSegundoFactor(dto.desafio, dto.codigo);
+  segundoFactor(@Body() dto: SegundoFactorDto, @Headers('user-agent') ua?: string): Promise<Tokens> {
+    return this.auth.verificarSegundoFactor(dto.desafio, dto.codigo, resumirDispositivo(ua));
   }
 
   /** "Reenviar codigo": 409 si no pasaron 60 segundos desde el anterior. */
@@ -68,8 +73,8 @@ export class AuthController {
   /** TOTP (03a): 404 mientras TOTP_HABILITADO este apagado (03b-4.1). */
   @Post('totp')
   @HttpCode(200)
-  totp(@Body() dto: TotpDto): Promise<Tokens> {
-    return this.auth.verificarTotp(dto.desafio, dto.codigo);
+  totp(@Body() dto: TotpDto, @Headers('user-agent') ua?: string): Promise<Tokens> {
+    return this.auth.verificarTotp(dto.desafio, dto.codigo, resumirDispositivo(ua));
   }
 
   /** Enrolamiento TOTP: secreto y URI otpauth para el codigo QR. 404 con TOTP apagado. */
@@ -121,16 +126,16 @@ export class AuthController {
   @Post('enlace-acceso/confirmacion')
   @TokensODesafio()
   @HttpCode(200)
-  usarEnlaceAcceso(@Body() dto: TokenDto): Promise<Tokens | DesafioSegundoFactor> {
-    return this.auth.usarEnlaceAcceso(dto.token);
+  usarEnlaceAcceso(@Body() dto: TokenDto, @Headers('user-agent') ua?: string): Promise<Tokens | DesafioSegundoFactor> {
+    return this.auth.usarEnlaceAcceso(dto.token, resumirDispositivo(ua));
   }
 
   /** Invitacion (equipo, paciente o adulto responsable): fija la contraseña y entra. */
   @Post('activacion')
   @TokensODesafio()
   @HttpCode(200)
-  activar(@Body() dto: TokenPasswordDto): Promise<Tokens | DesafioSegundoFactor> {
-    return this.auth.activarInvitacion(dto.token, dto.password);
+  activar(@Body() dto: TokenPasswordDto, @Headers('user-agent') ua?: string): Promise<Tokens | DesafioSegundoFactor> {
+    return this.auth.activarInvitacion(dto.token, dto.password, resumirDispositivo(ua));
   }
 
   /** Confirma el correo nuevo de un paciente o adulto responsable (C-9). */

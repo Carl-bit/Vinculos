@@ -760,6 +760,33 @@ export class EstadoSegundoFactor {
   codigosRespaldoRestantes!: number;
 }
 
+/**
+ * Una conexion de la propia cuenta (2026-11-07, sesion unica): una por
+ * ingreso. Sin IP: solo el resumen del navegador.
+ */
+export class ConexionVista {
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  /** "Chrome en Windows"; null si el navegador no se identifico. */
+  @ApiProperty({ type: String, nullable: true })
+  dispositivo!: string | null;
+  inicio!: Date;
+  /** Ultima renovacion del token (aprox. cada JWT_ACCESO_MINUTOS mientras se usa). */
+  ultimaActividad!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  fin!: Date | null;
+  /**
+   * Por que termino: LOGOUT, NUEVA_SESION (otro ingreso), INACTIVIDAD,
+   * CAMBIO_ROL, CAMBIO_CUENTA (contraseña, rol o estado), REUTILIZACION
+   * (token reutilizado: posible robo) o NO_VIGENTE. null si sigue activa.
+   */
+  @ApiProperty({ type: String, nullable: true })
+  motivo!: string | null;
+  activa!: boolean;
+  /** Es la sesion de esta request. */
+  actual!: boolean;
+}
+
 /** Codigos de respaldo nuevos (se muestran una sola vez). */
 export class CodigosRespaldo {
   codigos!: string[];

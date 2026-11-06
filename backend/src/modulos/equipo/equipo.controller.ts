@@ -1,8 +1,23 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 
-import { TAGS } from '../../core/docs/openapi';
+import { ErrorCuerpoGrande, RespuestaArchivo, TAGS } from '../../core/docs/openapi';
 import { Actor, Roles } from '../../core/auth/decoradores';
 import { Modulo } from '../../core/modulos/modulos';
 import type { UsuarioActual } from '../../core/bd/contexto-bd.service';
@@ -11,7 +26,11 @@ import {
   AsignarTiposAtencionDto,
   CambiarSupervisorDto,
   ComentarioDto,
+  CorregirCampoDto,
   DatosPrivadosDto,
+  DocumentoPracticanteDto,
+  ObservarTrayectoriaDto,
+  PedirCorreccionDto,
   InformarRegistroSisDto,
   VerificacionManualSisDto,
   EditarPerfilDto,
@@ -26,11 +45,14 @@ import {
   VerificarTrayectoriaDto,
 } from './dto/equipo.dto';
 import {
+  CorreccionPerfilVista,
   DatosPrivadosVista,
+  DocumentoPracticanteVista,
   FotoSubida,
   MiResenaRecibida,
   PerfilProfesionalVista,
   RegistroSisVista,
+  SolicitudCorreccion,
   SupervisionVista,
   CasoSupervision,
   ComentarioSupervision,
@@ -108,16 +130,6 @@ export class PerfilesController {
     return this.equipo.subirFoto(actor.id, exigirImagen(imagen));
   }
 
-  /** ADMIN sube la foto de otro integrante. */
-  @Post(':id/foto')
-  @Roles('ADMIN')
-  @UseInterceptors(FileInterceptor('imagen', { limits: { fileSize: IMAGEN_MAX_BYTES } }))
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', required: ['imagen'], properties: { imagen: { type: 'string', format: 'binary' } } } })
-  subirFoto(@Param('id', Uuid) id: string, @UploadedFile() imagen?: Express.Multer.File): Promise<FotoSubida> {
-    return this.equipo.subirFoto(id, exigirImagen(imagen));
-  }
-
   /** Reseñas recibidas con su estado y el feedback privado (solo el propio). */
   @Get('yo/resenas')
   @Roles('PROFESIONAL')
@@ -135,6 +147,27 @@ export class PerfilesController {
   @Roles('ADMIN', 'GESTION')
   editarPerfil(@Param('id', Uuid) id: string, @Body() dto: EditarPerfilDto): Promise<PerfilProfesionalVista> {
     return this.equipo.editarPerfil(id, dto);
+  }
+
+  /** Pedidos y correcciones del perfil publico (2026-11-08): ADMIN/GESTION todos; el profesional los suyos. */
+  @Get(':id/correcciones')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  correcciones(@Param('id', Uuid) id: string): Promise<CorreccionPerfilVista[]> {
+    return this.equipo.correcciones(id);
+  }
+
+  /** La cuenta madre pide corregir campos del perfil publico (no lo modifica). */
+  @Post(':id/correcciones')
+  @Roles('ADMIN')
+  pedirCorreccion(@Param('id', Uuid) id: string, @Body() dto: PedirCorreccionDto): Promise<SolicitudCorreccion[]> {
+    return this.equipo.pedirCorreccion(id, dto);
+  }
+
+  /** A la segunda solicitud del mismo campo sin cambios, la cuenta madre lo corrige (422 si no corresponde). */
+  @Post(':id/correcciones/aplicacion')
+  @Roles('ADMIN')
+  corregirCampo(@Param('id', Uuid) id: string, @Body() dto: CorregirCampoDto): Promise<PerfilProfesionalVista> {
+    return this.equipo.corregirCampo(id, dto);
   }
 
   @Patch(':id/margen')
@@ -227,10 +260,89 @@ export class TrayectoriaController {
     return this.equipo.eliminarTrayectoria(id);
   }
 
+  /** Verificar exige un respaldo cargado (422 sin el). */
   @Post(':id/verificacion')
   @Roles('ADMIN')
   verificar(@Param('id', Uuid) id: string, @Body() dto: VerificarTrayectoriaDto): Promise<TrayectoriaVista> {
     return this.equipo.verificarTrayectoria(id, dto.verificado);
+  }
+
+  /** Observacion de la cuenta madre sobre el respaldo: el titulo vuelve a revision (2026-11-08). */
+  @Post(':id/observacion')
+  @Roles('ADMIN')
+  observar(@Param('id', Uuid) id: string, @Body() dto: ObservarTrayectoriaDto): Promise<TrayectoriaVista> {
+    return this.equipo.observarTrayectoria(id, dto.observacion);
+  }
+
+  /**
+   * Respaldo del titulo (2026-11-07): PDF, PNG o JPEG por contenido (422),
+   * hasta ADJUNTO_MAX_MB (413). Version nueva; el titulo vuelve a revision.
+   */
+  @Post(':id/respaldos')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  @UseInterceptors(FileInterceptor('archivo'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', required: ['archivo'], properties: { archivo: { type: 'string', format: 'binary', description: 'PDF, PNG o JPEG' } } } })
+  @ErrorCuerpoGrande()
+  subirRespaldo(@Param('id', Uuid) id: string, @UploadedFile() archivo?: Express.Multer.File): Promise<TrayectoriaVista> {
+    if (!archivo) {
+      throw new BadRequestException('Falta el archivo (campo "archivo", multipart/form-data)');
+    }
+    return this.equipo.subirRespaldo(id, archivo);
+  }
+
+  /** Descarga del respaldo: el propio y ADMIN/GESTION; queda en registro_exportaciones. */
+  @Get('respaldos/:id')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  @RespuestaArchivo('application/pdf', 'image/png', 'image/jpeg')
+  async descargarRespaldo(@Param('id', Uuid) id: string) {
+    const r = await this.equipo.descargarRespaldo(id);
+    return new StreamableFile(r.contenido, { type: r.tipoMime, disposition: `attachment; filename="${encodeURIComponent(r.nombreArchivo)}"` });
+  }
+}
+
+/**
+ * Documentos del practicante (2026-11-08): certificado de alumno regular y
+ * convenio de practica. Versionados y cifrados; no habilitan ni cortan el
+ * acceso. Suben el propio y ADMIN; leen el propio, ADMIN y GESTION.
+ */
+@ApiTags(TAGS.equipo)
+@Controller('practicantes')
+@Modulo('EQUIPO')
+export class DocumentosPracticanteController {
+  constructor(private readonly equipo: EquipoService) {}
+
+  @Get(':id/documentos')
+  @Roles('ADMIN', 'GESTION', 'PRACTICANTE')
+  listar(@Param('id', Uuid) id: string): Promise<DocumentoPracticanteVista[]> {
+    return this.equipo.documentosPracticante(id);
+  }
+
+  /** PDF, PNG o JPEG por contenido (422), hasta ADJUNTO_MAX_MB (413). Tipo y vigencia en la query. */
+  @Post(':id/documentos')
+  @Roles('ADMIN', 'PRACTICANTE')
+  @UseInterceptors(FileInterceptor('archivo'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', required: ['archivo'], properties: { archivo: { type: 'string', format: 'binary', description: 'PDF, PNG o JPEG' } } } })
+  @ErrorCuerpoGrande()
+  subir(
+    @Param('id', Uuid) id: string,
+    @Query() dto: DocumentoPracticanteDto,
+    @UploadedFile() archivo?: Express.Multer.File,
+  ): Promise<DocumentoPracticanteVista> {
+    if (!archivo) {
+      throw new BadRequestException('Falta el archivo (campo "archivo", multipart/form-data)');
+    }
+    return this.equipo.subirDocumentoPracticante(id, dto, archivo);
+  }
+
+  /** Descarga: el propio, ADMIN y GESTION; queda en registro_exportaciones. */
+  @Get('documentos/:id')
+  @Roles('ADMIN', 'GESTION', 'PRACTICANTE')
+  @RespuestaArchivo('application/pdf', 'image/png', 'image/jpeg')
+  async descargar(@Param('id', Uuid) id: string) {
+    const r = await this.equipo.descargarDocumentoPracticante(id);
+    return new StreamableFile(r.contenido, { type: r.tipoMime, disposition: `attachment; filename="${encodeURIComponent(r.nombreArchivo)}"` });
   }
 }
 

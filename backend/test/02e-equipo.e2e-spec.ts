@@ -117,6 +117,15 @@ describe('02e equipo y practicantes', () => {
             .set(await tk(gestion))
             .send({ bio: 'Corregida' })
         ).status,
+      ).toBe(403); // 2026-11-08: el texto publico ajeno no se edita directo (correcciones_perfil)
+      expect(
+        (
+          await t
+            .http()
+            .patch(`/api/profesionales/${otroProfesional.id}/perfil`)
+            .set(await tk(gestion))
+            .send({ boletaReembolsable: true })
+        ).status,
       ).toBe(200);
       expect(
         (
@@ -195,7 +204,7 @@ describe('02e equipo y practicantes', () => {
   });
 
   describe('trayectoria', () => {
-    it('el propio carga; solo ADMIN verifica; editar des-verifica', async () => {
+    it('el propio carga; solo ADMIN verifica (con respaldo); editar des-verifica', async () => {
       const r = await t
         .http()
         .post('/api/trayectoria')
@@ -203,6 +212,32 @@ describe('02e equipo y practicantes', () => {
         .send({ tipo: 'TITULO', titulo: 'Psicologo', institucion: 'U. de Prueba', anio: 2015, registroSuperintendencia: '123456' });
       expect(r.status).toBe(201);
       expect(r.body.verificado).toBe(false);
+      // 2026-11-07: sin respaldo no se verifica (422); el enlace ya no se recibe (400).
+      const sinRespaldo = await t
+        .http()
+        .post(`/api/trayectoria/${r.body.id}/verificacion`)
+        .set(await tk(admin))
+        .send({ verificado: true });
+      expect(sinRespaldo.status).toBe(422);
+      expect(sinRespaldo.body.restriccion).toBe('trayectoria_verificar_con_respaldo');
+      expect(
+        (
+          await t
+            .http()
+            .post('/api/trayectoria')
+            .set(await tk(profesional))
+            .send({ tipo: 'TITULO', titulo: 'X', institucion: 'U. de Prueba', anio: 2015, documentoRespaldoUrl: 'https://drive.example/x' })
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await t
+            .http()
+            .post(`/api/trayectoria/${r.body.id}/respaldos`)
+            .set(await tk(profesional))
+            .attach('archivo', Buffer.from('%PDF-1.4 titulo'), 'titulo.pdf')
+        ).status,
+      ).toBe(201);
       expect(
         (
           await t
@@ -275,6 +310,9 @@ describe('02e equipo y practicantes', () => {
           ).body.numeroCuenta,
         ).toBe('12345678');
       }
+      // Leer los datos de otro queda auditado; el propio no (2026-11-05).
+      const lecturas = await t.dueno.registroExportacion.findMany({ where: { recurso: 'profesional_datos_privados', referenciaId: profesional.id } });
+      expect(lecturas.map((l) => l.usuarioId).sort()).toEqual([admin.id, gestion.id].sort());
       expect(
         (
           await t

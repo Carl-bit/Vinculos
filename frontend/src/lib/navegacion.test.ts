@@ -14,10 +14,16 @@ describe('menuVisible', () => {
     expect(items).toContain('Configuración');
   });
 
-  it('la cuenta madre no ve Equipo en el menu, pero conserva la ruta', () => {
+  it('la cuenta madre ve Equipo en Centro (una sola vez); GESTION en Modulos', () => {
     const todos = ['EQUIPO'] as const;
-    expect(etiquetas(menuVisible('admin', 'ADMIN', todos))).not.toContain('Equipo');
-    expect(etiquetas(menuVisible('admin', 'GESTION', todos))).toContain('Equipo');
+    const admin = menuVisible('admin', 'ADMIN', todos).filter((i) => i.etiqueta === 'Equipo');
+    expect(admin.map((i) => i.grupo)).toEqual(['centro']);
+    expect(
+      menuVisible('admin', 'GESTION', todos)
+        .filter((i) => i.etiqueta === 'Equipo')
+        .map((i) => i.grupo),
+    ).toEqual(['modulos']);
+    expect(etiquetas(menuVisible('admin', 'ADMIN', []))).not.toContain('Equipo');
     expect(rutaPermitida('admin', 'ADMIN', '/admin/equipo')).toBe(true);
     expect(conSelectorEquipo('ADMIN')).toBe(false);
     expect(conSelectorEquipo('GESTION')).toBe(true);
@@ -34,7 +40,7 @@ describe('menuVisible', () => {
 
   it('la seccion Centro es solo de la cuenta madre (ADMIN)', () => {
     const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
-    expect(menuVisible('admin', 'ADMIN', todos).filter((i) => i.grupo === 'centro')).toHaveLength(2);
+    expect(menuVisible('admin', 'ADMIN', todos).filter((i) => i.grupo === 'centro')).toHaveLength(3);
     for (const rol of ['GESTION', 'PROFESIONAL', 'PRACTICANTE'] as const) {
       expect(menuVisible('admin', rol, todos).filter((i) => i.grupo === 'centro')).toEqual([]);
     }

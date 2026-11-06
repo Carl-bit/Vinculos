@@ -18,6 +18,11 @@ Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.m
 - El rol del JWT debe coincidir con `usuarios.rol`; si no, `acceso_vigente()`
   da false y todo devuelve 0 filas. Tras cambiar rol/activo/expiracion de un
   usuario, invalidar sus sesiones.
+- Sesion unica (2026-11-07, `docs/api/sesion_unica_conexiones.md`): una
+  sesion abierta por usuario (`crear_sesion` cierra la anterior). El JWT
+  lleva `sid` (familia de la sesion) y la misma consulta que verifica
+  `acceso_vigente()` exige `sesion_vigente(sid)`: una sesion cerrada da 401
+  aunque el JWT no haya vencido; un JWT sin `sid` tambien.
 - Sin contexto solo se llaman: `credenciales_login(email)`, `perfiles_publicos()`,
   `disponibilidad_publica(...)` (portal publico), `feed_calendario(token_hash)`
   (feed iCal, 02h: el token de la URL autoriza), `consultar_recordatorio` y

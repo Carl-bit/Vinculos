@@ -27,6 +27,15 @@ export async function pedirArchivo(ruta: string, cuerpo: unknown): Promise<Blob>
   return r.blob();
 }
 
+/** Archivo de la API para verlo en pantalla (GET, mismo registro de descargas que bajarlo). */
+export async function obtenerArchivo(ruta: string): Promise<Blob> {
+  const pedir = () => fetch(ruta, { headers: { Authorization: `Bearer ${accessToken() ?? ''}` }, cache: 'no-store' });
+  let r = await pedir();
+  if (r.status === 401 && (await renovarSesion())) r = await pedir();
+  if (!r.ok) throw new ApiError(r.status, (await r.json().catch(() => ({}))) as Partial<ErrorRespuesta>);
+  return r.blob();
+}
+
 export async function descargarArchivo(ruta: string, nombrePorDefecto: string): Promise<ResultadoDescarga> {
   const pedir = () => fetch(ruta, { headers: { Authorization: `Bearer ${accessToken() ?? ''}` }, cache: 'no-store' });
   try {

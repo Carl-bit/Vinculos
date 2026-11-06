@@ -16,5 +16,10 @@ export function BarraFlotante({ etiqueta, children }: { etiqueta: string; childr
 /** Separador vertical entre grupos de la barra. */
 export const SeparadorBarra = () => <span aria-hidden className="mx-1 hidden h-6 w-px bg-divider sm:block" />;
 
-/** Fondo de lienzo punteado de Mi perfil y Mi cuenta. */
-export const LIENZO = 'rounded-lg bg-neutral-200 [background-image:radial-gradient(var(--color-neutral-400)_1px,transparent_1px)] [background-size:18px_18px]';
+/**
+ * Fondo de lienzo punteado (Mi perfil, Mi cuenta, Equipo). Lo pinta el <main>
+ * del panel entero cuando la pagina marca `data-lienzo`: cubre todo el modulo
+ * (no se ajusta al contenido) y deja fuera la barra lateral.
+ */
+export const FONDO_LIENZO =
+  'has-[[data-lienzo]]:bg-neutral-200 has-[[data-lienzo]]:[background-image:radial-gradient(var(--color-neutral-400)_1px,transparent_1px)] has-[[data-lienzo]]:[background-size:18px_18px]';

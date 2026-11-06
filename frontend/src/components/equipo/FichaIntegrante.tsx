@@ -36,6 +36,7 @@ import type { Rol } from '@/lib/sesion';
 
 import { FormularioPerfil } from './FormularioPerfil';
 import { RegistroSisPanel } from './RegistroSis';
+import { RespaldoTitulo } from './RespaldoTitulo';
 
 const hoy = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
 
@@ -276,7 +277,7 @@ function Revisiones({ profesionalId, admin }: { profesionalId: string; admin: bo
 }
 
 /** ADMIN asigna los tipos directamente (quedan aprobados); reemplaza la lista completa. */
-function AsignarTipos({
+export function AsignarTipos({
   profesionalId,
   actuales,
   catalogo,
@@ -329,9 +330,6 @@ function AsignarTipos({
 function TrayectoriaTarifas({ profesionalId, admin }: { profesionalId: string; admin: boolean }) {
   const cliente = useQueryClient();
   const trayectoria = useTrayectoria(profesionalId);
-  const tarifas = useTarifas(profesionalId);
-  const catalogo = useTiposAtencion();
-  const nombreTipo = new Map((catalogo.data ?? []).map((t) => [t.id, t.nombre]));
   const verificar = useMutation({
     mutationFn: ({ id, verificado }: { id: string; verificado: boolean }) =>
       datos(api.POST('/api/trayectoria/{id}/verificacion', { params: { path: { id } }, body: { verificado } })),
@@ -339,8 +337,16 @@ function TrayectoriaTarifas({ profesionalId, admin }: { profesionalId: string; a
   });
   return (
     <div className="flex flex-col gap-5">
-      <Panel titulo="Trayectoria" bajada={admin ? 'Verifica cada título con su respaldo.' : 'Títulos y formación declarados.'}>
+      <Panel
+        titulo="Trayectoria"
+        bajada={admin ? 'Descarga el respaldo y verifica cada título. Sin respaldo no se puede verificar.' : 'Títulos y formación declarados.'}
+      >
         <div className="mt-4">
+          {verificar.error && (
+            <p role="alert" className="m-0 mb-3 text-[13px] font-bold text-accent-700">
+              {verificar.error instanceof ApiError ? verificar.error.message : 'No pudimos guardar la verificación.'}
+            </p>
+          )}
           <EstadoConsulta consulta={trayectoria} vacio={(l) => l.length === 0} textoVacio="Sin trayectoria declarada">
             {(l) => (
               <ul className="m-0 flex list-none flex-col gap-2 p-0">
@@ -352,11 +358,15 @@ function TrayectoriaTarifas({ profesionalId, admin }: { profesionalId: string; a
                         {TIPO_TRAYECTORIA[t.tipo]} · {t.institucion} · {t.anio}
                         {t.registroSuperintendencia && ` · Registro ${t.registroSuperintendencia}`}
                       </p>
+                      <div className="mt-2 max-w-md">
+                        <RespaldoTitulo t={t} />
+                      </div>
                     </div>
                     <Badge tono={t.verificado ? 'positivo' : 'neutro'}>{t.verificado ? 'Verificado' : 'Sin verificar'}</Badge>
                     {admin && (
                       <Button
                         variant="ghost"
+                        disabled={!t.verificado && t.respaldos.length === 0}
                         onClick={() => verificar.mutate({ id: t.id, verificado: !t.verificado })}
                         className="!px-3 !py-1.5 !text-[12.5px]"
                       >
@@ -370,27 +380,37 @@ function TrayectoriaTarifas({ profesionalId, admin }: { profesionalId: string; a
           </EstadoConsulta>
         </div>
       </Panel>
-      <Panel titulo="Tarifas" bajada="Historial: la vigente es la más reciente. El monto de cada cita se fija al confirmarla.">
-        <div className="mt-4">
-          <EstadoConsulta consulta={tarifas} vacio={(l) => l.length === 0} textoVacio="Sin tarifas registradas">
-            {(l) => (
-              <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                {l.slice(0, 8).map((t) => (
-                  <li key={t.id} className="flex items-center gap-3 rounded-[14px] border border-divider bg-bg px-3.5 py-2 text-[13.5px] font-bold">
-                    <span className="min-w-0 flex-1">
-                      {t.tipoAtencionId ? (nombreTipo.get(t.tipoAtencionId) ?? 'Tipo de atención') : 'General'}
-                      {t.modalidad && ` · ${t.modalidad === 'ONLINE' ? 'Online' : 'Presencial'}`}
-                    </span>
-                    <span className="tabular-nums">{formatoClp(t.monto)}</span>
-                    <span className="text-[12px] font-semibold text-neutral-700">desde {formatoFecha(t.vigenteDesde)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </EstadoConsulta>
-        </div>
-      </Panel>
+      <HistorialTarifas profesionalId={profesionalId} />
     </div>
+  );
+}
+
+/** Historial de tarifas: la vigente es la mas reciente (2026-11-08: tambien en la ficha de Equipo). */
+export function HistorialTarifas({ profesionalId }: { profesionalId: string }) {
+  const tarifas = useTarifas(profesionalId);
+  const catalogo = useTiposAtencion();
+  const nombreTipo = new Map((catalogo.data ?? []).map((t) => [t.id, t.nombre]));
+  return (
+    <Panel titulo="Tarifas" bajada="Historial: la vigente es la más reciente. El monto de cada cita se fija al confirmarla.">
+      <div className="mt-4">
+        <EstadoConsulta consulta={tarifas} vacio={(l) => l.length === 0} textoVacio="Sin tarifas registradas">
+          {(l) => (
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {l.slice(0, 8).map((t) => (
+                <li key={t.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-[14px] border border-divider bg-bg px-3.5 py-2 text-[13.5px] font-bold">
+                  <span className="min-w-0 flex-1">
+                    {t.tipoAtencionId ? (nombreTipo.get(t.tipoAtencionId) ?? 'Tipo de atención') : 'General'}
+                    {t.modalidad && ` · ${t.modalidad === 'ONLINE' ? 'Online' : 'Presencial'}`}
+                  </span>
+                  <span className="tabular-nums">{formatoClp(t.monto)}</span>
+                  <span className="w-full text-[12px] font-semibold text-neutral-700">desde {formatoFecha(t.vigenteDesde)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </EstadoConsulta>
+      </div>
+    </Panel>
   );
 }
 
@@ -438,7 +458,7 @@ function DatosPrivados({ profesionalId }: { profesionalId: string }) {
   );
 }
 
-function ResenasPublicas({ profesionalId }: { profesionalId: string }) {
+export function ResenasPublicas({ profesionalId }: { profesionalId: string }) {
   const resenas = useQuery({
     queryKey: ['equipo', 'resenas-publicas', profesionalId],
     queryFn: () => datos(api.GET('/api/publico/profesionales/{id}/resenas', { params: { path: { id: profesionalId } } })),
@@ -527,7 +547,7 @@ function RolesCentro({ cuenta }: { cuenta: Cuenta }) {
   );
 }
 
-function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean }) {
+export function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean }) {
   const cliente = useQueryClient();
   const [aviso, setAviso] = useState<{ error?: string; ok?: string }>({});
   const [baja, setBaja] = useState<'rol' | 'cuenta' | null>(null);

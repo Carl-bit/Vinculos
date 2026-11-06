@@ -41,6 +41,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const cuerpo: Record<string, unknown> = Object.fromEntries(accion.campos.filter((c) => c in entrada).map((c) => [c, entrada[c]]));
   if (accion.conCookie) {
     const refresh = almacen.get(COOKIE)?.value;
+    // Sin cookie, "refresh" es solo la pregunta "¿hay sesion?" al cargar: 204 (no un 401 rojo en la consola).
+    if (!refresh && nombre === 'refresh') return new NextResponse(null, { status: 204 });
     if (!refresh) return NextResponse.json({ statusCode: 401, error: 'UNAUTHORIZED', mensaje: 'Sin sesion' }, { status: 401 });
     cuerpo.refreshToken = refresh;
   }
@@ -49,6 +51,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // El rate limit de login es por IP: la API confia en X-Forwarded-For desde loopback/red interna.
   const ip = request.headers.get('x-forwarded-for');
   if (ip) headers['X-Forwarded-For'] = ip;
+  // Sesion unica (2026-11-07): la API guarda solo el resumen "Chrome en Windows" para el registro de conexiones.
+  const navegador = request.headers.get('user-agent');
+  if (navegador) headers['User-Agent'] = navegador;
 
   const respuesta = await fetch(`${API}${accion.ruta}`, { method: 'POST', headers, body: JSON.stringify(cuerpo), cache: 'no-store' });
   const datos = respuesta.status === 204 ? null : ((await respuesta.json().catch(() => null)) as Record<string, unknown> | null);

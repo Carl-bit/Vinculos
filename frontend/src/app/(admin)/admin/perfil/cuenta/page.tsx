@@ -6,6 +6,7 @@ import { IntegracionesAgenda } from '@/components/agenda/IntegracionesAgenda';
 import { MiAcuerdo, MisLiquidaciones } from '@/components/cobros/MiAcuerdo';
 import { CambiarAProfesional } from '@/components/equipo/CambiarAProfesional';
 import { FichaIntegrante } from '@/components/equipo/FichaIntegrante';
+import { DocumentosPracticante } from '@/components/equipo/DocumentosPracticante';
 import { MiTrayectoria, MisDatosPrivados } from '@/components/equipo/MiPerfilProfesional';
 import { RegistroSisPanel } from '@/components/equipo/RegistroSis';
 import { AvisosEquipo } from '@/components/nucleo/AvisosEquipo';
@@ -13,10 +14,12 @@ import { MiCuentaEquipo } from '@/components/nucleo/MiCuentaEquipo';
 import { ProtocoloEquipo } from '@/components/nucleo/ProtocoloEquipo';
 import { MisPacientesEstado } from '@/components/pacientes/MisPacientesEstado';
 import { CambioPassword } from '@/components/shared/CambioPassword';
+import { ConexionesCuenta } from '@/components/shared/ConexionesCuenta';
 import { SeccionesCuenta, type SeccionCuenta } from '@/components/shared/SeccionesCuenta';
 import { SegundoFactorCuenta } from '@/components/shared/SegundoFactorCuenta';
 import { Badge } from '@/components/ui/Badge';
-import { BarraFlotante, LIENZO, SeparadorBarra } from '@/components/ui/BarraFlotante';
+import { BarraFlotante, SeparadorBarra } from '@/components/ui/BarraFlotante';
+import { Panel } from '@/components/ui/Panel';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Icon } from '@/components/ui/Icon';
 import { useProtocoloEquipo } from '@/lib/centro';
@@ -64,6 +67,7 @@ export default function Pagina() {
           <>
             <CambioPassword tono="team" />
             <SegundoFactorCuenta tono="team" />
+            <ConexionesCuenta />
           </>
         ),
       },
@@ -89,6 +93,11 @@ export default function Pagina() {
             <>
               <RegistroSisPanel profesionalId={c.id} practicante propio admin={false} />
               <MiTrayectoria usuarioId={c.id} />
+              <Panel titulo="Documentos de la práctica" bajada="Certificado de alumno regular y convenio. Se guardan cifrados; no cambian tu acceso.">
+                <div className="mt-4">
+                  <DocumentosPracticante practicanteId={c.id} puedeSubir />
+                </div>
+              </Panel>
             </>
           ),
         },
@@ -140,7 +149,7 @@ export default function Pagina() {
   ).filter((s): s is SeccionCuenta => !!s);
 
   return (
-    <div className={`${LIENZO} -mx-[clamp(12px,2vw,24px)] mt-[clamp(10px,2vw,20px)] flex flex-col gap-5 px-[clamp(12px,2vw,24px)] pt-4 pb-10`}>
+    <div data-lienzo className="flex flex-col gap-5">
       <BarraFlotante etiqueta="Mi cuenta">
         <strong className="text-[15px] font-black">Mi cuenta</strong>
         <Badge tono="neutro">

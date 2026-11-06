@@ -92,6 +92,10 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Notificacion', campo: 'cuerpo', tabla: 'notificaciones', columna: 'cuerpo', categoria: 'CLINICO', id: 'id' },
   { modelo: 'RecordatorioCita', campo: 'enlace', tabla: 'recordatorios_cita', columna: 'enlace', categoria: 'CLINICO', id: 'id' },
   { modelo: 'AdjuntoFicha', campo: 'contenido', tabla: 'adjuntos_ficha', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
+  // 2026-11-07: respaldo (archivo) de un titulo de la trayectoria, en base64.
+  { modelo: 'TrayectoriaRespaldo', campo: 'contenido', tabla: 'trayectoria_respaldos', columna: 'contenido', categoria: 'IDENTIFICACION', id: 'id' },
+  // 2026-11-08: documentos del practicante (certificado de alumno regular, convenio de practica).
+  { modelo: 'PracticanteDocumento', campo: 'contenido', tabla: 'practicante_documentos', columna: 'contenido', categoria: 'IDENTIFICACION', id: 'id' },
   // 03a: segundo factor, contacto de emergencia, solicitud de hora sin cuenta (contacto y respuestas del match),
   // reseñas (texto y feedback privado), alta y borradores de evolucion.
   { modelo: 'Usuario', campo: 'totpSecreto', tabla: 'usuarios', columna: 'totp_secreto', categoria: 'IDENTIFICACION', id: 'id' },

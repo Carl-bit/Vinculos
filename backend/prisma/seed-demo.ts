@@ -36,6 +36,8 @@ import { dvRut } from '../src/core/validacion/validadores';
 const logger = new Logger('SeedDemo');
 const PASSWORD = process.env.SEED_PASSWORD ?? 'dev-password';
 const DOMINIO = 'centro-prueba.cl';
+/** Respaldo de titulo de demostracion (2026-11-07): PDF minimo valido por contenido (empieza con %PDF-). */
+const RESPALDO_DEMO = Buffer.from('%PDF-1.4\n% Respaldo de titulo de demostracion (Centro de Prueba)\n%%EOF\n');
 const MARCA = `gestion@${DOMINIO}`;
 const DIA = 86_400_000;
 
@@ -174,31 +176,44 @@ async function main(): Promise<void> {
     codigos.set(c.para, /(\d{6})/.exec(c.texto)![1]);
   };
 
-  const llamar = async (token: string | null, metodo: string, ruta: string, cuerpo?: Cuerpo) => {
+  // Sesion unica (2026-11-07): entrar otra vez con la misma cuenta (otro rol, otro paso del seed) cierra la
+  // sesion anterior. Cada token recuerda su cuenta y rol: ante un 401 se vuelve a entrar y se sigue con el nuevo.
+  const cuentas = new Map<string, { email: string; rol?: string }>();
+  const vigente = new Map<string, string>();
+  const llamar = async (token: string | null, metodo: string, ruta: string, cuerpo?: Cuerpo | FormData, reintento = true): Promise<Cuerpo & { id: string }> => {
+    const multipart = cuerpo instanceof FormData;
     const r = await fetch(`${base}${ruta}`, {
       method: metodo,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+      headers: { ...(multipart ? {} : { 'Content-Type': 'application/json' }), ...(token ? { Authorization: `Bearer ${vigente.get(token) ?? token}` } : {}) },
+      body: multipart ? cuerpo : cuerpo ? JSON.stringify(cuerpo) : undefined,
     });
     const texto = await r.text();
+    const cuenta = token ? cuentas.get(token) : undefined;
+    if (r.status === 401 && cuenta && reintento) {
+      vigente.set(token!, await entrar(cuenta.email, cuenta.rol));
+      return llamar(token, metodo, ruta, cuerpo, false);
+    }
     if (!r.ok) {
       throw new Error(`${metodo} ${ruta} -> ${r.status} ${texto}`);
     }
     return (texto ? JSON.parse(texto) : {}) as Cuerpo & { id: string };
   };
-  // Segundo factor por correo (03b-4.1): el codigo capturado responde el desafio.
-  const login = async (email: string) => {
-    const r = await llamar(null, 'POST', '/auth/login', { email, password: PASSWORD });
-    if (!r.requiereSegundoFactor) {
-      return r.accessToken as string;
-    }
-    return (await llamar(null, 'POST', '/auth/segundo-factor', { desafio: r.desafio, codigo: codigos.get(email) })).accessToken as string;
-  };
-  // Cuenta con dos roles: entra y cambia al rol pedido (token nuevo, como el selector de rol del front).
-  const loginComo = async (email: string, rol: string) => {
+  // Segundo factor por correo (03b-4.1): el codigo capturado responde el desafio. Con rol: cuenta con dos
+  // roles, entra y cambia al rol pedido (token nuevo, como el selector de rol del front).
+  const entrar = async (email: string, rol?: string): Promise<string> => {
     const r = await llamar(null, 'POST', '/auth/login', { email, password: PASSWORD });
     const t = r.requiereSegundoFactor ? await llamar(null, 'POST', '/auth/segundo-factor', { desafio: r.desafio, codigo: codigos.get(email) }) : r;
-    return (await llamar(null, 'POST', '/auth/cambio-rol', { refreshToken: t.refreshToken, rol })).accessToken as string;
+    return (rol ? await llamar(null, 'POST', '/auth/cambio-rol', { refreshToken: t.refreshToken, rol }) : t).accessToken as string;
+  };
+  const login = async (email: string) => {
+    const token = await entrar(email);
+    cuentas.set(token, { email });
+    return token;
+  };
+  const loginComo = async (email: string, rol: string) => {
+    const token = await entrar(email, rol);
+    cuentas.set(token, { email, rol });
+    return token;
   };
 
   try {
@@ -491,9 +506,27 @@ async function main(): Promise<void> {
       [prof1, { tipo: 'TITULO', titulo: 'Psicologo (Demo)', institucion: 'Universidad Ficticia', anio: 2015, registroSuperintendencia: '000000' }],
       [prof1, { tipo: 'MAGISTER', titulo: 'Magister en Psicologia Clinica (Demo)', institucion: 'Universidad Ficticia', anio: 2019 }],
       [prof2, { tipo: 'TITULO', titulo: 'Psicologa (Demo)', institucion: 'Universidad Ficticia', anio: 2012 }],
+      // 2026-11-08: el sitio publico solo muestra profesionales validados (registro SIS + titulo verificados).
+      [prof3, { tipo: 'TITULO', titulo: 'Psicologo (Demo)', institucion: 'Universidad Ficticia', anio: 2016 }],
+      [prof4.token, { tipo: 'TITULO', titulo: 'Psicologa (Demo)', institucion: 'Universidad Ficticia', anio: 2013 }],
+      [prof5.token, { tipo: 'TITULO', titulo: 'Psicologa (Demo)', institucion: 'Universidad Ficticia', anio: 2018 }],
+      [prof6.token, { tipo: 'TITULO', titulo: 'Psicologo (Demo)', institucion: 'Universidad Ficticia', anio: 2011 }],
     ] as const) {
       const { id } = await llamar(token, 'POST', '/trayectoria', cuerpo);
+      // 2026-11-07: verificar exige el respaldo como archivo (PDF minimo de demostracion).
+      const respaldo = new FormData();
+      respaldo.append('archivo', new Blob([RESPALDO_DEMO], { type: 'application/pdf' }), `respaldo-${id.slice(0, 8)}.pdf`);
+      await llamar(token, 'POST', `/trayectoria/${id}/respaldos`, respaldo);
       await llamar(admin, 'POST', `/trayectoria/${id}/verificacion`, { verificado: true });
+    }
+    // 2026-11-08: documentos del practicante (certificado de alumno regular lo sube el practicante; el convenio, la cuenta madre).
+    for (const [token, tipo, vigente] of [
+      [practicante, 'CERTIFICADO_ALUMNO_REGULAR', '&vigenteHasta=2027-03-31'],
+      [admin, 'CONVENIO_PRACTICA', ''],
+    ] as const) {
+      const doc = new FormData();
+      doc.append('archivo', new Blob([RESPALDO_DEMO], { type: 'application/pdf' }), `${tipo.toLowerCase()}.pdf`);
+      await llamar(token, 'POST', `/practicantes/${practicanteId}/documentos?tipo=${tipo}${vigente}`, doc);
     }
     // 03b-4.2: registro SIS de todos los profesionales (numeros ficticios), verificado a mano por ADMIN: la
     // insignia sale en todas las tarjetas del demo. Los practicantes no tienen: muestran a su supervisor.

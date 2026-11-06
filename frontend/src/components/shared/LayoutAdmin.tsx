@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
+import { FONDO_LIENZO } from '@/components/ui/BarraFlotante';
 import { Icon } from '@/components/ui/Icon';
 import { useMiCuenta, useModulos } from '@/lib/consultas';
 import { conSelectorEquipo, menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
@@ -112,7 +113,7 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
             </div>
           </div>
         </aside>
-        <main key={ruta} className="entrada min-w-0 px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14">
+        <main key={ruta} className={`entrada min-w-0 px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 ${FONDO_LIENZO}`}>
           {esAdministracion(sesion.rol) && <ViendoA />}
           {rutaPermitida('admin', sesion.rol, ruta) ? children : <EstadoVista estado="sin-permiso" />}
         </main>

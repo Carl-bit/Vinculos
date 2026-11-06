@@ -205,6 +205,7 @@ describe('03b-4.2 correctivo de interfaz', () => {
         .put('/api/profesionales/yo/perfil')
         .set(await tk(prof))
         .send({ ...perfil, perfilPublico: true });
+      await t.datos.validar(prof.id);
       expect(publicar.status).toBe(200);
       const publicos = await t.http().get('/api/publico/profesionales');
       const mio = publicos.body.find((p: { id: string }) => p.id === prof.id);
@@ -215,8 +216,9 @@ describe('03b-4.2 correctivo de interfaz', () => {
         .put('/api/profesionales/yo/registro-sis')
         .set(await tk(prof))
         .send({ numero: null });
+      // 2026-11-08: sin registro SIS verificado deja de estar validado y sale del sitio.
       const despues = await t.http().get('/api/publico/profesionales');
-      expect(despues.body.find((p: { id: string }) => p.id === prof.id).registro_sis).toBeNull();
+      expect(despues.body.find((p: { id: string }) => p.id === prof.id)).toBeUndefined();
     });
   });
 

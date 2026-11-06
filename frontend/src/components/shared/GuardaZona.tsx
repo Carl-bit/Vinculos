@@ -22,7 +22,7 @@ export function GuardaZona({ zona, children }: { zona: Zona; children: (sesion: 
 
   useEffect(() => {
     if (sesion.tipo === 'desconocida') void renovarSesion();
-    else if (sesion.tipo === 'anonima') router.replace(`/ingreso?volver=${encodeURIComponent(ruta)}${motivo === 'inactividad' ? '&motivo=inactividad' : ''}`);
+    else if (sesion.tipo === 'anonima') router.replace(`/ingreso?volver=${encodeURIComponent(ruta)}${motivo ? `&motivo=${motivo}` : ''}`);
     else if (rol && zonaDeRol(rol) !== zona) router.replace(inicioDeRol(rol));
   }, [sesion.tipo, rol, motivo, zona, ruta, router]);
 

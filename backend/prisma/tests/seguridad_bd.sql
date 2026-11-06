@@ -84,6 +84,22 @@ CREATE FUNCTION test.consentir(paciente uuid, practicante uuid, supervisor uuid)
   VALUES (paciente, 'ATENCION_CON_PRACTICANTE_SUPERVISADO', practicante, supervisor, 'ACEPTADO', supervisor,
           now() + interval '1 day', 'v1', 'PACIENTE', supervisor, now())
 $$;
+-- 2026-11-08: el sitio publico solo muestra profesionales validados (registro
+-- SIS verificado + titulo verificado). Dato de prueba como dueño: un registro
+-- verificado y un titulo verificado "de fondo" (id md5) para los casos que
+-- prueban el sitio publico sin pasar por la validacion.
+CREATE FUNCTION test.validar(u uuid) RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  INSERT INTO registros_sis (profesional_id, numero, estado, metodo, verificado_en)
+  VALUES (u, '9' || (abs(hashtext(u::text)) % 100000)::text, 'VERIFICADO_AUTOMATICO', 'AUTOMATICO', now())
+  ON CONFLICT (profesional_id) DO UPDATE SET estado = 'VERIFICADO_AUTOMATICO', metodo = 'AUTOMATICO', verificado_en = now();
+  INSERT INTO profesional_trayectoria (id, profesional_id, tipo, titulo, institucion, anio, verificado, verificado_por_id, verificado_en)
+  VALUES (md5('validar ' || u)::uuid, u, 'TITULO', 'T Titulo de fondo', 'U. de Prueba', 2010, true, test.u('a1'), now())
+  ON CONFLICT (id) DO NOTHING;
+$$;
+CREATE FUNCTION test.quitar_titulo_de_fondo(u uuid) RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  DELETE FROM profesional_trayectoria WHERE id = md5('validar ' || u)::uuid;
+$$;
+GRANT EXECUTE ON FUNCTION test.validar(uuid), test.quitar_titulo_de_fondo(uuid) TO app_user;
 CREATE FUNCTION test.box_de(u uuid) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
   SELECT md5('box ' || u)::uuid
 $$;
@@ -1006,6 +1022,9 @@ DO $$ BEGIN
 END $$;
 DO $$ BEGIN
   ASSERT app_usuario_id() IS NULL AND app_rol() IS NULL, 'caso 49: sin contexto';
+  -- 2026-11-08: publicado pero sin validar no sale en el sitio.
+  ASSERT NOT EXISTS (SELECT 1 FROM perfiles_publicos()), 'caso 49: sin validar no es publico';
+  PERFORM test.validar(test.u('b1'));
   ASSERT (SELECT array_agg(id) FROM perfiles_publicos()) = ARRAY[test.u('b1')], 'caso 49: solo b1 (consintio)';
   ASSERT (SELECT nombre_publico || '|' || array_to_string(tipos_atencion, ',') FROM perfiles_publicos()) = 'Ps. Uno|T Psicoterapia adultos',
     'caso 49: campos publicos';
@@ -1623,10 +1642,13 @@ END $$;
 
 \echo 70 Perfil: trayectoria la edita el propio y solo ADMIN verifica; datos privados solo propio y ADMIN/GESTION; publico solo lo verificado
 DO $$ BEGIN
+  PERFORM test.quitar_titulo_de_fondo(test.u('b1'));
   PERFORM test.ctx('b1', 'PROFESIONAL');
   INSERT INTO profesional_trayectoria (id, profesional_id, tipo, titulo, institucion, anio, registro_superintendencia, verificado)
   VALUES (test.u('7a'), test.u('b1'), 'TITULO', 'T Psicologo', 'U. de Prueba', 2015, '123456', true);
   ASSERT NOT (SELECT verificado FROM profesional_trayectoria WHERE id = test.u('7a')), 'caso 70: el propio no se autoverifica';
+  -- 2026-11-07: verificar exige respaldo (caso 159).
+  PERFORM subir_respaldo_trayectoria(test.u('7b'), test.u('7a'), 'titulo.pdf', 'application/pdf', 10, test.cif('pdf del titulo'));
   BEGIN
     UPDATE profesional_trayectoria SET verificado = true WHERE id = test.u('7a');
     RAISE EXCEPTION 'caso 70: el propio verifica debio fallar';
@@ -1670,7 +1692,10 @@ DO $$ BEGIN
   ASSERT NOT (SELECT verificado FROM profesional_trayectoria WHERE id = test.u('7a')), 'caso 70: editar quita la verificacion';
 END $$;
 DO $$ BEGIN
-  ASSERT NOT (SELECT verificado FROM perfiles_publicos() WHERE id = test.u('b1')), 'caso 70: publico ya no verificado';
+  -- 2026-11-08: sin titulo verificado deja de estar validado y sale del sitio.
+  ASSERT NOT EXISTS (SELECT 1 FROM perfiles_publicos() WHERE id = test.u('b1')), 'caso 70: sin titulo verificado no es publico';
+  PERFORM test.validar(test.u('b1'));
+  ASSERT (SELECT verificado FROM perfiles_publicos() WHERE id = test.u('b1')), 'caso 70: validado de nuevo';
 END $$;
 DO $$ BEGIN
   PERFORM test.ctx('a2', 'PACIENTE');
@@ -3231,6 +3256,8 @@ SELECT test.disponible_siempre(ARRAY[test.u('b9'), test.u('ba')]);
 INSERT INTO tarifas (profesional_id, monto) VALUES (test.u('b9'), 30000);
 INSERT INTO profesionales (usuario_id, especialidad, modalidad, nombre_publico, perfil_publico)
 VALUES (test.u('b9'), 'Psicologia', 'MIXTA', 'Ps. Nueve', true);
+-- 2026-11-08: validado (registro SIS y titulo verificados) para salir en el sitio publico.
+SELECT test.validar(test.u('b9'));
 INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id) VALUES
   (test.u('14'), 'Tomas', 'Teen', (now() AT TIME ZONE 'America/Santiago')::date - interval '15 years', test.u('b2')),
   (test.u('15'), 'Lia', 'Adulta', '1988-05-05', test.u('b1'));
@@ -3280,11 +3307,11 @@ DO $$ BEGIN
   -- Cambio de rol sin cerrar sesion: familia nueva; la anterior queda revocada.
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
   PERFORM crear_sesion(test.u('a3'), 'GESTION', sha256('t101a'), now() + interval '1 day');
-  ASSERT cambiar_rol_sesion(sha256('t101a'), sha256('t101b'), 'PROFESIONAL', now() + interval '1 day') = test.u('a3'),
+  ASSERT (SELECT usuario_id FROM cambiar_rol_sesion(sha256('t101a'), sha256('t101b'), 'PROFESIONAL', now() + interval '1 day')) = test.u('a3'),
     'caso 101: cambia de rol';
-  ASSERT cambiar_rol_sesion(sha256('t101a'), sha256('t101c'), 'PROFESIONAL', now() + interval '1 day') IS NULL,
+  ASSERT NOT EXISTS (SELECT 1 FROM cambiar_rol_sesion(sha256('t101a'), sha256('t101c'), 'PROFESIONAL', now() + interval '1 day')),
     'caso 101: el token anterior quedo revocado';
-  ASSERT cambiar_rol_sesion(sha256('t101b'), sha256('t101d'), 'ADMIN', now() + interval '1 day') IS NULL, 'caso 101: rol ajeno';
+  ASSERT NOT EXISTS (SELECT 1 FROM cambiar_rol_sesion(sha256('t101b'), sha256('t101d'), 'ADMIN', now() + interval '1 day')), 'caso 101: rol ajeno';
   ASSERT (SELECT rol FROM rotar_sesion(sha256('t101b'), sha256('t101e'), now() + interval '1 day')) = 'PROFESIONAL',
     'caso 101: la sesion nueva trabaja como PROFESIONAL';
   -- Baja del rol adicional: al cumplirse, rol inactivo y sus sesiones cortadas; la cuenta sigue como GESTION.
@@ -6065,6 +6092,258 @@ DO $$ DECLARE v_total int; v_estado int; BEGIN
   ASSERT (SELECT count(DISTINCT profesional_id) FROM pendientes_fichas()) >= (SELECT count(DISTINCT profesional_id) FROM pendientes_fichas(test.u('b1'))),
     'caso 158: GESTION ve todos o uno';
   ASSERT NOT EXISTS (SELECT 1 FROM pendientes_fichas() WHERE codigo IS NULL), 'caso 158: siempre con codigo seudonimo';
+END $$;
+\connect :owner_url
+
+\echo 159 Respaldo de titulos (2026-11-07): solo el propio sube (version nueva, el titulo vuelve a revision); leen el propio y ADMIN/GESTION; sin escritura directa; verificar exige respaldo; eliminar el titulo se lleva sus respaldos
+\connect :app_url
+DO $$ BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  INSERT INTO profesional_trayectoria (id, profesional_id, tipo, titulo, institucion, anio)
+  VALUES (test.u('e5'), test.u('b1'), 'MAGISTER', 'T Magister 159', 'U. de Prueba', 2019);
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    UPDATE profesional_trayectoria SET verificado = true WHERE id = test.u('e5');
+    RAISE EXCEPTION 'caso 159: verificar sin respaldo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM subir_respaldo_trayectoria(test.u('e6'), test.u('e5'), 'x.pdf', 'application/pdf', 10, test.cif('pdf'));
+    RAISE EXCEPTION 'caso 159: ADMIN no sube respaldos';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b3', 'PROFESIONAL');
+  BEGIN
+    PERFORM subir_respaldo_trayectoria(test.u('e6'), test.u('e5'), 'x.pdf', 'application/pdf', 10, test.cif('pdf'));
+    RAISE EXCEPTION 'caso 159: respaldo en titulo ajeno debio fallar';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO trayectoria_respaldos (id, trayectoria_id, profesional_id, nombre_archivo, tipo_mime, tamano_bytes, contenido)
+    VALUES (test.u('e8'), test.u('e5'), test.u('b1'), 'x.pdf', 'application/pdf', 10, test.cif('pdf'));
+    RAISE EXCEPTION 'caso 159: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM subir_respaldo_trayectoria(test.u('e6'), test.u('e5'), 'x.exe', 'application/x-msdownload', 10, test.cif('exe'));
+    RAISE EXCEPTION 'caso 159: tipo no permitido debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM subir_respaldo_trayectoria(test.u('e6'), test.u('e5'), 'magister.pdf', 'application/pdf', 10, test.cif('pdf v1'));
+  ASSERT (SELECT count(*) FROM trayectoria_respaldos WHERE trayectoria_id = test.u('e5')) = 1, 'caso 159: el propio ve su respaldo';
+  PERFORM test.ctx('b3', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM trayectoria_respaldos WHERE trayectoria_id = test.u('e5')), 'caso 159: otro profesional no lo ve';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT NOT EXISTS (SELECT 1 FROM trayectoria_respaldos), 'caso 159: PACIENTE no ve respaldos';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM trayectoria_respaldos WHERE trayectoria_id = test.u('e5')) = 1, 'caso 159: GESTION lee';
+  BEGIN
+    DELETE FROM trayectoria_respaldos WHERE trayectoria_id = test.u('e5');
+    RAISE EXCEPTION 'caso 159: DELETE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE profesional_trayectoria SET verificado = true WHERE id = test.u('e5');
+  ASSERT (SELECT verificado FROM profesional_trayectoria WHERE id = test.u('e5')), 'caso 159: con respaldo se verifica';
+  BEGIN
+    UPDATE trayectoria_respaldos SET nombre_archivo = 'otro.pdf' WHERE trayectoria_id = test.u('e5');
+    RAISE EXCEPTION 'caso 159: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  PERFORM subir_respaldo_trayectoria(test.u('e9'), test.u('e5'), 'magister-v2.pdf', 'application/pdf', 12, test.cif('pdf v2'));
+  ASSERT (SELECT count(*) FROM trayectoria_respaldos WHERE trayectoria_id = test.u('e5')) = 2, 'caso 159: version nueva, la anterior se conserva';
+  ASSERT NOT (SELECT verificado FROM profesional_trayectoria WHERE id = test.u('e5')), 'caso 159: archivo nuevo vuelve a revision';
+  DELETE FROM profesional_trayectoria WHERE id = test.u('e5');
+  ASSERT NOT EXISTS (SELECT 1 FROM trayectoria_respaldos WHERE trayectoria_id = test.u('e5')), 'caso 159: eliminar el titulo se lleva sus respaldos';
+END $$;
+\connect :owner_url
+
+\echo 160 Sesion unica y conexiones (2026-11-07): un login nuevo cierra la sesion anterior (NUEVA_SESION); sesion_vigente por request; mis_conexiones solo propias; motivo del cierre
+\connect :app_url
+DO $$ DECLARE v_f1 uuid; v_f2 uuid; r record; BEGIN
+  BEGIN
+    PERFORM 1 FROM sesiones;
+    RAISE EXCEPTION 'caso 160: sesiones sigue sin GRANT';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  v_f1 := crear_sesion(test.u('b1'), 'PROFESIONAL', sha256('t160a'), now() + interval '1 day', 'Chrome en Windows');
+  v_f2 := crear_sesion(test.u('b1'), 'PROFESIONAL', sha256('t160b'), now() + interval '1 day', 'Firefox en macOS');
+  ASSERT motivo_fin_sesion(sha256('t160a')) = 'NUEVA_SESION', 'caso 160: el login nuevo cierra la sesion anterior';
+  ASSERT motivo_fin_sesion(sha256('t160b')) IS NULL, 'caso 160: la nueva sigue abierta';
+  ASSERT NOT EXISTS (SELECT 1 FROM rotar_sesion(sha256('t160a'), sha256('t160c'), now() + interval '1 day')),
+    'caso 160: la sesion anterior ya no renueva';
+  SELECT * INTO r FROM rotar_sesion(sha256('t160b'), sha256('t160d'), now() + interval '1 day');
+  ASSERT r.usuario_id = test.u('b1') AND r.familia_id = v_f2, 'caso 160: la rotacion conserva la familia';
+  BEGIN
+    PERFORM mis_conexiones();
+    RAISE EXCEPTION 'caso 160: sin contexto no hay conexiones';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT sesion_vigente(v_f2) AND NOT sesion_vigente(v_f1), 'caso 160: solo la sesion nueva sirve por request';
+  SELECT * INTO r FROM mis_conexiones() WHERE familia_id = v_f2;
+  ASSERT r.activa AND r.fin IS NULL AND r.motivo IS NULL AND r.dispositivo = 'Firefox en macOS' AND r.rol = 'PROFESIONAL',
+    format('caso 160: conexion activa %s', row_to_json(r));
+  SELECT * INTO r FROM mis_conexiones() WHERE familia_id = v_f1;
+  ASSERT NOT r.activa AND r.motivo = 'NUEVA_SESION' AND r.fin IS NOT NULL AND r.dispositivo = 'Chrome en Windows',
+    format('caso 160: conexion cerrada %s', row_to_json(r));
+  ASSERT (SELECT count(*) FROM mis_conexiones() WHERE activa) = 1, 'caso 160: una sola conexion activa';
+  ASSERT (SELECT count(*) FROM mis_conexiones(1)) = 1, 'caso 160: limite';
+  PERFORM test.ctx('b3', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM mis_conexiones() WHERE familia_id IN (v_f1, v_f2)), 'caso 160: no ve conexiones ajenas';
+  ASSERT NOT sesion_vigente(v_f2), 'caso 160: la familia de otro usuario no sirve';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  PERFORM revocar_sesion(sha256('t160d'));
+  ASSERT motivo_fin_sesion(sha256('t160d')) = 'LOGOUT', 'caso 160: cerrar sesion';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT NOT sesion_vigente(v_f2), 'caso 160: tras cerrar sesion el access token deja de servir';
+END $$;
+\connect :owner_url
+
+\echo 161 Equipo v1 (2026-11-08): el sitio publico solo con profesionales validados; ADMIN observa un titulo (vuelve a revision; la limpia un respaldo nuevo o verificar); documentos del practicante (propio o ADMIN, versionados, no habilitan); correcciones del perfil (ADMIN corrige a la segunda solicitud sin cambios)
+\connect :app_url
+DO $$ DECLARE r record; BEGIN
+  -- Validacion: b1 tiene titulo verificado pero ya no registro SIS (caso 153 lo quito).
+  ASSERT NOT profesional_validado(test.u('b1')), 'caso 161: sin registro SIS no esta validado';
+  ASSERT NOT EXISTS (SELECT 1 FROM perfiles_publicos() WHERE id = test.u('b1')), 'caso 161: sin validar no sale en el sitio';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  PERFORM informar_registro_sis('161161');
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM registrar_verificacion_sis(test.u('b1'), '161161', 'VERIFICADO_MANUAL', 'MANUAL', 'Psicólogo', 'U. de Prueba');
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT EXISTS (SELECT 1 FROM perfiles_publicos() WHERE id = test.u('b1')), 'caso 161: validado sale en el sitio';
+  ASSERT EXISTS (SELECT 1 FROM registros_sis_publicos() WHERE profesional_id = test.u('b1')), 'caso 161: registro publico del validado';
+
+  -- Observacion de un titulo.
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  INSERT INTO profesional_trayectoria (id, profesional_id, tipo, titulo, institucion, anio)
+  VALUES (test.u('e3'), test.u('b1'), 'DIPLOMADO', 'T Diplomado 161', 'U. de Prueba', 2020);
+  PERFORM subir_respaldo_trayectoria(test.u('e4'), test.u('e3'), 'diplomado.pdf', 'application/pdf', 10, test.cif('pdf 161'));
+  PERFORM test.ctx('a1', 'ADMIN');
+  UPDATE profesional_trayectoria SET verificado = true WHERE id = test.u('e3');
+  BEGIN
+    UPDATE profesional_trayectoria SET observacion = 'directo' WHERE id = test.u('e3');
+    RAISE EXCEPTION 'caso 161: observar por UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM observar_trayectoria(test.u('e3'), '   ');
+    RAISE EXCEPTION 'caso 161: observacion vacia debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM observar_trayectoria(test.u('ee'), 'No existe');
+    RAISE EXCEPTION 'caso 161: titulo inexistente debio fallar';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM observar_trayectoria(test.u('e3'), 'El respaldo esta ilegible');
+  SELECT * INTO r FROM profesional_trayectoria WHERE id = test.u('e3');
+  ASSERT NOT r.verificado AND r.observacion = 'El respaldo esta ilegible' AND r.observada_por_id = test.u('a1') AND r.observada_en IS NOT NULL,
+    'caso 161: observar deja el titulo en revision con la observacion';
+  FOR r IN SELECT * FROM (VALUES ('a3', 'GESTION'), ('b1', 'PROFESIONAL')) v(u, rol) LOOP
+    PERFORM test.ctx(r.u, r.rol);
+    BEGIN
+      PERFORM observar_trayectoria(test.u('e3'), 'Otra');
+      RAISE EXCEPTION 'caso 161: % observa debio fallar', r.rol;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  UPDATE profesional_trayectoria SET observacion = NULL, anio = 2021 WHERE id = test.u('e3');
+  ASSERT (SELECT observacion FROM profesional_trayectoria WHERE id = test.u('e3')) = 'El respaldo esta ilegible',
+    'caso 161: el propio no borra la observacion';
+  PERFORM subir_respaldo_trayectoria(test.u('eb'), test.u('e3'), 'diplomado-v2.pdf', 'application/pdf', 10, test.cif('pdf 161 v2'));
+  ASSERT (SELECT observacion IS NULL AND observada_en IS NULL FROM profesional_trayectoria WHERE id = test.u('e3')),
+    'caso 161: un respaldo nuevo limpia la observacion';
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM observar_trayectoria(test.u('e3'), 'Falta la fecha');
+  UPDATE profesional_trayectoria SET verificado = true WHERE id = test.u('e3');
+  ASSERT (SELECT verificado AND observacion IS NULL FROM profesional_trayectoria WHERE id = test.u('e3')),
+    'caso 161: verificar limpia la observacion';
+
+  -- Documentos del practicante.
+  PERFORM test.ctx('c1', 'PRACTICANTE');
+  PERFORM subir_documento_practicante(test.u('f6'), test.u('c1'), 'CERTIFICADO_ALUMNO_REGULAR', 'certificado.pdf', 'application/pdf', 10,
+                                      test.cif('certificado 161'), '2027-03-31');
+  BEGIN
+    PERFORM subir_documento_practicante(test.u('f7'), test.u('c3'), 'CERTIFICADO_ALUMNO_REGULAR', 'x.pdf', 'application/pdf', 10, test.cif('x'), NULL);
+    RAISE EXCEPTION 'caso 161: documento de otro practicante debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO practicante_documentos (id, practicante_id, tipo, nombre_archivo, tipo_mime, tamano_bytes, contenido, subido_por_id)
+    VALUES (test.u('f7'), test.u('c1'), 'CONVENIO_PRACTICA', 'x.pdf', 'application/pdf', 10, test.cif('x'), test.u('c1'));
+    RAISE EXCEPTION 'caso 161: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM subir_documento_practicante(test.u('f7'), test.u('c1'), 'CONVENIO_PRACTICA', 'x.exe', 'application/x-msdownload', 10, test.cif('x'), NULL);
+    RAISE EXCEPTION 'caso 161: tipo no permitido debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  FOR r IN SELECT * FROM (VALUES ('a3', 'GESTION'), ('b1', 'PROFESIONAL')) v(u, rol) LOOP
+    PERFORM test.ctx(r.u, r.rol);
+    BEGIN
+      PERFORM subir_documento_practicante(test.u('f7'), test.u('c1'), 'CONVENIO_PRACTICA', 'x.pdf', 'application/pdf', 10, test.cif('x'), NULL);
+      RAISE EXCEPTION 'caso 161: % sube documentos de practicante debio fallar', r.rol;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM subir_documento_practicante(test.u('f7'), test.u('c1'), 'CONVENIO_PRACTICA', 'convenio.pdf', 'application/pdf', 10, test.cif('convenio 161'), NULL);
+  BEGIN
+    PERFORM subir_documento_practicante(test.u('f8'), test.u('b1'), 'CONVENIO_PRACTICA', 'x.pdf', 'application/pdf', 10, test.cif('x'), NULL);
+    RAISE EXCEPTION 'caso 161: documento de quien no es practicante debio fallar';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  ASSERT (SELECT subido_por_id FROM practicante_documentos WHERE id = test.u('f7')) = test.u('a1'), 'caso 161: queda quien subio';
+  PERFORM test.ctx('c1', 'PRACTICANTE');
+  ASSERT (SELECT count(*) FROM practicante_documentos) = 2, 'caso 161: el practicante ve los suyos';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT (SELECT count(*) FROM practicante_documentos WHERE practicante_id = test.u('c1')) = 2, 'caso 161: GESTION lee';
+  BEGIN
+    DELETE FROM practicante_documentos;
+    RAISE EXCEPTION 'caso 161: DELETE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM practicante_documentos), 'caso 161: un profesional no ve documentos de practicantes';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  ASSERT NOT EXISTS (SELECT 1 FROM practicante_documentos), 'caso 161: PACIENTE no ve documentos';
+
+  -- Correcciones del perfil publico.
+  FOR r IN SELECT * FROM (VALUES ('a1', 'ADMIN'), ('a3', 'GESTION')) v(u, rol) LOOP
+    PERFORM test.ctx(r.u, r.rol);
+    BEGIN
+      UPDATE profesionales SET bio = 'Editada' WHERE usuario_id = test.u('b1');
+      RAISE EXCEPTION 'caso 161: % edita el texto publico ajeno debio fallar', r.rol;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM pedir_correccion_perfil(test.u('b1'), ARRAY['bio'], 'Tiene un telefono');
+    RAISE EXCEPTION 'caso 161: GESTION pide correccion debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM pedir_correccion_perfil(test.u('b1'), ARRAY['telefono'], 'Campo que no existe');
+    RAISE EXCEPTION 'caso 161: campo desconocido debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  ASSERT (SELECT solicitudes FROM pedir_correccion_perfil(test.u('b1'), ARRAY['bio'], 'Tiene un telefono')) = 1, 'caso 161: primera solicitud';
+  BEGIN
+    PERFORM corregir_campo_perfil(test.u('b1'), 'bio', 'Corregida', 'Quitamos el telefono');
+    RAISE EXCEPTION 'caso 161: corregir a la primera solicitud debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  ASSERT (SELECT solicitudes FROM pedir_correccion_perfil(test.u('b1'), ARRAY['bio'], 'Sigue el telefono')) = 2, 'caso 161: segunda sin cambios';
+  BEGIN
+    PERFORM corregir_campo_perfil(test.u('b1'), 'foto_url', '/x.jpg', 'Foto');
+    RAISE EXCEPTION 'caso 161: la foto no la corrige la cuenta madre';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM corregir_campo_perfil(test.u('b1'), 'bio', 'Corregida por el centro', 'Quitamos el telefono');
+  ASSERT (SELECT bio FROM profesionales WHERE usuario_id = test.u('b1')) = 'Corregida por el centro', 'caso 161: ADMIN corrige a la segunda';
+  BEGIN
+    PERFORM corregir_campo_perfil(test.u('b1'), 'bio', 'Otra vez', 'x de nuevo');
+    RAISE EXCEPTION 'caso 161: tras corregir, la cuenta vuelve a cero';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- Si el profesional cambia el campo entre solicitudes, la cuenta parte de nuevo.
+  PERFORM pedir_correccion_perfil(test.u('b1'), ARRAY['cita_destacada'], 'Frase con errores');
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  UPDATE profesionales SET cita_destacada = 'Frase revisada' WHERE usuario_id = test.u('b1');
+  ASSERT (SELECT count(*) FROM correcciones_perfil) = 4, 'caso 161: el profesional ve las suyas';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT solicitudes FROM pedir_correccion_perfil(test.u('b1'), ARRAY['cita_destacada'], 'Todavia con errores')) = 1,
+    'caso 161: cambio entre solicitudes reinicia la cuenta';
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  ASSERT NOT EXISTS (SELECT 1 FROM correcciones_perfil), 'caso 161: otro profesional no ve correcciones ajenas';
+  BEGIN
+    INSERT INTO correcciones_perfil (profesional_id, campo, accion, motivo, huella, autor_id)
+    VALUES (test.u('b2'), 'bio', 'PEDIDA', 'directo', 'x', test.u('b2'));
+    RAISE EXCEPTION 'caso 161: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 \connect :owner_url
 

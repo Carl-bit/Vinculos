@@ -66,6 +66,7 @@ describe('03b-3.1 / 03b-3.2 la hora se confirma con el pago', () => {
           .send({ ...perfil, perfilPublico: true })
       ).status,
     ).toBe(200);
+    await t.datos.validar(u.id);
     await t
       .http()
       .put(`/api/profesionales/${u.id}/tipos-atencion`)

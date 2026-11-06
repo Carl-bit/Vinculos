@@ -1,7 +1,8 @@
-import { Modalidad, ModalidadAtencion, TipoTrayectoria } from '@prisma/client';
+import { Modalidad, ModalidadAtencion, TipoDocumentoPracticante, TipoTrayectoria } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsBoolean,
@@ -9,6 +10,7 @@ import {
   IsEnum,
   IsIn,
   IsInt,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUrl,
@@ -218,15 +220,67 @@ export class TrayectoriaDto {
   @IsString()
   @Length(1, 40)
   registroSuperintendencia?: string;
-
-  @IsOptional()
-  @IsUrl({ protocols: ['https'], require_protocol: true })
-  documentoRespaldoUrl?: string;
+  // 2026-11-07: el respaldo es un archivo (POST /trayectoria/:id/respaldos); el enlace ya no se recibe.
 }
 
 export class VerificarTrayectoriaDto {
   @IsBoolean()
   verificado!: boolean;
+}
+
+/** Observacion de la cuenta madre sobre el respaldo de un titulo (2026-11-08). */
+export class ObservarTrayectoriaDto {
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  observacion!: string;
+}
+
+/** Documento del practicante (2026-11-08): el tipo y la vigencia van en la query (multipart sin campos de texto). */
+export class DocumentoPracticanteDto {
+  @IsEnum(TipoDocumentoPracticante)
+  tipo!: TipoDocumentoPracticante;
+
+  /** Solo el certificado de alumno regular: hasta cuando vale (informativo, no corta el acceso). */
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  vigenteHasta?: string;
+}
+
+/** Campos del perfil publico que la cuenta madre puede pedir corregir. */
+export const CAMPOS_PERFIL = ['nombre_publico', 'especialidad', 'cita_destacada', 'bio', 'enfoques', 'foto_url'] as const;
+export type CampoPerfil = (typeof CAMPOS_PERFIL)[number];
+/** Los que corrige ella misma a la segunda solicitud sin cambios (la foto no). */
+export const CAMPOS_CORREGIBLES = ['nombre_publico', 'especialidad', 'cita_destacada', 'bio', 'enfoques'] as const;
+
+export class PedirCorreccionDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(6)
+  @ArrayUnique()
+  @IsIn(CAMPOS_PERFIL, { each: true })
+  campos!: CampoPerfil[];
+
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  motivo!: string;
+}
+
+export class CorregirCampoDto {
+  @IsIn(CAMPOS_CORREGIBLES)
+  campo!: (typeof CAMPOS_CORREGIBLES)[number];
+
+  /** Valor nuevo (enfoques separados por coma). Vacio = quitar (no para la especialidad). */
+  @IsString()
+  @MaxLength(2000)
+  valor!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  motivo!: string;
 }
 
 export class DatosPrivadosDto {

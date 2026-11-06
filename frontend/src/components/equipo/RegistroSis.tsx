@@ -225,7 +225,7 @@ function RegistroProfesional({ profesionalId, propio, admin }: { profesionalId: 
 }
 
 /** ADMIN: verificacion manual con el respaldo de la trayectoria (sin apikey o con el RNPI caido). */
-function VerificacionManual({ abierto, profesionalId, onListo }: { abierto: boolean; profesionalId: string; onListo: (r?: RegistroSis) => void }) {
+export function VerificacionManual({ abierto, profesionalId, onListo }: { abierto: boolean; profesionalId: string; onListo: (r?: RegistroSis) => void }) {
   const [titulo, setTitulo] = useState('');
   const [institucion, setInstitucion] = useState('');
   const [error, setError] = useState<string>();

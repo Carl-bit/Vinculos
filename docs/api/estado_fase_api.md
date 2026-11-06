@@ -656,5 +656,65 @@ Roadmap: `docs/cumplimiento/roadmap_aud01.md`. Informe: `docs/cumplimiento/brech
 - Tests: integracion `02e-equipo` (quitar frase con null); Vitest
   `vistaPreviaPerfil`; Playwright `panel` (Mi perfil, Mi cuenta, cuenta
   madre) y `protocolo-morosidad` (actualizados).
-- Pendiente: subir el respaldo como archivo (hoy solo enlace); sesiones
-  abiertas del diseño (la API no las expone).
+- Pendiente (resuelto el 2026-11-07, ver la seccion siguiente): subir el
+  respaldo como archivo; sesiones abiertas del diseño.
+
+## Respaldo de titulos y sesion unica (2026-11-07)
+
+Cierra los dos pendientes de "Mi perfil y Mi cuenta". Proceso completo en
+`docs/api/respaldo_titulos.md` y `docs/api/sesion_unica_conexiones.md`.
+
+- Migraciones `20261107000000_respaldos_trayectoria` (tabla A
+  `trayectoria_respaldos`, cifrada IDENTIFICACION, versionada; funcion
+  `subir_respaldo_trayectoria`; verificar exige respaldo) y
+  `20261107000100_sesion_unica_conexiones` (`sesiones.dispositivo`, sesion
+  unica en `crear_sesion`, `sesion_vigente`, `motivo_fin_sesion`,
+  `mis_conexiones`; `rotar_sesion` y `cambiar_rol_sesion` devuelven la familia).
+- API: `POST trayectoria/:id/respaldos`, `GET trayectoria/respaldos/:id`,
+  `respaldos` en `TrayectoriaVista`, `TrayectoriaDto` sin `documentoRespaldoUrl`;
+  `GET usuarios/yo/conexiones`; JWT con `sid` validado en cada request; el
+  refresh devuelve `motivo: NUEVA_SESION`.
+- Front: Formacion con archivo (`MiTrayectoria`, `RespaldoTitulo`),
+  verificacion del ADMIN con descarga (`FichaIntegrante`), Mi cuenta >
+  Seguridad con `ConexionesCuenta`, avisos en el login (otro ingreso,
+  contraseña cambiada), el puente de sesion reenvia el User-Agent.
+- Tests: `seguridad_bd.sql` casos 159 y 160 (70, 86 y 101 adaptados);
+  integracion `sesion-respaldos` y `02e-equipo`; unitario `dispositivo`.
+
+## Equipo del centro segun diseño "version 1" (2026-11-05)
+
+Ficha del integrante con lista de validacion. Detalle, contradicciones con
+las reglas y pendientes en `docs/front/equipo_validacion.md`.
+
+- API: `GET profesionales/:id/datos-privados` registra en
+  `registro_exportaciones` (`profesional_datos_privados`) la lectura de
+  quien no es el titular. Sin migracion.
+- Front: `EquipoCentro` (barra con contadores, resumen, lista con estado y
+  filtros), `FichaValidacion` (validacion paso a paso, perfil publico en solo
+  lectura con "Pedir una correccion", trabajo con pacientes, administrativo),
+  practicantes en tarjetas, filtros de reseñas, `lib/validacionEquipo.ts`.
+- Pendientes: ocultar del sitio a quien no esta validado (hoy solo pierde el
+  sello), documentos del practicante, correo de mensajes internos y retirar o
+  no la edicion del perfil por ADMIN en la API.
+
+## Equipo v1, segunda ronda (2026-11-08)
+
+Decisiones del usuario sobre la ficha del integrante. Detalle en
+`docs/front/equipo_validacion.md`.
+
+- Migracion `20261108000000_equipo_validacion`: `profesional_validado` (el
+  sitio publico, el registro SIS publico, la disponibilidad publica y pedir
+  hora solo con profesionales validados), observacion de titulos
+  (`observar_trayectoria`), `practicante_documentos` (A, cifrada, versionada)
+  y `correcciones_perfil` (B) con `pedir_correccion_perfil` y
+  `corregir_campo_perfil`; trigger `profesionales_campos_publicos`.
+- API: `POST trayectoria/:id/observacion`; `GET|POST practicantes/:id/documentos`,
+  `GET practicantes/documentos/:id`; `GET|POST profesionales/:id/correcciones`,
+  `POST profesionales/:id/correcciones/aplicacion`. Se retira
+  `POST profesionales/:id/foto` (ADMIN). `TrayectoriaVista` suma la observacion.
+- Tests: `seguridad_bd.sql` caso 161 (49 y 70 adaptados, helper `test.validar`);
+  integracion `equipo-validacion`, `02e` y `03b42b` adaptados; helper
+  `t.datos.validar` en los tests que publican perfiles.
+- Seed demo: titulo verificado para los seis profesionales del sitio y
+  documentos del practicante demo.
+

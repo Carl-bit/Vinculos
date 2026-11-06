@@ -38,8 +38,10 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
     { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'modulos', roles: ['ADMIN', 'GESTION'], modulo: 'EQUIPO', fueraDelMenu: ['ADMIN'] },
     { etiqueta: 'Match Terapéutico', icono: 'join', href: '/admin/match', grupo: 'modulos', roles: ['ADMIN'], modulo: 'MATCH' },
     { etiqueta: 'Cobros', icono: 'payments', href: '/admin/cobros', grupo: 'modulos', roles: ['ADMIN', 'GESTION', 'PROFESIONAL'], modulo: 'COBROS' },
-    { etiqueta: 'Configuración', icono: 'settings', href: '/admin/configuracion', grupo: 'centro', roles: ['ADMIN'] },
     // 2026-10-27: la seccion Centro es solo de la cuenta madre (ADMIN).
+    // 2026-11-05: la cuenta madre gestiona el equipo desde Centro (GESTION lo ve en Modulos).
+    { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'centro', roles: ['ADMIN'], modulo: 'EQUIPO' },
+    { etiqueta: 'Configuración', icono: 'settings', href: '/admin/configuracion', grupo: 'centro', roles: ['ADMIN'] },
     { etiqueta: 'Página pública', icono: 'public', href: '/', grupo: 'centro', roles: ['ADMIN'], modulo: 'PAGINA_PUBLICA' },
   ],
   portal: [

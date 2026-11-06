@@ -35,6 +35,7 @@ import {
   CambiarSegundoFactorDto,
   CodigosRespaldo,
   EstadoSegundoFactor,
+  ConexionVista,
   CrearUsuarioDto,
   EditarConfiguracionDto,
   EditarMiCuentaDto,
@@ -141,6 +142,16 @@ export class UsuariosController {
   @Roles(...TODOS)
   cambiarPassword(@Body() dto: CambiarPasswordDto) {
     return this.usuarios.cambiarPassword(dto);
+  }
+
+  /**
+   * Registro de conexiones propias (2026-11-07, sesion unica): equipo, en
+   * Mi cuenta > Seguridad. Solo las propias (mis_conexiones).
+   */
+  @Get('yo/conexiones')
+  @Roles(...EQUIPO)
+  conexiones(): Promise<ConexionVista[]> {
+    return this.usuarios.misConexiones();
   }
 
   /** 03b-4.1: estado de la verificacion en dos pasos por correo. */

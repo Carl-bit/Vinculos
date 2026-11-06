@@ -38,6 +38,7 @@ describe('02g match y portal', () => {
           .send({ ...perfil, perfilPublico: true })
       ).status,
     ).toBe(200);
+    await t.datos.validar(u.id);
     if (opciones.tipo !== false) {
       await t
         .http()

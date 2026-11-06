@@ -64,6 +64,8 @@ compara ese registro con las columnas bytea reales de la BD.
 | `recordatorios_cita.enlace` (02i, CLINICO) | URL con el token para confirmar o cancelar, solo para armar el mensaje. Para validar se guarda aparte su SHA-256 (`token_hash`). Id generado por la API. |
 | `adjuntos_ficha.contenido` (02i, CLINICO) | Archivo externo de la ficha (informe, imagen) en base64. Id generado por la API. |
 | `usuarios.totp_secreto` (03a, IDENTIFICACION) | Secreto del segundo factor: con el se generan codigos validos. |
+| `trayectoria_respaldos.contenido` (2026-11-07, IDENTIFICACION) | Archivo del titulo del profesional (base64): trae nombre y a veces RUT. Id generado por la API. Versionado; se borra solo con su titulo. |
+| `practicante_documentos.contenido` (2026-11-08, IDENTIFICACION) | Certificado de alumno regular o convenio de practica (base64): trae nombre y RUT del estudiante. Id generado por la API. Versionado; se borra con `cerrar_cuenta`. |
 | `pacientes.contacto_emergencia` (03a, IDENTIFICACION) | Nombre y telefono de un tercero. Lo leen el tratante y ADMIN/GESTION. |
 | `solicitudes_hora.telefono`, `rut`, `adulto_telefono` (03a, IDENTIFICACION) | Contacto e identidad de quien pide hora sin cuenta. |
 | `solicitudes_hora.respuestas` (03a, CLINICO) | Respuestas del match (motivo de consulta). Se borran a los 30 dias si no se concreta la atencion (configurable) y al alta. |

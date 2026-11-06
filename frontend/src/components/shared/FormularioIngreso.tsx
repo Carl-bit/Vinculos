@@ -67,6 +67,8 @@ export function FormularioIngreso() {
   const parametros = useSearchParams();
   const volver = parametros.get('volver');
   const porInactividad = parametros.get('motivo') === 'inactividad';
+  const porOtroIngreso = parametros.get('motivo') === 'otro-ingreso';
+  const porClaveCambiada = parametros.get('motivo') === 'clave-cambiada';
   const [perfil, setPerfil] = useState<PerfilIngreso>(parametros.get('perfil') === 'equipo' ? 'equipo' : 'paciente');
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
@@ -143,6 +145,21 @@ export function FormularioIngreso() {
         <p role="status" className="m-0 mb-5 flex gap-2.5 rounded-lg border border-accent-500 bg-accent-200 px-4 py-3 text-[13.5px] font-bold text-accent-900">
           <Icon name="timer" size={19} />
           Cerramos tu sesión porque estuvo 30 minutos sin actividad. Vuelve a ingresar para seguir donde estabas.
+        </p>
+      )}
+      {porOtroIngreso && (
+        <p role="status" className="m-0 mb-5 flex gap-2.5 rounded-lg border border-accent-500 bg-accent-200 px-4 py-3 text-[13.5px] font-bold text-accent-900">
+          <Icon name="lock" size={19} />
+          Tu sesión se cerró porque se ingresó con tu cuenta en otro navegador o dispositivo. Si no fuiste tú, cambia tu contraseña al entrar.
+        </p>
+      )}
+      {porClaveCambiada && (
+        <p
+          role="status"
+          className="m-0 mb-5 flex gap-2.5 rounded-lg border border-accent-2-500 bg-accent-2-200 px-4 py-3 text-[13.5px] font-bold text-accent-2-900"
+        >
+          <Icon name="check" size={19} />
+          Tu contraseña cambió y cerramos tus sesiones. Ingresa con la contraseña nueva.
         </p>
       )}
 

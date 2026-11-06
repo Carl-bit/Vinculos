@@ -27,7 +27,7 @@ import { formatoFechaCorta, formatoHora } from '@/lib/formato';
 import { hoyChile, useCitas, useEquipoAgenda, usePacientes, type MiembroDirectorio } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
 
-import { AgendaProfesional } from './AgendaProfesional';
+import { AgendaProfesional } from '@/components/shared/AgendaProfesional';
 
 type Grupo = 'sc' | 'con' | 'dat' | 'der' | 'acc' | 'prac';
 type Tono = 'vencido' | 'pronto' | 'plazo' | 'ok';

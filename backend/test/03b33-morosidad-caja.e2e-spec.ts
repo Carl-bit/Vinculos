@@ -47,6 +47,7 @@ describe('03b-3.3 morosidad y caja de la hora retenida', () => {
       .put('/api/profesionales/yo/perfil')
       .set(await tk(u))
       .send({ ...perfil, perfilPublico: true });
+    await t.datos.validar(u.id);
     await t
       .http()
       .put('/api/profesionales/yo/videollamada')

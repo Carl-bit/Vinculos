@@ -5,6 +5,8 @@ import { useId, type KeyboardEvent } from 'react';
 interface Pestana<T extends string> {
   valor: T;
   etiqueta: string;
+  /** Contador de pendientes (se oculta en 0). */
+  n?: number;
 }
 
 /**
@@ -58,6 +60,12 @@ export function Pestanas<T extends string>({
             }`}
           >
             {p.etiqueta}
+            {!!p.n && (
+              <span className="ml-1.5 rounded-full border border-pendiente-700 bg-pendiente-100 px-[7px] py-px text-[11px] text-pendiente-900">
+                {p.n}
+                <span className="sr-only"> pendientes</span>
+              </span>
+            )}
           </button>
         );
       })}

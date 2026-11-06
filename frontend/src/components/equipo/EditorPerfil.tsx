@@ -7,7 +7,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Badge } from '@/components/ui/Badge';
-import { BarraFlotante, LIENZO, SeparadorBarra } from '@/components/ui/BarraFlotante';
+import { BarraFlotante, SeparadorBarra } from '@/components/ui/BarraFlotante';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
@@ -37,7 +37,7 @@ const SECCIONES: Record<Seccion, { nombre: string; ayuda: string }> = {
   dat: { nombre: 'Tarifa y modalidad', ayuda: 'Una tarifa nueva rige solo para horas que se agenden desde ahora.' },
   fra: { nombre: 'Frase destacada', ayuda: 'Una frase sobre cómo trabajas.' },
   sob: { nombre: 'Sobre mí', ayuda: 'Tu enfoque en pocas líneas. Sin datos de contacto: los pacientes te escriben por el portal.' },
-  for: { nombre: 'Formación', ayuda: 'Un título nuevo queda "En revisión" hasta que el centro revise su respaldo.' },
+  for: { nombre: 'Formación', ayuda: 'Solo la formación verificada sale en tu perfil público.' },
   esp: { nombre: 'Especialidades', ayuda: 'Del catálogo del centro; las aprueba la cuenta madre. También alimentan el match terapéutico.' },
   age: { nombre: 'Horas disponibles', ayuda: 'Esta tarjeta no se edita aquí: se arma con tus horarios y los boxes que apartas.' },
   val: { nombre: 'Valoraciones', ayuda: 'Las dejan pacientes que tuvieron al menos una sesión contigo. No se editan; puedes reportar una si no corresponde.' },
@@ -191,7 +191,7 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
   const bloque = (s: Seccion) => ({ s, sel, paciente, onElegir: () => elegir(s) });
 
   return (
-    <div className={`${LIENZO} -mx-[clamp(12px,2vw,24px)] flex flex-col gap-[18px] px-[clamp(12px,2vw,24px)] pt-4 pb-10`}>
+    <div data-lienzo className="flex flex-col gap-[18px]">
       <BarraFlotante etiqueta="Mi perfil">
         <strong className="text-[15px] font-black">Mi perfil</strong>
         <Badge tono={estado.tono}>{estado.texto}</Badge>
