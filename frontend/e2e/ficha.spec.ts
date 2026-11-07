@@ -98,6 +98,8 @@ test('Ficha: vista previa del PDF antes de emitir (sin emitir nada)', async ({ p
 test('Ficha: ADMIN no ve el contenido clinico; administra plantillas, catalogos y retencion', async ({ page }) => {
   await ingresarEquipo(page, 'admin');
   await page.goto('/admin/fichas?vista=pacientes');
+  // AUD-02: la lista llega de a 50 (orden por apellido); se busca como lo haria administracion.
+  await page.getByLabel('Buscar paciente por nombre o apellido').fill('Paciente');
   await page
     .getByRole('link', { name: /Prueba, Paciente|Paciente Prueba/ })
     .first()

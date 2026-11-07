@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "impeccable": "impeccable detect",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\"",
-    "api:cobertura": "node scripts/cobertura-api.mjs"
+    "api:cobertura": "node scripts/cobertura-api.mjs",
+    "iconos": "node scripts/descargar-iconos.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",

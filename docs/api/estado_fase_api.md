@@ -749,7 +749,7 @@ pg_stat_statements, Cloudflare en el plan, exportacion como job).
   persona); `pg_stat_statements` en el compose
   (`docs/operacion/pg_stat_statements.md`).
 - Bloque 2: exportacion del centro como job (migraciones
-  `20261110000000_aud02_exportacion_centro_job`, `…000100` y `…000200`;
+  `20261110000000_aud02_exportacion_centro` (unida, ver abajo);
   `ExportacionCentroService`; volumen `exportaciones`; ver
   `docs/cumplimiento/exportacion.md` seccion 3).
 - Rutas: `POST exportacion-centro` pasa a 202 (antes devolvia el archivo);
@@ -761,6 +761,29 @@ pg_stat_statements, Cloudflare en el plan, exportacion como job).
 - Exportacion programada (2026-11-06, mismo dia): llave publica X25519 (la
   clave no se guarda; formato v2), ventana nocturna por `horario_centro` o
   urgente, reintentos ante reinicio o error (3 intentos). Migraciones
-  `20261110000300` a `20261110000500`. `POST exportacion-centro` acepta
+  en la misma migracion unida. `POST exportacion-centro` acepta
   `urgente`; la vista suma `programadaPara`, `urgente` e `intentos`.
-  `connection_limit=8` en el compose (BD-04).
+  `connection_limit=12` en el compose (BD-04; era 8, subido el 2026-11-07 tras 04_pruebas).
+- 2026-11-07: las 6 migraciones de AUD-02 se unieron en
+  `20261110000000_aud02_exportacion_centro` (estado final; nunca salieron de
+  este equipo; la BD local se marco con `prisma migrate resolve --applied`).
+  Modo de prueba `JOBS_MANUALES` (solo desarrollo y tests; la API no arranca
+  con el en produccion): `POST /api/pruebas/jobs/enviar_recordatorios`, fuera
+  del OpenAPI; Playwright prueba el recordatorio de punta a punta en segundos.
+  Fuente de iconos alojada en el repo (`npm run iconos`).
+
+## AUD-02: paginacion por cursor (2026-11-07)
+
+- `GET /pacientes`: `{ items, siguienteCursor }`, `limite` 1 a 100 (50 por
+  defecto), `cursor` = id de la ultima fila; orden apellido, nombre, id. Filtro
+  nuevo `sinRut`. Las filas no traen `contactoEmergencia` (solo el detalle).
+- `GET /pacientes/resumen`: todos los que el rol ve, solo columnas en claro
+  (id, nombre, apellido, tratante, nacimiento, codigo seudonimo, alta); para
+  los nombres de agenda, cobros y avisos. Sin paginar a proposito: con miles de
+  pacientes por centro, cada vista deberia recibir el nombre en su respuesta.
+- `GET /auditoria/accesos`: `{ items, siguienteCursor }`, cursor opaco
+  (base64url de ocurrido_en con microsegundos + id), una sola consulta UNION
+  de `accesos_ficha` y `registro_exportaciones`. Reemplaza el tope fijo de 300.
+- `GET /notificaciones`: `{ items, siguienteCursor }` y filtro `tipo`
+  (las ofertas de derivacion piden solo `DERIVACION_OFRECIDA`).
+- Prueba por rol: `test/aud02-paginacion.e2e-spec.ts`.

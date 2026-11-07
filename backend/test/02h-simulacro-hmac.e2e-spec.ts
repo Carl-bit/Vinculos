@@ -103,7 +103,7 @@ describe('02h simulacro de compromiso de la HMAC', () => {
           .get('/api/pacientes')
           .query({ rut })
           .set(await t.token(gestion).then(auth));
-        expect(r.body.map((p: { id: string }) => p.id)).toEqual([ids[i]]);
+        expect(r.body.items.map((p: { id: string }) => p.id)).toEqual([ids[i]]);
       }
       const dup = await t
         .http()

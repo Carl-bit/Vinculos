@@ -39,6 +39,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import { LIMITE_MAXIMO } from '../../../core/validacion/paginacion';
 
 import { IsRut, NormalizarRut, Recortar, TELEFONO_CL } from '../../../core/validacion/validadores';
 
@@ -937,6 +938,19 @@ export class FiltroAuditoriaDto {
   @IsOptional()
   @IsIn(ACCIONES_AUDITORIA)
   accion?: (typeof ACCIONES_AUDITORIA)[number];
+
+  /** AUD-02 (API-01): `siguienteCursor` de la pagina anterior (opaco). */
+  @IsOptional()
+  @Matches(/^[A-Za-z0-9_-]{1,200}$/, { message: 'cursor invalido' })
+  cursor?: string;
+
+  /** Filas por pagina (1 a 100, por defecto 50). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(LIMITE_MAXIMO)
+  limite?: number;
 }
 
 /** Fila de la auditoria: acceso a datos de un paciente o descarga sin paciente (registro_exportaciones). */
@@ -958,6 +972,13 @@ export class RegistroAuditoria {
   accion!: string;
   @ApiProperty({ type: String, nullable: true, description: 'Campos que cambiaron u otro detalle; nunca valores' })
   detalle!: string | null;
+}
+
+export class PaginaAuditoria {
+  items!: RegistroAuditoria[];
+  /** Cursor de la pagina siguiente; null si no hay mas. */
+  @ApiProperty({ type: String, nullable: true })
+  siguienteCursor!: string | null;
 }
 
 /** AUD-01 (E2.1): autorizacion del centro al soporte de Vinculos (sin datos personales ni clinicos). */

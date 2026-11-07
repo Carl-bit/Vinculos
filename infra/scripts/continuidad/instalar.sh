@@ -39,7 +39,7 @@ fi
   printf '%s\n' "$ACTUAL"
   echo "MAILTO=$MAILTO"
   echo "0 2 * * * cd $RAIZ && CLIENTE_SLUG=$CLIENTE_SLUG DESTINO_RESPALDO=${DESTINO_RESPALDO:-} sh infra/scripts/continuidad/respaldar.sh $MARCA"
-  echo "*/5 * * * * DOMINIO=$DOMINIO ALERTA_URL=${ALERTA_URL:-} sh $RAIZ/infra/scripts/continuidad/salud.sh $MARCA"
+  echo "*/5 * * * * DOMINIO=$DOMINIO CLIENTE_SLUG=$CLIENTE_SLUG ALERTA_URL=${ALERTA_URL:-} sh $RAIZ/infra/scripts/continuidad/salud.sh $MARCA"
   echo "0 9 1 * * echo 'Prueba mensual de restauracion de $CLIENTE_SLUG (docs/cumplimiento/continuidad.md, seccion 3)' $MARCA"
 } | crontab -
 echo "Tareas de $CLIENTE_SLUG agregadas al crontab."

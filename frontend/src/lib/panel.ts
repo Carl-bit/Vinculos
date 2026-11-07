@@ -5,7 +5,7 @@
  * aca solo se arman las llaves y los filtros. Nombres de otros usuarios solo
  * vienen del directorio (`useProfesionales`, `useDirectorio`).
  */
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { api, datos } from './api/cliente';
@@ -14,6 +14,8 @@ import type { components } from './api/esquema';
 
 export type CitaVista = components['schemas']['CitaVista'];
 export type PacienteVista = components['schemas']['PacienteVista'];
+export type PacienteFila = components['schemas']['PacienteFila'];
+export type PacienteResumen = components['schemas']['PacienteResumen'];
 export type EspacioVista = components['schemas']['EspacioVista'];
 export type ReporteDashboard = components['schemas']['ReporteDashboard'];
 export type TipoAtencion = components['schemas']['TipoAtencionVista'];
@@ -80,14 +82,34 @@ export function useRetencionesAjenas(filtro: { desde: string; hasta: string; pro
   });
 }
 
-export function usePacientes(
-  filtro: { profesionalId?: string; nombre?: string; menores?: boolean; duplicados?: boolean; derivados?: boolean } = {},
-  habilitado = true,
-) {
+/**
+ * Todos los pacientes que el rol ve, sin columnas cifradas (AUD-02 BD-02):
+ * para los nombres de agenda, cobros y avisos. La lista de Fichas usa
+ * `usePaginaPacientes`.
+ */
+export function usePacientes(filtro: { profesionalId?: string; nombre?: string } = {}, habilitado = true) {
   return useQuery({
-    queryKey: ['panel', 'pacientes', filtro],
-    queryFn: () => datos(api.GET('/api/pacientes', { params: { query: filtro } })),
+    queryKey: ['panel', 'pacientes', 'resumen', filtro],
+    queryFn: () => datos(api.GET('/api/pacientes/resumen', { params: { query: filtro } })),
     enabled: habilitado,
+    staleTime: MINUTO,
+  });
+}
+
+/** Lista de Fichas paginada por cursor (AUD-02 API-01): 50 por pagina, "Cargar mas" pide la siguiente. */
+export function usePaginaPacientes(filtro: {
+  profesionalId?: string;
+  nombre?: string;
+  menores?: boolean;
+  duplicados?: boolean;
+  derivados?: boolean;
+  sinRut?: boolean;
+}) {
+  return useInfiniteQuery({
+    queryKey: ['panel', 'pacientes', 'pagina', filtro],
+    queryFn: ({ pageParam }) => datos(api.GET('/api/pacientes', { params: { query: { ...filtro, cursor: pageParam } } })),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultima) => ultima.siguienteCursor ?? undefined,
     staleTime: MINUTO,
   });
 }
@@ -101,7 +123,8 @@ export function useTiposAtencion() {
 }
 
 /** id -> "Nombre Apellido" de los pacientes que el rol ve. */
-export const nombresPacientes = (lista: PacienteVista[] | undefined) => new Map((lista ?? []).map((p) => [p.id, `${p.nombre} ${p.apellido}`]));
+export const nombresPacientes = (lista: Pick<PacienteResumen, 'id' | 'nombre' | 'apellido'>[] | undefined) =>
+  new Map((lista ?? []).map((p) => [p.id, `${p.nombre} ${p.apellido}`]));
 
 /** Nombre del paciente de una cita; la hora retenida (03b-3.2: reserva sin cuenta en curso) aun no tiene paciente. */
 export const nombreDeCita = (nombres: Map<string, string>, c: Pick<CitaVista, 'pacienteId'>) =>
@@ -172,8 +195,14 @@ export type AceptacionVista = components['schemas']['AceptacionVista'];
 export type AdultoResponsable = components['schemas']['AdultoResponsableVista'];
 export type DerivacionVista = components['schemas']['DerivacionVista'];
 
+/** Detalle de un paciente (misma llave para `usePaciente` y `useQueries`). */
+export const consultaPaciente = (id: string) => ({
+  queryKey: ['panel', 'paciente', id],
+  queryFn: () => datos(api.GET('/api/pacientes/{id}', { params: { path: { id } } })),
+});
+
 export function usePaciente(id: string) {
-  return useQuery({ queryKey: ['panel', 'paciente', id], queryFn: () => datos(api.GET('/api/pacientes/{id}', { params: { path: { id } } })) });
+  return useQuery(consultaPaciente(id));
 }
 
 export function useAdultosResponsables(pacienteId: string) {

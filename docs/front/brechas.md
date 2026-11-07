@@ -890,9 +890,9 @@ ampliada: rendimiento, Playwright movil y red 3G lenta).
 | Accesibilidad | `e2e/accesibilidad.spec.ts`: axe-core WCAG 2.0/2.1 A y AA en 21 vistas (publico, portal, panel) sin violaciones; "Saltar al contenido" como primer foco; corregido el contraste de la sesion "Ahora" del inicio del panel (2.4:1, tinta sobre arcilla) |
 | SSR | Publico ya era SSR (server components); backoffice en cliente |
 | Imagenes | Fotos publicas del equipo con `next/image` (AVIF/WebP, lazy, `sizes`); solo `/api/publico/imagenes/**` pasa por el optimizador. Las privadas (respaldos, documentos) no |
-| Fuentes | Figtree con next/font (6 grosores, todos en uso). **Pendiente:** Material Symbols sigue en `fonts.googleapis.com` (unico recurso de terceros, tambien en vistas clinicas); alojarlo exige descargar una vez el woff2 recortado (autorizacion del usuario) |
+| Fuentes | Figtree con next/font (6 grosores, todos en uso) y Material Symbols Rounded alojada en el repo (`app/fuentes/material-symbols-rounded.woff2`, 140 KB, 180 glifos, `next/font/local`; `npm run iconos` la regenera). Verificado en Chromium: los iconos se dibujan y hay 0 pedidos a Google (2026-11-07) |
 | Division del JS | `CalendarioAgenda` y `EditorEvolucion` con `next/dynamic` y skeleton |
-| Scripts de terceros | Ninguno (sin analitica) |
+| Scripts de terceros | Ninguno (sin analitica, sin fuentes de Google) |
 | Debounce | `lib/useRetardado` (300 ms) en la busqueda de pacientes (consulta la API); el resto de los buscadores filtra datos ya cargados |
 | Duplicados y paralelo | React Query deduplica por clave; SSR con `Promise.all`; politicas sin Data Cache (version vigente) |
 | Listas largas | La API las acota (auditoria 300). Listas del portal con `content-visibility: auto` (utilidad `fila-diferida`). ponytail: tablas sin windowing; si superan miles de filas, paginar en la API o windowing |
@@ -918,8 +918,18 @@ Playwright (flujos de 02j y nuevos; enlaces leidos desde Mailpit):
 | Cubrir sesion con acceso temporal | `panel.spec` 03b-6: la cita cambia de profesional, el tratante no; acceso registrado |
 | Hilo CASO | `equipo-clinico.spec` 03b-6: lo ve quien tiene acceso y desaparece al revocarlo |
 | Lista de espera | **Omitido:** retirada (seccion 16, migracion `quitar_lista_espera`) |
-| Recordatorio por token | **Pendiente:** el job corre cada 10 min y solo para citas dentro de `recordatorio_horas_antes`; falta un modo de prueba sin esperar |
+| Recordatorio por token | `publico.spec` "recordatorio por correo": cita confirmada, el job corre por el modo de prueba `JOBS_MANUALES` (`POST /api/pruebas/jobs/enviar_recordatorios`, solo desarrollo y tests), el enlace llega a Mailpit, la pagina muestra la politica que aplica, "Confirmo que asistire" y el enlace sirve una vez (2026-11-07). Probado tambien a mano con el job real (correo a los ~7 min) |
 | Movil + 3G lenta | `playwright.movil.config.ts` (Pixel 7, 400 ms / 400 kbit/s) sobre build de produccion: `publico.spec` y `portal.spec` |
 
 Notas: los pacientes de prueba nuevos (`pacienteNuevo`) llevan RUT al azar
 valido porque la BD exige RUT antes de la primera evolucion.
+
+## AUD-02 paginacion (2026-11-07)
+
+- Fichas > pacientes llega de a 50 con "Cargar mas". "Sin RUT" filtra en la
+  API; "Sin cerrar" y "Sin sesion +1 mes" dependen del estado de fichas y
+  filtran solo lo ya cargado (cargar mas para ver el resto).
+- El resumen de la auditoria (lecturas, ediciones, exportaciones de 7 dias)
+  cuenta lo cargado y avisa "primeros N registros" si hay mas paginas.
+- Mensajes de pacientes pide telefono y correo al detalle de cada paciente con
+  mensajes, no a la lista completa.

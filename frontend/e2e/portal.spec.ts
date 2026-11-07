@@ -1,7 +1,7 @@
 import { expect, test } from './prueba';
 import type { Page } from '@playwright/test';
 
-import { ingresarEquipo } from './apoyo';
+import { ingresarEquipo, sqlPrueba } from './apoyo';
 
 /** Seed demo (docs/pruebas/guion_manual.md): pacientes y adulto responsable del portal (03b-3). */
 const PASSWORD = 'dev-password';
@@ -82,7 +82,7 @@ test('recuperar contraseña y enlace de acceso: respuesta identica exista o no l
   await expect(page.getByRole('heading', { name: 'Esta invitación ya no sirve.' })).toBeVisible();
 });
 
-test('paciente: pide hora con su tratante sin repetir datos y descarga su documento', async ({ page }) => {
+test('paciente: pide hora con su tratante sin repetir datos y descarga su documento', async ({ page, browser }) => {
   await ingresar(page, 'paciente');
   await page.getByRole('navigation', { name: 'Menú del portal' }).getByRole('link', { name: 'Pedir una hora' }).click();
   await expect(page.getByRole('heading', { name: /^Con / })).toBeVisible();
@@ -102,6 +102,20 @@ test('paciente: pide hora con su tratante sin repetir datos y descarga su docume
   await page.getByRole('radio', { name: /^Pago en el centro/ }).check();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(page.getByText('Tu hora quedó confirmada')).toBeVisible();
+
+  // Limpieza: confirmada sin pago, al pasar la hora seria deuda y el paciente demo quedaria
+  // moroso (bloquea agendar en otras pruebas). Administracion la anula desde la agenda.
+  const citaId = sqlPrueba(
+    `SELECT c.id FROM citas c JOIN usuarios u ON u.paciente_id = c.paciente_id
+     WHERE u.email = '${correo('paciente')}' AND c.estado = 'CONFIRMADA' ORDER BY c.created_at DESC LIMIT 1`,
+  );
+  const admin = await (await browser.newContext()).newPage();
+  await ingresarEquipo(admin, 'admin');
+  await admin.goto(`/admin/agenda?cita=${citaId}`);
+  await admin.getByRole('dialog').getByRole('button', { name: 'Cancelar cita' }).click();
+  await admin.getByRole('dialog').getByRole('button', { name: 'Sí, cancelar' }).click();
+  await expect.poll(() => sqlPrueba(`SELECT estado FROM citas WHERE id = '${citaId}'`)).toBe('CANCELADA');
+  await admin.close();
 
   await page.goto('/portal/documentos');
   const descarga = page.waitForEvent('download');

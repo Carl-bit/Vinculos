@@ -11,7 +11,7 @@ import {
   NivelRiesgo,
   TipoPlantillaClinica,
 } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -35,6 +35,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import { PaginaDto } from '../../../core/validacion/paginacion';
 import { IsRut, NormalizarRut, Recortar, TELEFONO_CL } from '../../../core/validacion/validadores';
 
 /** Largo maximo del texto clinico libre (notas de una evolucion). */
@@ -132,7 +133,22 @@ export class EditarPacienteDto {
 
 const booleano = () => Transform(({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value));
 
-export class BuscarPacientesDto {
+/** Mapa id -> nombre del panel (agenda, cobros, avisos): todos los que el rol ve, sin columnas cifradas. */
+export class FiltroResumenPacientesDto {
+  @IsOptional()
+  @IsUUID()
+  profesionalId?: string;
+
+  /** Busqueda por nombre o apellido (contiene). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 120)
+  nombre?: string;
+}
+
+/** AUD-02 (API-01): lista de pacientes paginada por cursor (maximo 100 por pagina). */
+export class BuscarPacientesDto extends PaginaDto {
   /** Busqueda exacta por RUT (indice ciego rut_hmac). */
   @IsOptional()
   @NormalizarRut()
@@ -168,6 +184,12 @@ export class BuscarPacientesDto {
   @IsString()
   @Length(1, 120)
   nombre?: string;
+
+  /** Solo pacientes sin RUT registrado (pestaña "Sin RUT" de administracion). */
+  @IsOptional()
+  @booleano()
+  @IsBoolean()
+  sinRut?: boolean;
 }
 
 export class CrearAdultoResponsableDto {
@@ -650,6 +672,30 @@ export class PacienteVista {
   bloqueoMotivo!: string | null;
   createdAt!: Date;
   updatedAt!: Date;
+}
+
+/** Fila de la lista paginada: la vista sin el contacto de emergencia (solo en el detalle, AUD-02 BD-02). */
+export class PacienteFila extends OmitType(PacienteVista, ['contactoEmergencia'] as const) {}
+
+export class PaginaPacientes {
+  items!: PacienteFila[];
+  /** Id de la ultima fila; null si no hay mas paginas. */
+  @ApiProperty({ type: String, nullable: true })
+  siguienteCursor!: string | null;
+}
+
+/** Paciente para el mapa id -> nombre del panel: sin columnas cifradas (AUD-02 BD-02). */
+export class PacienteResumen {
+  id!: string;
+  nombre!: string;
+  apellido!: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Tratante' })
+  profesionalId!: string | null;
+  @ApiProperty({ type: String, format: 'date' })
+  fechaNacimiento!: Date;
+  @ApiProperty({ type: String, nullable: true, description: 'Codigo para la supervision seudonimizada' })
+  codigoSeudonimo!: string | null;
+  createdAt!: Date;
 }
 
 export class PacienteCreado extends PacienteVista {

@@ -1374,6 +1374,9 @@ model Cita {
   solicitud             SolicitudHora?
 
   @@index([pacienteId])
+  /// AUD-02 BD-03: agenda por box y por profesional en un rango (todas las estados).
+  @@index([espacioId, inicio])
+  @@index([profesionalId, inicio])
   @@map("citas")
 }
 

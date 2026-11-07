@@ -16,6 +16,10 @@ consultas hace cada endpoint (BD-01), cuáles son lentas, si conviene un
   docker compose exec db sh /docker-entrypoint-initdb.d/20-pg-stat-statements.sh
   ```
 
+  Desde Git Bash en Windows, anteponer `MSYS_NO_PATHCONV=1` (si no, la ruta
+  se convierte a `C:/Program Files/Git/...`). Activado en la BD local el
+  2026-11-07.
+
 ## Privacidad
 
 El texto se guarda normalizado (`WHERE rut_hmac = $1`): ningún valor de

@@ -89,12 +89,13 @@ export function usePendientesDerivacion(habilitado: boolean) {
  */
 export function useOfertasDerivacion(habilitado: boolean) {
   const avisos = useQuery({
-    queryKey: ['notificaciones', 'registro'],
-    queryFn: () => datos(api.GET('/api/notificaciones')),
+    queryKey: ['notificaciones', 'registro', 'DERIVACION_OFRECIDA'],
+    // AUD-02: solo las ofertas, la pagina mas reciente (100); una oferta vieja ya vencio.
+    queryFn: () => datos(api.GET('/api/notificaciones', { params: { query: { tipo: 'DERIVACION_OFRECIDA', limite: 100 } } })),
     enabled: habilitado,
     refetchInterval: 2 * 60_000,
   });
-  const ids = [...new Set((avisos.data ?? []).filter((n) => n.tipo === 'DERIVACION_OFRECIDA').map((n) => n.referenciaId))];
+  const ids = [...new Set((avisos.data?.items ?? []).map((n) => n.referenciaId))];
   const ofertas = useQueries({
     queries: ids.map((id) => ({
       queryKey: ['panel', 'oferta', id],

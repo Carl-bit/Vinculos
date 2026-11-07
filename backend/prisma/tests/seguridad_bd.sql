@@ -3947,10 +3947,11 @@ DO $$ DECLARE v_pasada uuid; v_futura uuid; v_liq uuid; BEGIN
   PERFORM test.ctx('a1', 'ADMIN');
   UPDATE configuracion_centro SET comision_centro_porcentaje = 0, modelo_cobro = 'CENTRO';
   INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
-  VALUES (test.u('e1'), test.u('b9'), test.u('16'), date_trunc('hour', now()) - interval '50 hours', date_trunc('hour', now()) - interval '49 hours')
+  -- Horas fijas (20:00): con now() +- 50 h chocaba con el caso 131 segun la hora en que corria la suite.
+  VALUES (test.u('e1'), test.u('b9'), test.u('16'), test.dia(-1, 20), test.dia(-1, 21))
   RETURNING id INTO v_pasada;
   INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
-  VALUES (test.u('e1'), test.u('b9'), test.u('16'), date_trunc('hour', now()) + interval '50 hours', date_trunc('hour', now()) + interval '51 hours')
+  VALUES (test.u('e1'), test.u('b9'), test.u('16'), test.dia(2, 20), test.dia(2, 21))
   RETURNING id INTO v_futura;
   PERFORM registrar_pago(v_pasada, 30000, 'EFECTIVO');
   PERFORM registrar_pago(v_futura, 30000, 'EFECTIVO');

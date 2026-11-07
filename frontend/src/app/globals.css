@@ -178,7 +178,8 @@
 
 /* Material Symbols Rounded (link en app/layout.tsx, glifos de lib/iconos.ts). */
 .ms {
-  font-family: 'Material Symbols Rounded';
+  /* Fuente local (app/fuentes, next/font/local): sin pedidos a Google. */
+  font-family: var(--font-iconos), 'Material Symbols Rounded';
   font-weight: 500;
   font-style: normal;
   line-height: 1;

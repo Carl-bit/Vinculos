@@ -165,7 +165,7 @@ describe('03a alineacion con el diseño', () => {
       expect(cambio.status).toBe(200);
       expect(cambio.body.rol).toBe('PROFESIONAL');
       expect((await t.http().get('/api/usuarios').set(auth(cambio.body.accessToken))).status).toBe(403);
-      expect((await t.http().get('/api/pacientes').set(auth(cambio.body.accessToken))).body).toEqual([]);
+      expect((await t.http().get('/api/pacientes').set(auth(cambio.body.accessToken))).body.items).toEqual([]);
       // El refresh anterior quedo revocado; un rol ajeno no se da.
       expect((await t.http().post('/api/auth/refresh').send({ refreshToken: comoAdmin.refreshToken })).status).toBe(401);
       expect((await t.http().post('/api/auth/cambio-rol').send({ refreshToken: cambio.body.refreshToken, rol: 'GESTION' })).status).toBe(401);

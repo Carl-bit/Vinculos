@@ -8,7 +8,7 @@ Guion por flujo y rol, preparacion del entorno (BD local con
 `docs/pruebas/guion_manual.md`. Las requests manuales se hacen en Postman
 (coleccion fuera del repo).
 
-## Integracion (sin Docker)
+## Integracion (fase 1 de `prompts/04_pruebas.md`, sin Docker)
 
 ```sh
 npm run test:e2e            # Jest + Supertest, BD efimera Postgres 18 local
@@ -18,30 +18,46 @@ npm run test:e2e -- 02d     # un archivo
 `test/bd/levantar.sh` crea un cluster temporal (initdb), aplica las
 migraciones como `vinculos_owner`, fija la contraseña de `app_user`, corre el
 seed y aprovisiona llaves de prueba; la API de los tests se conecta solo como
-`app_user`. `test/bd/bajar.sh` lo borra todo al terminar.
+`app_user`. `test/bd/bajar.sh` lo borra todo al terminar. Los casos de la fase
+1 (RLS 404, derivacion, EXCLUDE concurrente, menor sin adulto, practicante
+vencido) estan en `02c`, `02d`, `02f` y `02a`.
 
-## Estres de agenda (k6) — preparado, pendiente de Docker
+## Estres y capacidad (fases 2 y 3, con Docker)
 
-`stress-agenda.js` (escenarios de `prompts/04_pruebas.md`). Se corre solo
-contra `docker-compose.stress.yml` (fase 3 de 04, aun no creado) con BD
-efimera:
+Flujo (desde la raiz del repo, Git Bash; en PowerShell anteponer `sh`):
 
-```sh
-k6 run -e API_URL=http://localhost:3001/api -e EMAIL=... -e PASSWORD=... \
-  -e ESPACIO_ID=... -e PROFESIONALES=id1,id2 -e PACIENTES=p1,p2 -e DIA=2026-12-01 \
-  pruebas/stress-agenda.js
-```
+1. `npm run test:e2e` (en `backend/`) en verde.
+2. `sh infra/stress/levantar.sh`: silo efimero `erp-stress` con el compose real
+   y sus limites (db, backend: 256M y 1 vCPU), llaves por el runbook, seed
+   demo, Mailpit propio. API en `http://127.0.0.1:3101/api`.
+3. k6 en un contenedor en la red del silo (sin instalar k6):
 
-La prueba real es esta query despues de la corrida, como `vinculos_owner`
-(con `app_user` la RLS oculta citas ajenas). Debe devolver cero filas:
+   ```sh
+   MSYS_NO_PATHCONV=1 docker run --rm --network proxy \
+     -v "$(pwd -W)/backend/pruebas:/scripts:ro" grafana/k6:0.54.0 run /scripts/stress-agenda.js
+   ```
+
+   Escenarios: `carga_normal` (10 VUs del equipo), `lectura_publica` (20 VUs,
+   umbral p95 < 300 ms y 0 % de errores) y `colision_reserva` (30 VUs x 3
+   rondas sobre el mismo profesional y horario: exactamente una 201 por ronda).
+4. `sh infra/stress/verificar.sh`: la prueba real. Cero citas activas solapadas
+   (por profesional y por box, como `vinculos_owner`) y ningun contenedor
+   reiniciado ni muerto por memoria. Solo con ambas, Agenda queda lista.
+5. `sh infra/stress/bajar.sh` borra el silo, sus volumenes y sus llaves.
+
+Consulta de solapes (la corre `verificar.sh`; con `app_user` la RLS oculta
+citas ajenas):
 
 ```sql
-SELECT a.id, b.id
-FROM citas a JOIN citas b
-  ON a.id < b.id AND a.espacio_id = b.espacio_id
+SELECT a.id, b.id FROM citas a JOIN citas b
+  ON a.id < b.id AND a.profesional_id = b.profesional_id
  AND tstzrange(a.inicio, a.fin, '[)') && tstzrange(b.inicio, b.fin, '[)')
-WHERE a.estado = 'CONFIRMADA' AND b.estado = 'CONFIRMADA';
+WHERE a.estado IN ('CONFIRMADA', 'PENDIENTE_PAGO', 'RETENIDA')
+  AND b.estado IN ('CONFIRMADA', 'PENDIENTE_PAGO', 'RETENIDA');
+-- y la misma por espacio_id con modalidad PRESENCIAL
 ```
 
-El test de integracion `test/02d-agenda.e2e-spec.ts` ("concurrencia") ya
-corre la misma verificacion con 5 rondas de 8 reservas simultaneas.
+Desde 03b la cita no lleva box: lo asigna la BD desde el bloque del
+profesional. Por eso la colision se hace sobre el mismo profesional y horario.
+
+Resultados de la corrida del 2026-11-07: `docs/operacion/resultados_04_pruebas.md`.

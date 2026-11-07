@@ -1,9 +1,10 @@
 /**
  * Iconos de Material Symbols Rounded que usa el front: los de las vistas del
  * diseño (design-system/vinculos/Tenant), los de estados y los de las pantallas
- * nuevas (MASTER.md). Google sirve solo
- * estos glifos (parametro icon_names, orden alfabetico): un icono fuera de la
- * lista no compila (tipo Icono) en vez de mostrarse como texto.
+ * nuevas (MASTER.md). La fuente alojada en el repo
+ * (app/fuentes/material-symbols-rounded.woff2) trae solo estos glifos: al
+ * agregar o quitar uno, correr `npm run iconos`. Un icono fuera de la lista no
+ * compila (tipo Icono) en vez de mostrarse como texto.
  */
 export const ICONOS = [
   'account_balance',
@@ -172,8 +173,6 @@ export const ICONOS = [
 
 export type Icono = (typeof ICONOS)[number];
 
-export const URL_ICONOS =
-  'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block&icon_names=' + ICONOS.join(',');
 
 /** Para iconos que vienen de la API (servicios del landing): fuera de la lista, el respaldo. */
 export const iconoO = (nombre: string | undefined, respaldo: Icono): Icono =>

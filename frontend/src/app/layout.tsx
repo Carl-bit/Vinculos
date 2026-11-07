@@ -1,15 +1,27 @@
 import type { Metadata } from 'next';
 import { Figtree } from 'next/font/google';
+import localFont from 'next/font/local';
 
 import { Proveedores } from '@/components/shared/Proveedores';
 import { NOMBRE_CENTRO } from '@/components/shared/Marca';
-
-import { URL_ICONOS } from '@/lib/iconos';
 
 import './globals.css';
 
 /** Figtree: next/font la descarga al compilar y la sirve desde el mismo origen (el navegador no llama a Google). */
 const figtree = Figtree({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800', '900'], variable: '--font-figtree', display: 'swap' });
+
+/**
+ * Iconos (03b-6): Material Symbols Rounded alojada en el repo y recortada a los
+ * glifos de lib/iconos.ts (scripts/descargar-iconos.mjs). Ningun pedido a Google,
+ * tampoco en vistas clinicas. Ejes de peso y relleno variables, como antes.
+ */
+const iconos = localFont({
+  src: './fuentes/material-symbols-rounded.woff2',
+  variable: '--font-iconos',
+  weight: '400 700',
+  display: 'block',
+  preload: true,
+});
 
 export const metadata: Metadata = {
   // Dominio del silo (build arg en Docker): resuelve a URL absoluta las imagenes de
@@ -25,11 +37,7 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={figtree.variable}>
-      <head>
-        {/* Iconos: no estan en el catalogo de next/font. Solo los glifos de lib/iconos.ts. */}
-        <link rel="stylesheet" href={URL_ICONOS} />
-      </head>
+    <html lang="es" className={`${figtree.variable} ${iconos.variable}`}>
       <body>
         {/* 03b-6: primer foco de cada pagina; salta el menu y lleva al <main id="contenido"> de la zona. */}
         <a

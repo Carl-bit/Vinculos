@@ -129,7 +129,7 @@ Presupuesto para el plan de **1 GB** (decisión 2026-11-06), un silo por host:
 |---|---|---|---|
 | API (Nest + Prisma) | 145-150 MB | 256 MB | `NODE_OPTIONS=--max-old-space-size=192`. La exportación del centro en memoria es el pico de riesgo (BD-05): pasa a job por flujo |
 | Front (Next standalone) | 107 MB en reposo, 168 MB con carga | 256 MB | `--max-old-space-size=192` |
-| Postgres | 204 MiB sin ajustar | 256 MB | `shared_buffers=64MB`, `max_connections=20`, `work_mem=2MB` (igual que la fase 3 de 04_pruebas) |
+| Postgres | 204 MiB sin ajustar | 256 MB | `shared_buffers=64MB`, `max_connections=24`, `work_mem=2MB` |
 | Redis (opcional) | — | 0 MB (no se recomienda) | 32 MB si un silo cumple CACHE-06 |
 | **Silo** | **unos 460-520 MB** | **768 MB** | |
 | Traefik (uno por host) | SIN MEDIR | unos 40 MB | |
@@ -261,3 +261,17 @@ del centro o ya si es urgente; un reinicio la retoma (3 intentos). Medido en
 local: 3,6 s para el centro demo y p95 de 18 a 29 ms para un profesional
 mientras corre. Detalle y estimacion por tamaño de centro en
 `docs/cumplimiento/exportacion.md` seccion 3.
+
+## Avance (2026-11-07)
+
+- BD-03: hecho (indices `citas (espacio_id, inicio)` y `(profesional_id, inicio)`, migracion `20261111000000_aud02_indices_agenda`; de Seq Scan a Bitmap Index Scan).
+- API-05 e INFRA-01: hecho (middleware `compress` solo en el router `-api`; excluye PDF, imagenes y binarios).
+- INFRA-02: hecho (`Cache-Control: no-store` global en `configurar-app.ts`; las imagenes publicas lo reemplazan con `@Header`).
+- CACHE-04: hecho (`docs/seguridad/cache.md`).
+- INFRA-03 y BD-04: hecho (`mem_limit`/`cpus` por servicio; Postgres `shared_buffers=64MB`, `max_connections=24`, `work_mem=2MB`).
+- BD-01: medido con `pg_stat_statements`: 5 consultas por peticion autenticada (4 fijas del contexto RLS + 1) en `/pacientes`, `/citas`, `/cobros/citas` y `/reportes/dashboard`; 1 en la disponibilidad publica. Sin N+1. `/cobros/citas` 149 ms de BD.
+- OBS-01: hecho (`infra/scripts/continuidad/p95.sh`, p50/p95/max por ruta desde los logs).
+- OBS-04: hecho (`salud.sh` avisa disco sobre 80 % y 5xx sostenidos).
+- API-01, API-03 y BD-02: hecho (cursor con maximo 100 en `/pacientes`, `/auditoria/accesos` y `/notificaciones`; `/pacientes` sin contacto de emergencia; `/pacientes/resumen` solo con columnas en claro para los nombres del panel). `/cobros/citas` sigue sin paginar: va con las reglas de Cobros.
+- CAP-01, CAP-02 y CAP-03: medidos con limites en Docker (`docs/operacion/resultados_04_pruebas.md`): backend 98 MiB y Postgres 100 MiB de pico bajo k6; `lectura_publica` p95 6,6 ms; 0 solapes. Hallazgo: el pool de 8 se satura en rafagas (P2028, ahora 503). Falta Linux.
+- BD-04 (2026-11-07): `connection_limit` 8 -> 12 (+50 %) y `max_connections` 20 -> 24 (+20 % de margen sobre 12 + mantencion + 3 reservadas). k6: 30 reservas simultaneas sin 503; 60 simultaneas, 503 con Retry-After en vez de 500, 0 solapes, sin OOM (Postgres 155 MiB de 256).

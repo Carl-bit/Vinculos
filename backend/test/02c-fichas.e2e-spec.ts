@@ -123,7 +123,7 @@ describe('02c fichas y pacientes', () => {
           .query({ rut: sinPuntos })
           .set(await tk(u));
         expect(r.status).toBe(200);
-        expect(r.body.map((p: { id: string }) => p.id)).toEqual([creado.id]);
+        expect(r.body.items.map((p: { id: string }) => p.id)).toEqual([creado.id]);
       }
       expect(
         (
@@ -132,7 +132,7 @@ describe('02c fichas y pacientes', () => {
             .get('/api/pacientes')
             .query({ rut: sinPuntos })
             .set(await tk(otroProfesional))
-        ).body,
+        ).body.items,
       ).toEqual([]);
       expect(
         (
@@ -146,7 +146,7 @@ describe('02c fichas y pacientes', () => {
         .http()
         .get('/api/pacientes')
         .set(await tk(usuarioPaciente));
-      expect(propio.body.map((p: { id: string }) => p.id)).toEqual([usuarioPaciente.pacienteId]);
+      expect(propio.body.items.map((p: { id: string }) => p.id)).toEqual([usuarioPaciente.pacienteId]);
       expect(
         (
           await t

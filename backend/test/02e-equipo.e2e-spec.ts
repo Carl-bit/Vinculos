@@ -428,7 +428,7 @@ describe('02e equipo y practicantes', () => {
             .get('/api/pacientes')
             .query({ rut })
             .set(await tk(gestion))
-        ).body,
+        ).body.items,
       ).toEqual([]);
       const llavero = await llaveroPrueba(t.dueno);
       const r1 = await recalcularRutHmac(t.dueno, llavero, 2);
@@ -441,7 +441,7 @@ describe('02e equipo y practicantes', () => {
             .get('/api/pacientes')
             .query({ rut })
             .set(await tk(gestion))
-        ).body.map((x: { id: string }) => x.id),
+        ).body.items.map((x: { id: string }) => x.id),
       ).toEqual([p.id]);
       const r2 = await recalcularRutHmac(t.dueno, llavero);
       expect(r2.map((r) => r.actualizadas)).toEqual(r1.map((r) => r.actualizadas));

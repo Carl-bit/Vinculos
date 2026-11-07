@@ -31,6 +31,9 @@ import {
   AltaDto,
   BorradorDto,
   BuscarPacientesDto,
+  FiltroResumenPacientesDto,
+  PacienteResumen,
+  PaginaPacientes,
   ConfirmarBorradorDto,
   ConsentimientoAtencionDto,
   CrearIngresoDto,
@@ -115,10 +118,18 @@ export class PacientesController {
     return this.pacientes.crear(dto);
   }
 
+  /** Paginada por cursor (maximo 100); sin contacto de emergencia (esta en el detalle). */
   @Get()
   @Roles(...TODOS)
-  listar(@Query() filtro: BuscarPacientesDto): Promise<PacienteVista[]> {
+  listar(@Query() filtro: BuscarPacientesDto): Promise<PaginaPacientes> {
     return this.pacientes.listar(filtro);
+  }
+
+  /** Mapa id -> nombre del panel: todos los que el rol ve, sin columnas cifradas. */
+  @Get('resumen')
+  @Roles(...TODOS)
+  resumen(@Query() filtro: FiltroResumenPacientesDto): Promise<PacienteResumen[]> {
+    return this.pacientes.resumen(filtro);
   }
 
   @Get(':id')

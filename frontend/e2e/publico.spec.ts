@@ -170,3 +170,34 @@ test('03b-6: consentimiento por token: recepción lo envía, el paciente respond
   await equipo.reload();
   await expect(equipo.getByRole('region', { name: 'Consentimientos' }).getByText(/Firmado/)).toBeVisible();
 });
+
+test.describe('recordatorio por correo (AUD-02, modo de prueba JOBS_MANUALES)', () => {
+  let horasAntes = '';
+  test.afterAll(() => {
+    if (horasAntes) sqlPrueba(`UPDATE configuracion_centro SET recordatorio_horas_antes = ${horasAntes}`);
+  });
+
+  test('el job envia el enlace; muestra la politica que aplica, confirma la asistencia y el enlace sirve una vez', async ({ page }) => {
+    const { email } = await pacienteNuevo(page, 'recordatorio', 'Cinco');
+    const horas = Number(
+      sqlPrueba(`SELECT extract(epoch FROM c.inicio - now()) / 3600 FROM solicitudes_hora s JOIN citas c ON c.id = s.cita_id WHERE s.email = '${email}'`),
+    );
+    test.skip(horas > 167, 'La primera hora libre esta a mas de una semana (maximo del recordatorio)');
+    // La ventana del recordatorio cubre la cita (configuracion del centro: hasta 168 h).
+    horasAntes = sqlPrueba('SELECT recordatorio_horas_antes FROM configuracion_centro');
+    sqlPrueba(`UPDATE configuracion_centro SET recordatorio_horas_antes = greatest(${Math.ceil(horas) + 1}, ${horasAntes})`);
+
+    // Modo de prueba: corre el job ahora en vez de esperar su cron de 10 minutos.
+    const r = await page.request.post('/api/pruebas/jobs/enviar_recordatorios');
+    expect(r.status()).toBe(200);
+
+    await page.goto(await enlaceDelCorreo(email, '/recordatorio'));
+    await expect(page.getByRole('heading', { name: 'Recordatorio de tu hora' })).toBeVisible();
+    await expect(page.getByText(/Si cancelas ahora/)).toBeVisible();
+    await page.getByRole('button', { name: 'Confirmo que asistiré' }).click();
+    await expect(page.getByRole('heading', { name: '¡Te esperamos!' })).toBeVisible();
+    await expect(page.getByText('Confirmaste tu asistencia.', { exact: false })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText('Ya respondiste este recordatorio')).toBeVisible();
+  });
+});

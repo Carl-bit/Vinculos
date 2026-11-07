@@ -53,8 +53,9 @@ export const ingresarEquipo = (page: Page, usuario: string) => ingresar(page, us
 
 /**
  * 03b-6: SQL de prueba contra la BD local (contenedor de docker compose dev),
- * solo para simular el paso del tiempo (p. ej. un plazo vencido) sin esperar
- * 30 minutos. Nunca para preparar datos que la UI deberia crear.
+ * para simular el paso del tiempo (p. ej. un plazo vencido) y para ubicar el
+ * id de algo que la prueba creo por la UI. Nunca para preparar datos que la UI
+ * deberia crear.
  */
 export function sqlPrueba(sql: string): string {
   const contenedor = process.env.E2E_DB_CONTENEDOR ?? 'erp-centro-prueba-db-1';
@@ -68,8 +69,10 @@ export const correoNuevo = (etiqueta: string) => `e2e.${etiqueta}.${Date.now()}@
 export async function enlaceDelCorreo(para: string, ruta = '/pedir-hora/verificar'): Promise<string> {
   for (let i = 0; i < 30; i++) {
     const r = (await (await fetch(`${MAILPIT_API}/search?query=${encodeURIComponent(`to:"${para}"`)}`)).json()) as { messages: { ID: string }[] };
-    if (r.messages.length) {
-      const m = (await (await fetch(`${MAILPIT_API}/message/${r.messages[0]!.ID}`)).json()) as { Text: string };
+    // Del mas reciente al mas antiguo: el que lleva la ruta puede no ser el ultimo correo
+    // (p. ej. el recordatorio llega antes que el aviso de cita confirmada).
+    for (const { ID } of r.messages) {
+      const m = (await (await fetch(`${MAILPIT_API}/message/${ID}`)).json()) as { Text: string };
       const url = new RegExp(`https?://\\S+${ruta}\\?token=[\\w-]+`).exec(m.Text)?.[0];
       if (url) return new URL(url).pathname + new URL(url).search;
     }

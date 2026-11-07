@@ -7,6 +7,8 @@ services:
   traefik:
     image: traefik:v3.3
     restart: unless-stopped
+    # AUD-02 (INFRA-03): parte del presupuesto de 1 GB del host.
+    mem_limit: 128m
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false

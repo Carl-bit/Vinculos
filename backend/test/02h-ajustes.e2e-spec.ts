@@ -529,8 +529,9 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
             await t
               .http()
               .get('/api/notificaciones')
+              .query({ limite: 100 })
               .set(await tk(u))
-          ).body as Record<string, unknown>[]
+          ).body.items as Record<string, unknown>[]
         ).filter((n) => n.canal === 'BANDEJA');
 
       const deC1 = await avisos(c1);

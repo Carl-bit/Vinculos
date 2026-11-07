@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CanalMensaje, EstadoNotificacion, TipoNotificacion } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, Length } from 'class-validator';
+
+import { PaginaDto } from '../validacion/paginacion';
 
 const recortar = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -108,6 +110,14 @@ export class PlantillaMensajeVista {
   updatedAt!: Date;
 }
 
+/** AUD-02 (API-01): registro paginado por cursor (maximo 100), opcionalmente de un tipo. */
+export class FiltroNotificacionesDto extends PaginaDto {
+  @IsOptional()
+  @IsEnum(TipoNotificacion)
+  @ApiProperty({ enum: TipoNotificacion, enumName: 'TipoNotificacion', required: false })
+  tipo?: TipoNotificacion;
+}
+
 /** Registro de una notificacion (metadatos, sin contenido ni quien la origino). */
 export class NotificacionRegistro {
   id!: string;
@@ -128,4 +138,11 @@ export class NotificacionRegistro {
   creadaEn!: Date;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   procesadaEn!: Date | null;
+}
+
+export class PaginaNotificaciones {
+  items!: NotificacionRegistro[];
+  /** Id de la ultima fila; null si no hay mas paginas. */
+  @ApiProperty({ type: String, nullable: true })
+  siguienteCursor!: string | null;
 }

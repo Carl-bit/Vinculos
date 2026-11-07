@@ -1,0 +1,30 @@
+# Override del silo para las pruebas de capacidad (prompts/04_pruebas.md, fase 3).
+# Se usa SOBRE infra/docker-compose.yml, con los mismos limites de memoria y CPU
+# del silo real (1 GB / 1 vCPU: db, backend y frontend de 256M):
+#
+#   docker compose -f infra/docker-compose.yml -f infra/stress/docker-compose.stress.yml \
+#     --env-file infra/stress/stress.env up -d db migrate backend mailpit
+#
+# Sin Traefik: k6 corre en un contenedor en la red `proxy` y llama a la API
+# por su nombre. Puertos solo en 127.0.0.1 (seed desde el host y lectura de
+# resultados). Nunca contra el tenant de prueba real ni produccion.
+services:
+  db:
+    ports:
+      - '127.0.0.1:15434:5432'
+
+  backend:
+    ports:
+      - '127.0.0.1:3101:3001'
+    depends_on:
+      mailpit:
+        condition: service_started
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: 'no'
+    ports:
+      - '127.0.0.1:18025:8025'
+    networks:
+      - interna
+      - proxy

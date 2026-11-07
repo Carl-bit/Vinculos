@@ -88,6 +88,16 @@ export class Entorno {
   @IsBoolean()
   JOBS_HABILITADOS: boolean = true;
 
+  /**
+   * Solo desarrollo y tests (AUD-02): habilita POST /api/pruebas/jobs/:nombre
+   * para correr un job al instante (p. ej. el recordatorio por correo en
+   * Playwright). Con NODE_ENV=production la API no arranca si esta encendida.
+   */
+  @IsOptional()
+  @Transform(aBooleano)
+  @IsBoolean()
+  JOBS_MANUALES: boolean = false;
+
   @IsOptional()
   @IsString()
   LOG_LEVEL: string = 'info';
@@ -210,6 +220,9 @@ export function validarEntorno(config: Record<string, unknown>): Entorno {
   }
   const produccion = config.NODE_ENV === 'production';
   entorno.PASARELA_PROVEEDOR ??= produccion ? '' : 'simulada';
+  if (produccion && entorno.JOBS_MANUALES) {
+    throw new Error('Variables de entorno invalidas: JOBS_MANUALES no se permite en produccion (es solo para desarrollo y tests)');
+  }
   if (produccion && entorno.PASARELA_PROVEEDOR === 'simulada') {
     throw new Error('Variables de entorno invalidas: PASARELA_PROVEEDOR=simulada no se permite en produccion (falta un adaptador real con credenciales)');
   }

@@ -1187,7 +1187,7 @@ async function main(): Promise<void> {
     // para todos menos dos, que quedan pendientes en el seguimiento del equipo y en el "Por hacer" del tratante:
     // Maria Jose Aguilera (adulta, Profesional Uno) y Agustin Aguilera (menor, lo otorga su adulto responsable).
     const pendientes = new Set(['Maria Jose Aguilera Demo', 'Agustin Aguilera Demo']);
-    const todos = (await llamar(admin, 'GET', '/pacientes')) as unknown as { id: string; nombre: string; apellido: string; fechaNacimiento: string }[];
+    const todos = (await llamar(admin, 'GET', '/pacientes/resumen')) as unknown as { id: string; nombre: string; apellido: string; fechaNacimiento: string }[];
     for (const p of todos) {
       if (pendientes.has(`${p.nombre} ${p.apellido}`)) continue;
       const nacido = new Date(p.fechaNacimiento);

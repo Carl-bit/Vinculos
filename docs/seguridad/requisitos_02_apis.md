@@ -54,6 +54,8 @@ Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.m
 | 23514 | regla de negocio (CHECK / trigger con `CONSTRAINT`) | 422 |
 | 42501 | sin privilegio o politica RLS | 403, o 404 si revelaria existencia |
 | P0002 | no existe | 404 |
+| 40P01 | deadlock entre transacciones concurrentes (una gana) | 409 (reintentar) |
+| Prisma P2028 | sin conexion libre en el pool dentro de `maxWait` (5 s) | 503 + `Retry-After: 2` (04_pruebas, 2026-11-07) |
 
 Usar el nombre de constraint para el mensaje (`citas_dentro_de_disponibilidad`,
 `citas_fuera_de_bloqueos`, `profesionales_publicar_requiere_tarifa`,

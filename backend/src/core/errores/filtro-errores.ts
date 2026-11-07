@@ -39,10 +39,19 @@ export class FiltroErrores implements ExceptionFilter {
     if (error instanceof ThrottlerException) {
       respuesta.setHeader('Retry-After', '60');
     }
+    if (cuerpo.statusCode === 503) {
+      respuesta.setHeader('Retry-After', '2');
+    }
     respuesta.status(cuerpo.statusCode).json(cuerpo);
   }
 
   traducir(error: unknown): CuerpoError {
+    // 04_pruebas (k6 con el pool de 8): sin conexion libre en maxWait. Es saturacion pasajera, no un
+    // error interno: 503 con Retry-After para que el cliente reintente.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2028') {
+      this.logger.warn('Prisma P2028: sin conexion libre en el pool -> 503');
+      return { statusCode: 503, error: 'SERVICE_UNAVAILABLE', mensaje: 'El servicio esta ocupado. Intenta de nuevo en unos segundos.' };
+    }
     const bd = errorBd(error);
     if (bd) {
       const statusCode = HTTP_POR_SQLSTATE[bd.sqlstate] ?? (bd.sqlstate.startsWith('22') ? 422 : 500);

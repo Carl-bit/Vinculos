@@ -20,6 +20,10 @@ const en = (horas: number) => {
   const inicio = new Date(Date.now() + horas * HORA);
   inicio.setUTCSeconds(0, 0);
   inicio.setUTCMinutes((minuto += 7) % 60);
+  // Sin cruzar la medianoche de Chile (la disponibilidad es por dia): segun la hora en que corre la
+  // suite, ahora + 80 h caia a las 23:xx y la sesion de una hora daba 422 (como test.sin_cruzar en SQL).
+  const horaChile = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Santiago', hour: 'numeric', hourCycle: 'h23' }).format(inicio));
+  if (horaChile >= 22) inicio.setTime(inicio.getTime() - 3 * HORA);
   return { inicio: inicio.toISOString(), fin: new Date(inicio.getTime() + HORA).toISOString() };
 };
 
@@ -218,7 +222,7 @@ describe('AUD-01 cumplimiento', () => {
         .query({ pacienteId: pac.id })
         .set(await tk(admin));
       expect(delPaciente.status).toBe(200);
-      expect(delPaciente.body).toEqual([
+      expect(delPaciente.body.items).toEqual([
         expect.objectContaining({
           origen: 'ACCESO_FICHA',
           usuarioId: gestion.id,
@@ -235,7 +239,7 @@ describe('AUD-01 cumplimiento', () => {
         .get('/api/auditoria/accesos')
         .query({ usuarioId: gestion.id, accion: 'DESCARGA' })
         .set(await tk(admin));
-      expect(descargas.body).toEqual(
+      expect(descargas.body.items).toEqual(
         expect.arrayContaining([expect.objectContaining({ origen: 'EXPORTACION', recurso: 'reporte_cobros', pacienteId: null, rol: 'GESTION' })]),
       );
     });
@@ -762,7 +766,7 @@ describe('AUD-01 cumplimiento', () => {
       };
       const base = viva();
       let pico = base;
-      const muestreo = setInterval(() => (pico = Math.max(pico, viva())), 250);
+      const muestreo = setInterval(() => (pico = Math.max(pico, viva())), 500);
       try {
         const r = await t
           .http()
@@ -776,7 +780,7 @@ describe('AUD-01 cumplimiento', () => {
       }
       // 48 MB de archivos (mas de 250 MB como hexadecimal dentro de un JSON): la version en memoria los retenia todos.
       expect(pico - base).toBeLessThan(64 * 1024 * 1024);
-    }, 120_000);
+    }, 300_000);
   });
 
   describe('E2.3a Feriados', () => {

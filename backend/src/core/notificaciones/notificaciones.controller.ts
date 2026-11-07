@@ -1,14 +1,16 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import { TAGS } from '../docs/openapi';
 import { Actor, Roles } from '../auth/decoradores';
 import { texto } from '../bd/claro';
 import { ContextoBd, encontrado, type UsuarioActual } from '../bd/contexto-bd.service';
+import { argumentosPagina, pagina } from '../validacion/paginacion';
 import {
   EditarPlantillaDto,
+  FiltroNotificacionesDto,
   MensajeBandeja,
-  NotificacionRegistro,
+  PaginaNotificaciones,
   PlantillaMensajeVista,
   Preferencias,
   PreferenciasDto,
@@ -32,9 +34,10 @@ export class NotificacionesController {
 
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  listar(): Promise<NotificacionRegistro[]> {
+  async listar(@Query() filtro: FiltroNotificacionesDto): Promise<PaginaNotificaciones> {
     // Sin creadaPorId: un candidato de derivacion no debe saber quien rechazo antes (02h).
-    return this.bd.tx().notificacion.findMany({
+    const filas = await this.bd.tx().notificacion.findMany({
+      where: { tipo: filtro.tipo },
       select: {
         id: true,
         tipo: true,
@@ -48,9 +51,10 @@ export class NotificacionesController {
         creadaEn: true,
         procesadaEn: true,
       },
-      orderBy: { creadaEn: 'desc' },
-      take: 200,
+      orderBy: [{ creadaEn: 'desc' }, { id: 'desc' }],
+      ...argumentosPagina(filtro),
     });
+    return pagina(filas, filtro);
   }
 
   /** Bandeja propia: mensajes ya armados (el job los arma en menos de un minuto). */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Aviso } from '@/components/ui/Aviso';
@@ -11,7 +11,7 @@ import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { formatoFechaHora, formatoTelefono } from '@/lib/formato';
 import { useMensajesPacientes } from '@/lib/mensajes';
-import { usePacientes } from '@/lib/panel';
+import { consultaPaciente } from '@/lib/panel';
 
 /**
  * Mensajes que escriben los pacientes (o su adulto responsable) desde el
@@ -22,8 +22,10 @@ import { usePacientes } from '@/lib/panel';
 export function MensajesPacientes() {
   const cliente = useQueryClient();
   const mensajes = useMensajesPacientes(true);
-  const pacientes = usePacientes();
-  const paciente = new Map((pacientes.data ?? []).map((p) => [p.id, p]));
+  // AUD-02 (BD-02): telefono y correo salen del detalle de cada paciente con mensajes, no de una lista completa descifrada.
+  const ids = [...new Set((mensajes.data ?? []).flatMap((m) => (m.pacienteId ? [m.pacienteId] : [])))];
+  const pacientes = useQueries({ queries: ids.map(consultaPaciente) });
+  const paciente = new Map(pacientes.flatMap((q) => (q.data ? [[q.data.id, q.data] as const] : [])));
   // 03b-6: optimista (accion reversible y sin efecto clinico): se ve leido al instante y vuelve atras si falla.
   const leer = useMutation({
     mutationFn: (id: string) => datos(api.POST('/api/mensajes/{id}/leido', { params: { path: { id } } })),

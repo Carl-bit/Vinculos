@@ -787,17 +787,23 @@
       "get": {
         "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE",
         "operationId": "NotificacionesController_listar",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "tipo",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/TipoNotificacion"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/NotificacionRegistro"
-                  }
+                  "$ref": "#/components/schemas/PaginaNotificaciones"
                 }
               }
             }
@@ -5677,6 +5683,27 @@
                 "ACCESO_TEMPORAL"
               ]
             }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "AUD-02 (API-01): `siguienteCursor` de la pagina anterior (opaco).",
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,200}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limite",
+            "required": false,
+            "in": "query",
+            "description": "Filas por pagina (1 a 100, por defecto 50).",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
           }
         ],
         "responses": {
@@ -5685,10 +5712,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RegistroAuditoria"
-                  }
+                  "$ref": "#/components/schemas/PaginaAuditoria"
                 }
               }
             }
@@ -8620,6 +8644,124 @@
               "maxLength": 120,
               "type": "string"
             }
+          },
+          {
+            "name": "sinRut",
+            "required": false,
+            "in": "query",
+            "description": "Solo pacientes sin RUT registrado (pestaña \"Sin RUT\" de administracion).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaPacientes"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Paginada por cursor (maximo 100); sin contacto de emergencia (esta en el detalle).",
+        "tags": [
+          "Fichas y pacientes"
+        ]
+      }
+    },
+    "/api/pacientes/resumen": {
+      "get": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE",
+        "operationId": "PacientesController_resumen",
+        "parameters": [
+          {
+            "name": "profesionalId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "nombre",
+            "required": false,
+            "in": "query",
+            "description": "Busqueda por nombre o apellido (contiene).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 120,
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -8630,7 +8772,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/PacienteVista"
+                    "$ref": "#/components/schemas/PacienteResumen"
                   }
                 }
               }
@@ -8702,7 +8844,7 @@
             "jwt": []
           }
         ],
-        "summary": "",
+        "summary": "Mapa id -> nombre del panel: todos los que el rol ve, sin columnas cifradas.",
         "tags": [
           "Fichas y pacientes"
         ]
@@ -35272,6 +35414,26 @@
           "creadaEn"
         ]
       },
+      "PaginaNotificaciones": {
+        "type": "object",
+        "properties": {
+          "siguienteCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Id de la ultima fila; null si no hay mas paginas."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificacionRegistro"
+            }
+          }
+        },
+        "required": [
+          "siguienteCursor",
+          "items"
+        ]
+      },
       "MensajeBandeja": {
         "type": "object",
         "properties": {
@@ -37418,6 +37580,26 @@
           "accion"
         ]
       },
+      "PaginaAuditoria": {
+        "type": "object",
+        "properties": {
+          "siguienteCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Cursor de la pagina siguiente; null si no hay mas."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RegistroAuditoria"
+            }
+          }
+        },
+        "required": [
+          "siguienteCursor",
+          "items"
+        ]
+      },
       "AlcanceSoporte": {
         "type": "string",
         "enum": [
@@ -38396,6 +38578,158 @@
           "traidoPorCentro",
           "createdAt",
           "updatedAt"
+        ]
+      },
+      "PacienteFila": {
+        "type": "object",
+        "properties": {
+          "rut": {
+            "type": "string",
+            "nullable": true
+          },
+          "fechaNacimiento": {
+            "type": "string",
+            "format": "date"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "profesionalId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Tratante"
+          },
+          "codigoSeudonimo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Codigo para la supervision seudonimizada"
+          },
+          "tipoAtencionId": {
+            "type": "string",
+            "nullable": true
+          },
+          "bloqueoDesde": {
+            "type": "string",
+            "nullable": true,
+            "description": "AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular; impide gestiones nuevas.",
+            "format": "date-time"
+          },
+          "bloqueoMotivo": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "apellido": {
+            "type": "string"
+          },
+          "creadoPorSolicitud": {
+            "type": "boolean"
+          },
+          "posibleDuplicado": {
+            "type": "boolean"
+          },
+          "traidoPorCentro": {
+            "type": "boolean",
+            "description": "03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion."
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rut",
+          "fechaNacimiento",
+          "email",
+          "telefono",
+          "profesionalId",
+          "codigoSeudonimo",
+          "tipoAtencionId",
+          "bloqueoDesde",
+          "bloqueoMotivo",
+          "id",
+          "nombre",
+          "apellido",
+          "creadoPorSolicitud",
+          "posibleDuplicado",
+          "traidoPorCentro",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginaPacientes": {
+        "type": "object",
+        "properties": {
+          "siguienteCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Id de la ultima fila; null si no hay mas paginas."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PacienteFila"
+            }
+          }
+        },
+        "required": [
+          "siguienteCursor",
+          "items"
+        ]
+      },
+      "PacienteResumen": {
+        "type": "object",
+        "properties": {
+          "profesionalId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Tratante"
+          },
+          "fechaNacimiento": {
+            "type": "string",
+            "format": "date"
+          },
+          "codigoSeudonimo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Codigo para la supervision seudonimizada"
+          },
+          "id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "apellido": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profesionalId",
+          "fechaNacimiento",
+          "codigoSeudonimo",
+          "id",
+          "nombre",
+          "apellido",
+          "createdAt"
         ]
       },
       "PacienteVista": {

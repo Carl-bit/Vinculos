@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
+import { CargarMas } from '@/components/shared/CargarMas';
 import { useEquipoActivo } from '@/components/shared/EquipoActivo';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Badge } from '@/components/ui/Badge';
@@ -14,7 +15,7 @@ import { edadEn } from '@/lib/condiciones';
 import { useRetardado } from '@/lib/useRetardado';
 import { useMiCuenta, useProfesionales } from '@/lib/consultas';
 import { formatoFechaLarga } from '@/lib/formato';
-import { sinSesionHaceUnMes, useEstadoFichas, usePacientes, type EstadoFicha, type PacienteVista } from '@/lib/panel';
+import { sinSesionHaceUnMes, useEstadoFichas, usePaginaPacientes, type EstadoFicha, type PacienteFila } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
@@ -36,12 +37,15 @@ export function ListaPacientes({ rol }: { rol: Rol }) {
   const nombre = useRetardado(busqueda.trim());
   const { profesionalId } = useEquipoActivo();
   const cuenta = useMiCuenta();
-  const consulta = usePacientes({
+  // AUD-02: paginada en la API (50 por pagina). "Sin RUT" filtra en la BD; "sin cerrar" y "sin sesion"
+  // dependen del estado de fichas y filtran lo ya cargado ("Cargar mas" trae el resto).
+  const consulta = usePaginaPacientes({
     nombre: nombre.length >= 2 ? nombre : undefined,
     profesionalId: admin ? (profesionalId ?? undefined) : undefined,
     menores: filtro === 'menores' || undefined,
     derivados: filtro === 'derivados' || undefined,
     duplicados: filtro === 'duplicados' || undefined,
+    sinRut: filtro === 'sin-rut' || undefined,
   });
   // Estado de fichas: el profesional el suyo; administracion el del profesional elegido en el selector de equipo.
   const estados = useEstadoFichas(admin ? (profesionalId ?? undefined) : cuenta.data?.id);
@@ -66,12 +70,13 @@ export function ListaPacientes({ rol }: { rol: Rol }) {
   // ADMIN/GESTION llegan aca desde la pestaña "Todos los pacientes": "Todos" no debe devolverlos a la vista por profesional.
   const elegir = (f: Filtro) =>
     router.replace(f === 'todos' ? (admin ? '/admin/fichas?vista=pacientes' : '/admin/fichas') : `/admin/fichas?filtro=${f}`, { scroll: false });
-  const lista = (consulta.data ?? []).filter((p) => {
-    if (filtro === 'sin-rut') return !p.rut;
-    if (filtro === 'sin-cerrar') return (porPaciente.get(p.id)?.sesiones_sin_cerrar ?? 0) > 0;
-    if (filtro === 'sin-sesion') return sinSesionHaceUnMes(porPaciente.get(p.id));
-    return true;
-  });
+  const lista = (consulta.data?.pages ?? [])
+    .flatMap((pg) => pg.items)
+    .filter((p) => {
+      if (filtro === 'sin-cerrar') return (porPaciente.get(p.id)?.sesiones_sin_cerrar ?? 0) > 0;
+      if (filtro === 'sin-sesion') return sinSesionHaceUnMes(porPaciente.get(p.id));
+      return true;
+    });
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,11 +131,12 @@ export function ListaPacientes({ rol }: { rol: Rol }) {
           </Tabla>
         )}
       </EstadoConsulta>
+      <CargarMas consulta={consulta} />
     </div>
   );
 }
 
-function Fila({ p, estado, tratante, onAbrir }: { p: PacienteVista; estado?: EstadoFicha; tratante?: string; onAbrir: () => void }) {
+function Fila({ p, estado, tratante, onAbrir }: { p: PacienteFila; estado?: EstadoFicha; tratante?: string; onAbrir: () => void }) {
   const menor = edadEn(p.fechaNacimiento) < 18;
   const est = estadoAdministrativo(p, estado);
   return (
@@ -166,7 +172,7 @@ function Fila({ p, estado, tratante, onAbrir }: { p: PacienteVista; estado?: Est
   );
 }
 
-function estadoAdministrativo(p: PacienteVista, e?: EstadoFicha): { texto: string; tono: 'positivo' | 'atencion' | 'neutro' } {
+function estadoAdministrativo(p: PacienteFila, e?: EstadoFicha): { texto: string; tono: 'positivo' | 'atencion' | 'neutro' } {
   if (e?.alta_en) return { texto: 'Alta', tono: 'neutro' };
   if ((e?.sesiones_sin_cerrar ?? 0) > 0) return { texto: 'Sesión sin cerrar', tono: 'atencion' };
   if (p.posibleDuplicado) return { texto: 'Por conciliar', tono: 'atencion' };

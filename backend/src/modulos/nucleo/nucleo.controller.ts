@@ -72,7 +72,7 @@ import {
   TotpReiniciado,
   IntegranteEquipoTratante,
   FiltroAuditoriaDto,
-  RegistroAuditoria,
+  PaginaAuditoria,
   AutorizacionSoporteVista,
   OtorgarSoporteDto,
   RegistroSoporteVista,
@@ -450,7 +450,7 @@ export class AuditoriaController {
 
   @Get('accesos')
   @Roles('ADMIN')
-  accesos(@Query() filtro: FiltroAuditoriaDto): Promise<RegistroAuditoria[]> {
+  accesos(@Query() filtro: FiltroAuditoriaDto): Promise<PaginaAuditoria> {
     return this.auditoria.registros(filtro);
   }
 }

@@ -1,8 +1,9 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { CargarMas } from '@/components/shared/CargarMas';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Field, Input, Select } from '@/components/ui/Field';
 import { Panel } from '@/components/ui/Panel';
@@ -99,10 +100,11 @@ export function AuditoriaAccesos({ plegable = false }: { plegable?: boolean } = 
   const [hasta, setHasta] = useState(() => diaChile(new Date()));
   const [accion, setAccion] = useState<Accion | ''>('');
   const valido = !!desde && !!hasta && desde <= hasta;
-  const consulta = useQuery({
+  // AUD-02 (API-01): paginada por cursor en la API, de a 100.
+  const consulta = useInfiniteQuery({
     queryKey: ['auditoria', 'accesos', desde, hasta, accion],
     enabled: valido,
-    queryFn: () =>
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
       datos(
         api.GET('/api/auditoria/accesos', {
           params: {
@@ -111,11 +113,16 @@ export function AuditoriaAccesos({ plegable = false }: { plegable?: boolean } = 
               // Fin excluido: el dia siguiente al elegido.
               hasta: new Date(new Date(`${hasta}T00:00:00-03:00`).getTime() + 86_400_000).toISOString(),
               accion: accion || undefined,
+              cursor: pageParam,
+              limite: 100,
             },
           },
         }),
       ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultima) => ultima.siguienteCursor ?? undefined,
   });
+  const filas = consulta.data?.pages.flatMap((p) => p.items);
 
   return (
     <Panel
@@ -124,7 +131,13 @@ export function AuditoriaAccesos({ plegable = false }: { plegable?: boolean } = 
     >
       {plegable && (
         <div className="mt-4 flex flex-col gap-2">
-          <ResumenAuditoria filas={consulta.data} cargando={consulta.isPending} abierta={abierta} onAbrir={() => setAbierta((v) => !v)} />
+          <ResumenAuditoria
+            filas={filas}
+            parcial={consulta.hasNextPage}
+            cargando={consulta.isPending}
+            abierta={abierta}
+            onAbrir={() => setAbierta((v) => !v)}
+          />
         </div>
       )}
       {abierta && (
@@ -145,14 +158,14 @@ export function AuditoriaAccesos({ plegable = false }: { plegable?: boolean } = 
               )}
             </Field>
           </div>
-          <p className="mt-2 mb-4 text-[12.5px] font-semibold text-neutral-800">Se muestran hasta 300 registros, del más reciente al más antiguo.</p>
+          <p className="mt-2 mb-4 text-[12.5px] font-semibold text-neutral-800">Del más reciente al más antiguo, de a 100 registros.</p>
           {!valido ? (
             <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
               La fecha de inicio debe ser anterior o igual a la de término.
             </p>
           ) : (
-            <EstadoConsulta consulta={consulta} vacio={(f) => f.length === 0} textoVacio="Sin registros en el período">
-              {(filas) => (
+            <EstadoConsulta consulta={consulta} vacio={() => !filas?.length} textoVacio="Sin registros en el período">
+              {() => (
                 <Tabla etiqueta="Registros de auditoría">
                   <thead>
                     <tr>
@@ -165,7 +178,7 @@ export function AuditoriaAccesos({ plegable = false }: { plegable?: boolean } = 
                     </tr>
                   </thead>
                   <tbody>
-                    {filas.map((f) => (
+                    {(filas ?? []).map((f) => (
                       <tr key={`${f.origen}-${f.id}`}>
                         <Td className="whitespace-nowrap tabular-nums">{formatoFechaHora(f.ocurridoEn)}</Td>
                         <Td>
@@ -183,20 +196,33 @@ export function AuditoriaAccesos({ plegable = false }: { plegable?: boolean } = 
               )}
             </EstadoConsulta>
           )}
+          {valido && <CargarMas consulta={consulta} />}
         </>
       )}
     </Panel>
   );
 }
 
-type Fila = NonNullable<ReturnType<typeof useQuery<paths['/api/auditoria/accesos']['get']['responses']['200']['content']['application/json']>>['data']>[number];
+type Fila = paths['/api/auditoria/accesos']['get']['responses']['200']['content']['application/json']['items'][number];
 
 /**
  * Diseño "Opcion A submenu agrupado": resumen del periodo por defecto (7 dias)
  * y el ultimo acceso a una ficha, sin nombres de pacientes. "Abrir auditoria"
  * despliega los filtros y la tabla.
  */
-function ResumenAuditoria({ filas, cargando, abierta, onAbrir }: { filas?: Fila[]; cargando: boolean; abierta: boolean; onAbrir: () => void }) {
+function ResumenAuditoria({
+  filas,
+  parcial,
+  cargando,
+  abierta,
+  onAbrir,
+}: {
+  filas?: Fila[];
+  parcial: boolean;
+  cargando: boolean;
+  abierta: boolean;
+  onAbrir: () => void;
+}) {
   const cuenta = (a: string) => filas?.filter((f) => f.accion === a).length ?? 0;
   const ultimo = filas?.find((f) => f.pacienteNombre !== null);
   return (
@@ -207,7 +233,7 @@ function ResumenAuditoria({ filas, cargando, abierta, onAbrir }: { filas?: Fila[
           <span className="text-[12px] font-semibold text-neutral-700">
             {cargando
               ? 'Cargando…'
-              : `${cuenta('LECTURA')} lecturas · ${cuenta('ESCRITURA')} ediciones · ${cuenta('EXPORTACION')} exportaciones${filas?.length === 300 ? ' (primeros 300 registros)' : ''}`}
+              : `${cuenta('LECTURA')} lecturas · ${cuenta('ESCRITURA')} ediciones · ${cuenta('EXPORTACION')} exportaciones${parcial ? ` (primeros ${filas?.length ?? 0} registros)` : ''}`}
           </span>
         </span>
         <button

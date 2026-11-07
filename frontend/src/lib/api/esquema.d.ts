@@ -1421,11 +1421,34 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE */
+        /**
+         * Paginada por cursor (maximo 100); sin contacto de emergencia (esta en el detalle).
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE
+         */
         get: operations["PacientesController_listar"];
         put?: never;
         /** @description Roles: ADMIN, GESTION, PROFESIONAL */
         post: operations["PacientesController_crear"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pacientes/resumen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mapa id -> nombre del panel: todos los que el rol ve, sin columnas cifradas.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE
+         */
+        get: operations["PacientesController_resumen"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5645,6 +5668,11 @@ export interface components {
             /** Format: date-time */
             creadaEn: string;
         };
+        PaginaNotificaciones: {
+            /** @description Id de la ultima fila; null si no hay mas paginas. */
+            siguienteCursor: string | null;
+            items: components["schemas"]["NotificacionRegistro"][];
+        };
         MensajeBandeja: {
             tipo: components["schemas"]["TipoNotificacion"];
             /** @description Cita, documento, consentimiento, etc. segun el tipo */
@@ -6247,6 +6275,11 @@ export interface components {
             recurso: string;
             accion: string;
         };
+        PaginaAuditoria: {
+            /** @description Cursor de la pagina siguiente; null si no hay mas. */
+            siguienteCursor: string | null;
+            items: components["schemas"]["RegistroAuditoria"][];
+        };
         /** @enum {string} */
         AlcanceSoporte: "DIAGNOSTICO" | "CONFIGURACION";
         AutorizacionSoporteVista: {
@@ -6535,6 +6568,53 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        PacienteFila: {
+            rut: string | null;
+            /** Format: date */
+            fechaNacimiento: string;
+            email: string | null;
+            telefono: string | null;
+            /** @description Tratante */
+            profesionalId: string | null;
+            /** @description Codigo para la supervision seudonimizada */
+            codigoSeudonimo: string | null;
+            tipoAtencionId: string | null;
+            /**
+             * Format: date-time
+             * @description AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular; impide gestiones nuevas.
+             */
+            bloqueoDesde: string | null;
+            bloqueoMotivo: string | null;
+            id: string;
+            nombre: string;
+            apellido: string;
+            creadoPorSolicitud: boolean;
+            posibleDuplicado: boolean;
+            /** @description 03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion. */
+            traidoPorCentro: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PaginaPacientes: {
+            /** @description Id de la ultima fila; null si no hay mas paginas. */
+            siguienteCursor: string | null;
+            items: components["schemas"]["PacienteFila"][];
+        };
+        PacienteResumen: {
+            /** @description Tratante */
+            profesionalId: string | null;
+            /** Format: date */
+            fechaNacimiento: string;
+            /** @description Codigo para la supervision seudonimizada */
+            codigoSeudonimo: string | null;
+            id: string;
+            nombre: string;
+            apellido: string;
+            /** Format: date-time */
+            createdAt: string;
         };
         PacienteVista: {
             rut: string | null;
@@ -9722,7 +9802,9 @@ export interface operations {
     };
     NotificacionesController_listar: {
         parameters: {
-            query?: never;
+            query?: {
+                tipo?: components["schemas"]["TipoNotificacion"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -9734,7 +9816,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NotificacionRegistro"][];
+                    "application/json": components["schemas"]["PaginaNotificaciones"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -13563,6 +13645,10 @@ export interface operations {
                 pacienteId?: string;
                 usuarioId?: string;
                 accion?: "LECTURA" | "ESCRITURA" | "DESCARGA" | "EXPORTACION" | "ENVIO" | "DERIVACION" | "SUPERVISION" | "RETENCION" | "ACCESO_TEMPORAL";
+                /** @description AUD-02 (API-01): `siguienteCursor` de la pagina anterior (opaco). */
+                cursor?: string;
+                /** @description Filas por pagina (1 a 100, por defecto 50). */
+                limite?: number;
             };
             header?: never;
             path?: never;
@@ -13575,7 +13661,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistroAuditoria"][];
+                    "application/json": components["schemas"]["PaginaAuditoria"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -15708,6 +15794,8 @@ export interface operations {
                 derivados?: boolean;
                 /** @description Busqueda por nombre o apellido (contiene). */
                 nombre?: string;
+                /** @description Solo pacientes sin RUT registrado (pestaña "Sin RUT" de administracion). */
+                sinRut?: boolean;
             };
             header?: never;
             path?: never;
@@ -15720,7 +15808,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PacienteVista"][];
+                    "application/json": components["schemas"]["PaginaPacientes"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -15798,6 +15886,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PacienteCreado"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    PacientesController_resumen: {
+        parameters: {
+            query?: {
+                profesionalId?: string;
+                /** @description Busqueda por nombre o apellido (contiene). */
+                nombre?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PacienteResumen"][];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
