@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Rol } from '@prisma/client';
@@ -63,6 +63,8 @@ type Metodo = DesafioSegundoFactor['metodo'];
  */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger('AuthService');
+
   /** Hash de relleno: el tiempo de respuesta no revela si el email existe. */
   private readonly hashRelleno = bcrypt.hashSync('relleno-sin-usuario', 10);
 
@@ -152,7 +154,13 @@ export class AuthService {
       }
       throw error;
     }
-    await this.correos.enviarCodigo(email, codigo);
+    try {
+      await this.correos.enviarCodigo(email, codigo);
+    } catch {
+      // AUD-02 (EXT-03): proveedor caido o lento (corta por TIEMPOS_SMTP). Sin datos del correo en el log.
+      this.logger.warn('No se pudo enviar el codigo de verificacion');
+      throw new ServiceUnavailableException('No pudimos enviar el código a tu correo. Intenta de nuevo en unos minutos.');
+    }
   }
 
   /** "Reenviar codigo" (solo metodo CORREO). */

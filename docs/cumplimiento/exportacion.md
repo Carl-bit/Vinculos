@@ -88,10 +88,10 @@ codigo. X3: la del centro, cifrada con la clave del ADMIN. X4: JSON mas PDF.
 
 | Pieza | Donde |
 |---|---|
-| Lectura para exportar | `exportar_datos_paciente(paciente, parte)`, `exportar_tabla_centro(tabla)`, `tablas_exportacion_centro()` (migracion `20261101001200_aud01_exportaciones`) |
+| Lectura para exportar | `exportar_datos_paciente(paciente, parte)` y `tablas_exportacion_centro()` (migracion `20261101001200_aud01_exportaciones`); del centro, por lotes: `exportar_tabla_centro_lote`, `pacientes_con_ficha_exportacion`, `exportar_ficha_centro` (AUD-02, `20261110000000_aud02_exportacion_centro_job`) |
 | Exportacion por paciente | `exportaciones_paciente` (A, datos cifrados); API `POST derechos/solicitudes/:id/exportacion` (ADMIN), `GET exportaciones/pendientes` y `POST exportaciones/:id/clinica` (tratante), `POST portal/exportacion/descarga` (con cuenta), `POST publico/exportacion/descarga` (sin cuenta, codigo) |
 | Pantallas | Configuracion > Solicitudes de datos ("Preparar copia de datos"); aviso en la ficha y en el inicio del tratante; `/exportacion` y `/portal/exportacion` para el paciente |
-| Exportacion del centro | `POST exportacion-centro` (ADMIN, clave); Configuracion > Exportar datos; `infra/scripts/exportacion/descifrar.mjs` |
+| Exportacion del centro | Job (AUD-02): `POST exportacion-centro` (ADMIN, clave; 202), `GET exportacion-centro` (avance), `GET exportacion-centro/:id/archivo` (descarga de quien la pidio); tabla `exportaciones_centro`; Configuracion > Exportar datos; `infra/scripts/exportacion/descifrar.mjs` |
 | Vencidas | job `purgar_exportaciones_vencidas` (04:15): borra los datos, queda el registro |
 | Baja del centro | `docs/cumplimiento/baja_centro.md` |
 
@@ -111,3 +111,43 @@ codigo. X3: la del centro, cifrada con la clave del ADMIN. X4: JSON mas PDF.
   correo, el envio falla y la copia se entrega en persona.
 - Configuracion > Solicitudes de datos muestra a quien se envio ("el
   paciente y 2 adultos responsables"), sin correos.
+
+## 3. Exportacion del centro como job programado (AUD-02, 2026-11-06)
+
+Antes se armaba todo el centro en memoria dentro de la peticion (archivos
+incluidos, transaccion de 20 s): en un centro real fallaba por tiempo o
+dejaba sin memoria a la API. Ahora (decisiones del usuario del 2026-11-06):
+
+- **Llave publica:** la clave del ADMIN deriva (scrypt + sal) un par
+  X25519. La BD guarda solo la llave publica y la sal; la clave y la privada
+  se descartan en la peticion. El job cifra cada archivo con una llave
+  AES-256-GCM sacada de un ECDH con un par efimero (su publica va en la
+  cabecera). Abrirlo exige la clave: ni Vinculos ni el servidor pueden.
+  Formato v2 (`VINCULOS-EXPORT-2`); `descifrar.mjs` abre v1 y v2.
+- **Ventana nocturna:** por defecto queda PENDIENTE para
+  `proxima_ventana_exportacion()`: 1 h antes de la apertura del proximo dia
+  con atencion (`horario_centro`, hora de Chile), al menos 3 h despues del
+  cierre del dia anterior y dentro de 24 h; si no (fin de semana o sin
+  horario), la proxima 03:00. Mensaje: "estara lista dentro de 24 horas".
+- **Urgente:** "Preparar ahora (urgente)" (p. ej. baja del centro) corre de
+  inmediato.
+- **Job:** cada 5 minutos toma la que vencio (`tomar_exportacion_centro`,
+  una a la vez) y, en el contexto del ADMIN que la pidio, lee tabla por
+  tabla por lotes (archivos de a uno) en una transaccion de solo lectura
+  REPEATABLE READ, descifra y escribe cifrado por flujo en el volumen
+  `exportaciones`; despues un PDF por ficha. Avance en pantalla.
+- **Reinicios y errores:** como no necesita la clave, un reinicio a mitad la
+  devuelve a PENDIENTE y se retoma sola; un error la reintenta en 10
+  minutos. Tras 3 intentos queda FALLIDA y se avisa por correo.
+- **Cambio de regla (aprobado 2026-11-06):** el archivo cifrado queda en el
+  servidor hasta que quien la pidio lo descarga (se borra al terminar la
+  descarga) o 24 h (job horario).
+- Medicion (2026-11-06, local): centro demo de 10.823 filas y 202 fichas en
+  3,6 s; el p95 de un profesional paso de 18 a 29 ms mientras corria.
+  Estimacion para 25 profesionales y 8 practicantes en Lightsail: ~7 min el
+  primer año, ~35 min a los 5 años, 1,5 a 2 h a los 15 años.
+- Pruebas: `seguridad_bd.sql` casos 162 (permisos, programada, toma, reintentos,
+  interrumpidas, descarga) y 163 (ventana nocturna); `cifrado-exportacion.spec.ts`;
+  `test/aud01-cumplimiento` (urgente, programada, reinicio y tercer intento,
+  memoria: con 48 MB de adjuntos la memoria viva sube menos de 64 MB);
+  `frontend/e2e/cumplimiento.spec.ts`.

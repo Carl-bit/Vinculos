@@ -162,6 +162,15 @@ export class Entorno {
   ADJUNTO_MAX_MB: number = 10;
 
   /**
+   * AUD-02: carpeta del archivo cifrado de la exportacion del centro mientras
+   * espera su descarga (volumen del silo; maximo 24 h). Vacio: carpeta
+   * temporal del sistema (desarrollo y tests).
+   */
+  @IsOptional()
+  @IsString()
+  EXPORTACIONES_DIR: string = '';
+
+  /**
    * 03b-3.1: pasarela de pago (integraciones.md). 'simulada' = modo
    * demostracion, no cobra; vacio = sin pasarela (el centro no puede habilitar
    * el medio PASARELA). Sin valor: 'simulada' fuera de produccion. En

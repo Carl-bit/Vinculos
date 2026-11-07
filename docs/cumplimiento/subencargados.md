@@ -14,8 +14,9 @@ antes de que el proveedor trate sus datos.
 | Pasarela de pago (por definir, cuenta propia del centro o del profesional) | Checkout de pago | Por definir | Cobrar la sesion en la pagina de la pasarela | Monto y referencia de la cita; nombre, correo o RUT solo si el proveedor lo exige (`core/integraciones/pasarela.ts`). Nunca datos de tarjeta en Vinculos | Post-MVP. Con conexion directa la pasarela contrata con el centro o el profesional, no con Vinculos: confirmar con asesoria si figura como subencargado de Vinculos o como proveedor directo del centro |
 | Proveedor de boletas electronicas (por definir) | Emision de documentos tributarios | Por definir | Emitir boletas del centro o de honorarios del profesional | Datos del emisor y del receptor que exija el SII | Post-MVP (hoy el folio se registra a mano, AUD-01 E1.4) |
 | Meta (WhatsApp Business, cuenta del centro) | Mensajeria | Por definir | Avisos por WhatsApp con consentimiento propio del canal | Telefono y plantilla de utilidad | Post-MVP, extra |
+| Cloudflare | Tunel de entrada (sin puertos abiertos en el host), DNS y cache solo de estaticos | Red global (definir region de datos si el plan lo permite) | Llevar el trafico HTTPS hasta Traefik del host sin exponer puertos | Todo el trafico web del silo **en claro dentro de su borde** (termina el TLS): datos personales y clinicos en transito, IP del visitante. No guarda respuestas de `/api/*` ni `/sesion/*` (sin cache) | Previsto (decision AUD-02, 2026-11-06): se incorpora al probar en servidor; DPA de Cloudflare firmado antes de procesar datos |
 
-No se usan: Cloudflare (no hay tunel ni CDN configurado), analitica de
+No se usan: analitica de
 terceros (ni en el front publico ni en el panel), proveedores de IA,
 agregadores de logs externos. Si alguno se incorpora, entra a esta tabla
 antes de procesar datos.

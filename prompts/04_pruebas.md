@@ -109,9 +109,12 @@ esta bien definido y no se avanza a produccion hasta corregirlo.
 
 ## Fase 3: simulacion del entorno real (Docker Compose con limites)
 
-Igualar los limites al plan de Lightsail de entrada real (512MB RAM /
-1 vCPU para la API), no numeros arbitrarios: si un cuello de botella va a
-aparecer, mejor ahora que con un cliente real.
+Igualar los limites al plan de Lightsail de entrada real (1 GB RAM /
+1 vCPU por host, un silo por host; AUD-02, 2026-11-06), no numeros
+arbitrarios: si un cuello de botella va a aparecer, mejor ahora que con un
+cliente real. Reparto del presupuesto en
+`docs/operacion/auditoria_rendimiento.md` (seccion CAP): Postgres 256M
+ajustado, API 256M, front 256M y el resto para el sistema y Traefik.
 
 ```yaml
 services:
@@ -121,11 +124,12 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
       POSTGRES_DB: vinculos_stress
+    command: postgres -c shared_buffers=64MB -c max_connections=20 -c work_mem=2MB
     deploy:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512M
+          memory: 256M
 
   api:
     build: .
@@ -140,7 +144,7 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 256M
 ```
 
 ## Flujo completo

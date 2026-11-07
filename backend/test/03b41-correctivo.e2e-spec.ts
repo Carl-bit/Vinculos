@@ -6,6 +6,8 @@
  * Pendientes aprobados: "Reservando..." de otras personas en el calendario
  * (solo box y rango, por rol).
  */
+import { ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
+
 import { auth, CLAVE, crearApp, ultimoCodigo, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 describe('03b-4.1 correctivo', () => {
@@ -79,6 +81,19 @@ describe('03b-4.1 correctivo', () => {
       }
       const paciente = await t.datos.usuarioPaciente(prof.id);
       expect((await login({ email: paciente.email, password: CLAVE })).body.accessToken).toBeDefined();
+    });
+
+    it('AUD-02: si el correo no se puede enviar, el login responde 503 con un texto claro (no 500)', async () => {
+      const correo = t.app.get<ProveedorCorreo, ProveedorCorreoSimulado>(ProveedorCorreo);
+      const u = await t.datos.usuario('GESTION');
+      correo.fallar = true;
+      try {
+        const r = await login({ email: u.email, password: CLAVE });
+        expect(r.status).toBe(503);
+        expect(r.body.mensaje ?? r.body.message).toMatch(/No pudimos enviar el código a tu correo/);
+      } finally {
+        correo.fallar = false;
+      }
     });
 
     it('primer ingreso: codigo del correo y 10 codigos de respaldo; un respaldo sirve una sola vez', async () => {

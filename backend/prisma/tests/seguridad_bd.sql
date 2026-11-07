@@ -5665,11 +5665,11 @@ DO $$ DECLARE v jsonb; v_sol uuid := gen_random_uuid(); v_exp uuid := gen_random
   v := exportar_datos_paciente(test.u('15'), 'ADMINISTRATIVA');
   ASSERT v ? 'pacientes' AND NOT (v -> 'pacientes' -> 0) ? 'rut_hmac', 'caso 150: administrativa sin rut_hmac';
   BEGIN
-    PERFORM exportar_tabla_centro('llaves_datos');
+    PERFORM * FROM exportar_tabla_centro_lote('llaves_datos', NULL, 10);
     RAISE EXCEPTION 'caso 150: exportar llaves debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
   ASSERT NOT EXISTS (SELECT 1 FROM tablas_exportacion_centro() t WHERE t IN ('llaves_datos', 'sesiones', 'tokens_correo')), 'caso 150: sin llaves ni sesiones';
-  ASSERT NOT (exportar_tabla_centro('usuarios') -> 0) ? 'password_hash', 'caso 150: sin contraseñas';
+  ASSERT NOT EXISTS (SELECT 1 FROM exportar_tabla_centro_lote('usuarios', NULL, 1000) l WHERE l.fila ? 'password_hash'), 'caso 150: sin contraseñas';
   PERFORM test.ctx('b1', 'PROFESIONAL');
   v := exportar_datos_paciente(test.u('15'), 'CLINICA');
   ASSERT v ? 'evoluciones', 'caso 150: el tratante exporta lo clinico';
@@ -6360,6 +6360,155 @@ DO $$ DECLARE r record; BEGIN
 END $$;
 \connect :owner_url
 
+\echo 162 Exportacion del centro como job (AUD-02): solo ADMIN la pide con llave publica y la ve; una pedida sin terminar a la vez (55000); sin INSERT/UPDATE directo; lectura por lotes sin llaves ni contraseñas; programada en la ventana nocturna o ya si es urgente; el job la toma a su hora, reintenta hasta 3 veces y retoma las interrumpidas; terminar registra y descargar es de una vez
+\connect :app_url
+DO $$ DECLARE r record; v_id uuid; v_id2 uuid; v_pos tid; v_n int; v_pub bytea := decode(repeat('ab', 32), 'hex'); v_sal bytea := decode(repeat('cd', 16), 'hex'); BEGIN
+  FOR r IN SELECT * FROM (VALUES ('a3', 'GESTION'), ('b1', 'PROFESIONAL')) v(u, rol) LOOP
+    PERFORM test.ctx(r.u, r.rol);
+    BEGIN
+      PERFORM iniciar_exportacion_centro(v_pub, v_sal, true);
+      RAISE EXCEPTION 'caso 162: % pide debio fallar', r.rol;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    BEGIN
+      PERFORM * FROM exportar_tabla_centro_lote('pacientes', NULL, 10);
+      RAISE EXCEPTION 'caso 162: % lee lotes debio fallar', r.rol;
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END LOOP;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM iniciar_exportacion_centro(decode('00', 'hex'), v_sal, true);
+    RAISE EXCEPTION 'caso 162: llave publica de otro largo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- Sin urgencia: ventana nocturna (dentro de 24 h).
+  v_id := iniciar_exportacion_centro(v_pub, v_sal, false);
+  ASSERT (SELECT estado = 'PENDIENTE' AND NOT urgente AND programada_para > now() AND programada_para <= now() + interval '24 hours'
+          FROM exportaciones_centro WHERE id = v_id), 'caso 162: programada en la ventana';
+  BEGIN
+    PERFORM iniciar_exportacion_centro(v_pub, v_sal, true);
+    RAISE EXCEPTION 'caso 162: segunda pedida debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    INSERT INTO exportaciones_centro (solicitada_por_id, tablas_total, clave_publica, sal) VALUES (test.u('a1'), 1, v_pub, v_sal);
+    RAISE EXCEPTION 'caso 162: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE exportaciones_centro SET programada_para = now() WHERE id = v_id;
+    RAISE EXCEPTION 'caso 162: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT EXISTS (SELECT 1 FROM exportaciones_centro WHERE id = v_id), 'caso 162: ADMIN la ve';
+  PERFORM test.ctx('a3', 'GESTION');
+  ASSERT NOT EXISTS (SELECT 1 FROM exportaciones_centro), 'caso 162: GESTION no ve exportaciones';
+  BEGIN
+    PERFORM * FROM tomar_exportacion_centro();
+    RAISE EXCEPTION 'caso 162: tomar con contexto debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- El job no la toma antes de su hora.
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  ASSERT NOT EXISTS (SELECT 1 FROM tomar_exportacion_centro()), 'caso 162: antes de su hora no se toma';
+
+  -- Lectura por lotes (cursor por ctid), sin llaves ni contraseñas.
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM * FROM exportar_tabla_centro_lote('llaves_datos', NULL, 10);
+    RAISE EXCEPTION 'caso 162: exportar llaves debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  ASSERT NOT EXISTS (SELECT 1 FROM exportar_tabla_centro_lote('usuarios', NULL, 1000) l WHERE l.fila ? 'password_hash' OR l.fila ? 'totp_secreto'),
+    'caso 162: sin contraseñas ni secretos';
+  SELECT pos INTO v_pos FROM exportar_tabla_centro_lote('pacientes', NULL, 1);
+  SELECT count(*) INTO v_n FROM exportar_tabla_centro_lote('pacientes', v_pos, 1000);
+  ASSERT v_n = (SELECT count(*) FROM exportar_tabla_centro_lote('pacientes', NULL, 1000)) - 1, 'caso 162: el siguiente lote sigue despues del cursor';
+  ASSERT (SELECT exportar_ficha_centro(p) ? 'evoluciones' FROM pacientes_con_ficha_exportacion() p LIMIT 1), 'caso 162: ficha para el PDF';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\connect :owner_url
+-- La hora de la programada llega (el dueño la adelanta: simula el paso del tiempo).
+UPDATE exportaciones_centro SET programada_para = now() - interval '1 second' WHERE estado = 'PENDIENTE';
+\connect :app_url
+DO $$ DECLARE t record; v_id2 uuid; v_pub bytea := decode(repeat('ab', 32), 'hex'); v_sal bytea := decode(repeat('cd', 16), 'hex'); BEGIN
+  -- El job la toma (una a la vez) con su llave publica; el total de tablas se recalcula.
+  SELECT * INTO t FROM tomar_exportacion_centro();
+  ASSERT t.id IS NOT NULL AND t.intentos = 1 AND t.clave_publica = v_pub AND t.sal = v_sal, 'caso 162: tomada con su llave publica';
+  ASSERT NOT EXISTS (SELECT 1 FROM tomar_exportacion_centro()), 'caso 162: una a la vez';
+  -- Un fallo la devuelve a PENDIENTE (reintento), hasta el tercero.
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT fallar_exportacion_centro(t.id, 'error de prueba') = 'PENDIENTE', 'caso 162: primer fallo reintenta';
+  ASSERT (SELECT programada_para > now() FROM exportaciones_centro WHERE id = t.id), 'caso 162: reintento en unos minutos';
+  -- Reinicio a mitad: EN_PROCESO vuelve a PENDIENTE (la llave publica sigue en la fila).
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  BEGIN
+    PERFORM test.ctx('a1', 'ADMIN');
+    PERFORM cerrar_exportaciones_centro(true);
+    RAISE EXCEPTION 'caso 162: cerrar con contexto debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\connect :owner_url
+UPDATE exportaciones_centro SET programada_para = now() - interval '1 second' WHERE estado = 'PENDIENTE';
+\connect :app_url
+DO $$ DECLARE t record; BEGIN
+  SELECT * INTO t FROM tomar_exportacion_centro();
+  ASSERT t.intentos = 2, 'caso 162: segundo intento';
+  ASSERT EXISTS (SELECT 1 FROM cerrar_exportaciones_centro(true) c WHERE c = t.id), 'caso 162: interrumpida devuelta (borrar archivo parcial)';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT estado = 'PENDIENTE' FROM exportaciones_centro WHERE id = t.id), 'caso 162: interrumpida vuelve a PENDIENTE';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  SELECT * INTO t FROM tomar_exportacion_centro();
+  ASSERT t.intentos = 3, 'caso 162: tercer intento';
+  -- Termino, registro y descarga de una vez.
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM avance_exportacion_centro(t.id, 1, 0, 0);
+  PERFORM terminar_exportacion_centro(t.id, 1234, repeat('a', 64));
+  ASSERT (SELECT estado = 'LISTA' AND vence_en > now() FROM exportaciones_centro WHERE id = t.id), 'caso 162: lista por 24 h';
+  ASSERT EXISTS (SELECT 1 FROM registro_exportaciones WHERE referencia_id = t.id AND recurso = 'exportacion_centro'), 'caso 162: registrada';
+  PERFORM descargar_exportacion_centro(t.id);
+  BEGIN
+    PERFORM descargar_exportacion_centro(t.id);
+    RAISE EXCEPTION 'caso 162: segunda descarga debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\connect :owner_url
+-- Tercer fallo: FALLIDA. Una urgente queda para ya; se toma y falla con 3 intentos.
+DO $$ DECLARE v uuid := gen_random_uuid(); BEGIN
+  INSERT INTO exportaciones_centro (id, solicitada_por_id, tablas_total, clave_publica, sal, estado, intentos, iniciada_en)
+  VALUES (v, test.u('a1'), 1, decode(repeat('ab', 32), 'hex'), decode(repeat('cd', 16), 'hex'), 'EN_PROCESO', 3, now());
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT fallar_exportacion_centro(v, 'error de prueba') = 'FALLIDA', 'caso 162: tercer fallo queda FALLIDA';
+  ASSERT (SELECT motivo_fallo = 'error de prueba' FROM exportaciones_centro WHERE id = v), 'caso 162: con su motivo';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+
+\echo 163 Ventana nocturna de la exportacion (AUD-02): 1 h antes de la apertura del proximo dia con atencion, al menos 3 h despues del cierre anterior y dentro de 24 h; si no, la proxima 03:00 de Chile
+BEGIN;
+CREATE TEMP TABLE horario_respaldo AS SELECT * FROM horario_centro;
+DELETE FROM horario_centro;
+-- Lunes a viernes 08:00 a 21:00; sabado 09:00 a 14:00; domingo cerrado.
+INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) SELECT d, 480, 1260 FROM generate_series(1, 5) d;
+INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) VALUES (6, 540, 840);
+DO $$ BEGIN
+  -- Viernes 2026-11-06 23:59: el sabado abre 09:00 -> 08:00.
+  ASSERT proxima_ventana_exportacion('2026-11-06 23:59-03') = '2026-11-07 08:00-03', 'caso 163: viernes noche -> sabado 08:00';
+  -- Sabado 22:00: el domingo cierra y el lunes 07:00 queda a mas de 24 h -> domingo 03:00.
+  ASSERT proxima_ventana_exportacion('2026-11-07 22:00-03') = '2026-11-08 03:00-03', 'caso 163: sabado noche -> domingo 03:00';
+  -- Lunes 05:00: el mismo lunes 07:00.
+  ASSERT proxima_ventana_exportacion('2026-11-09 05:00-03') = '2026-11-09 07:00-03', 'caso 163: madrugada -> 1 h antes de abrir';
+  -- Lunes 10:00 (en atencion): el martes 07:00.
+  ASSERT proxima_ventana_exportacion('2026-11-09 10:00-03') = '2026-11-10 07:00-03', 'caso 163: en horario -> mañana 07:00';
+END $$;
+-- Cierre tarde (23:30) y apertura temprana (01:00 del dia siguiente): 00:00 no deja 3 h -> 03:00.
+DELETE FROM horario_centro;
+INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) SELECT d, 60, 1410 FROM generate_series(1, 7) d;
+DO $$ BEGIN
+  ASSERT proxima_ventana_exportacion('2026-11-09 23:45-03') = '2026-11-10 03:00-03', 'caso 163: sin 3 h tras el cierre -> 03:00';
+END $$;
+-- Sin horario: la proxima 03:00.
+DELETE FROM horario_centro;
+DO $$ BEGIN
+  ASSERT proxima_ventana_exportacion('2026-11-09 10:00-03') = '2026-11-10 03:00-03', 'caso 163: sin horario -> 03:00';
+END $$;
+ROLLBACK;
+\connect :owner_url
+
 \echo 78 Sin texto plano: toda columna bytea cifrada tiene el formato; seed sin datos sensibles; copia de autoria intacta tras cerrar cuentas
 DO $$ DECLARE c record; n int; BEGIN
   FOR c IN SELECT table_name, column_name FROM information_schema.columns
@@ -6370,7 +6519,9 @@ DO $$ DECLARE c record; n int; BEGIN
              -- 03b-3.1: SHA-256 del token opaco de la reserva (como tokens_correo).
              AND table_name || '.' || column_name NOT IN ('solicitudes_hora.reserva_hash',
              -- AUD-01: SHA-256 del enlace y del codigo de una exportacion (como tokens_correo).
-                                                          'destinatarios_exportacion.token_hash', 'destinatarios_exportacion.codigo_hash') LOOP
+                                                          'destinatarios_exportacion.token_hash', 'destinatarios_exportacion.codigo_hash',
+             -- AUD-02: llave PUBLICA X25519 y sal de la exportacion del centro (publicas por diseño; la privada no se guarda).
+                                                          'exportaciones_centro.clave_publica', 'exportaciones_centro.sal') LOOP
     EXECUTE format('SELECT count(*) FROM %I WHERE %I IS NOT NULL AND (get_byte(%I, 0) <> 1 OR octet_length(%I) < 49)',
                    c.table_name, c.column_name, c.column_name, c.column_name) INTO n;
     ASSERT n = 0, format('caso 78: %s.%s con valores sin formato cifrado', c.table_name, c.column_name);

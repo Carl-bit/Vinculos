@@ -10,7 +10,7 @@
 //   carpeta-salida/fichas/<paciente>.pdf   la ficha clinica legible de cada paciente
 // Solo usa Node (sin dependencias). La clave va por variable de entorno para
 // que no quede en el historial de comandos.
-import { createDecipheriv, scryptSync } from 'node:crypto';
+import { createDecipheriv, createPrivateKey, createPublicKey, diffieHellman, hkdfSync, scryptSync } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -21,21 +21,37 @@ if (!archivo || !salida || !clave) {
   process.exit(1);
 }
 
-const MAGIA = Buffer.from('VINCULOS-EXPORT-1\n', 'utf8');
+// v1 (AUD-01): MAGIA | sal(16) | iv(12) | tag(16) | cuerpo; llave = scrypt(clave, sal).
+// v2 (AUD-02): MAGIA | sal(16) | publica efimera X25519(32) | iv(12) | tag(16) | cuerpo;
+//   privada = scrypt(clave, sal); llave = HKDF-SHA256(ECDH(privada, efimera), efimera || publica).
+const MAGIA_V1 = Buffer.from('VINCULOS-EXPORT-1\n', 'utf8');
+const MAGIA_V2 = Buffer.from('VINCULOS-EXPORT-2\n', 'utf8');
+const SCRYPT = { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const datos = readFileSync(archivo);
-if (!datos.subarray(0, MAGIA.length).equals(MAGIA)) {
-  console.error('El archivo no es una exportacion de Vinculos (version 1).');
+const v2 = datos.subarray(0, MAGIA_V2.length).equals(MAGIA_V2);
+if (!v2 && !datos.subarray(0, MAGIA_V1.length).equals(MAGIA_V1)) {
+  console.error('El archivo no es una exportacion de Vinculos (version 1 o 2).');
   process.exit(1);
 }
-let p = MAGIA.length;
+let p = MAGIA_V1.length;
 const sal = datos.subarray(p, (p += 16));
+const efimera = v2 ? datos.subarray(p, (p += 32)) : null;
 const iv = datos.subarray(p, (p += 12));
 const etiqueta = datos.subarray(p, (p += 16));
 const cuerpo = datos.subarray(p);
 
+function llaveV2() {
+  const raw = scryptSync(clave, sal, 32, SCRYPT);
+  const privada = createPrivateKey({ key: Buffer.concat([Buffer.from('302e020100300506032b656e04220420', 'hex'), raw]), format: 'der', type: 'pkcs8' });
+  const spki = Buffer.from('302a300506032b656e032100', 'hex');
+  const publica = createPublicKey(privada).export({ format: 'der', type: 'spki' }).subarray(spki.length);
+  const secreto = diffieHellman({ privateKey: privada, publicKey: createPublicKey({ key: Buffer.concat([spki, efimera]), format: 'der', type: 'spki' }) });
+  return Buffer.from(hkdfSync('sha256', secreto, Buffer.concat([efimera, publica]), Buffer.from('vinculos-exportacion-centro-v2', 'utf8'), 32));
+}
+
 let plano;
 try {
-  const llave = scryptSync(clave, sal, 32, { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  const llave = v2 ? llaveV2() : scryptSync(clave, sal, 32, SCRYPT);
   const d = createDecipheriv('aes-256-gcm', llave, iv);
   d.setAuthTag(etiqueta);
   plano = Buffer.concat([d.update(cuerpo), d.final()]);

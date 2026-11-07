@@ -1218,6 +1218,44 @@ export class ExportarCentroDto {
   @IsString()
   @Length(16, 200)
   clave!: string;
+
+  /** AUD-02: true = ahora (p. ej. baja del centro); si no, en la ventana nocturna (dentro de 24 h). */
+  @IsOptional()
+  @IsBoolean()
+  urgente?: boolean;
+}
+
+export const ESTADOS_EXPORTACION_CENTRO = ['PENDIENTE', 'EN_PROCESO', 'LISTA', 'FALLIDA', 'DESCARGADA', 'VENCIDA'] as const;
+
+/** AUD-02: exportacion completa del centro como job (estado y avance, sin datos). */
+export class ExportacionCentroVista {
+  id!: string;
+  @ApiProperty({ enum: ESTADOS_EXPORTACION_CENTRO })
+  estado!: (typeof ESTADOS_EXPORTACION_CENTRO)[number];
+  /** La pidio quien consulta: solo esa persona la descarga (va cifrada con su clave). */
+  propia!: boolean;
+  tablasTotal!: number;
+  tablasHechas!: number;
+  fichasTotal!: number;
+  fichasHechas!: number;
+  @ApiProperty({ type: Number, nullable: true })
+  bytes!: number | null;
+  @ApiProperty({ type: String, nullable: true, description: 'sha256 del archivo cifrado' })
+  huella!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  motivoFallo!: string | null;
+  creadaEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  terminadaEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  venceEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  descargadaEn!: Date | null;
+  /** Cuando corre (o se reintenta) si esta PENDIENTE: ventana nocturna o ya, si es urgente. */
+  programadaPara!: Date;
+  urgente!: boolean;
+  /** Intentos hechos (maximo 3; un reinicio o un error la devuelven a PENDIENTE). */
+  intentos!: number;
 }
 
 /** AUD-01 (E2.3a): feriados de un año (los de la ley y los del centro). */

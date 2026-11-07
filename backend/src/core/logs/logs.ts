@@ -45,6 +45,22 @@ export const RUTAS_REDACTADAS = [
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
+ * AUD-02 (OBS-02): rutas que llevan un token en el path (feed iCal,
+ * recordatorio por correo, descarga de documento). En el log el segmento del
+ * token se reemplaza por `:token`; la query ya no se registra.
+ */
+const RUTAS_CON_TOKEN = [/^(\/api\/calendario\/)[^/]+/, /^(\/api\/recordatorios\/)[^/]+/, /^(\/api\/documentos-clinicos\/descarga\/)[^/]+/];
+
+/** Ruta apta para el log: sin query y sin tokens. */
+export function rutaParaLog(url: string): string {
+  const ruta = url.split('?')[0];
+  for (const patron of RUTAS_CON_TOKEN) {
+    if (patron.test(ruta)) return ruta.replace(patron, '$1:token');
+  }
+  return ruta;
+}
+
+/**
  * Id de la request: el de X-Request-Id si es un uuid, si no uno nuevo. Lo
  * comparten pino-http y nestjs-cls (se memoriza en req.id).
  */
@@ -72,7 +88,7 @@ export function opcionesLogger(nivel: string, destino?: DestinationStream): Para
           req: (req: { id: string; method: string; url: string }) => ({
             id: req.id,
             method: req.method,
-            url: req.url.split('?')[0],
+            url: rutaParaLog(req.url),
           }),
           res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
         },

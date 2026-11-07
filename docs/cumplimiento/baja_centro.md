@@ -8,7 +8,11 @@ Decreto 41) con lo que recibe.
 ## 1. Exportacion (la hace el centro)
 
 1. La cuenta madre (ADMIN) entra a Configuracion > Exportar datos, elige una
-   clave de 16 o mas caracteres y descarga `exportacion-centro-AAAA-MM-DD.vxp`.
+   clave de 16 o mas caracteres y pulsa "Preparar ahora (urgente)" (en una
+   baja no conviene esperar la ventana nocturna). Se prepara en segundo plano
+   (avance en pantalla y aviso por correo); al quedar lista descarga
+   `exportacion-centro-AAAA-MM-DD.vxp` (disponible 24 h; se borra del
+   servidor al descargarla).
    - Contiene todas las tablas del silo salvo llaves, sesiones, tokens,
      codigos, intentos de ingreso y colas de correo; con las columnas
      cifradas ya legibles y un PDF por ficha clinica.

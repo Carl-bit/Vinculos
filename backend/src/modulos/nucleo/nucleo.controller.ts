@@ -1,3 +1,5 @@
+import { createReadStream } from 'node:fs';
+
 import {
   BadRequestException,
   Body,
@@ -24,6 +26,7 @@ import { Publico, Roles } from '../../core/auth/decoradores';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { IMAGEN_MAX_BYTES } from '../../core/imagenes/imagenes';
 import { CentroService } from './centro.service';
+import { ExportacionCentroService } from './exportacion-centro.service';
 import {
   BajaRolDto,
   ContenidoPublicoDto,
@@ -92,6 +95,7 @@ import {
   RecordatorioPersonalDto,
   RecordatorioPersonalVista,
   ExportacionPacienteVista,
+  ExportacionCentroVista,
   ExportarCentroDto,
 } from './dto/nucleo.dto';
 import { ExportacionesService } from './exportaciones.service';
@@ -624,7 +628,10 @@ const archivo = (contenido: Buffer, tipo: string, nombre: string) =>
 @ApiTags(TAGS.nucleo)
 @Controller()
 export class ExportacionesController {
-  constructor(private readonly exportaciones: ExportacionesService) {}
+  constructor(
+    private readonly exportaciones: ExportacionesService,
+    private readonly centro: ExportacionCentroService,
+  ) {}
 
   @Post('derechos/solicitudes/:id/exportacion')
   @Roles('ADMIN')
@@ -655,14 +662,37 @@ export class ExportacionesController {
     return archivo(a.contenido, a.tipo, a.nombre);
   }
 
-  /** Exportacion completa del centro, cifrada con la clave del ADMIN (no se guarda). */
+  /**
+   * AUD-02: exportacion completa del centro como job. Responde 202 al
+   * iniciarla (la clave no se guarda); el avance se consulta con GET y llega
+   * un correo al terminar. 409 si ya hay una en curso.
+   */
   @Post('exportacion-centro')
-  @HttpCode(200)
+  @HttpCode(202)
+  @Roles('ADMIN')
+  solicitarCentro(@Body() dto: ExportarCentroDto): Promise<ExportacionCentroVista> {
+    return this.centro.solicitar(dto.clave, dto.urgente ?? false);
+  }
+
+  /** Las ultimas 10 exportaciones del centro (estado y avance, sin datos). */
+  @Get('exportacion-centro')
+  @Roles('ADMIN')
+  exportacionesCentro(): Promise<ExportacionCentroVista[]> {
+    return this.centro.listar();
+  }
+
+  /**
+   * Archivo cifrado (solo quien la pidio, dentro de 24 h). Se envia por flujo;
+   * al terminar el envio completo se marca descargada y se borra del servidor.
+   */
+  @Get('exportacion-centro/:id/archivo')
   @Roles('ADMIN')
   @RespuestaArchivo('application/octet-stream')
-  async centro(@Body() dto: ExportarCentroDto) {
-    const a = await this.exportaciones.exportarCentro(dto.clave);
-    return archivo(a.contenido, 'application/octet-stream', a.nombre);
+  async archivoCentro(@Param('id', Uuid) id: string) {
+    const a = await this.centro.archivo(id);
+    const flujo = createReadStream(a.ruta);
+    flujo.on('end', () => void a.alTerminar());
+    return new StreamableFile(flujo, { type: 'application/octet-stream', disposition: `attachment; filename="${encodeURIComponent(a.nombre)}"` });
   }
 }
 

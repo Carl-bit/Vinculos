@@ -1,10 +1,9 @@
-import { createCipheriv, createHash, randomBytes, randomInt, randomUUID, scryptSync } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { PrismaClient } from '@prisma/client';
 
-import { registrarExportacion } from '../../core/bd/auditoria';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { CAMPOS_CIFRADOS } from '../../common/crypto/registro';
 import { hashToken, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
@@ -18,8 +17,6 @@ type Tablas = Record<string, Filas | null>;
 
 /** Version del formato de las exportaciones (cambia si cambia la forma del JSON). */
 export const VERSION_EXPORTACION = 1;
-/** Cabecera del archivo cifrado de la exportacion del centro (infra/scripts/exportacion/descifrar.mjs). */
-const MAGIA = Buffer.from('VINCULOS-EXPORT-1\n', 'utf8');
 
 /**
  * AUD-01 Fase 3 (docs/cumplimiento/exportacion.md).
@@ -32,8 +29,7 @@ const MAGIA = Buffer.from('VINCULOS-EXPORT-1\n', 'utf8');
  * adultos; mayor, el paciente). Con cuenta, la descarga exige su sesion; sin
  * cuenta, el codigo de un segundo correo. Se descarga en JSON o PDF.
  *
- * Centro (LEG-04): ADMIN la pide con una clave que no se guarda; el archivo
- * sale cifrado (AES-256-GCM, scrypt) y solo el centro lo abre (D5).
+ * Centro (LEG-04): ExportacionCentroService (job, AUD-02).
  */
 @Injectable()
 export class ExportacionesService {
@@ -174,56 +170,6 @@ export class ExportacionesService {
     return this.descifrar(datos);
   }
 
-  // --- Centro -----------------------------------------------------------------
-
-  /**
-   * Exportacion completa del centro, cifrada con la clave del ADMIN (no se
-   * guarda: ni la clave ni el archivo). Registro con huella y tamaño.
-   */
-  async exportarCentro(clave: string): Promise<{ contenido: Buffer; nombre: string }> {
-    const tx = this.bd.tx();
-    const tablas = await tx.$queryRaw<{ t: string }[]>`SELECT t FROM tablas_exportacion_centro() AS t`;
-    const datos: Tablas = {};
-    for (const { t } of tablas) {
-      const [{ filas }] = await tx.$queryRaw<[{ filas: Filas }]>`SELECT exportar_tabla_centro(${t}) AS filas`;
-      datos[t] = filas;
-    }
-    const legibles = this.descifrar(datos);
-    const fichas: Record<string, string> = {};
-    const centro = await this.nombreCentro(tx);
-    for (const p of (legibles.pacientes ?? []) as { id: string }[]) {
-      const ficha = filtrarPaciente(legibles, p.id);
-      if ((ficha.evoluciones ?? []).length || (ficha.ingresos_ficha ?? []).length) {
-        const pdf = await generarPdfDocumento({ centro, titulo: 'Ficha clinica', texto: textoLegible(ficha), emitidoEn: new Date() });
-        fichas[p.id] = pdf.toString('base64');
-      }
-    }
-    const plano = Buffer.from(
-      JSON.stringify({
-        formato: 'vinculos-exportacion-centro',
-        version: VERSION_EXPORTACION,
-        generadoEn: new Date().toISOString(),
-        centro,
-        datos: legibles,
-        fichasPdf: fichas,
-      }),
-      'utf8',
-    );
-    const sal = randomBytes(16);
-    const iv = randomBytes(12);
-    const llave = scryptSync(clave, sal, 32, { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
-    const cifrador = createCipheriv('aes-256-gcm', llave, iv);
-    const cuerpo = Buffer.concat([cifrador.update(plano), cifrador.final()]);
-    const contenido = Buffer.concat([MAGIA, sal, iv, cifrador.getAuthTag(), cuerpo]);
-    const huella = createHash('sha256').update(contenido).digest('hex');
-    await registrarExportacion(tx, this.bd.usuario(), {
-      recurso: 'exportacion_centro',
-      detalle: `${tablas.length} tablas, ${contenido.length} bytes, sha256 ${huella}`,
-    });
-    const fecha = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
-    return { contenido, nombre: `exportacion-centro-${fecha}.vxp` };
-  }
-
   // --- Comun ------------------------------------------------------------------
 
   /** Columnas cifradas (bytea como "\\x..." en el JSON) -> texto, con el AAD de su fila. */
@@ -249,18 +195,6 @@ export class ExportacionesService {
     const [f] = await db.$queryRaw<{ c: { nombre_centro: string } }[]>`SELECT contenido_publico_centro() AS c`;
     return f?.c.nombre_centro ?? 'Centro';
   }
-}
-
-/** Las tablas del centro reducidas a un paciente (para su PDF de ficha). */
-function filtrarPaciente(d: Tablas, pacienteId: string): Tablas {
-  const fichas = (d.fichas_clinicas ?? []).filter((f) => f.paciente_id === pacienteId);
-  const ids = new Set(fichas.map((f) => f.id));
-  return {
-    pacientes: (d.pacientes ?? []).filter((p) => p.id === pacienteId),
-    fichas_clinicas: fichas,
-    ingresos_ficha: (d.ingresos_ficha ?? []).filter((i) => ids.has(i.ficha_clinica_id)),
-    evoluciones: (d.evoluciones ?? []).filter((e) => ids.has(e.ficha_clinica_id)),
-  };
 }
 
 /**

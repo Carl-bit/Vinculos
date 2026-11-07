@@ -30,6 +30,7 @@ const GENERICOS: Record<number, string> = {
  */
 export function mensajeError(status: number, cuerpo: Partial<ErrorRespuesta> = {}): string {
   const propio = Array.isArray(cuerpo.mensaje) ? cuerpo.mensaje.join(' ') : cuerpo.mensaje;
-  if ((status === 409 || status === 422 || status === 400) && propio) return propio;
+  // 503: servicio externo caido (p. ej. el correo del codigo 2FA, AUD-02); trae su propio texto.
+  if ((status === 409 || status === 422 || status === 400 || status === 503) && propio) return propio;
   return GENERICOS[status] ?? 'No pudimos completar la operación. Intenta de nuevo en unos minutos.';
 }

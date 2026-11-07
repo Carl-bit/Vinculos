@@ -2,9 +2,14 @@
  * AUD-01 (docs/cumplimiento/roadmap_aud01.md): alineacion con las decisiones
  * de cumplimiento. Una seccion por entrega, por rol.
  */
-import { createDecipheriv, randomInt, randomUUID, scryptSync } from 'node:crypto';
+import { createDecipheriv, randomBytes, randomInt, randomUUID } from 'node:crypto';
+import { setFlagsFromString } from 'node:v8';
+import { runInNewContext } from 'node:vm';
 
+import { LlaveroService } from '../src/core/crypto/llavero.service';
 import { ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
+import { llaveParaDescifrar, publicaDesdeClave } from '../src/modulos/nucleo/cifrado-exportacion';
+import { ExportacionCentroService } from '../src/modulos/nucleo/exportacion-centro.service';
 import { dvRut } from '../src/core/validacion/validadores';
 import { auth, crearApp, procesarMensajes, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
@@ -584,43 +589,194 @@ describe('AUD-01 cumplimiento', () => {
       expect(pub.status).toBe(200);
     });
 
-    it('centro: solo ADMIN, clave de 16 o mas; el archivo sale cifrado (se abre solo con la clave), sin llaves ni contraseñas; queda registrado', async () => {
+    /** AUD-02: espera a que el job deje la exportacion en un estado final. */
+    const esperarCentro = async (u: UsuarioPrueba, id: string) => {
+      for (let i = 0; i < 300; i++) {
+        const l = await t
+          .http()
+          .get('/api/exportacion-centro')
+          .set(await tk(u));
+        const e = (l.body as { id: string; estado: string }[]).find((x) => x.id === id);
+        if (e && !['PENDIENTE', 'EN_PROCESO'].includes(e.estado)) {
+          return e as { id: string; estado: string; bytes: number; huella: string; motivoFallo: string | null; intentos: number };
+        }
+        await new Promise((ok) => setTimeout(ok, 100));
+      }
+      throw new Error('La exportacion no termino');
+    };
+    const bajar = async (u: UsuarioPrueba, id: string) =>
+      t
+        .http()
+        .get(`/api/exportacion-centro/${id}/archivo`)
+        .set(await tk(u))
+        .buffer(true)
+        .parse((res, cb) => {
+          const partes: Buffer[] = [];
+          res.on('data', (c: Buffer) => partes.push(c));
+          res.on('end', () => cb(null, Buffer.concat(partes)));
+        });
+    /** Formato v2: MAGIA | sal | publica efimera | iv | tag | cuerpo; se abre solo con la clave. */
+    const abrir = (archivo: Buffer, clave: string) => {
+      const magia = Buffer.from('VINCULOS-EXPORT-2\n');
+      expect(archivo.subarray(0, magia.length).equals(magia)).toBe(true);
+      let q = magia.length;
+      const sal = archivo.subarray(q, (q += 16));
+      const efimera = archivo.subarray(q, (q += 32));
+      const iv = archivo.subarray(q, (q += 12));
+      const tag = archivo.subarray(q, (q += 16));
+      const d = createDecipheriv('aes-256-gcm', llaveParaDescifrar(clave, sal, efimera), iv);
+      d.setAuthTag(tag);
+      return Buffer.concat([d.update(archivo.subarray(q)), d.final()]).toString('utf8');
+    };
+    const servicio = () => t.app.get(ExportacionCentroService);
+    /** Fila PENDIENTE o EN_PROCESO hecha a mano (simula una pedida antes o un reinicio a mitad). */
+    const filaCentro = async (adminId: string, clave: string, datos: { estado: 'PENDIENTE' | 'EN_PROCESO'; intentos?: number }) => {
+      const sal = randomBytes(16);
+      return t.dueno.exportacionCentro.create({
+        data: {
+          solicitadaPorId: adminId,
+          tablasTotal: 1,
+          clavePublica: new Uint8Array(publicaDesdeClave(clave, sal)),
+          sal: new Uint8Array(sal),
+          estado: datos.estado,
+          intentos: datos.intentos ?? 0,
+          iniciadaEn: datos.estado === 'EN_PROCESO' ? new Date() : null,
+        },
+      });
+    };
+
+    it('centro (job, AUD-02): solo ADMIN, clave de 16 o mas; urgente corre ya; el archivo cifrado (v2) se descarga una vez y se borra; sin llaves ni contraseñas; queda registrado', async () => {
       const pedir = async (u: UsuarioPrueba, clave: string) =>
         t
           .http()
           .post('/api/exportacion-centro')
           .set(await tk(u))
-          .send({ clave })
-          .buffer(true)
-          .parse((res, cb) => {
-            const partes: Buffer[] = [];
-            res.on('data', (c: Buffer) => partes.push(c));
-            res.on('end', () => cb(null, Buffer.concat(partes)));
-          });
+          .send({ clave, urgente: true });
       expect((await pedir(gestion, 'una clave larga de prueba')).status).toBe(403);
       expect((await pedir(admin, 'corta')).status).toBe(400);
       const clave = 'una clave larga de prueba';
       const r = await pedir(admin, clave);
-      expect(r.status).toBe(200);
-      const archivo = r.body as Buffer;
-      const magia = Buffer.from('VINCULOS-EXPORT-1\n');
-      expect(archivo.subarray(0, magia.length).equals(magia)).toBe(true);
+      expect(r.status).toBe(202);
+      expect(r.body).toEqual(expect.objectContaining({ estado: 'PENDIENTE', urgente: true, propia: true, intentos: 0 }));
+      // La BD guarda solo la llave publica y la sal: nunca la clave.
+      const fila = await t.dueno.exportacionCentro.findUniqueOrThrow({ where: { id: r.body.id as string } });
+      expect(fila.clavePublica).toHaveLength(32);
+      expect(JSON.stringify(fila)).not.toContain(clave);
+      const fin = await esperarCentro(admin, r.body.id as string);
+      expect(fin).toEqual(expect.objectContaining({ estado: 'LISTA', motivoFallo: null, intentos: 1 }));
+      expect(fin.huella).toMatch(/^[0-9a-f]{64}$/);
+      // Otro ADMIN no la descarga (va cifrada con la clave de quien la pidio).
+      const otroAdmin = await t.datos.usuario('ADMIN');
+      expect((await bajar(otroAdmin, fin.id)).status).toBe(404);
+
+      const d = await bajar(admin, fin.id);
+      expect(d.status).toBe(200);
+      const archivo = d.body as Buffer;
+      expect(archivo.length).toBe(fin.bytes);
       expect(archivo.toString('latin1')).not.toContain('pacientes');
-      let q = magia.length;
-      const sal = archivo.subarray(q, (q += 16));
-      const iv = archivo.subarray(q, (q += 12));
-      const tag = archivo.subarray(q, (q += 16));
-      const d = createDecipheriv('aes-256-gcm', scryptSync(clave, sal, 32, { N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }), iv);
-      d.setAuthTag(tag);
-      const plano = Buffer.concat([d.update(archivo.subarray(q)), d.final()]).toString('utf8');
-      const exp = JSON.parse(plano) as { formato: string; datos: Record<string, unknown[]> };
+      expect(() => abrir(archivo, 'otra clave larga distinta')).toThrow();
+      const plano = abrir(archivo, clave);
+      const exp = JSON.parse(plano) as { formato: string; datos: Record<string, unknown[]>; fichasPdf: Record<string, string> };
       expect(exp.formato).toBe('vinculos-exportacion-centro');
       expect(exp.datos.pacientes.length).toBeGreaterThan(0);
       expect(exp.datos).not.toHaveProperty('llaves_datos');
       expect(exp.datos).not.toHaveProperty('sesiones');
       expect(plano).not.toContain('password_hash');
       expect(await t.dueno.registroExportacion.count({ where: { recurso: 'exportacion_centro', usuarioId: admin.id } })).toBe(1);
+      // Descargada: se borro del servidor; no se baja de nuevo.
+      for (let i = 0; i < 50 && (await t.dueno.exportacionCentro.findUnique({ where: { id: fin.id } }))?.estado !== 'DESCARGADA'; i++) {
+        await new Promise((ok) => setTimeout(ok, 100));
+      }
+      expect((await t.dueno.exportacionCentro.findUnique({ where: { id: fin.id } }))?.estado).toBe('DESCARGADA');
+      expect((await bajar(admin, fin.id)).status).toBe(409);
+      // Aviso por correo al terminar (sin datos).
+      const correo = t.app.get<ProveedorCorreo, ProveedorCorreoSimulado>(ProveedorCorreo);
+      expect(correo.enviados.some((c) => c.para === admin.email && c.texto.includes('Tu exportación del centro está lista'))).toBe(true);
     });
+
+    it('centro (AUD-02): sin urgencia queda programada en la ventana nocturna (dentro de 24 h); llegada la hora, el job la prepara', async () => {
+      const r = await t
+        .http()
+        .post('/api/exportacion-centro')
+        .set(await tk(admin))
+        .send({ clave: 'una clave larga de prueba' });
+      expect(r.status).toBe(202);
+      expect(r.body).toEqual(expect.objectContaining({ estado: 'PENDIENTE', urgente: false }));
+      const programada = new Date(r.body.programadaPara as string).getTime();
+      expect(programada).toBeGreaterThan(Date.now());
+      expect(programada).toBeLessThanOrEqual(Date.now() + 24 * 3600_000);
+      // Otra pedida mientras esta programada: 409.
+      const otra = await t
+        .http()
+        .post('/api/exportacion-centro')
+        .set(await tk(admin))
+        .send({ clave: 'una clave larga de prueba', urgente: true });
+      expect(otra.status).toBe(409);
+      expect(JSON.stringify(otra.body)).toMatch(/Ya hay una exportación del centro en curso/);
+      // El job no la toma antes de su hora.
+      await servicio().procesarPendientes();
+      expect((await t.dueno.exportacionCentro.findUniqueOrThrow({ where: { id: r.body.id as string } })).estado).toBe('PENDIENTE');
+      // Llega la hora (se adelanta en la BD) y el job la prepara.
+      await t.dueno.exportacionCentro.update({ where: { id: r.body.id as string }, data: { programadaPara: new Date(Date.now() - 1000) } });
+      await servicio().procesarPendientes();
+      expect((await esperarCentro(admin, r.body.id as string)).estado).toBe('LISTA');
+    });
+
+    it('centro (AUD-02): un reinicio a mitad la retoma sola (no pierde la clave); al tercer intento queda FALLIDA', async () => {
+      const otro = await t.datos.usuario('ADMIN');
+      const agotada = await filaCentro(otro.id, 'clave larga de la agotada', { estado: 'EN_PROCESO', intentos: 3 });
+      await servicio().onApplicationBootstrap();
+      const f = await t.dueno.exportacionCentro.findUniqueOrThrow({ where: { id: agotada.id } });
+      expect(f.estado).toBe('FALLIDA');
+      expect(f.motivoFallo).toMatch(/tres veces/);
+
+      const interrumpida = await filaCentro(admin.id, 'clave larga de la interrumpida', { estado: 'EN_PROCESO', intentos: 1 });
+      await servicio().onApplicationBootstrap();
+      await servicio().procesarPendientes();
+      const fin = await esperarCentro(admin, interrumpida.id);
+      expect(fin).toEqual(expect.objectContaining({ estado: 'LISTA', intentos: 2 }));
+      // Se abre con la clave de quien la pidio aunque el proceso se haya reiniciado.
+      const d = await bajar(admin, interrumpida.id);
+      expect(JSON.parse(abrir(d.body as Buffer, 'clave larga de la interrumpida')).formato).toBe('vinculos-exportacion-centro');
+    });
+
+    it('centro (AUD-02): memoria acotada: con 12 adjuntos de 4 MB el proceso no carga el centro completo', async () => {
+      const llavero = t.app.get(LlaveroService);
+      const prof = await t.datos.usuario('PROFESIONAL');
+      const pac = await t.datos.paciente(prof.id);
+      const contenidoArchivo = randomBytes(4 * 1024 * 1024).toString('base64');
+      for (let i = 0; i < 12; i++) {
+        const id = randomUUID();
+        const contenido = llavero.cifrarCampo(contenidoArchivo, 'adjuntos_ficha', 'contenido', id);
+        await t.dueno.$executeRaw`INSERT INTO adjuntos_ficha (id, paciente_id, subido_por_id, nombre_archivo, tipo_mime, tamano_bytes, contenido)
+          VALUES (${id}::uuid, ${pac.id}::uuid, ${prof.id}::uuid, ${`grande-${i}.pdf`}, 'application/pdf', ${4 * 1024 * 1024}, ${contenido})`;
+      }
+      // Memoria viva (heap + externa) despues de recolectar: sin limite de heap, el RSS
+      // crece con basura que V8 todavia no recoge y no distingue retenido de temporal.
+      setFlagsFromString('--expose_gc');
+      const gc = runInNewContext('gc') as () => void;
+      const viva = () => {
+        gc();
+        const m = process.memoryUsage();
+        return m.heapUsed + m.external;
+      };
+      const base = viva();
+      let pico = base;
+      const muestreo = setInterval(() => (pico = Math.max(pico, viva())), 250);
+      try {
+        const r = await t
+          .http()
+          .post('/api/exportacion-centro')
+          .set(await tk(admin))
+          .send({ clave: 'otra clave larga de prueba', urgente: true });
+        expect(r.status).toBe(202);
+        expect((await esperarCentro(admin, r.body.id as string)).estado).toBe('LISTA');
+      } finally {
+        clearInterval(muestreo);
+      }
+      // 48 MB de archivos (mas de 250 MB como hexadecimal dentro de un JSON): la version en memoria los retenia todos.
+      expect(pico - base).toBeLessThan(64 * 1024 * 1024);
+    }, 120_000);
   });
 
   describe('E2.3a Feriados', () => {

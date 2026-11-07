@@ -7219,7 +7219,7 @@
     "/api/exportacion-centro": {
       "post": {
         "description": "Roles: ADMIN",
-        "operationId": "ExportacionesController_centro",
+        "operationId": "ExportacionesController_solicitarCentro",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -7231,6 +7231,192 @@
             }
           }
         },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportacionCentroVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "AUD-02: exportacion completa del centro como job. Responde 202 al\niniciarla (la clave no se guarda); el avance se consulta con GET y llega\nun correo al terminar. 409 si ya hay una en curso.",
+        "tags": [
+          "Nucleo"
+        ]
+      },
+      "get": {
+        "description": "Roles: ADMIN",
+        "operationId": "ExportacionesController_exportacionesCentro",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExportacionCentroVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Las ultimas 10 exportaciones del centro (estado y avance, sin datos).",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/exportacion-centro/{id}/archivo": {
+      "get": {
+        "description": "Roles: ADMIN",
+        "operationId": "ExportacionesController_archivoCentro",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Archivo (Content-Disposition: attachment)",
@@ -7309,7 +7495,7 @@
             "jwt": []
           }
         ],
-        "summary": "Exportacion completa del centro, cifrada con la clave del ADMIN (no se guarda).",
+        "summary": "Archivo cifrado (solo quien la pidio, dentro de 24 h). Se envia por flujo;\nal terminar el envio completo se marca descargada y se borra del servidor.",
         "tags": [
           "Nucleo"
         ]
@@ -37778,10 +37964,112 @@
             "type": "string",
             "minLength": 16,
             "maxLength": 200
+          },
+          "urgente": {
+            "type": "boolean",
+            "description": "AUD-02: true = ahora (p. ej. baja del centro); si no, en la ventana nocturna (dentro de 24 h)."
           }
         },
         "required": [
           "clave"
+        ]
+      },
+      "ExportacionCentroVista": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "enum": [
+              "PENDIENTE",
+              "EN_PROCESO",
+              "LISTA",
+              "FALLIDA",
+              "DESCARGADA",
+              "VENCIDA"
+            ],
+            "type": "string"
+          },
+          "bytes": {
+            "type": "number",
+            "nullable": true
+          },
+          "huella": {
+            "type": "string",
+            "nullable": true,
+            "description": "sha256 del archivo cifrado"
+          },
+          "motivoFallo": {
+            "type": "string",
+            "nullable": true
+          },
+          "terminadaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "venceEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "descargadaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "propia": {
+            "type": "boolean",
+            "description": "La pidio quien consulta: solo esa persona la descarga (va cifrada con su clave)."
+          },
+          "tablasTotal": {
+            "type": "number"
+          },
+          "tablasHechas": {
+            "type": "number"
+          },
+          "fichasTotal": {
+            "type": "number"
+          },
+          "fichasHechas": {
+            "type": "number"
+          },
+          "creadaEn": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "programadaPara": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Cuando corre (o se reintenta) si esta PENDIENTE: ventana nocturna o ya, si es urgente."
+          },
+          "urgente": {
+            "type": "boolean"
+          },
+          "intentos": {
+            "type": "number",
+            "description": "Intentos hechos (maximo 3; un reinicio o un error la devuelven a PENDIENTE)."
+          }
+        },
+        "required": [
+          "estado",
+          "bytes",
+          "huella",
+          "motivoFallo",
+          "terminadaEn",
+          "venceEn",
+          "descargadaEn",
+          "id",
+          "propia",
+          "tablasTotal",
+          "tablasHechas",
+          "fichasTotal",
+          "fichasHechas",
+          "creadaEn",
+          "programadaPara",
+          "urgente",
+          "intentos"
         ]
       },
       "FeriadoVista": {

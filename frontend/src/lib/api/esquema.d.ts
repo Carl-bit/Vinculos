@@ -1250,13 +1250,40 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * Exportacion completa del centro, cifrada con la clave del ADMIN (no se guarda).
+         * Las ultimas 10 exportaciones del centro (estado y avance, sin datos).
          * @description Roles: ADMIN
          */
-        post: operations["ExportacionesController_centro"];
+        get: operations["ExportacionesController_exportacionesCentro"];
+        put?: never;
+        /**
+         * AUD-02: exportacion completa del centro como job. Responde 202 al
+         *     iniciarla (la clave no se guarda); el avance se consulta con GET y llega
+         *     un correo al terminar. 409 si ya hay una en curso.
+         * @description Roles: ADMIN
+         */
+        post: operations["ExportacionesController_solicitarCentro"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exportacion-centro/{id}/archivo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Archivo cifrado (solo quien la pidio, dentro de 24 h). Se envia por flujo;
+         *     al terminar el envio completo se marca descargada y se borra del servidor.
+         * @description Roles: ADMIN
+         */
+        get: operations["ExportacionesController_archivoCentro"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6376,6 +6403,39 @@ export interface components {
         };
         ExportarCentroDto: {
             clave: string;
+            /** @description AUD-02: true = ahora (p. ej. baja del centro); si no, en la ventana nocturna (dentro de 24 h). */
+            urgente?: boolean;
+        };
+        ExportacionCentroVista: {
+            /** @enum {string} */
+            estado: "PENDIENTE" | "EN_PROCESO" | "LISTA" | "FALLIDA" | "DESCARGADA" | "VENCIDA";
+            bytes: number | null;
+            /** @description sha256 del archivo cifrado */
+            huella: string | null;
+            motivoFallo: string | null;
+            /** Format: date-time */
+            terminadaEn: string | null;
+            /** Format: date-time */
+            venceEn: string | null;
+            /** Format: date-time */
+            descargadaEn: string | null;
+            id: string;
+            /** @description La pidio quien consulta: solo esa persona la descarga (va cifrada con su clave). */
+            propia: boolean;
+            tablasTotal: number;
+            tablasHechas: number;
+            fichasTotal: number;
+            fichasHechas: number;
+            /** Format: date-time */
+            creadaEn: string;
+            /**
+             * Format: date-time
+             * @description Cuando corre (o se reintenta) si esta PENDIENTE: ventana nocturna o ya, si es urgente.
+             */
+            programadaPara: string;
+            urgente: boolean;
+            /** @description Intentos hechos (maximo 3; un reinicio o un error la devuelven a PENDIENTE). */
+            intentos: number;
         };
         FeriadoVista: {
             /**
@@ -14683,7 +14743,80 @@ export interface operations {
             };
         };
     };
-    ExportacionesController_centro: {
+    ExportacionesController_exportacionesCentro: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportacionCentroVista"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    ExportacionesController_solicitarCentro: {
         parameters: {
             query?: never;
             header?: never;
@@ -14695,6 +14828,81 @@ export interface operations {
                 "application/json": components["schemas"]["ExportarCentroDto"];
             };
         };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportacionCentroVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    ExportacionesController_archivoCentro: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Archivo (Content-Disposition: attachment) */
             200: {

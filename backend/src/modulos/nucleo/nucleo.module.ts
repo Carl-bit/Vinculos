@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { AuditoriaService } from './auditoria.service';
 import { CentroService } from './centro.service';
 import { DerechosService } from './derechos.service';
+import { ExportacionCentroService } from './exportacion-centro.service';
 import { ExportacionesService } from './exportaciones.service';
 import { FeriadosService } from './feriados.service';
 import { RecordatoriosPersonalesService } from './recordatorios-personales.service';
@@ -54,6 +55,7 @@ import { UsuariosService } from './usuarios.service';
     SoporteService,
     DerechosService,
     ExportacionesService,
+    ExportacionCentroService,
     FeriadosService,
     RecordatoriosPersonalesService,
   ],

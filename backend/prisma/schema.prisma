@@ -297,6 +297,7 @@ model Usuario {
   contratosAceptados         AceptacionContrato[]
   exportacionesCreadas       ExportacionPaciente[]        @relation("ExportacionCreadaPor")
   exportacionesClinicas      ExportacionPaciente[]        @relation("ExportacionClinicaPor")
+  exportacionesCentro        ExportacionCentro[]
   exportacionesRecibidas     DestinatarioExportacion[]    @relation("DestinatarioExportacionCuenta")
   feriadosCreados            Feriado[]                    @relation("FeriadoCreadoPor")
   feriadosQuitados           Feriado[]                    @relation("FeriadoQuitadoPor")
@@ -2483,28 +2484,28 @@ model ImagenPublica {
 
 /// Contenido de la pagina publica del centro (C, 03a). Una fila; edita ADMIN.
 model ContenidoPublico {
-  id               Boolean  @id @default(true)
-  heroTitulo       String?  @map("hero_titulo")
-  heroTexto        String?  @map("hero_texto")
+  id                Boolean  @id @default(true)
+  heroTitulo        String?  @map("hero_titulo")
+  heroTexto         String?  @map("hero_texto")
   /// [{icono, titulo, texto}]
-  servicios        Json     @default("[]")
-  contactoCorreo   String?  @map("contacto_correo")
-  contactoTelefono String?  @map("contacto_telefono")
-  direccion        String?
-  whatsapp         String?
-  instagram        String?
-  mision           String?
-  vision           String?
+  servicios         Json     @default("[]")
+  contactoCorreo    String?  @map("contacto_correo")
+  contactoTelefono  String?  @map("contacto_telefono")
+  direccion         String?
+  whatsapp          String?
+  instagram         String?
+  mision            String?
+  vision            String?
   /// 03c: color principal del sitio publico. Los colores (#RRGGBB) los valida
   /// la BD: principal >= 4.5:1 sobre crema #F5EAD8, fondo >= 10:1 con la tinta.
-  colorMarca       String?  @map("color_marca")
-  colorFondoPublico String? @map("color_fondo_publico")
-  colorPortal      String?  @map("color_portal")
-  colorFondoPortal String?  @map("color_fondo_portal")
-  colorPanel       String?  @map("color_panel")
-  colorFondoPanel  String?  @map("color_fondo_panel")
-  logoImagenId     String?  @map("logo_imagen_id") @db.Uuid
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  colorMarca        String?  @map("color_marca")
+  colorFondoPublico String?  @map("color_fondo_publico")
+  colorPortal       String?  @map("color_portal")
+  colorFondoPortal  String?  @map("color_fondo_portal")
+  colorPanel        String?  @map("color_panel")
+  colorFondoPanel   String?  @map("color_fondo_panel")
+  logoImagenId      String?  @map("logo_imagen_id") @db.Uuid
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("contenido_publico")
 }
@@ -3265,6 +3266,50 @@ model IntentoLoginFallido {
 
   @@index([ocurridoEn])
   @@map("intentos_login_fallidos")
+}
+
+/// AUD-02 (Categoria A): exportacion completa del centro como job. Estado y
+/// avance, sin datos ni clave; el archivo cifrado vive en el volumen del silo
+/// hasta descargarse o 24 h. Escritura solo por funciones; lee ADMIN.
+model ExportacionCentro {
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  solicitadaPorId String                  @map("solicitada_por_id") @db.Uuid
+  estado          EstadoExportacionCentro @default(PENDIENTE)
+  tablasTotal     Int                     @map("tablas_total")
+  tablasHechas    Int                     @default(0) @map("tablas_hechas")
+  fichasTotal     Int                     @default(0) @map("fichas_total")
+  fichasHechas    Int                     @default(0) @map("fichas_hechas")
+  bytes           BigInt?
+  huella          String?
+  motivoFallo     String?                 @map("motivo_fallo")
+  creadaEn        DateTime                @default(now()) @map("creada_en") @db.Timestamptz(6)
+  actualizadaEn   DateTime                @default(now()) @map("actualizada_en") @db.Timestamptz(6)
+  terminadaEn     DateTime?               @map("terminada_en") @db.Timestamptz(6)
+  venceEn         DateTime?               @map("vence_en") @db.Timestamptz(6)
+  descargadaEn    DateTime?               @map("descargada_en") @db.Timestamptz(6)
+  /// X25519 publica derivada de la clave del ADMIN (la privada no se guarda) y su sal.
+  clavePublica    Bytes?                  @map("clave_publica")
+  sal             Bytes?
+  urgente         Boolean                 @default(false)
+  programadaPara  DateTime                @default(now()) @map("programada_para") @db.Timestamptz(6)
+  intentos        Int                     @default(0)
+  iniciadaEn      DateTime?               @map("iniciada_en") @db.Timestamptz(6)
+
+  solicitadaPor Usuario @relation(fields: [solicitadaPorId], references: [id], onDelete: Restrict)
+
+  @@index([creadaEn])
+  @@map("exportaciones_centro")
+}
+
+enum EstadoExportacionCentro {
+  PENDIENTE
+  EN_PROCESO
+  LISTA
+  FALLIDA
+  DESCARGADA
+  VENCIDA
+
+  @@map("estado_exportacion_centro")
 }
 
 /// AUD-01 Fase 3 (A): exportacion de los datos de un paciente. Parte

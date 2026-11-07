@@ -113,6 +113,8 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   usuarios_responsable_de_menor: 'La cuenta de adulto responsable es para pacientes menores de 18 y requiere correo',
   tokens_correo_sin_destinatario: 'El paciente (o su adulto responsable) no tiene correo registrado',
   aceptaciones_politica_version_vigente: 'Hay una version nueva de la politica: vuelva a leerla y aceptarla',
+  // AUD-02: una sola exportacion del centro en curso.
+  exportaciones_centro_una_en_proceso: 'Ya hay una exportación del centro en curso. Espera a que termine.',
   aceptaciones_politica_coherente: 'Aceptacion invalida (menor: adulto responsable; presencial: respaldo)',
   citas_dentro_de_horario_centro: 'La cita cae fuera del horario de atención del centro (o el centro aún no define sus días de atención en Configuración)',
   citas_dentro_de_horario_espacio: 'La cita cae fuera del horario de funcionamiento del box',
@@ -261,6 +263,7 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/Cuenta de adulto responsable/, 'usuarios_responsable_de_menor'],
   [/no tiene correo/, 'tokens_correo_sin_destinatario'],
   [/version nueva de la politica|version aceptada no es la vigente/, 'aceptaciones_politica_version_vigente'],
+  [/exportacion del centro en curso/, 'exportaciones_centro_una_en_proceso'],
   [/fuera del horario de atencion del centro/, 'citas_dentro_de_horario_centro'],
   [/fuera del horario de funcionamiento del box/, 'citas_dentro_de_horario_espacio'],
   [/no es el tratante ni tiene acceso clinico temporal/, 'citas_profesional_con_acceso'],

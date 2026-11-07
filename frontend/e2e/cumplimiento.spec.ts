@@ -131,10 +131,16 @@ test('Fase 3: ADMIN prepara la copia de datos (espera al tratante), el tratante 
   await page.goto('/admin/configuracion?vista=exportacion');
   await page.getByLabel(/^Clave/).fill('una frase larga de prueba');
   await page.getByLabel(/^Repite la clave/).fill('una frase larga de prueba');
+  // AUD-02: urgente (p. ej. baja del centro): se prepara ya; la lista se actualiza sola hasta que esta lista.
+  await page.getByRole('button', { name: 'Preparar ahora (urgente)' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Estamos preparando la exportación ahora' })).toBeVisible();
+  const exportaciones = page.getByRole('list', { name: 'Exportaciones del centro' });
+  await expect(exportaciones.getByText('Lista para descargar').first()).toBeVisible({ timeout: 60_000 });
   const descarga = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Generar y descargar' }).click();
+  await exportaciones.getByRole('button', { name: 'Descargar archivo cifrado' }).first().click();
   expect((await descarga).suggestedFilename()).toMatch(/^exportacion-centro-\d{4}-\d{2}-\d{2}\.vxp$/);
-  await expect(page.getByRole('status')).toContainText('Archivo descargado');
+  await expect(page.getByRole('status').filter({ hasText: 'Archivo descargado' })).toBeVisible();
+  await expect(exportaciones.getByText('Descargada').first()).toBeVisible();
 
   const tratante = await browser.newPage();
   await ingresarEquipo(tratante, 'profesional1');

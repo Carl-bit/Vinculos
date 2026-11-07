@@ -18,6 +18,9 @@ services:
   db:
     image: postgres:18-alpine
     restart: unless-stopped
+    # AUD-02: estadisticas de consultas (postgres/init/20-pg-stat-statements.sh).
+    # track=top: solo las sentencias de nivel superior (no las internas de las funciones).
+    command: ['postgres', '-c', 'shared_preload_libraries=pg_stat_statements', '-c', 'pg_stat_statements.track=top']
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -71,7 +74,10 @@ services:
         condition: service_completed_successfully
     environment:
       # Solo app_user (sujeto a RLS). Sin MIGRATION_DATABASE_URL.
-      DATABASE_URL: postgresql://app_user:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      # AUD-02 (BD-04): 8 conexiones (Prisma usaria 3 con 1 vCPU). Cada request
+      # autenticada retiene la suya toda la request (transaccion RLS) y el job de
+      # exportacion una durante toda su corrida. Postgres del silo admite 100.
+      DATABASE_URL: postgresql://app_user:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public&connection_limit=8
       PORT: 3001
       FRONTEND_URL: https://${DOMINIO}
       JWT_SECRET: ${JWT_SECRET}
@@ -89,9 +95,13 @@ services:
       JITSI_URL_BASE: ${JITSI_URL_BASE:-https://meet.jit.si}
       DOCUMENTO_ENLACE_HORAS: ${DOCUMENTO_ENLACE_HORAS:-72}
       ADJUNTO_MAX_MB: ${ADJUNTO_MAX_MB:-10}
+      # AUD-02: archivo cifrado de la exportacion del centro hasta su descarga (maximo 24 h).
+      EXPORTACIONES_DIR: /var/lib/vinculos/exportaciones
       # Archivo, nunca variable de entorno con la llave.
       KEK_PATH: /run/secrets/vinculos_kek
       RECUPERACION_PUBLICA_PATH: /recuperacion.pub
+    volumes:
+      - exportaciones:/var/lib/vinculos/exportaciones
     secrets:
       - vinculos_kek
     configs:
@@ -134,6 +144,8 @@ services:
 
 volumes:
   db_data:
+  # Solo archivos cifrados con la clave del ADMIN (que no se guarda); se borran al descargar o a las 24 h.
+  exportaciones:
 
 secrets:
   vinculos_kek:

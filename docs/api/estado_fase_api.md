@@ -737,3 +737,30 @@ Aprobadas por pantalla: Mi perfil, Mi cuenta, Configuración. El resto (Fichas y
 - Confirmación al salir sin guardar (`useGuardaCambios` + `DialogoDescartar`): Mi perfil, Mi cuenta, todas las secciones de Configuración (vía `BarraGuardado`), evolución (borrador pendiente o corrección a medias), plantilla clínica, mensaje del paciente a su profesional y Mis datos del portal. Los menús de Mi cuenta y Configuración pasan a enlaces para que la confirmación los intercepte.
 - Teléfono (390 px): sin desplazamiento horizontal en las 24 pantallas revisadas (se corrigieron la tabla de Cobros, "Esta semana" del Inicio y el portal).
 - Pruebas: Playwright completo 74 ok / 8 omitidas; Vitest 135 ok. impeccable solo corre sin sesión (páginas públicas: fondo crema y rótulo sobre el título, ambos del diseño).
+
+## AUD-02 Rendimiento y operacion (2026-11-06)
+
+Informe: `docs/operacion/auditoria_rendimiento.md` (decisiones: plan de 1 GB,
+pg_stat_statements, Cloudflare en el plan, exportacion como job).
+
+- Bloque 1 (P1): tokens fuera de los logs (`rutaParaLog`); SMTP con tiempos
+  maximos (`TIEMPOS_SMTP`) y 503 claro si el codigo 2FA no sale; el SSR
+  publico reenvia la IP del visitante en lecturas sin cache (limite por
+  persona); `pg_stat_statements` en el compose
+  (`docs/operacion/pg_stat_statements.md`).
+- Bloque 2: exportacion del centro como job (migraciones
+  `20261110000000_aud02_exportacion_centro_job`, `…000100` y `…000200`;
+  `ExportacionCentroService`; volumen `exportaciones`; ver
+  `docs/cumplimiento/exportacion.md` seccion 3).
+- Rutas: `POST exportacion-centro` pasa a 202 (antes devolvia el archivo);
+  nuevas `GET exportacion-centro` y `GET exportacion-centro/:id/archivo`.
+  Sale la funcion `exportar_tabla_centro(text)`.
+- Pruebas: unitarias de logs y SMTP; integracion `02g`, `03b41`,
+  `aud01-cumplimiento`; BD caso 162 (TODOS LOS CASOS OK); Playwright
+  `cumplimiento.spec` (Fase 3).
+- Exportacion programada (2026-11-06, mismo dia): llave publica X25519 (la
+  clave no se guarda; formato v2), ventana nocturna por `horario_centro` o
+  urgente, reintentos ante reinicio o error (3 intentos). Migraciones
+  `20261110000300` a `20261110000500`. `POST exportacion-centro` acepta
+  `urgente`; la vista suma `programadaPara`, `urgente` e `intentos`.
+  `connection_limit=8` en el compose (BD-04).

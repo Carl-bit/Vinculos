@@ -125,7 +125,8 @@ considera terminado solo por pasar tests unitarios. Correr
 `prompts/04_pruebas.md`: integracion con DB efimera, estres en k6
 enfocado en colision de reservas sobre el mismo espacio+horario, y
 simulacion con los limites reales del plan de Lightsail de entrada
-(512MB/1vCPU). La prueba real es la query de duplicados en `citas`
+(1 GB/1 vCPU, un silo por host: AUD-02, 2026-11-06; puede subir tras las
+pruebas de rendimiento por centro). La prueba real es la query de duplicados en `citas`
 despues del estres, no el reporte de k6.
 
 ## Convenciones
