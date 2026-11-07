@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 const TONOS = {
   verde: { caja: 'rounded-lg border border-accent-2-500 bg-accent-2-200 shadow-md', texto: 'text-accent-2-900' },
   /** Moderno (pie de la Landing): bloque tinta con texto claro. */
-  oscuro: { caja: 'rounded-panel bg-tinta text-neutral-100', texto: 'text-neutral-300' },
+  oscuro: { caja: 'llamado-oscuro rounded-panel bg-tinta text-neutral-100', texto: 'text-neutral-300' },
 } as const;
 
 /** Bloque de llamado a la accion (pie de Landing y Equipo): titulo, texto, acciones y un lateral opcional. */

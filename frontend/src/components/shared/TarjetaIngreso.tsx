@@ -11,7 +11,7 @@ export type PerfilIngreso = 'paciente' | 'equipo';
  */
 export function TarjetaIngreso({ children }: { perfil?: PerfilIngreso; children: ReactNode }) {
   return (
-    <div className="translucida w-full max-w-[460px] flex-[1_1_400px] rounded-[32px] border border-borde px-[clamp(22px,3vw,32px)] py-[clamp(24px,3vw,32px)] shadow-flotante">
+    <div className="con-cinta translucida w-full max-w-[460px] flex-[1_1_400px] rounded-[32px] border border-borde px-[clamp(22px,3vw,32px)] py-[clamp(24px,3vw,32px)] shadow-flotante">
       {children}
     </div>
   );

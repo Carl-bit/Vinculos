@@ -8,7 +8,7 @@ export function Marca({ href = '/', size = 'lg', nombre = NOMBRE_CENTRO }: { hre
   return (
     <Link href={href} className="flex min-w-0 items-center gap-[9px] text-text hover:text-text">
       <span aria-hidden="true" className={`inline-block flex-none rounded-full bg-accent-2-600 ${size === 'lg' ? 'size-[11px]' : 'size-2.5'}`} />
-      <span className={`truncate font-black tracking-[-0.04em] ${size === 'lg' ? 'text-xl' : 'text-[17px]'}`}>{nombre}</span>
+      <span className={`marca-centro truncate font-black tracking-[-0.04em] ${size === 'lg' ? 'text-xl' : 'text-[17px]'}`}>{nombre}</span>
     </Link>
   );
 }

@@ -19,7 +19,7 @@ export function NavPublica({ enlaces }: { enlaces: { href: string; etiqueta: str
             key={n.href}
             href={n.href}
             aria-current={actual ? 'page' : undefined}
-            className={`flex min-h-[42px] items-center rounded-full px-4 text-sm font-bold whitespace-nowrap text-tinta transition-colors duration-200 hover:bg-neutral-200 hover:text-tinta ${actual ? 'bg-neutral-200' : ''}`}
+            className={`pestana flex min-h-[42px] items-center rounded-full px-4 text-sm font-bold whitespace-nowrap text-tinta transition-colors duration-200 hover:bg-neutral-200 hover:text-tinta ${actual ? 'bg-neutral-200' : ''}`}
           >
             {n.etiqueta}
           </Link>

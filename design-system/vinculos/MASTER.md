@@ -304,3 +304,28 @@ Referencia: `design-reference/Landing/` (Main = sitio, Login = inicio de sesión
 - Landing: portada con bloque oliva y hasta 3 profesionales publicados flotando + tarjeta tinta "Equipo · desde $X"; servicios en tarjetas crema (icono del centro sin tile, por la regla del proyecto); equipo en 4 tarjetas con `AvatarProfesional cuadrado`; llamado final `LlamadoAccion tono="oscuro"` con botones `sobreOscuro` / `contornoOscuro`.
 - Login: presentación del perfil a la izquierda (rótulo, h1, bajada, puntos según módulos activos) y `TarjetaIngreso` translúcida a la derecha (radio 32 px). Las páginas de cuenta (recuperar, acceso, activar, correo, derechos, exportación) heredan la misma tarjeta; se retiraron las manchas difusas.
 - Se mantiene Figtree (no Bricolage) y los botones píldora del sistema (el diseño usa radio 18 px).
+
+## Temas por silo (2026-11-07)
+
+Cada silo elige su estilo con `TEMA` en su `.env` (build arg
+`NEXT_PUBLIC_TEMA`, `<html data-tema>`). `moderno` es el de siempre (este
+archivo). `cuaderno` sale de `design-reference/Segundo Silo` y vive entero en
+`frontend/src/app/temas/cuaderno.css`.
+
+- Un tema nuevo es un archivo en `app/temas/` con `:root[data-tema='<nombre>']`:
+  redefine los tokens (colores, radios, `--font-cuerpo`) y, fuera de `@layer`,
+  las clases que Tailwind no lee por variable (las sombras se copian dentro de
+  cada utilidad).
+- Ganchos estables para los temas (no borrar): `boton boton-<variante>`
+  (`ui/Button`), `control` (`ui/Field`), `pestana` y `barra-publica` (sitio
+  publico), `marca-centro`, `acceso-cuenta`, `nota` (post-it), `con-cinta`
+  (login), `llamado-oscuro`, `filtro-chip`.
+- Solo cuando el tema cambia el marcado, el componente consulta `esCuaderno`
+  (`lib/tema.ts`): tapas de profesional (`shared/TapaCuaderno`, color por orden
+  en el equipo publico) y la nota del inicio (`nucleo/Landing`).
+- Cuaderno, reglas del diseño: Caveat solo en h1/h2 y anotaciones; destacador
+  solo en el h1; post-its y tapas solo en el sitio publico; inclinacion de 2°
+  como maximo y nunca sobre campos (por eso la tarjeta del login no se inclina,
+  aunque el mockup lo hace); agenda, tablas y ficha sin adornos.
+- `impeccable` marca la hoja rayada (advisory) y el borde inferior de la barra
+  publica: son el diseño.

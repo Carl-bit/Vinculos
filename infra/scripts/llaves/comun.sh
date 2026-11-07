@@ -30,10 +30,16 @@ else
   D="$SECRETOS"
 fi
 
+# Linux: la CLI escribe en /llaves con el usuario del host. Si corre como root
+# (el usuario de la imagen), la KEK y las partes quedan de root y el operador
+# no puede borrarlas. Docker Desktop (Windows/macOS) no tiene ese problema.
+USUARIO=""
+if [ "$(uname -s)" = Linux ]; then USUARIO="--user $(id -u):$(id -g)"; fi
+
 cli() {
   if [ "${MODO:-local}" = docker ]; then
     docker compose -f "$RAIZ/infra/docker-compose.yml" --env-file "${ENV_SILO:-$RAIZ/infra/.env}" \
-      run --rm --no-deps -v "$SECRETOS:/llaves" migrate node dist/common/crypto/cli-llaves.js "$@"
+      run --rm --no-deps $USUARIO -v "$SECRETOS:/llaves" migrate node dist/common/crypto/cli-llaves.js "$@"
   else
     (cd "$RAIZ/backend" && node $([ -f .env ] && echo --env-file=.env) -r ts-node/register       src/common/crypto/cli-llaves.ts "$@")
   fi

@@ -36,7 +36,7 @@ generar_env() {
 CLIENTE_SLUG=$SLUG
 CENTRO_NOMBRE="$NOMBRE"
 DOMINIO=$DOMINIO
-# Estilo visual (moderno; cuaderno cuando exista). Cambiarlo: editar y volver a levantar.
+# Estilo visual: moderno o cuaderno (app/temas/ del front). Cambiarlo: editar y volver a levantar.
 TEMA=${TEMA:-moderno}
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$(azar 24)
@@ -65,22 +65,22 @@ levantar() {
   dc up -d --build db migrate
   dc wait migrate >/dev/null
 
-  NUEVO=no
   if [ ! -f "$SECRETOS/kek" ]; then
     echo "3/5 Llaves (runbook): KEK, recuperacion y DEKs"
     CLIENTE_SLUG=$SLUG MODO=docker ENV_SILO="$ENV_SILO" ACTOR=servidor \
       CUSTODIOS="Proveedor:prueba,Centro:prueba,Sobre offline:prueba" \
       sh "$RAIZ/infra/scripts/llaves/aprovisionar.sh" >/dev/null
-    rm -rf "$SECRETOS/partes_entregar"
-    NUEVO=si
   else
     echo "3/5 Llaves: ya existen"
   fi
+  rm -rf "$SECRETOS/partes_entregar"
 
-  if [ "$NUEVO" = si ]; then
+  # Marca escrita solo si el seed termino: una corrida cortada lo repite (el seed es idempotente).
+  if [ ! -f "$SECRETOS/.datos_demo" ]; then
     echo "4/5 Datos demo (unos minutos la primera vez: construye la imagen del seed)"
     dc --profile seed build seed
     dc --profile seed run --rm --no-deps seed
+    touch "$SECRETOS/.datos_demo"
   else
     echo "4/5 Datos: ya cargados"
   fi
@@ -108,7 +108,7 @@ case "$ACCION" in
     [ -f "$ENV_SILO" ] || falla "No existe $ENV_SILO"
     dc down -v --remove-orphans
     # Solo las llaves de cifrado; respaldo.key (si existe) se conserva.
-    rm -rf "$SECRETOS/kek" "$SECRETOS/recuperacion.pub" "$SECRETOS/partes_entregar"
+    rm -rf "$SECRETOS/kek" "$SECRETOS/recuperacion.pub" "$SECRETOS/partes_entregar" "$SECRETOS/.datos_demo"
     levantar
     ;;
   bajar)

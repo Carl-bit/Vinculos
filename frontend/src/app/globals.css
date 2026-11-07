@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Temas por silo (<html data-tema>): fuera de capas, ganan a las utilidades. */
+@import './temas/cuaderno.css';
 
 /*
  * Tokens del sistema de diseño de Vinculos (sistema Organic de Claude Design).
@@ -108,9 +110,14 @@
   }
 }
 
-/* Figtree (next/font en app/layout.tsx, self-hosted). */
+/* Figtree (next/font en app/layout.tsx, self-hosted). --font-cuerpo la
+   reemplaza cada tema (app/temas/); --font-manuscrita solo la usa Cuaderno. */
 @theme inline {
-  --font-body: var(--font-figtree), system-ui, sans-serif;
+  --font-body: var(--font-cuerpo), system-ui, sans-serif;
+  --font-manuscrita: var(--font-caveat), cursive;
+}
+:root {
+  --font-cuerpo: var(--font-figtree);
 }
 
 @layer base {

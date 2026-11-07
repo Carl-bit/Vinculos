@@ -29,9 +29,9 @@ const TAMANOS = {
 export type VarianteBoton = keyof typeof VARIANTES;
 export type TamanoBoton = keyof typeof TAMANOS;
 
-/** Clases del boton, compartidas con ButtonLink (enlaces con forma de boton). */
+/** Clases del boton, compartidas con ButtonLink (enlaces con forma de boton). `boton boton-<variante>`: ganchos del tema (app/temas/). */
 export const clasesBoton = (variant: VarianteBoton = 'primary', size: TamanoBoton = 'md') =>
-  `inline-flex cursor-pointer items-center justify-center rounded-full font-body font-extrabold transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out active:scale-[0.98] ${VARIANTES[variant]} ${TAMANOS[size]}`;
+  `boton boton-${variant} inline-flex cursor-pointer items-center justify-center rounded-full font-body font-extrabold transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out active:scale-[0.98] ${VARIANTES[variant]} ${TAMANOS[size]}`;
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: VarianteBoton;

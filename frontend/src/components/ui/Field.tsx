@@ -4,7 +4,7 @@ import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttribu
 
 /** Control de texto del diseño: pildora (input/select) o caja redondeada (textarea). */
 const CONTROL =
-  'w-full font-body text-[15px] text-text bg-bg border-[1.5px] border-neutral-400 px-[18px] py-3.5 placeholder:text-neutral-700 focus-visible:border-accent-500 data-[cambiado=true]:border-arcilla data-[cambiado=true]:bg-papel aria-[invalid=true]:border-accent-700 disabled:opacity-60';
+  'control w-full font-body text-[15px] text-text bg-bg border-[1.5px] border-neutral-400 px-[18px] py-3.5 placeholder:text-neutral-700 focus-visible:border-accent-500 data-[cambiado=true]:border-arcilla data-[cambiado=true]:bg-papel aria-[invalid=true]:border-accent-700 disabled:opacity-60';
 
 interface FieldProps {
   label: ReactNode;

@@ -31,7 +31,7 @@ export async function LayoutPublico({ children }: { children: ReactNode }) {
       <div className="mx-auto flex min-h-screen max-w-[1228px] flex-col px-[clamp(16px,3vw,24px)]">
         <MarcaZona zona="publico" principal={centro?.color_marca} fondo={centro?.color_fondo_publico} />
         {/* Barra flotante del diseño "Moderno": pildora translucida y fija arriba al hacer scroll. */}
-        <header className="translucida sticky top-3 z-20 mt-[18px] flex flex-wrap items-center gap-2 rounded-[28px] border border-borde py-2 pr-2 pl-5 shadow-suave md:rounded-full">
+        <header className="barra-publica translucida sticky top-3 z-20 mt-[18px] flex flex-wrap items-center gap-2 rounded-[28px] border border-borde py-2 pr-2 pl-5 shadow-suave md:rounded-full">
           <Marca nombre={nombre} />
           <NavPublica enlaces={nav} />
           <AccesoCuenta />

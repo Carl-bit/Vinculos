@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sitio del centro, estilo Cuaderno</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2F4A6B}a:hover{color:#1E3550}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="position: relative; min-height: 1600px; box-sizing: border-box; color: #2A2A33; font-family: 'Nunito', system-ui, sans-serif; font-size: 15px; line-height: 1.55; background-color: #FBF8EF; background-image: linear-gradient(#DCE4EF 1px, transparent 1px); background-size: 100% 32px; padding: 0 24px 48px 120px; display: flex; flex-direction: column; align-items: center; gap: 30px">
+<span aria-hidden="true" style="position: absolute; top: 0; bottom: 0; left: 92px; width: 2px; background: #E7A4A4"></span>
+<span aria-hidden="true" style="position: absolute; top: 0; bottom: 0; left: 22px; width: 30px; background-image: radial-gradient(circle at 15px 16px, #E6DFD0 9px, #CFC6B3 10px, transparent 11px); background-size: 30px 64px"></span>
+
+<header style="width: 100%; max-width: 1140px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding-top: 22px; border-bottom: 3px solid #2A2A33">
+<button type="button" onClick="{{ irInicio }}" style="border: 0; background: transparent; color: #2A2A33; font-family: 'Caveat', cursive; font-weight: 700; font-size: 34px; line-height: 1; padding: 0 0 10px; min-height: 44px">Centro de Prueba</button>
+<nav aria-label="Principal" style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px; align-items: flex-end">
+<sc-for list="{{ nav }}" as="n" hint-placeholder-count="4"><button type="button" onClick="{{ n.pick }}" aria-current="{{ n.actual }}" style="min-height: {{ n.alto }}; padding: 0 18px; border-radius: 12px 12px 0 0; border: 2px solid #2A2A33; border-bottom: 0; background: {{ n.fondo }}; color: #2A2A33; font-family: 'Caveat', cursive; font-weight: 700; font-size: 22px">{{ n.l }}</button></sc-for>
+</nav>
+<button type="button" style="margin: 0 0 8px 8px; min-height: 44px; padding: 0 16px; border-radius: 10px; border: 2px dashed #2A2A33; background: transparent; color: #2A2A33; font-weight: 800">Iniciar sesión</button>
+</header>
+
+<sc-if value="{{ sInicio }}" hint-placeholder-val="{{ true }}">
+<section style="width: 100%; max-width: 1140px; display: flex; flex-wrap: wrap; gap: 34px; align-items: center; padding-top: 10px">
+<div style="flex: 999 1 480px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-family: 'Caveat', cursive; font-size: 24px; color: #B3413A">Querido paciente:</span>
+<h1 style="margin: 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 82px; line-height: 0.95">Acompañamiento <span style="background: linear-gradient(transparent 58%, #FCE38A 58%)">psicológico</span>, con orden detrás.</h1>
+<p style="margin: 0; font-size: 18px; max-width: 540px">Atendemos consultas individuales, de pareja y familiares. Reserva en línea y un equipo que se coordina en la misma plataforma.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px"><button type="button" onClick="{{ irHorario }}" style="min-height: 54px; padding: 0 26px; border-radius: 10px; border: 2px solid #2A2A33; background: #2F4A6B; color: #FFFFFF; font-weight: 800; font-size: 16px; box-shadow: 4px 4px 0 #2A2A33">Pedir una hora</button><button type="button" onClick="{{ irMatch }}" style="min-height: 54px; padding: 0 22px; border-radius: 10px; border: 2px solid #2A2A33; background: #FFFFFF; color: #2A2A33; font-weight: 800; font-size: 16px; box-shadow: 4px 4px 0 #2A2A33">No sé con quién: hacer el match</button></div>
+</div>
+<div style="flex: 1 1 340px; position: relative; min-height: 360px">
+<div style="position: absolute; left: 20px; top: 10px; width: 270px; height: 300px; background: #FFF6B8; transform: rotate(-3deg); box-shadow: 0 10px 22px rgba(0,0,0,0.14); padding: 30px 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px">
+<span aria-hidden="true" style="position: absolute; top: -14px; left: 90px; width: 100px; height: 28px; background: rgba(176,196,222,0.65); transform: rotate(4deg)"></span>
+<span style="font-family: 'Caveat', cursive; font-size: 30px; font-weight: 700; line-height: 1.1">Nuestro equipo</span>
+<span style="font-family: 'Caveat', cursive; font-size: 24px">6 profesionales</span>
+<span style="font-family: 'Caveat', cursive; font-size: 24px">desde $25.000</span>
+<span style="font-family: 'Caveat', cursive; font-size: 24px">presencial y online</span>
+<span style="font-family: 'Caveat', cursive; font-size: 22px; color: #B3413A; margin-top: auto">sin crear cuenta para reservar</span>
+</div>
+<div style="position: absolute; right: 0; bottom: 0; width: 150px; height: 190px; border-radius: 6px 12px 12px 6px; background: #4F6B2F; transform: rotate(5deg); box-shadow: 0 10px 22px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center"><span style="width: 100px; padding: 10px 6px; background: #FFFFFF; border-radius: 4px; text-align: center; font-family: 'Caveat', cursive; font-size: 22px; font-weight: 700">Mi diario</span></div>
+</div>
+</section>
+
+<section style="width: 100%; max-width: 1140px; display: flex; flex-direction: column; gap: 18px">
+<h2 style="margin: 0; font-family: 'Caveat', cursive; font-size: 44px">Servicios</h2>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px">
+<sc-for list="{{ servicios }}" as="s" hint-placeholder-count="3">
+<article style="position: relative; padding: 30px 24px 26px; background: {{ s.fondo }}; transform: rotate({{ s.rot }}); box-shadow: 0 10px 20px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 8px">
+<span aria-hidden="true" style="position: absolute; top: -12px; left: 40%; width: 80px; height: 24px; background: rgba(176,196,222,0.65)"></span>
+<h3 style="margin: 0; font-family: 'Caveat', cursive; font-size: 32px; line-height: 1">{{ s.t }}</h3>
+<p style="margin: 0; font-size: 15px">{{ s.d }}</p>
+</article>
+</sc-for>
+</div>
+</section>
+
+<section style="width: 100%; max-width: 1140px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px"><h2 style="margin: 0; font-family: 'Caveat', cursive; font-size: 44px">Nuestro equipo</h2><span style="font-family: 'Caveat', cursive; font-size: 24px; color: #B3413A">cada uno con su cuaderno</span><button type="button" onClick="{{ irEquipo }}" style="margin-left: auto; min-height: 46px; padding: 0 18px; border-radius: 10px; border: 2px solid #2A2A33; background: #FFFFFF; font-weight: 800; color: #2A2A33; box-shadow: 3px 3px 0 #2A2A33">Ver todo el equipo</button></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px">
+<sc-for list="{{ equipoPrev }}" as="p" hint-placeholder-count="4">
+<button type="button" onClick="{{ p.ver }}" style="position: relative; aspect-ratio: 3 / 4; border: 0; border-radius: 6px 16px 16px 6px; background: {{ p.tapa }}; box-shadow: 0 14px 26px rgba(0,0,0,0.22); color: #2A2A33; padding: 0; transform: rotate({{ p.rot }}); display: flex; align-items: center; justify-content: center">
+<span aria-hidden="true" style="position: absolute; left: 0; top: 0; bottom: 0; width: 18px; border-radius: 6px 0 0 6px; background: rgba(0,0,0,0.18)"></span>
+<span aria-hidden="true" style="position: absolute; right: 28px; top: 0; bottom: 0; width: 10px; background: rgba(0,0,0,0.35)"></span>
+<span style="width: 70%; padding: 14px 10px; background: #FFFFFF; border-radius: 6px; display: flex; flex-direction: column; gap: 2px; text-align: center; background-image: linear-gradient(#DCE4EF 1px, transparent 1px); background-size: 100% 24px"><span style="font-family: 'Caveat', cursive; font-weight: 700; font-size: 26px; line-height: 1">{{ p.n }}</span><span style="font-size: 12px; font-weight: 700">{{ p.esp }}</span></span>
+</button>
+</sc-for>
+</div>
+</section>
+
+<section style="width: 100%; max-width: 1140px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 28px; border: 2px dashed #2A2A33; border-radius: 14px; background: rgba(255,255,255,0.6)">
+<div style="flex: 999 1 400px"><h2 style="margin: 0; font-family: 'Caveat', cursive; font-size: 46px; line-height: 1">¿Quieres reservar una hora?</h2><span>Elige profesional y horario en línea, sin crear una cuenta antes.</span><br><span style="font-size: 13px">contacto@centro-prueba.cl · +56 2 2222 2222 · Dirección ficticia 123, Santiago</span></div>
+<button type="button" onClick="{{ irHorario }}" style="min-height: 52px; padding: 0 22px; border-radius: 10px; border: 2px solid #2A2A33; background: #2F4A6B; color: #FFFFFF; font-weight: 800; box-shadow: 4px 4px 0 #2A2A33">Pedir una hora en línea</button>
+</section>
+</sc-if>
+
+<sc-if value="{{ sEquipo }}" hint-placeholder-val="{{ false }}">
+<section style="width: 100%; max-width: 1140px; display: flex; flex-direction: column; gap: 20px">
+<h1 style="margin: 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 72px; line-height: 0.95">Quiénes somos y con quién <span style="background: linear-gradient(transparent 58%, #BFE3C3 58%)">puedes atenderte</span></h1>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><span style="font-family: 'Caveat', cursive; font-size: 24px">Filtrar:</span>
+<sc-for list="{{ filtros }}" as="f" hint-placeholder-count="6"><button type="button" aria-pressed="{{ f.on }}" onClick="{{ f.pick }}" style="min-height: 40px; padding: 0 14px; border-radius: 4px; border: 2px solid #2A2A33; background: {{ f.fondo }}; color: #2A2A33; font-weight: 800; font-size: 13px; transform: rotate({{ f.rot }})">{{ f.l }}</button></sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 34px 28px">
+<sc-for list="{{ pros }}" as="p" hint-placeholder-count="6">
+<article style="display: flex; flex-direction: column; gap: 14px">
+<div style="position: relative; height: 300px; border-radius: 6px 18px 18px 6px; background: {{ p.tapa }}; box-shadow: 0 16px 28px rgba(0,0,0,0.22); display: flex; align-items: center; justify-content: center">
+<span aria-hidden="true" style="position: absolute; left: 0; top: 0; bottom: 0; width: 20px; border-radius: 6px 0 0 6px; background: rgba(0,0,0,0.18)"></span>
+<span aria-hidden="true" style="position: absolute; right: 32px; top: 0; bottom: 0; width: 12px; background: rgba(0,0,0,0.35)"></span>
+<span style="width: 68%; padding: 16px 12px; background: #FFFFFF; border-radius: 6px; text-align: center; display: flex; flex-direction: column; gap: 4px; background-image: linear-gradient(#DCE4EF 1px, transparent 1px); background-size: 100% 26px"><span style="font-family: 'Caveat', cursive; font-weight: 700; font-size: 30px; line-height: 1">{{ p.n }}</span><span style="font-size: 12px; font-weight: 800">{{ p.esp }}</span></span>
+<span style="position: absolute; left: 30px; bottom: 22px; width: 84px; height: 84px; border-radius: 999px; border: 3px solid #FFFFFF; color: #FFFFFF; transform: rotate(-12deg); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; text-align: center; line-height: 1.1">SIS {{ p.sis }}<br>VERIFICADO</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="font-size: 13px; font-weight: 800; padding: 3px 10px; background: #FCE38A">{{ p.tarifa }}</span><span style="font-size: 13px; font-weight: 800; padding: 3px 10px; background: #FFFFFF; border: 1px solid #2A2A33">{{ p.mod }}</span><span style="font-size: 13px; font-weight: 800; padding: 3px 10px; background: #FFFFFF; border: 1px solid #2A2A33">{{ p.exp }}</span></div>
+<p style="margin: 0; font-family: 'Caveat', cursive; font-size: 24px; line-height: 1.1">"{{ p.frase }}"</p>
+<div style="display: flex; gap: 8px"><button type="button" onClick="{{ p.pedir }}" style="flex: 1; min-height: 46px; border-radius: 10px; border: 2px solid #2A2A33; background: #2F4A6B; color: #FFFFFF; font-weight: 800; box-shadow: 3px 3px 0 #2A2A33">Pedir hora</button><button type="button" style="min-height: 46px; padding: 0 14px; border-radius: 10px; border: 2px solid #2A2A33; background: #FFFFFF; color: #2A2A33; font-weight: 800">Abrir su cuaderno</button></div>
+</article>
+</sc-for>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ sMatch }}" hint-placeholder-val="{{ false }}">
+<section style="width: 100%; max-width: 1060px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+<aside aria-label="Avance" style="flex: 1 1 250px; max-width: 280px; padding: 22px; background: #FFFFFF; border: 1px solid #CFC6B3; box-shadow: 0 8px 18px rgba(0,0,0,0.10); transform: rotate(-1.5deg); display: flex; flex-direction: column; gap: 8px; background-image: linear-gradient(transparent 46px, #E7A4A4 46px, #E7A4A4 48px, transparent 48px), linear-gradient(#DCE4EF 1px, transparent 1px); background-size: 100% 100%, 100% 28px">
+<span style="font-family: 'Caveat', cursive; font-size: 30px; font-weight: 700; line-height: 1">Match terapéutico</span>
+<span style="font-family: 'Caveat', cursive; font-size: 22px; color: #B3413A; padding-top: 6px">hoja 1 de 9</span>
+<sc-for list="{{ pasos }}" as="p" hint-placeholder-count="9"><span style="display: flex; gap: 8px; align-items: baseline; font-size: 14px; font-weight: {{ p.peso }}"><span aria-hidden="true" style="font-family: 'Caveat', cursive; font-size: 20px; width: 16px">{{ p.marca }}</span>{{ p.l }}</span></sc-for>
+<span style="font-size: 12px; padding-top: 6px">Tus respuestas no se guardan.</span>
+</aside>
+<div style="flex: 999 1 480px; position: relative; padding: 34px 36px; background: #FFFFFF; border: 1px solid #CFC6B3; box-shadow: 0 12px 26px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 14px; background-image: linear-gradient(#DCE4EF 1px, transparent 1px); background-size: 100% 36px">
+<span aria-hidden="true" style="position: absolute; top: -18px; right: 60px; width: 22px; height: 64px; border: 4px solid #8C939C; border-radius: 12px"></span>
+<h1 style="margin: 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 60px; line-height: 1">¿Qué te trae al centro?</h1>
+<span>Marca todo lo que sientas que te está pasando. Puedes elegir varios.</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px">
+<sc-for list="{{ motivos }}" as="m" hint-placeholder-count="10"><button type="button" aria-pressed="{{ m.on }}" onClick="{{ m.pick }}" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: #2A2A33; text-align: left; font-family: 'Caveat', cursive; font-size: 28px">
+<span aria-hidden="true" style="flex: none; width: 24px; height: 24px; border: 2.5px solid #2A2A33; border-radius: 3px; transform: rotate(-3deg); display: inline-flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; color: #B3413A; line-height: 1">{{ m.marca }}</span><span style="background: {{ m.resalte }}">{{ m.l }}</span></button></sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 12px"><span style="font-family: 'Caveat', cursive; font-size: 24px; color: #B3413A">{{ motivoTexto }}</span><button type="button" onClick="{{ irResultado }}" style="margin-left: auto; min-height: 52px; padding: 0 24px; border-radius: 10px; border: 2px solid #2A2A33; background: #2F4A6B; color: #FFFFFF; font-weight: 800; box-shadow: 4px 4px 0 #2A2A33">Dar vuelta la hoja</button></div>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ sResultado }}" hint-placeholder-val="{{ false }}">
+<section style="width: 100%; max-width: 980px; display: flex; flex-wrap: wrap; gap: 34px; align-items: center">
+<div style="flex: 1 1 260px; max-width: 280px; position: relative; height: 360px; border-radius: 6px 18px 18px 6px; background: {{ sel.tapa }}; box-shadow: 0 18px 30px rgba(0,0,0,0.25); transform: rotate(-3deg); display: flex; align-items: center; justify-content: center">
+<span aria-hidden="true" style="position: absolute; right: 34px; top: 0; bottom: 0; width: 12px; background: rgba(0,0,0,0.35)"></span>
+<span style="width: 70%; padding: 16px 10px; background: #FFFFFF; border-radius: 6px; text-align: center; font-family: 'Caveat', cursive; font-weight: 700; font-size: 32px; line-height: 1">{{ sel.n }}</span>
+</div>
+<div style="flex: 999 1 420px; display: flex; flex-direction: column; gap: 14px">
+<span style="align-self: flex-start; padding: 6px 14px; border: 3px solid #B3413A; color: #B3413A; font-weight: 800; letter-spacing: 0.1em; transform: rotate(-4deg)">MEJOR MATCH</span>
+<h1 style="margin: 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 64px; line-height: 1">Te sugerimos a {{ sel.n }}</h1>
+<span style="font-weight: 700">{{ sel.esp }} · {{ sel.tarifa }} por sesión</span>
+<p style="margin: 0; padding: 16px 18px; background: #FFF6B8; box-shadow: 0 8px 16px rgba(0,0,0,0.10); font-family: 'Caveat', cursive; font-size: 26px; line-height: 1.2">Trabaja ánimo bajo, duelo y estrés, atiende adultos, tiene convenio Fonasa y horas libres en los días que marcaste.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 10px"><button type="button" onClick="{{ irHorario }}" style="min-height: 54px; padding: 0 24px; border-radius: 10px; border: 2px solid #2A2A33; background: #2F4A6B; color: #FFFFFF; font-weight: 800; box-shadow: 4px 4px 0 #2A2A33">Pedir hora con este profesional</button><button type="button" onClick="{{ irEquipo }}" style="min-height: 54px; padding: 0 18px; border-radius: 10px; border: 2px solid #2A2A33; background: #FFFFFF; color: #2A2A33; font-weight: 800">Ver otras 5 opciones</button></div>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ sReserva }}" hint-placeholder-val="{{ false }}">
+<section style="width: 100%; max-width: 1060px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-wrap: wrap; gap: 20px">
+<sc-for list="{{ etapas }}" as="e" hint-placeholder-count="4"><span style="font-family: 'Caveat', cursive; font-size: 26px; font-weight: 700; color: {{ e.color }}; text-decoration: {{ e.raya }}">{{ e.n }}. {{ e.l }}</span></sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+<div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<sc-if value="{{ sHorario }}" hint-placeholder-val="{{ true }}">
+<h1 style="margin: 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 60px; line-height: 1">Elige el horario de tu sesión</h1>
+<div style="padding: 24px; background: #FFFFFF; border: 1px solid #CFC6B3; box-shadow: 0 10px 22px rgba(0,0,0,0.10); display: flex; flex-direction: column; gap: 16px">
+<div role="group" aria-label="Modalidad" style="display: flex; gap: 10px"><sc-for list="{{ modos }}" as="m" hint-placeholder-count="2"><button type="button" aria-pressed="{{ m.on }}" onClick="{{ m.pick }}" style="min-height: 44px; padding: 0 18px; border-radius: 4px; border: 2px solid #2A2A33; background: {{ m.fondo }}; color: #2A2A33; font-weight: 800">{{ m.l }}</button></sc-for></div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 2px solid #2A2A33">
+<sc-for list="{{ dias }}" as="d" hint-placeholder-count="7"><button type="button" aria-pressed="{{ d.on }}" onClick="{{ d.pick }}" style="min-height: 96px; border: 0; border-right: 1px solid #2A2A33; background: {{ d.fondo }}; color: #2A2A33; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding: 8px 10px; gap: 2px"><span style="font-size: 12px; font-weight: 800; text-transform: uppercase">{{ d.dia }}</span><strong style="font-family: 'Caveat', cursive; font-size: 40px; line-height: 1">{{ d.num }}</strong><span style="font-size: 12px; font-weight: 700">{{ d.mes }}</span></button></sc-for>
+</div>
+<div style="display: flex; gap: 12px; flex-wrap: wrap"><sc-for list="{{ horas }}" as="h" hint-placeholder-count="2"><button type="button" aria-pressed="{{ h.on }}" onClick="{{ h.pick }}" style="min-height: 52px; padding: 0 26px; border: 0; background: {{ h.fondo }}; color: #2A2A33; font-family: 'Caveat', cursive; font-size: 30px; font-weight: 700; box-shadow: 0 6px 12px rgba(0,0,0,0.12); transform: rotate({{ h.rot }})">{{ h.l }}</button></sc-for></div>
+</div>
+<button type="button" onClick="{{ irDatos }}" style="align-self: flex-start; min-height: 54px; padding: 0 26px; border-radius: 10px; border: 2px solid #2A2A33; background: #2F4A6B; color: #FFFFFF; font-weight: 800; box-shadow: 4px 4px 0 #2A2A33">Continuar</button>
+</sc-if>
+
+<sc-if value="{{ sDatos }}" hint-placeholder-val="{{ false }}">
+<h1 style="margin: 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 60px; line-height: 1">Datos del paciente</h1>
+<div style="padding: 24px 28px; background: #FFFFFF; border: 1px solid #CFC6B3; box-shadow: 0 10px 22px rgba(0,0,0,0.10); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px">
+<label style="grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; font-family: 'Caveat', cursive; font-size: 26px"><input type="checkbox" style="width: 22px; height: 22px">Pido hora para un menor de edad</label>
+<sc-for list="{{ campos }}" as="c" hint-placeholder-count="6"><label style="display: flex; flex-direction: column; gap: 2px"><span style="font-family: 'Caveat', cursive; font-size: 24px; font-weight: 700">{{ c.l }}</span><input placeholder="{{ c.ph }}" style="min-height: 44px; padding: 0 4px; border: 0; border-bottom: 2px solid #2A2A33; background: transparent; font-size: 16px"><span style="font-size: 12px">{{ c.a }}</span></label></sc-for>
+</div>
+<div style="position: relative; padding: 24px 26px; background: #FFF6B8; box-shadow: 0 10px 20px rgba(0,0,0,0.10); transform: rotate(-0.6deg); display: flex; flex-direction: column; gap: 10px">
+<strong style="font-family: 'Caveat', cursive; font-size: 30px">Antes de reservar</strong>
+<span>Cancela o cambia sin costo hasta 24 horas antes. Con menos aviso se cobra el 25 %; si no llegas, el 100 %.</span>
+<label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" style="width: 20px; height: 20px">Leí y acepto la política de datos personales (versión 2)</label>
+<label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" style="width: 20px; height: 20px">Acepto los términos de agendamiento y cancelación (versión 2)</label>
+</div>
+<div style="display: flex; gap: 10px; align-items: center"><button type="button" onClick="{{ irOk }}" style="min-height: 54px; padding: 0 26px; border-radius: 10px; border: 2px solid #2A2A33; background: #2F4A6B; color: #FFFFFF; font-weight: 800; box-shadow: 4px 4px 0 #2A2A33">Reservar mi hora</button><button type="button" onClick="{{ irHorario }}" style="min-height: 54px; padding: 0 14px; border: 0; background: transparent; color: #2A2A33; font-weight: 800; text-decoration: underline">Cambiar el horario</button></div>
+</sc-if>
+
+<sc-if value="{{ sOk }}" hint-placeholder-val="{{ false }}">
+<div style="position: relative; padding: 40px; background: #FFFFFF; border: 1px solid #CFC6B3; box-shadow: 0 12px 24px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 10px">
+<span style="position: absolute; right: 40px; top: 30px; padding: 10px 18px; border: 4px solid #4F6B2F; color: #4F6B2F; font-weight: 800; font-size: 22px; letter-spacing: 0.12em; transform: rotate(-10deg)">RESERVADA</span>
+<h1 style="margin: 0; font-family: 'Caveat', cursive; font-weight: 700; font-size: 64px; line-height: 1">¡Listo! Te esperamos.</h1>
+<span>Te enviamos la confirmación y el enlace para pagar. Con el pago la hora queda confirmada.</span>
+<button type="button" onClick="{{ irInicio }}" style="align-self: flex-start; min-height: 48px; padding: 0 20px; border-radius: 10px; border: 2px solid #2A2A33; background: #FFFFFF; color: #2A2A33; font-weight: 800">Volver al inicio</button>
+</div>
+</sc-if>
+</div>
+
+<aside aria-label="Tu reserva" style="flex: 1 1 260px; max-width: 300px; position: relative; padding: 24px 22px; background: #FFFFFF; border: 1px solid #CFC6B3; box-shadow: 0 10px 22px rgba(0,0,0,0.14); transform: rotate(1.5deg); display: flex; flex-direction: column; gap: 8px; background-image: linear-gradient(transparent 52px, #E7A4A4 52px, #E7A4A4 54px, transparent 54px), linear-gradient(#DCE4EF 1px, transparent 1px); background-size: 100% 100%, 100% 30px">
+<span aria-hidden="true" style="position: absolute; top: -12px; left: 36%; width: 90px; height: 24px; background: rgba(176,196,222,0.65)"></span>
+<span style="font-family: 'Caveat', cursive; font-size: 30px; font-weight: 700; line-height: 1">Mi reserva</span>
+<span style="font-family: 'Caveat', cursive; font-size: 26px; padding-top: 10px">{{ sel.n }}</span>
+<span style="font-size: 13px; font-weight: 700">{{ sel.esp }}</span>
+<span style="font-family: 'Caveat', cursive; font-size: 28px; font-weight: 700; color: #2F4A6B">{{ resumen }}</span>
+<span style="font-weight: 700">{{ modoTexto }} · {{ sel.tarifa }}</span>
+<span style="font-size: 12px">Emite boleta reembolsable en isapre</span>
+</aside>
+</div>
+</section>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1600}}'>
+var PROS = [
+  { id: 'p5', n: 'Ps. Profesional Cinco', ini: 'PC', esp: 'Psicología infanto-juvenil', sis: '100005', tarifa: '$55.000', mod: 'Solo presencial', exp: '8 años', frase: 'Jugar también es una forma de hablar.', tipos: [1, 3], tapa: '#D4A23A' },
+  { id: 'p4', n: 'Ps. Profesional Cuatro', ini: 'PC', esp: 'Terapia de pareja y familia', sis: '100004', tarifa: '$25.000', mod: 'Solo online', exp: '13 años', frase: 'Dos versiones de una misma historia.', tipos: [5], tapa: '#A6442E' },
+  { id: 'p2', n: 'Ps. Profesional Dos', ini: 'PD', esp: 'Psicología infanto-juvenil', sis: '100002', tarifa: 'Desde $35.000', mod: 'Presencial y online', exp: '14 años', frase: 'Acompañar a la familia completa.', tipos: [3, 4], tapa: '#2E6E6E' },
+  { id: 'p6', n: 'Ps. Profesional Seis', ini: 'PS', esp: 'Psicología clínica adultos', sis: '100006', tarifa: '$42.000', mod: 'Presencial y online', exp: '15 años', frase: 'Ordenar lo que pesa, paso a paso.', tipos: [2], tapa: '#2F4A6B' },
+  { id: 'p3', n: 'Ps. Profesional Tres', ini: 'PT', esp: 'Psicología clínica adultos', sis: '100003', tarifa: '$38.000', mod: 'Presencial y online', exp: '10 años', frase: 'Sin apuro, con método.', tipos: [1, 2], tapa: '#4F6B2F' },
+  { id: 'p1', n: 'Ps. Profesional Uno', ini: 'PU', esp: 'Psicología clínica adultos', sis: '100001', tarifa: 'Desde $30.000', mod: 'Presencial y online', exp: '11 años', frase: 'Cada proceso parte por entender qué te trae.', tipos: [1, 2], tapa: '#B08A5E' }
+];
+var FILTROS = ['Todo el equipo', 'Evaluación psicológica', 'Individual adultos', 'Infanto-juvenil', 'Niños', 'Pareja'];
+var SERV = [['Terapia individual', 'Sesiones presenciales o por videollamada, con seguimiento entre sesiones.', '#FFF6B8', '-2deg'], ['Terapia de pareja', 'Para conflictos de convivencia, comunicación y proyectos en común.', '#FAD4D8', '1.5deg'], ['Niños y adolescentes', 'Evaluación y terapia con participación de la familia.', '#CFEBD3', '-1deg']];
+var MOTIVOS = ['Ansiedad', 'Estrés', 'Ánimo bajo', 'Duelo', 'Problemas de sueño', 'Conflictos de pareja', 'Dinámica familiar', 'Trabajo o estudios', 'Autoestima', 'Conducta de un hijo o hija'];
+var PASOS = ['¿Qué te trae al centro?', '¿Para quién es la atención?', '¿Qué tan fuerte lo sientes?', 'Cuéntanos con tus palabras', '¿Qué días puedes venir?', '¿En qué horario?', 'Previsión de salud', 'Modalidad de atención', '¿Cuánto prefieres pagar?'];
+var DIAS = [['Vie', '6', 'nov'], ['Vie', '13', 'nov'], ['Vie', '20', 'nov'], ['Vie', '27', 'nov'], ['Vie', '4', 'dic'], ['Lun', '7', 'dic'], ['Mar', '8', 'dic']];
+var HORAS = ['10:00', '12:00'];
+var CAMPOS = [['Nombre *', '', ''], ['Apellido *', '', ''], ['Fecha de nacimiento *', 'dd/mm/aaaa', ''], ['RUT', '12.345.678-9', 'Opcional: lo pedimos en la primera sesión'], ['Correo *', '', 'Ahí llega la confirmación'], ['Teléfono', '+56 9 1234 5678', 'Opcional']];
+var ROT = ['-2deg', '1.5deg', '-1deg', '2deg'];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { p: 'inicio', filtro: 0, sel: 'p6', dia: 0, hora: 0, mod: 0, mot: { 'Ánimo bajo': true, 'Duelo': true } }; }
+  renderVals() {
+    var s = this.state, self = this;
+    function ir(p, extra) { return function () { self.setState(Object.assign({ p: p }, extra || {})); }; }
+    var sel = PROS.filter(function (x) { return x.id === s.sel; })[0];
+    var navD = [['inicio', 'Inicio', '#FCE38A'], ['equipo', 'Equipo', '#CFEBD3'], ['match', 'Match', '#FAD4D8'], ['horario', 'Pedir hora', '#D4E2F2']];
+    var reserva = s.p === 'horario' || s.p === 'datos' || s.p === 'ok';
+    var etapaIdx = s.p === 'horario' ? 0 : (s.p === 'datos' ? 1 : 3);
+    var nMot = Object.keys(s.mot).filter(function (k) { return s.mot[k]; }).length;
+    return {
+      sInicio: s.p === 'inicio', sEquipo: s.p === 'equipo', sMatch: s.p === 'match', sResultado: s.p === 'resultado', sReserva: reserva, sHorario: s.p === 'horario', sDatos: s.p === 'datos', sOk: s.p === 'ok',
+      irInicio: ir('inicio'), irEquipo: ir('equipo'), irMatch: ir('match'), irResultado: ir('resultado', { sel: 'p6' }), irHorario: ir('horario'), irDatos: ir('datos'), irOk: ir('ok'),
+      nav: navD.map(function (n) { var on = s.p === n[0] || (n[0] === 'horario' && reserva) || (n[0] === 'match' && s.p === 'resultado'); return { l: n[1], actual: on ? 'page' : 'false', fondo: n[2], alto: on ? '56px' : '44px', pick: ir(n[0]) }; }),
+      servicios: SERV.map(function (x) { return { t: x[0], d: x[1], fondo: x[2], rot: x[3] }; }),
+      equipoPrev: PROS.slice(0, 4).map(function (p, i) { return { n: p.n.replace('Ps. ', ''), esp: p.esp, tapa: p.tapa, rot: ROT[i], ver: ir('equipo') }; }),
+      filtros: FILTROS.map(function (f, i) { var on = s.filtro === i; return { l: f, on: on, fondo: on ? '#FCE38A' : '#FFFFFF', rot: ROT[i % 4], pick: function () { self.setState({ filtro: i }); } }; }),
+      pros: PROS.filter(function (p) { return s.filtro === 0 || p.tipos.indexOf(s.filtro) >= 0; }).map(function (p) { return Object.assign({}, p, { n: p.n.replace('Ps. ', ''), pedir: ir('horario', { sel: p.id }) }); }),
+      motivos: MOTIVOS.map(function (m) { var on = !!s.mot[m]; return { l: m, on: on, marca: on ? 'x' : '', resalte: on ? 'linear-gradient(transparent 55%, #FCE38A 55%)' : 'transparent', pick: function () { var o = Object.assign({}, self.state.mot); o[m] = !o[m]; self.setState({ mot: o }); } }; }),
+      motivoTexto: nMot ? nMot + ' marcados' : 'marca al menos uno',
+      pasos: PASOS.map(function (l, i) { return { l: l, marca: i === 0 ? '>' : '', peso: i === 0 ? '800' : '500' }; }),
+      sel: Object.assign({}, sel, { n: sel.n.replace('Ps. ', 'Ps. ') }),
+      etapas: ['Horario', 'Tus datos', 'Pago', 'Confirmada'].map(function (l, i) { return { n: i + 1, l: l, color: i === etapaIdx ? '#B3413A' : (i < etapaIdx ? '#8A8A94' : '#2A2A33'), raya: i < etapaIdx ? 'line-through' : 'none' }; }),
+      modos: ['Online', 'Presencial'].map(function (m, i) { var on = s.mod === i; return { l: m, on: on, fondo: on ? '#FCE38A' : '#FFFFFF', pick: function () { self.setState({ mod: i }); } }; }),
+      dias: DIAS.map(function (d, i) { var on = s.dia === i; return { dia: d[0], num: d[1], mes: d[2], on: on, fondo: on ? '#FCE38A' : '#FFFFFF', pick: function () { self.setState({ dia: i }); } }; }),
+      horas: HORAS.map(function (h, i) { var on = s.hora === i; return { l: h, on: on, fondo: on ? '#FCE38A' : '#FAD4D8', rot: i ? '2deg' : '-2deg', pick: function () { self.setState({ hora: i }); } }; }),
+      campos: CAMPOS.map(function (c) { return { l: c[0], ph: c[1], a: c[2] }; }),
+      resumen: DIAS[s.dia][0] + ' ' + DIAS[s.dia][1] + ' ' + DIAS[s.dia][2] + ', ' + HORAS[s.hora], modoTexto: s.mod === 0 ? 'Online' : 'Presencial'
+    };
+  }
+}
+</script>
+</body>
+</html>

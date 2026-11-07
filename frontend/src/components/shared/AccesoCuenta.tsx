@@ -10,7 +10,7 @@ import { renovarSesion } from '@/lib/sesion';
 
 /** Pildora oscura del diseño "Moderno" (tinta sobre la barra translucida). */
 const CLASE =
-  'ml-auto flex min-h-11 items-center rounded-full bg-tinta px-[18px] text-sm font-bold whitespace-nowrap text-neutral-100 transition-colors duration-200 hover:bg-neutral-800 hover:text-neutral-100 md:ml-0';
+  'acceso-cuenta ml-auto flex min-h-11 items-center rounded-full bg-tinta px-[18px] text-sm font-bold whitespace-nowrap text-neutral-100 transition-colors duration-200 hover:bg-neutral-800 hover:text-neutral-100 md:ml-0';
 
 /**
  * Acceso del header publico (03b-4.1): al cargar intenta renovar la sesion en

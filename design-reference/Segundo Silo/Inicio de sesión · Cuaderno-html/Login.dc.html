@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Inicio de sesión</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;family=Caveat:wght@500;700&amp;family=Nunito:wght@400;600;700;800&amp;family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1000px; box-sizing: border-box; color: {{ t.ink }}; font-family: {{ t.body }}; font-size: 15px; line-height: 1.5; background-color: {{ t.bg }}; background-image: {{ t.bgImg }}; background-size: {{ t.bgSize }}; padding: 0 32px 40px; display: flex; flex-direction: column; align-items: center; gap: 40px">
+
+<header style="width: 100%; max-width: 1140px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 20px 0 14px; border-bottom: {{ t.headerLinea }}">
+<strong style="display: flex; align-items: center; gap: 8px; font-family: {{ t.display }}; font-size: {{ t.logoTam }}; font-weight: 700; font-style: {{ t.logoEstilo }}"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 999px; background: {{ t.secondary }}"></span>Centro de Prueba</strong>
+<nav aria-label="Principal" style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px">
+<a href="#" style="min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; color: {{ t.ink }}; text-decoration: none; font-weight: 600; font-size: {{ t.navTam }}; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}">Equipo</a>
+<a href="#" style="min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; color: {{ t.ink }}; text-decoration: none; font-weight: 600; font-size: {{ t.navTam }}; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}">Match terapéutico</a>
+<a href="#" style="min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; color: {{ t.ink }}; text-decoration: none; font-weight: 600; font-size: {{ t.navTam }}; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}">Pedir una hora</a>
+</nav>
+</header>
+
+<main style="width: 100%; max-width: 1040px; display: flex; flex-wrap: wrap; gap: 48px; align-items: center; justify-content: center; padding-top: 10px">
+
+<div style="flex: 1 1 360px; max-width: 440px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: {{ rol.color }}">{{ rol.eyebrow }}</span>
+<h1 style="margin: 0; font-family: {{ t.display }}; font-weight: {{ t.tituloPeso }}; font-size: {{ t.tituloTam }}; line-height: 0.98; letter-spacing: -0.01em">{{ rol.titulo }}</h1>
+<p style="margin: 0; font-size: 17px; color: {{ t.ink2 }}">{{ rol.texto }}</p>
+<div style="display: flex; flex-direction: column; gap: 10px; padding-top: 6px">
+<sc-for list="{{ rol.puntos }}" as="p" hint-placeholder-count="3"><span style="display: flex; gap: 10px; align-items: center; font-size: 14px; color: {{ t.ink2 }}"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: {{ t.rPunto }}; background: {{ rol.color }}"></span>{{ p }}</span></sc-for>
+</div>
+</div>
+
+<section aria-labelledby="t-acc" style="flex: 1 1 400px; max-width: 460px; box-sizing: border-box; position: relative; padding: 32px; border-radius: {{ t.rCard }}; background: {{ t.surface }}; border: {{ t.cardBorde }}; box-shadow: {{ t.cardSombra }}; transform: rotate({{ t.cardRot }}); display: flex; flex-direction: column; gap: 18px">
+<sc-if value="{{ t.cinta }}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="position: absolute; top: -13px; left: 40%; width: 96px; height: 26px; background: rgba(176,196,222,0.7)"></span></sc-if>
+<div role="tablist" aria-label="Tipo de acceso" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: {{ t.rSeg }}; background: {{ t.segFondo }}; border: {{ t.segBorde }}">
+<sc-for list="{{ roles }}" as="r" hint-placeholder-count="2"><button type="button" role="tab" aria-selected="{{ r.on }}" onClick="{{ r.pick }}" style="min-height: 46px; border-radius: {{ t.rSegItem }}; border: 0; background: {{ r.fondo }}; color: {{ r.color }}; font-weight: 700; font-size: 14px; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}">{{ r.l }}</button></sc-for>
+</div>
+<h2 id="t-acc" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.subTam }}; font-weight: {{ t.tituloPeso }}; line-height: 1.1">{{ rol.cardTitulo }}</h2>
+<label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; font-weight: 700">Correo o RUT</span><input type="text" autocomplete="username" placeholder="nombre@correo.cl" style="min-height: 50px; padding: {{ t.campoPad }}; border-radius: {{ t.rCampo }}; border: {{ t.campoBorde }}; border-bottom: {{ t.campoLinea }}; background: {{ t.campoFondo }}; color: {{ t.ink }}; font-size: 16px"></label>
+<label style="display: flex; flex-direction: column; gap: 6px"><span style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700"><span>Contraseña</span><a href="#" style="color: {{ rol.color }}">¿La olvidaste?</a></span><input type="password" autocomplete="current-password" placeholder="Tu contraseña" style="min-height: 50px; padding: {{ t.campoPad }}; border-radius: {{ t.rCampo }}; border: {{ t.campoBorde }}; border-bottom: {{ t.campoLinea }}; background: {{ t.campoFondo }}; color: {{ t.ink }}; font-size: 16px"></label>
+<span style="font-size: 12px; color: {{ t.ink2 }}">Por seguridad, la sesión se cierra tras 30 minutos sin actividad. Te pediremos un código por correo.</span>
+<button type="button" style="min-height: 56px; border-radius: {{ t.rBtn }}; border: {{ t.btnBorde }}; background: {{ rol.color }}; color: {{ t.onPrimary }}; font-weight: 800; font-size: {{ t.btnTam }}; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}; box-shadow: {{ rol.btnSombra }}">{{ rol.boton }}</button>
+<div style="display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: {{ t.divisor }}; font-size: 13px">
+<sc-if value="{{ rol.esPaciente }}" hint-placeholder-val="{{ true }}"><a href="#" style="color: {{ rol.color }}; font-weight: 700">Recibir un enlace de acceso por correo</a><span style="color: {{ t.ink2 }}">¿Primera vez? Pide tu primera hora: al confirmarla te invitamos a crear tu cuenta.</span></sc-if>
+<sc-if value="{{ rol.esEquipo }}" hint-placeholder-val="{{ false }}"><span style="color: {{ t.ink2 }}">¿Tienes una invitación? Ábrela desde el enlace que te enviamos por correo para elegir tu contraseña.</span></sc-if>
+</div>
+</section>
+</main>
+
+<footer style="width: 100%; max-width: 1140px; margin-top: auto; display: flex; flex-wrap: wrap; gap: 16px; padding-top: 14px; border-top: {{ t.headerLinea }}; font-size: 12px; color: {{ t.ink2 }}"><span>2026 Centro de Prueba Vinculos (DEMO)</span><span>Privacidad</span><span>Derechos sobre tus datos</span><span style="margin-left: auto">Plataforma <strong>Vinculos</strong></span></footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["moderno","cuaderno","editorial"],"default":"moderno"},"$preview":{"width":1440,"height":1000}}'>
+var T = {
+  moderno: { display: "'Bricolage Grotesque', sans-serif", body: "'Figtree', system-ui, sans-serif", bg: '#F3EDE4', bgImg: 'radial-gradient(#D9CEBF 1px, transparent 1px)', bgSize: '20px 20px',
+    ink: '#2B2420', ink2: '#4A3F36', surface: 'rgba(255,253,249,0.94)', primary: '#8A4B1F', secondary: '#4F6B2F', onPrimary: '#FFFFFF',
+    rCard: '32px', rCampo: '16px', rBtn: '18px', rSeg: '999px', rSegItem: '999px', rPunto: '999px', cardBorde: '1px solid #EBE2D5', cardSombra: '0 30px 70px rgba(43,36,32,0.16)', cardRot: '0deg', cinta: false,
+    segFondo: '#F4ECE0', segBorde: '0', campoPad: '0 16px', campoBorde: '1px solid #E3D7C4', campoLinea: '1px solid #E3D7C4', campoFondo: '#F7F1E8', btnBorde: '0', btnTam: '16px', offset: false,
+    tituloTam: '64px', subTam: '26px', tituloPeso: '800', logoTam: '18px', logoEstilo: 'normal', navTam: '14px', track: 'normal', caso: 'none', headerLinea: '0 solid transparent', divisor: '1px solid #EBE2D5' },
+  cuaderno: { display: "'Caveat', cursive", body: "'Nunito', system-ui, sans-serif", bg: '#FBF8EF', bgImg: 'linear-gradient(#DCE4EF 1px, transparent 1px)', bgSize: '100% 32px',
+    ink: '#2A2A33', ink2: '#4A4A55', surface: '#FFFFFF', primary: '#2F4A6B', secondary: '#4F6B2F', onPrimary: '#FFFFFF',
+    rCard: '4px', rCampo: '0', rBtn: '10px', rSeg: '6px', rSegItem: '4px', rPunto: '2px', cardBorde: '1px solid #CFC6B3', cardSombra: '0 14px 28px rgba(0,0,0,0.14)', cardRot: '-0.8deg', cinta: true,
+    segFondo: '#FBF8EF', segBorde: '2px solid #2A2A33', campoPad: '0 4px', campoBorde: '0', campoLinea: '2px solid #2A2A33', campoFondo: 'transparent', btnBorde: '2px solid #2A2A33', btnTam: '16px', offset: true,
+    tituloTam: '84px', subTam: '38px', tituloPeso: '700', logoTam: '30px', logoEstilo: 'normal', navTam: '15px', track: 'normal', caso: 'none', headerLinea: '3px solid #2A2A33', divisor: '2px dashed #CFC6B3' },
+  editorial: { display: "'Fraunces', serif", body: "'Inter', system-ui, sans-serif", bg: '#F6F3EC', bgImg: 'none', bgSize: 'auto',
+    ink: '#141414', ink2: '#4A4A45', surface: '#F6F3EC', primary: '#141414', secondary: '#1F4D3A', onPrimary: '#F6F3EC',
+    rCard: '0', rCampo: '0', rBtn: '0', rSeg: '0', rSegItem: '0', rPunto: '0', cardBorde: '1px solid #141414', cardSombra: 'none', cardRot: '0deg', cinta: false,
+    segFondo: 'transparent', segBorde: '1px solid #141414', campoPad: '0', campoBorde: '0', campoLinea: '1px solid #141414', campoFondo: 'transparent', btnBorde: '0', btnTam: '13px', offset: false,
+    tituloTam: '76px', subTam: '30px', tituloPeso: '400', logoTam: '26px', logoEstilo: 'italic', navTam: '12px', track: '0.14em', caso: 'uppercase', headerLinea: '1px solid #141414', divisor: '1px solid #C9C3B5' }
+};
+var ROLES = {
+  pac: { l: 'Soy paciente', eyebrow: 'Acceso de pacientes', titulo: 'Hola de nuevo.', texto: 'Entra para ver tus horas agendadas, escribirle a tu profesional y revisar tus datos.', cardTitulo: 'Entra a tu cuenta', boton: 'Entrar a mi cuenta', puntos: ['Tus horas y pagos en un solo lugar', 'Mensajes con tu profesional', 'Documentos que te emitan'] },
+  eq: { l: 'Soy del equipo', eyebrow: 'Acceso del equipo', titulo: 'Bienvenido de vuelta.', texto: 'Ingresa con tu cuenta del centro para ver tu agenda, tus fichas y los módulos activos.', cardTitulo: 'Entra al panel', boton: 'Entrar al panel', puntos: ['Agenda y boxes del día', 'Fichas con acceso solo de su tratante', 'Verificación en dos pasos por correo'] }
+};
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { rol: 'eq' }; }
+  renderVals() {
+    var self = this, s = this.state;
+    var t = T[this.props.tema] || T.moderno;
+    var r = ROLES[s.rol];
+    var color = s.rol === 'pac' ? t.secondary : t.primary;
+    return {
+      t: t,
+      rol: Object.assign({}, r, { color: color, esPaciente: s.rol === 'pac', esEquipo: s.rol === 'eq', btnSombra: t.offset ? '4px 4px 0 #2A2A33' : (t.cardSombra === 'none' ? 'none' : '0 14px 30px rgba(43,36,32,0.25)') }),
+      roles: [['pac', 'Soy paciente'], ['eq', 'Soy del equipo']].map(function (x) { var on = s.rol === x[0]; var c = x[0] === 'pac' ? t.secondary : t.primary;
+        return { l: x[1], on: on, fondo: on ? c : 'transparent', color: on ? t.onPrimary : t.ink, pick: function () { self.setState({ rol: x[0] }); } }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sistema de diseño</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;family=Caveat:wght@500;700&amp;family=Nunito:wght@400;600;700;800&amp;family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 5800px; padding: 56px; color: {{ t.ink }}; font-family: {{ t.body }}; font-size: 15px; line-height: 1.5; background-color: {{ t.bg }}; background-image: {{ t.bgImg }}; background-size: {{ t.bgSize }}; display: flex; flex-direction: column; gap: 32px">
+
+<header style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 40px; align-items: end; padding-bottom: 28px; border-bottom: {{ t.reglaFuerte }}">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: {{ t.accent }}">Vinculos · Sistema de diseño</span>
+<h1 style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h1 }}; font-weight: {{ t.tituloPeso }}; line-height: 0.95; letter-spacing: -0.01em"><span style="background: {{ t.marcador }}">{{ t.titulo }}</span></h1>
+<p style="margin: 0; font-size: 18px; color: {{ t.ink2 }}; max-width: 560px">{{ t.lema }}</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{ chipsHead }}" as="c" hint-placeholder-count="4"><span style="padding: 6px 12px; border-radius: {{ t.rChip }}; border: {{ t.bordeSuave }}; background: {{ t.surface }}; font-size: 13px; font-weight: 600">{{ c }}</span></sc-for>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 13px; font-weight: 700">Cómo se aplica en el código</span>
+<pre style="margin: 0; padding: 18px 20px; border-radius: {{ t.rCard }}; background: {{ t.codeFondo }}; color: {{ t.codeTexto }}; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; line-height: 1.6; white-space: pre-wrap">{{ codigo }}</pre>
+</div>
+</header>
+
+<!-- 01 PALETA -->
+<section aria-labelledby="s1" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}; backdrop-filter: {{ sec.blur }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: {{ t.display }}; font-size: {{ t.numTam }}; font-weight: {{ t.tituloPeso }}; color: {{ t.accent }}">01</span><h2 id="s1" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h2 }}; font-weight: {{ t.tituloPeso }}; line-height: 1"><span style="background: {{ t.marcador }}">Paleta de colores</span></h2><p style="margin: 0 0 0 auto; max-width: 440px; font-size: 14px; color: {{ t.ink2 }}">Cada color tiene un token. En el código nunca se escribe el hex: se usa la variable, así cambiar de estilo es cambiar un archivo.</p></div>
+<div style="display: flex; flex-direction: column; gap: 22px">
+<sc-for list="{{ paleta }}" as="g" hint-placeholder-count="4"><div style="display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; padding-top: 18px; border-top: {{ t.reglaSuave }}">
+<div><strong style="font-size: 15px">{{ g.g }}</strong><p style="margin: 4px 0 0; font-size: 13px; color: {{ t.ink2 }}">{{ g.d }}</p></div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ g.items }}" as="c" hint-placeholder-count="4"><div style="display: flex; flex-direction: column; gap: 6px">
+<div style="height: 64px; border-radius: {{ t.rSw }}; background: {{ c.fondo }}; border: {{ t.bordeSuave }}; display: flex; align-items: center; justify-content: center; font-family: {{ t.display }}; font-size: 24px; font-weight: 700; color: {{ c.aa }}">{{ c.aaTxt }}</div>
+<strong style="font-size: 13px; line-height: 1.2">{{ c.nombre }}</strong>
+<span style="font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: {{ t.ink2 }}">{{ c.etiqueta }} · {{ c.token }}</span>
+<span style="font-size: 12px; color: {{ t.ink2 }}; line-height: 1.3">{{ c.uso }}</span>
+</div></sc-for>
+</div>
+</div></sc-for>
+</div>
+</section>
+
+<!-- 02 TIPOGRAFIA -->
+<section aria-labelledby="s2" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}; backdrop-filter: {{ sec.blur }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: {{ t.display }}; font-size: {{ t.numTam }}; font-weight: {{ t.tituloPeso }}; color: {{ t.accent }}">02</span><h2 id="s2" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h2 }}; font-weight: {{ t.tituloPeso }}; line-height: 1"><span style="background: {{ t.marcador }}">Tipografía</span></h2><p style="margin: 0 0 0 auto; max-width: 440px; font-size: 14px; color: {{ t.ink2 }}">Dos familias: una con carácter para títulos y una muy legible para leer y completar formularios.</p></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 28px">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<sc-for list="{{ familias }}" as="f" hint-placeholder-count="2"><div style="padding: 20px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}; box-shadow: {{ cd.sombra }}">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: {{ t.accent }}">{{ f.rol }}</span>
+<div style="font-family: {{ f.ff }}; font-weight: {{ f.fw }}; font-size: 54px; line-height: 1.05; margin: 6px 0">Aa Ññ 123</div>
+<strong style="font-size: 15px">{{ f.fam }}</strong>
+<div style="font-size: 13px; color: {{ t.ink2 }}">Pesos {{ f.pesos }}</div>
+<div style="font-size: 13px; color: {{ t.ink2 }}">{{ f.uso }}</div>
+</div></sc-for>
+</div>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{ escala }}" as="e" hint-placeholder-count="7"><div style="display: grid; grid-template-columns: 150px 110px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px 0; border-bottom: {{ t.reglaSuave }}">
+<div><strong style="font-size: 14px">{{ e.nombre }}</strong><div style="font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: {{ t.ink2 }}">{{ e.token }}</div></div>
+<span style="font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: {{ t.ink2 }}">{{ e.tam }} / {{ e.lh }}</span>
+<span style="font-family: {{ e.ff }}; font-size: {{ e.tam }}; line-height: {{ e.lh }}; font-weight: {{ e.fw }}; text-transform: {{ e.caso }}; letter-spacing: {{ e.track }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ e.muestra }}</span>
+</div></sc-for>
+</div>
+</div>
+</section>
+
+<!-- 03 ICONOGRAFIA -->
+<section aria-labelledby="s3" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}; backdrop-filter: {{ sec.blur }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: {{ t.display }}; font-size: {{ t.numTam }}; font-weight: {{ t.tituloPeso }}; color: {{ t.accent }}">03</span><h2 id="s3" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h2 }}; font-weight: {{ t.tituloPeso }}; line-height: 1"><span style="background: {{ t.marcador }}">Iconografía</span></h2><p style="margin: 0 0 0 auto; max-width: 440px; font-size: 14px; color: {{ t.ink2 }}">{{ t.iconRegla }}</p></div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ iconos }}" as="i" hint-placeholder-count="14"><div style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 8px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}">
+<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="{{ t.ink }}" stroke-width="{{ t.iconStroke }}" stroke-linecap="{{ t.iconCap }}" stroke-linejoin="{{ t.iconJoin }}" aria-hidden="true"><path d="{{ i.d }}"></path></svg>
+<span style="font-size: 12px; font-weight: 600">{{ i.n }}</span>
+</div></sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 18px; font-size: 13px; color: {{ t.ink2 }}"><span>Grilla 24 px, trazo {{ t.iconStroke }} px</span><span>Tamaños: 16, 20 y 24 px</span><span>Siempre acompañado de texto en menús y botones</span><span>Color: hereda el del texto</span></div>
+</section>
+
+<!-- 04 COMPONENTES -->
+<section aria-labelledby="s4" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}; backdrop-filter: {{ sec.blur }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: {{ t.display }}; font-size: {{ t.numTam }}; font-weight: {{ t.tituloPeso }}; color: {{ t.accent }}">04</span><h2 id="s4" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h2 }}; font-weight: {{ t.tituloPeso }}; line-height: 1"><span style="background: {{ t.marcador }}">Componentes</span></h2><p style="margin: 0 0 0 auto; max-width: 440px; font-size: 14px; color: {{ t.ink2 }}">Las mismas piezas sirven al sitio público, al panel del equipo y al portal del paciente. Los controles de abajo funcionan.</p></div>
+
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px">
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Botones</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<sc-for list="{{ botones }}" as="b" hint-placeholder-count="6"><button type="button" style="min-height: 48px; padding: 0 20px; border-radius: {{ t.rBtn }}; border: {{ b.borde }}; background: {{ b.fondo }}; color: {{ b.color }}; box-shadow: {{ b.sombra }}; opacity: {{ b.op }}; font-weight: 700; font-size: {{ t.btnTam }}; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}; text-decoration: {{ b.sub }}">{{ b.l }}</button></sc-for>
+</div>
+<span style="font-size: 13px; color: {{ t.ink2 }}">Uno principal por pantalla. Equipo usa {{ t.nomAccent }}, paciente usa {{ t.nomSecondary }}. Alto mínimo 48 px.</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Campos de texto</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+<sc-for list="{{ campos }}" as="c" hint-placeholder-count="3"><label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; font-weight: 700">{{ c.l }}</span><input type="text" value="{{ c.v }}" style="min-height: 48px; padding: {{ t.campoPad }}; border-radius: {{ t.rCampo }}; border: {{ c.b }}; border-bottom: {{ c.bb }}; box-shadow: {{ c.sh }}; background: {{ c.bg }}; color: {{ t.ink }}; font-size: 15px; outline: none"><span style="font-size: 12px; color: {{ c.ayC }}; line-height: 1.3">{{ c.ayuda }}</span></label></sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Chips de filtro</h3>
+<div role="group" aria-label="Filtrar por motivo" style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{ chips }}" as="c" hint-placeholder-count="5"><button type="button" aria-pressed="{{ c.on }}" onClick="{{ c.pick }}" style="min-height: 44px; padding: 0 16px; border-radius: {{ t.rChip }}; border: {{ c.b }}; background: {{ c.f }}; color: {{ c.c }}; font-weight: 700; font-size: 14px">{{ c.l }}</button></sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Control segmentado, interruptor y casilla</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center">
+<div role="tablist" aria-label="Modalidad" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: {{ t.rSeg }}; background: {{ t.segFondo }}; border: {{ t.segBorde }}; min-width: 260px">
+<sc-for list="{{ segs }}" as="s" hint-placeholder-count="2"><button type="button" role="tab" aria-selected="{{ s.on }}" onClick="{{ s.pick }}" style="min-height: 44px; border: 0; border-radius: {{ t.rSegItem }}; background: {{ s.f }}; color: {{ s.c }}; font-weight: 700; font-size: 14px">{{ s.l }}</button></sc-for>
+</div>
+<button type="button" role="switch" aria-checked="{{ sw.on }}" onClick="{{ sw.toggle }}" style="display: flex; align-items: center; gap: 10px; min-height: 44px; border: 0; background: transparent; color: {{ t.ink }}; font-size: 14px; font-weight: 600; padding: 0"><span style="width: 52px; height: 30px; box-sizing: border-box; padding: 3px; border-radius: {{ t.rSw2 }}; background: {{ sw.pista }}; border: {{ t.swBorde }}; display: flex; justify-content: {{ sw.lado }}"><span style="width: 22px; height: 22px; border-radius: {{ t.rSw2 }}; background: #FFFFFF; border: {{ t.swBorde }}; box-sizing: border-box"></span></span>Recordatorio por correo</button>
+<button type="button" role="checkbox" aria-checked="{{ ck.on }}" onClick="{{ ck.toggle }}" style="display: flex; align-items: center; gap: 10px; min-height: 44px; border: 0; background: transparent; color: {{ t.ink }}; font-size: 14px; font-weight: 600; padding: 0"><span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: {{ t.rCk }}; border: {{ t.ckBorde }}; background: {{ ck.f }}; display: flex; align-items: center; justify-content: center"><sc-if value="{{ ck.on }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></sc-if></span>Acepto la política de privacidad</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px; grid-column: 1 / -1">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Pasos de la reserva</h3>
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{ pasos }}" as="p" hint-placeholder-count="4"><li><button type="button" onClick="{{ p.pick }}" aria-current="{{ p.actual }}" style="width: 100%; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border: 0; border-top: {{ p.linea }}; background: transparent; color: {{ t.ink }}; text-align: left"><span style="width: 32px; height: 32px; flex: none; border-radius: {{ t.rPaso }}; display: flex; align-items: center; justify-content: center; background: {{ p.f }}; color: {{ p.c }}; border: {{ p.b }}; font-weight: 800; font-size: 14px">{{ p.n }}</span><span style="font-weight: {{ p.fw }}; font-size: 15px">{{ p.l }}</span></button></li></sc-for>
+</ol>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Tarjeta de profesional</h3>
+<article style="overflow: hidden; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}; box-shadow: {{ cd.sombra }}">
+<div style="height: {{ t.bandaAlto }}; background: {{ t.banda }}"></div>
+<div style="padding: 22px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; gap: 14px; align-items: center"><span style="width: 56px; height: 56px; border-radius: {{ t.rAvatar }}; background: {{ t.accentSoft }}; color: {{ t.accent }}; display: flex; align-items: center; justify-content: center; font-family: {{ t.display }}; font-weight: 700; font-size: 22px; border: {{ t.avatarBorde }}">CR</span><div><strong style="font-family: {{ t.display }}; font-size: {{ t.cardNombre }}; font-weight: {{ t.tituloPeso }}; line-height: 1.1">Ps. Camila Rojas</strong><div style="font-size: 14px; color: {{ t.ink2 }}">Psicología clínica adultos · 8 años</div></div></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><span style="padding: 4px 10px; border-radius: {{ t.rChip }}; background: {{ t.secondarySoft }}; color: {{ t.secondary }}; font-size: 12px; font-weight: 700">Ansiedad</span><span style="padding: 4px 10px; border-radius: {{ t.rChip }}; background: {{ t.secondarySoft }}; color: {{ t.secondary }}; font-size: 12px; font-weight: 700">Duelo</span><span style="padding: 4px 10px; border-radius: {{ t.rChip }}; background: {{ t.infoSoft }}; color: {{ t.info }}; font-size: 12px; font-weight: 700">Online</span></div>
+<p style="margin: 0; font-size: 14px; color: {{ t.ink2 }}">"Acompaño procesos con calma y sin apuro, a tu ritmo."</p>
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: {{ t.reglaSuave }}"><span style="font-size: 14px"><strong>$35.000</strong> por sesión</span><button type="button" style="margin-left: auto; min-height: 44px; padding: 0 16px; border-radius: {{ t.rBtn }}; border: {{ t.btnBorde }}; background: {{ t.secondary }}; color: {{ t.onSecondary }}; box-shadow: {{ t.btnSombra }}; font-weight: 700; font-size: {{ t.btnTam }}; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}">Ver horas</button></div>
+</div>
+</article>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Tarjeta de servicio y estados</h3>
+<article style="padding: 22px; display: flex; flex-direction: column; gap: 8px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}; box-shadow: {{ cd.sombra }}">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: {{ t.accent }}">Servicio</span>
+<strong style="font-family: {{ t.display }}; font-size: {{ t.cardNombre }}; font-weight: {{ t.tituloPeso }}; line-height: 1.1">Terapia individual</strong>
+<span style="font-size: 14px; color: {{ t.ink2 }}">50 minutos · Presencial u online · Desde $35.000</span>
+<a href="#" style="color: {{ t.accent }}; font-weight: 700; font-size: 14px">Ver profesionales que lo atienden</a>
+</article>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 6px">
+<sc-for list="{{ badges }}" as="b" hint-placeholder-count="5"><span style="padding: 4px 12px; border-radius: {{ t.rBadge }}; background: {{ b.f }}; color: {{ b.c }}; border: {{ b.b }}; font-size: 13px; font-weight: 700">{{ b.l }}</span></sc-for>
+</div>
+<span style="font-size: 13px; color: {{ t.ink2 }}">Los estados siempre llevan texto; el color solo refuerza.</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Navegación del sitio público</h3>
+<div style="display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ t.navRadio }}; box-shadow: {{ cd.sombra }}">
+<strong style="font-family: {{ t.display }}; font-size: 18px; font-weight: 700; margin-right: auto">Centro de Prueba</strong>
+<sc-for list="{{ navPub }}" as="n" hint-placeholder-count="3"><a href="#" style="min-height: 44px; display: inline-flex; align-items: center; padding: 0 10px; color: {{ t.ink }}; text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}">{{ n }}</a></sc-for>
+<button type="button" style="min-height: 44px; padding: 0 14px; border-radius: {{ t.rBtn }}; border: {{ t.btnBorde }}; background: {{ t.secondary }}; color: {{ t.onSecondary }}; font-weight: 700; font-size: 13px; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}">Pedir una hora</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 15px; font-weight: 800">Menú del panel</h3>
+<nav aria-label="Panel" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 10px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}">
+<sc-for list="{{ menu }}" as="m" hint-placeholder-count="6"><button type="button" onClick="{{ m.pick }}" aria-current="{{ m.on }}" style="min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 0; border-left: {{ m.bl }}; border-radius: {{ t.rMenu }}; background: {{ m.f }}; color: {{ m.c }}; font-weight: {{ m.fw }}; font-size: 14px; text-align: left"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{ t.iconStroke }}" stroke-linecap="{{ t.iconCap }}" stroke-linejoin="{{ t.iconJoin }}" aria-hidden="true"><path d="{{ m.d }}"></path></svg>{{ m.l }}</button></sc-for>
+</nav>
+</div>
+
+</div>
+</section>
+
+<!-- 05 IMAGENES -->
+<section aria-labelledby="s5" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}; backdrop-filter: {{ sec.blur }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: {{ t.display }}; font-size: {{ t.numTam }}; font-weight: {{ t.tituloPeso }}; color: {{ t.accent }}">05</span><h2 id="s5" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h2 }}; font-weight: {{ t.tituloPeso }}; line-height: 1"><span style="background: {{ t.marcador }}">Imágenes y avatares</span></h2><p style="margin: 0 0 0 auto; max-width: 440px; font-size: 14px; color: {{ t.ink2 }}">Fotos reales y sobrias del equipo y del centro. Si no hay foto, iniciales: nunca una silueta genérica.</p></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 24px; align-items: start">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<strong style="font-size: 14px">Avatares con iniciales</strong>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<sc-for list="{{ avatares }}" as="a" hint-placeholder-count="6"><span style="width: 56px; height: 56px; border-radius: {{ t.rAvatar }}; background: {{ a.c }}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: {{ t.display }}; font-weight: 700; font-size: 20px; border: {{ t.avatarBorde }}">{{ a.i }}</span></sc-for>
+</div>
+<span style="font-size: 13px; color: {{ t.ink2 }}">Tamaños 32, 40, 56 y 96 px. Color fijo por profesional.</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<strong style="font-size: 14px">Foto de perfil 1:1</strong>
+<div style="aspect-ratio: 1 / 1; max-width: 200px; border-radius: {{ t.rFoto }}; background: {{ t.placeholder }}; border: {{ t.bordeSuave }}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: {{ t.ink2 }}">Foto 1:1</div>
+<span style="font-size: 13px; color: {{ t.ink2 }}">Fondo neutro, luz natural, mirada a cámara.</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<strong style="font-size: 14px">Portada del centro 16:9</strong>
+<div style="aspect-ratio: 16 / 9; border-radius: {{ t.rFoto }}; background: {{ t.placeholder }}; border: {{ t.bordeSuave }}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: {{ t.ink2 }}">Espacios del centro, sin pacientes reconocibles</div>
+<span style="font-size: 13px; color: {{ t.ink2 }}">{{ t.fotoRegla }}</span>
+</div>
+</div>
+</section>
+
+<!-- 06 PATRONES -->
+<section aria-labelledby="s6" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}; backdrop-filter: {{ sec.blur }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: {{ t.display }}; font-size: {{ t.numTam }}; font-weight: {{ t.tituloPeso }}; color: {{ t.accent }}">06</span><h2 id="s6" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h2 }}; font-weight: {{ t.tituloPeso }}; line-height: 1"><span style="background: {{ t.marcador }}">Patrones</span></h2><p style="margin: 0 0 0 auto; max-width: 440px; font-size: 14px; color: {{ t.ink2 }}">Situaciones que se repiten en toda la plataforma y siempre se resuelven igual.</p></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px">
+
+<div style="padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}; box-shadow: {{ cd.sombra }}">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: {{ t.ink2 }}; align-self: flex-start">Estado vacío</span>
+<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="{{ t.accent }}" stroke-width="{{ t.iconStroke }}" stroke-linecap="{{ t.iconCap }}" aria-hidden="true"><path d="M4 6h16v14H4z M4 10h16 M8 3v4 M16 3v4"></path></svg>
+<strong style="font-family: {{ t.display }}; font-size: {{ t.cardNombre }}; font-weight: {{ t.tituloPeso }}">Aún no tienes horas agendadas</strong>
+<span style="font-size: 14px; color: {{ t.ink2 }}">Cuando reserves, aparecerán aquí con su enlace o dirección.</span>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: {{ t.rBtn }}; border: {{ t.btnBorde }}; background: {{ t.secondary }}; color: {{ t.onSecondary }}; font-weight: 700; font-size: {{ t.btnTam }}; letter-spacing: {{ t.track }}; text-transform: {{ t.caso }}">Pedir una hora</button>
+</div>
+
+<div style="padding: 24px; display: flex; flex-direction: column; gap: 12px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}; box-shadow: {{ cd.sombra }}">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: {{ t.ink2 }}">Cargando</span>
+<div style="display: flex; gap: 12px; align-items: center"><span style="width: 48px; height: 48px; border-radius: {{ t.rAvatar }}; background: {{ t.esqueleto }}"></span><div style="flex: 1; display: flex; flex-direction: column; gap: 8px"><span style="height: 14px; width: 70%; border-radius: {{ t.rSk }}; background: {{ t.esqueleto }}"></span><span style="height: 12px; width: 45%; border-radius: {{ t.rSk }}; background: {{ t.esqueleto }}"></span></div></div>
+<span style="height: 12px; width: 100%; border-radius: {{ t.rSk }}; background: {{ t.esqueleto }}"></span>
+<span style="height: 12px; width: 85%; border-radius: {{ t.rSk }}; background: {{ t.esqueleto }}"></span>
+<span style="font-size: 13px; color: {{ t.ink2 }}">Esqueleto con la forma real del contenido. Sin animación si el usuario pidió menos movimiento.</span>
+</div>
+
+<div style="padding: 24px; display: flex; flex-direction: column; gap: 12px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}; box-shadow: {{ t.dialogoSombra }}">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: {{ t.ink2 }}">Confirmar descarte</span>
+<strong style="font-family: {{ t.display }}; font-size: {{ t.cardNombre }}; font-weight: {{ t.tituloPeso }}">¿Descartar los cambios?</strong>
+<span style="font-size: 14px; color: {{ t.ink2 }}">Estás modificando "Sobre mí". Si sales ahora se pierde lo que escribiste.</span>
+<div style="display: flex; gap: 8px; justify-content: flex-end"><button type="button" style="min-height: 44px; padding: 0 14px; border-radius: {{ t.rBtn }}; border: {{ t.bordeFuerte }}; background: transparent; color: {{ t.ink }}; font-weight: 700; font-size: 14px">No, seguir editando</button><button type="button" style="min-height: 44px; padding: 0 14px; border-radius: {{ t.rBtn }}; border: {{ t.btnBorde }}; background: {{ t.danger }}; color: #FFFFFF; font-weight: 700; font-size: 14px">Sí, descartar</button></div>
+</div>
+
+<div style="grid-column: span 2; padding: 14px 18px; display: flex; align-items: center; gap: 14px; background: {{ t.barraFondo }}; color: {{ t.barraTexto }}; border-radius: {{ cd.radio }}; border: {{ t.barraBorde }}; box-shadow: {{ t.btnSombra }}">
+<span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 999px; background: {{ t.warnSoft }}"></span>
+<span style="font-weight: 700; font-size: 15px">Tienes cambios sin guardar en tu perfil</span>
+<button type="button" style="margin-left: auto; min-height: 44px; padding: 0 14px; border: 0; background: transparent; color: {{ t.barraTexto }}; font-weight: 700; font-size: 14px; text-decoration: underline">Descartar</button>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: {{ t.rBtn }}; border: 0; background: {{ t.barraBoton }}; color: {{ t.barraBotonTexto }}; font-weight: 800; font-size: 14px">Guardar cambios</button>
+</div>
+
+<div role="status" style="padding: 14px 18px; display: flex; gap: 12px; align-items: center; background: {{ t.okSoft }}; color: {{ t.ok }}; border-radius: {{ cd.radio }}; border: {{ t.alertaBorde }}">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+<span style="font-size: 14px; font-weight: 700">Hora confirmada. Te enviamos el detalle por correo.</span>
+</div>
+
+<div role="alert" style="grid-column: 1 / -1; padding: 16px 20px; display: flex; gap: 14px; align-items: center; background: {{ t.warnSoft }}; color: {{ t.warn }}; border-radius: {{ cd.radio }}; border: {{ t.alertaBorde }}">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l10 18H2z M12 10v5 M12 18v.5"></path></svg>
+<span style="font-size: 15px"><strong>Aviso.</strong> El certificado de alumno regular de Diego Muñoz vence en 5 días. Pídele uno nuevo para mantener su acceso.</span>
+<a href="#" style="margin-left: auto; color: {{ t.warn }}; font-weight: 800; font-size: 14px">Pedir documento</a>
+</div>
+
+</div>
+</section>
+
+<!-- 07 ESPACIADO -->
+<section aria-labelledby="s7" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}; backdrop-filter: {{ sec.blur }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: {{ t.display }}; font-size: {{ t.numTam }}; font-weight: {{ t.tituloPeso }}; color: {{ t.accent }}">07</span><h2 id="s7" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h2 }}; font-weight: {{ t.tituloPeso }}; line-height: 1"><span style="background: {{ t.marcador }}">Espaciado, radios y sombras</span></h2><p style="margin: 0 0 0 auto; max-width: 440px; font-size: 14px; color: {{ t.ink2 }}">Escala base de 4 px. Separación entre secciones 32 a 64 px; dentro de una tarjeta, 12 a 24 px.</p></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<strong style="font-size: 14px">Espaciado</strong>
+<sc-for list="{{ espacios }}" as="e" hint-placeholder-count="8"><div style="display: grid; grid-template-columns: 90px 44px minmax(0, 1fr); gap: 10px; align-items: center"><span style="font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: {{ t.ink2 }}">{{ e.token }}</span><span style="font-size: 13px; font-weight: 700">{{ e.v }}</span><span style="height: 14px; width: {{ e.v }}; background: {{ t.accent }}; border-radius: 2px"></span></div></sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<strong style="font-size: 14px">Radios</strong>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ radios }}" as="r" hint-placeholder-count="4"><div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 64px; border-radius: {{ r.v }}; border: {{ t.bordeFuerte }}; background: {{ t.surface2 }}"></span><span style="font-size: 12px"><strong>{{ r.n }}</strong> · {{ r.v }}</span><span style="font-size: 12px; color: {{ t.ink2 }}">{{ r.uso }}</span></div></sc-for>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<strong style="font-size: 14px">Sombras</strong>
+<sc-for list="{{ sombras }}" as="s" hint-placeholder-count="3"><div style="display: flex; gap: 14px; align-items: center; padding: 6px 0"><span style="width: 72px; height: 52px; flex: none; background: {{ t.surfaceSolida }}; border: {{ s.borde }}; border-radius: {{ t.rCard }}; box-shadow: {{ s.v }}"></span><div><strong style="font-size: 13px">{{ s.n }}</strong><div style="font-size: 12px; color: {{ t.ink2 }}">{{ s.uso }}</div></div></div></sc-for>
+</div>
+</div>
+</section>
+
+<!-- 08 ACCESIBILIDAD -->
+<section aria-labelledby="s8" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}; backdrop-filter: {{ sec.blur }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: {{ t.display }}; font-size: {{ t.numTam }}; font-weight: {{ t.tituloPeso }}; color: {{ t.accent }}">08</span><h2 id="s8" style="margin: 0; font-family: {{ t.display }}; font-size: {{ t.h2 }}; font-weight: {{ t.tituloPeso }}; line-height: 1"><span style="background: {{ t.marcador }}">Accesibilidad</span></h2><p style="margin: 0 0 0 auto; max-width: 440px; font-size: 14px; color: {{ t.ink2 }}">Reglas que ningún estilo puede romper. Prueba los modos: se aplican sobre los mismos tokens.</p></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px">
+<ol style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{ reglas }}" as="r" hint-placeholder-count="8"><li style="display: flex; gap: 12px; padding: 14px; background: {{ cd.fondo }}; border: {{ cd.borde }}; border-radius: {{ cd.radio }}"><span style="font-family: {{ t.display }}; font-weight: 700; font-size: 20px; color: {{ t.accent }}; line-height: 1">{{ r.n }}</span><span style="font-size: 14px">{{ r.t }}</span></li></sc-for>
+</ol>
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; gap: 16px">
+<sc-for list="{{ modos }}" as="m" hint-placeholder-count="2"><button type="button" role="switch" aria-checked="{{ m.on }}" onClick="{{ m.toggle }}" style="display: flex; align-items: center; gap: 10px; min-height: 44px; border: 0; background: transparent; color: {{ t.ink }}; font-size: 14px; font-weight: 700; padding: 0"><span style="width: 52px; height: 30px; box-sizing: border-box; padding: 3px; border-radius: {{ t.rSw2 }}; background: {{ m.pista }}; border: {{ t.swBorde }}; display: flex; justify-content: {{ m.lado }}"><span style="width: 22px; height: 22px; border-radius: {{ t.rSw2 }}; background: #FFFFFF; border: {{ t.swBorde }}; box-sizing: border-box"></span></span>{{ m.l }}</button></sc-for>
+</div>
+<div style="padding: 24px; display: flex; flex-direction: column; gap: 12px; background: {{ prev.fondo }}; color: {{ prev.texto }}; border: {{ prev.borde }}; border-radius: {{ cd.radio }}; font-size: {{ prev.tam }}">
+<strong style="font-family: {{ t.display }}; font-size: {{ prev.titulo }}; font-weight: {{ t.tituloPeso }}; line-height: 1.1">Tu próxima hora</strong>
+<span>Jueves 12 de noviembre, 10:00 · Ps. Camila Rojas · Online</span>
+<span style="color: {{ prev.texto2 }}">El enlace de la videollamada se activa 10 minutos antes.</span>
+<button type="button" style="align-self: flex-start; min-height: 48px; padding: 0 18px; border-radius: {{ t.rBtn }}; border: {{ prev.btnBorde }}; background: {{ prev.btn }}; color: #FFFFFF; font-weight: 800; font-size: {{ prev.tam }}; outline: {{ prev.foco }}; outline-offset: 3px">Entrar a la sesión</button>
+<span style="font-size: 12px; color: {{ prev.texto2 }}">El botón muestra el anillo de foco que verá quien navega con teclado.</span>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 09 ELEMENTOS DE CUADERNO -->
+<sc-if value="{{ esCuaderno }}" hint-placeholder-val="{{ false }}">
+<section aria-labelledby="s9c" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: 'Caveat', cursive; font-size: 44px; font-weight: 700; color: #2F4A6B">09</span><h2 id="s9c" style="margin: 0; font-family: 'Caveat', cursive; font-size: 56px; font-weight: 700; line-height: 1"><span style="background: linear-gradient(transparent 58%, #FCE38A 58%)">Elementos de cuaderno</span></h2><p style="margin: 0 0 0 auto; max-width: 460px; font-size: 14px; color: #4A4A55">Lo que hace que el estilo se sienta escolar. Cada elemento tiene su token y su regla de uso; ninguno es obligatorio en todas las pantallas.</p></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+
+<div style="padding: 22px; background: #FFFFFF; border: 2px solid #2A2A33; border-radius: 4px; box-shadow: 4px 4px 0 #2A2A33; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 800">Destacador</h3>
+<p style="margin: 0; font-family: 'Caveat', cursive; font-size: 40px; line-height: 1.1"><span style="background: linear-gradient(transparent 58%, #FCE38A 58%)">Nuestro equipo</span></p>
+<div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 16px; font-weight: 700"><span style="background: linear-gradient(transparent 55%, #FCE38A 55%)">amarillo</span><span style="background: linear-gradient(transparent 55%, #FFC4D6 55%)">rosado</span><span style="background: linear-gradient(transparent 55%, #C8F0C8 55%)">verde</span><span style="background: linear-gradient(transparent 55%, #CDE3FF 55%)">celeste</span></div>
+<span style="font-size: 13px; color: #4A4A55">Títulos y una idea clave por bloque. Cubre solo la mitad inferior de la letra. Máximo uno por párrafo. Token <code>--highlight-*</code>.</span>
+</div>
+
+<div style="position: relative; padding: 22px; background: #FFFFFF; border: 2px solid #2A2A33; border-radius: 4px; box-shadow: 4px 4px 0 #2A2A33; display: flex; flex-direction: column; gap: 12px">
+<span aria-hidden="true" style="position: absolute; top: -14px; left: 42%; width: 120px; height: 28px; background: rgba(176,196,222,0.72); transform: rotate(-3deg)"></span>
+<span aria-hidden="true" style="position: absolute; bottom: -12px; right: 30px; width: 96px; height: 24px; background: repeating-linear-gradient(45deg, rgba(252,227,138,0.9) 0 8px, rgba(255,243,168,0.9) 8px 16px); transform: rotate(4deg)"></span>
+<h3 style="margin: 0; font-size: 16px; font-weight: 800">Scotch y washi</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center; padding: 10px 0">
+<span aria-hidden="true" style="width: 110px; height: 26px; background: rgba(176,196,222,0.72); transform: rotate(-3deg)"></span>
+<span aria-hidden="true" style="width: 110px; height: 26px; background: repeating-linear-gradient(45deg, rgba(252,227,138,0.9) 0 8px, rgba(255,243,168,0.9) 8px 16px); transform: rotate(2deg)"></span>
+<span aria-hidden="true" style="width: 110px; height: 26px; background: rgba(176,138,94,0.75); transform: rotate(-1deg)"></span>
+</div>
+<span style="font-size: 13px; color: #4A4A55">Pega tarjetas, fotos y notas a la hoja. Translúcido (scotch), con rayas (washi) o kraft. Va en el borde superior o en una esquina, nunca sobre texto. Token <code>--tape-*</code>.</span>
+</div>
+
+<div style="padding: 22px; background: #FFFFFF; border: 2px solid #2A2A33; border-radius: 4px; box-shadow: 4px 4px 0 #2A2A33; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 800">Post-its</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 6px 0">
+<span style="width: 100px; height: 100px; box-sizing: border-box; padding: 10px; background: #FFF3A8; transform: rotate(-2deg); box-shadow: 2px 8px 14px rgba(42,42,51,0.18); font-family: 'Caveat', cursive; font-size: 24px; font-weight: 700">Ansiedad</span>
+<span style="width: 100px; height: 100px; box-sizing: border-box; padding: 10px; background: #FFD6E0; transform: rotate(1.5deg); box-shadow: 2px 8px 14px rgba(42,42,51,0.18); font-family: 'Caveat', cursive; font-size: 24px; font-weight: 700">Pareja</span>
+<span style="width: 100px; height: 100px; box-sizing: border-box; padding: 10px; background: #CDEFD8; transform: rotate(-1deg); box-shadow: 2px 8px 14px rgba(42,42,51,0.18); outline: 3px solid #2A2A33; outline-offset: 4px; font-family: 'Caveat', cursive; font-size: 24px; font-weight: 700">Online (activo)</span>
+<span style="width: 100px; height: 100px; box-sizing: border-box; padding: 10px; background: #D4E6FF; transform: rotate(2deg); box-shadow: 2px 8px 14px rgba(42,42,51,0.18); font-family: 'Caveat', cursive; font-size: 24px; font-weight: 700">Paso 2</span>
+<span style="width: 100px; height: 100px; box-sizing: border-box; padding: 10px; background: #FFE0B8; transform: rotate(-1.5deg); box-shadow: 2px 8px 14px rgba(42,42,51,0.18); font-family: 'Caveat', cursive; font-size: 24px; font-weight: 700">Nuevo</span>
+</div>
+<span style="font-size: 13px; color: #4A4A55">Chips de filtro, pasos, avisos y selecciones. Cinco colores rotando; inclinación de 2 grados como máximo. Seleccionado = marco de plumón. Token <code>--postit-*</code>, <code>--rot-*</code>.</span>
+</div>
+
+<div style="padding: 22px; background: #FFFFFF; border: 2px solid #2A2A33; border-radius: 4px; box-shadow: 4px 4px 0 #2A2A33; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 800">Lápiz y plumón</h3>
+<div style="display: flex; flex-direction: column; gap: 12px; font-size: 17px">
+<span style="text-decoration: underline wavy #E7A4A4; text-decoration-thickness: 2px; text-underline-offset: 6px">Subrayado ondulado para énfasis secundario</span>
+<span>Una palabra <span style="display: inline-block; padding: 2px 10px; border: 2px solid #A6442E; border-radius: 50% 45% 55% 48%; transform: rotate(-2deg)">encerrada</span> en un círculo</span>
+<span><span style="text-decoration: line-through; text-decoration-color: #A6442E; text-decoration-thickness: 2px">agenda en papel</span> <span style="font-family: 'Caveat', cursive; font-size: 26px; font-weight: 700; color: #2F4A6B">agenda en línea</span></span>
+<span style="display: flex; align-items: center; gap: 8px; font-family: 'Caveat', cursive; font-size: 28px; font-weight: 700; color: #A6442E">prueba aquí<svg width="80" height="34" viewBox="0 0 80 34" fill="none" stroke="#A6442E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 24 C 22 4, 46 2, 72 16 M62 7 L73 16 L61 23"></path></svg></span>
+<span style="display: flex; gap: 14px; align-items: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4F6B2F" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13c2 2 4 5 5 6 3-6 7-11 11-14"></path></svg><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#D4A23A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.5 6 6.5.5-5 4 1.8 6.5L12 16.5 6.2 20l1.8-6.5-5-4 6.5-.5z"></path></svg><span style="font-size: 14px; color: #4A4A55">check y estrella a mano</span></span>
+</div>
+<span style="font-size: 13px; color: #4A4A55">Anotaciones del plumón: flechas, círculos, tachados y checks. Siempre en rojo ladrillo, azul tinta u oliva. Son decorativos (aria-hidden); el texto real nunca vive en un dibujo.</span>
+</div>
+
+<div style="padding: 22px; background: #FFFFFF; border: 2px solid #2A2A33; border-radius: 4px; box-shadow: 4px 4px 0 #2A2A33; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 800">Hojas</h3>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px"><span aria-hidden="true" style="height: 120px; border: 1px solid #CFC6B3; background-color: #FBF8EF; background-image: linear-gradient(90deg, transparent 22px, #E7A4A4 22px, #E7A4A4 24px, transparent 24px), linear-gradient(#DCE4EF 1px, transparent 1px); background-size: 100% 100%, 100% 16px"></span><span style="font-size: 12px">Rayada con margen (por defecto)</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span aria-hidden="true" style="height: 120px; border: 1px solid #CFC6B3; background-color: #FBF8EF; background-image: linear-gradient(#DCE4EF 1px, transparent 1px), linear-gradient(90deg, #DCE4EF 1px, transparent 1px); background-size: 14px 14px"></span><span style="font-size: 12px">Cuadriculada (tablas, agenda)</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span aria-hidden="true" style="height: 120px; border: 1px solid #CFC6B3; background-color: #FBF8EF; background-image: radial-gradient(circle at 12px 12px, #FFFFFF 5px, #BDB4A2 6px, #BDB4A2 7px, transparent 8px); background-size: 100% 26px; background-repeat: repeat-y"></span><span style="font-size: 12px">Espiral en el borde</span></div>
+</div>
+<span style="font-size: 13px; color: #4A4A55">El fondo de página es hoja rayada con margen rojo. Las secciones largas pueden ser hojas sueltas con espiral. Token <code>--paper-*</code>, <code>--margin</code>.</span>
+</div>
+
+<div style="padding: 22px; background: #FFFFFF; border: 2px solid #2A2A33; border-radius: 4px; box-shadow: 4px 4px 0 #2A2A33; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 800">Tapas de cuaderno (profesionales)</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 18px">
+<div style="position: relative; width: 150px; height: 196px; background: #2E6E6E; border-radius: 3px 8px 8px 3px; border-left: 10px solid #1F4F4F; box-shadow: 4px 4px 0 #2A2A33; display: flex; align-items: center; justify-content: center"><span aria-hidden="true" style="position: absolute; top: 0; bottom: 0; right: 22px; width: 8px; background: #1C2230"></span><span style="width: 104px; padding: 8px; background: #FFFFFF; border: 1px solid #2A2A33; font-family: 'Caveat', cursive; font-size: 20px; font-weight: 700; line-height: 1.05; text-align: center">Ps. Camila Rojas<span style="display: block; font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 600">Ansiedad</span></span></div>
+<div style="position: relative; width: 150px; height: 196px; background: #A6442E; border-radius: 3px 8px 8px 3px; border-left: 10px solid #7E3222; box-shadow: 4px 4px 0 #2A2A33; display: flex; align-items: center; justify-content: center"><span aria-hidden="true" style="position: absolute; top: 0; bottom: 0; right: 22px; width: 8px; background: #1C2230"></span><span style="width: 104px; padding: 8px; background: #FFFFFF; border: 1px solid #2A2A33; font-family: 'Caveat', cursive; font-size: 20px; font-weight: 700; line-height: 1.05; text-align: center">Ps. Tomás Soto<span style="display: block; font-family: 'Nunito', sans-serif; font-size: 11px; font-weight: 600">Duelo</span></span></div>
+</div>
+<span style="font-size: 13px; color: #4A4A55">Cada profesional es un cuaderno: color de tapa fijo (uno de los seis), lomo, elástico y etiqueta blanca con su nombre. Token <code>--tapa-1</code> a <code>--tapa-6</code>.</span>
+</div>
+
+<div style="padding: 22px; background: #FFFFFF; border: 2px solid #2A2A33; border-radius: 4px; box-shadow: 4px 4px 0 #2A2A33; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 800">Stickers y separadores</h3>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center">
+<span style="width: 72px; height: 72px; border-radius: 999px; background: #FCE38A; border: 2px solid #2A2A33; display: flex; align-items: center; justify-content: center; transform: rotate(-10deg); font-family: 'Caveat', cursive; font-size: 24px; font-weight: 700">nuevo</span>
+<span style="width: 72px; height: 72px; border-radius: 999px; background: #C8F0C8; border: 2px solid #2A2A33; display: flex; align-items: center; justify-content: center; transform: rotate(8deg); font-family: 'Caveat', cursive; font-size: 22px; font-weight: 700">online</span>
+<div style="position: relative; width: 200px; height: 110px; background: #FBF8EF; border: 1px solid #CFC6B3">
+<span style="position: absolute; right: -40px; top: 6px; width: 40px; height: 28px; background: #D4A23A; border-radius: 0 6px 6px 0; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center">Agenda</span>
+<span style="position: absolute; right: -40px; top: 40px; width: 40px; height: 28px; background: #2E6E6E; color: #FFFFFF; border-radius: 0 6px 6px 0; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center">Fichas</span>
+<span style="position: absolute; right: -40px; top: 74px; width: 40px; height: 28px; background: #4F6B2F; color: #FFFFFF; border-radius: 0 6px 6px 0; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center">Equipo</span>
+</div>
+</div>
+<span style="font-size: 13px; color: #4A4A55">Stickers redondos para estados cortos (nuevo, online). Separadores de colores al borde de la hoja para navegar entre secciones del panel. Token <code>--sticker-*</code>.</span>
+</div>
+
+<div style="padding: 22px; background: #FFFFFF; border: 2px solid #2A2A33; border-radius: 4px; box-shadow: 4px 4px 0 #2A2A33; display: flex; flex-direction: column; gap: 14px">
+<h3 style="margin: 0; font-size: 16px; font-weight: 800">Clip y foto polaroid</h3>
+<div style="position: relative; width: 170px; padding: 10px 10px 34px; background: #FFFFFF; border: 1px solid #CFC6B3; box-shadow: 2px 6px 12px rgba(42,42,51,0.18); transform: rotate(-2deg)">
+<svg width="26" height="56" viewBox="0 0 26 56" fill="none" stroke="#8E8A80" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="position: absolute; top: -18px; left: 18px"><path d="M8 40V10a5 5 0 0 1 10 0v34a8 8 0 0 1-16 0V14"></path></svg>
+<span aria-hidden="true" style="display: block; height: 130px; background: repeating-linear-gradient(135deg, #FFFFFF 0 10px, #F1ECDD 10px 20px)"></span>
+<span style="position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-family: 'Caveat', cursive; font-size: 20px; font-weight: 700">Box 2</span>
+</div>
+<span style="font-size: 13px; color: #4A4A55">Fotos del equipo y del centro como polaroid con clip o scotch, con pie escrito a mano.</span>
+</div>
+</div>
+
+<div style="margin-top: 24px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px">
+<div style="padding: 22px; background: #FFF3A8; transform: rotate(-0.4deg); box-shadow: 3px 10px 18px rgba(42,42,51,0.2)">
+<h3 style="margin: 0 0 10px; font-family: 'Caveat', cursive; font-size: 30px; font-weight: 700">Reglas de uso</h3>
+<ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px">
+<li>Sitio público y portal del paciente: adornos libres, pero con un foco por sección.</li>
+<li>Panel del equipo: máximo dos adornos por pantalla (destacador en el título y post-its en filtros). Las tablas y la ficha clínica van limpias.</li>
+<li>Inclinación máxima de 2 grados y nunca en campos de formulario ni en texto largo.</li>
+<li>Todo adorno es aria-hidden; el significado siempre está en el texto.</li>
+<li>Caveat solo para títulos, etiquetas y anotaciones; el texto de lectura es Nunito.</li>
+<li>Con prefers-reduced-motion no hay animaciones de pegado ni de rotación.</li>
+</ol>
+</div>
+<pre style="margin: 0; padding: 18px 20px; border-radius: 4px; background: #2F4A6B; color: #FBF8EF; font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap">:root[data-tema="cuaderno"] {
+  --highlight: #FCE38A;  --highlight-2: #FFC4D6;
+  --tape: rgba(176,196,222,.72);
+  --washi: repeating-linear-gradient(45deg, ...);
+  --postit-1: #FFF3A8; --postit-2: #FFD6E0;
+  --postit-3: #CDEFD8; --postit-4: #D4E6FF;
+  --postit-5: #FFE0B8;
+  --marker: #A6442E;  --rot-max: 2deg;
+  --tapa-1 ... --tapa-6;
+}
+/* componentes: .resaltar .cinta .postit
+   .anotacion .hoja .tapa .sticker .separador */</pre>
+</div>
+</section>
+</sc-if>
+
+<!-- 09 ELEMENTOS DE REVISTA -->
+<sc-if value="{{ esEditorial }}" hint-placeholder-val="{{ false }}">
+<section aria-labelledby="s9e" style="position: relative; background-color: {{ sec.fondo }}; background-image: {{ sec.img }}; border: {{ sec.borde }}; border-top: {{ sec.top }}; border-radius: {{ sec.radio }}; box-shadow: {{ sec.sombra }}; padding: {{ sec.pad }}">
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px"><span style="font-family: 'Fraunces', serif; font-size: 15px; color: #141414">09</span><h2 id="s9e" style="margin: 0; font-family: 'Fraunces', serif; font-size: 48px; font-weight: 400; line-height: 1">Elementos de revista</h2><p style="margin: 0 0 0 auto; max-width: 460px; font-size: 14px; color: #4A4A45">Las señales que hacen que el estilo se lea como una publicación cuidada, no solo como una página con letra serif.</p></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px">
+
+<div style="padding: 20px; border: 1px solid #141414; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase">Cabecera de edición</h3>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 3px double #141414; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase"><span>Edición N.º 01</span><span style="font-family: 'Fraunces', serif; font-style: italic; text-transform: none; letter-spacing: 0; font-size: 15px">Centro de Prueba</span><span>Noviembre 2026</span></div>
+<span style="font-size: 13px; color: #4A4A45">Sobre el menú del sitio público: número de edición, nombre en itálica y fecha, cerrado con regla doble.</span>
+</div>
+
+<div style="padding: 20px; border: 1px solid #141414; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase">Numeración de secciones</h3>
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #1F4D3A">N.º 02 · Nuestro equipo</span>
+<span style="font-family: 'Fraunces', serif; font-style: italic; font-size: 34px; line-height: 1.05">Quiénes te acompañan.</span>
+<span style="font-size: 13px; color: #4A4A45">Cada sección abre con su número y un título en itálica. El número lo pone un contador CSS, no se escribe a mano.</span>
+</div>
+
+<div style="padding: 20px; border: 1px solid #141414; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase">Letra capital</h3>
+<p style="margin: 0; font-size: 16px; line-height: 1.6"><span style="float: left; font-family: 'Fraunces', serif; font-size: 66px; line-height: 0.8; padding: 6px 10px 0 0">E</span>n el centro trabajamos con un enfoque cercano y sin apuro. Cada proceso parte con una conversación para entender qué necesitas y con quién te sentirás más cómodo.</p>
+<span style="font-size: 13px; color: #4A4A45">Solo en el primer párrafo de una página de contenido (inicio, sobre nosotros, perfil del profesional).</span>
+</div>
+
+<div style="padding: 20px; border: 1px solid #141414; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase">Cita destacada</h3>
+<blockquote style="margin: 0; padding: 18px 0; border-top: 1px solid #141414; border-bottom: 1px solid #141414; text-align: center; font-family: 'Fraunces', serif; font-style: italic; font-size: 26px; line-height: 1.2">Acompaño procesos a tu ritmo.<footer style="margin-top: 8px; font-family: 'Inter', sans-serif; font-style: normal; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase">Ps. Camila Rojas</footer></blockquote>
+<span style="font-size: 13px; color: #4A4A45">Una por página como máximo. Usa la frase del perfil o una reseña real autorizada.</span>
+</div>
+
+<div style="padding: 20px; border: 1px solid #141414; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase">Pie de foto</h3>
+<span aria-hidden="true" style="display: block; height: 120px; background: repeating-linear-gradient(135deg, #ECE7DC 0 1px, #F6F3EC 1px 14px)"></span>
+<span style="font-size: 12px; color: #4A4A45"><strong style="color: #141414">Fig. 1</strong> · Sala de espera del centro, segundo piso.</span>
+<span style="font-size: 13px; color: #4A4A45">Toda imagen lleva pie con número. En el panel, las capturas de ayuda también.</span>
+</div>
+
+<div style="padding: 20px; border: 1px solid #141414; display: flex; flex-direction: column; gap: 12px">
+<h3 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase">Columnas, firma y sumario</h3>
+<p style="margin: 0; font-family: 'Fraunces', serif; font-size: 18px; font-style: italic; color: #4A4A45">Sumario: tres profesionales, dos modalidades y una forma simple de pedir hora.</p>
+<p style="margin: 0; column-count: 2; column-gap: 24px; column-rule: 1px solid #C9C3B5; font-size: 14px; line-height: 1.6">El texto largo se divide en dos columnas con una regla fina entre ellas, como en una revista. Se usa solo en pantallas anchas; en el celular vuelve a una columna.</p>
+<span style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase">Por el equipo del centro</span>
+</div>
+</div>
+
+<div style="margin-top: 24px; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px">
+<div style="padding: 20px; border-top: 1px solid #141414; border-bottom: 1px solid #141414">
+<h3 style="margin: 0 0 10px; font-family: 'Fraunces', serif; font-style: italic; font-size: 26px; font-weight: 400">Reglas de uso</h3>
+<ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px">
+<li>Sitio público: cabecera de edición, numeración, letra capital y una cita por página.</li>
+<li>Panel del equipo: solo numeración de secciones y reglas finas; nada de letra capital ni citas.</li>
+<li>Títulos en Fraunces sin negrita; la jerarquía la dan el tamaño, la itálica y el espacio.</li>
+<li>Botones en versalitas con espaciado; esquinas rectas en todo.</li>
+<li>Columnas solo sobre 960 px de ancho.</li>
+</ol>
+</div>
+<pre style="margin: 0; padding: 18px 20px; background: #141414; color: #ECE7DC; font-family: ui-monospace, Menlo, monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap">:root[data-tema="editorial"] {
+  --rule: 1px solid #141414;
+  --rule-double: 3px double #141414;
+  --dropcap-size: 4.4em;
+  --kicker-track: .14em;
+}
+.contenido { counter-reset: sec }
+.kicker::before {
+  counter-increment: sec;
+  content: "N.º " counter(sec, decimal-leading-zero) " · ";
+}
+/* componentes: .cabecera-edicion .kicker .lead
+   .cita .pie-foto .columnas .sumario */</pre>
+</div>
+</section>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tema":{"editor":"enum","options":["moderno","cuaderno","editorial"],"default":"moderno"},"$preview":{"width":1440,"height":5800}}'>
+var T = {
+  moderno: {
+    titulo: 'Estilo Moderno', lema: 'Superficies translúcidas sobre una trama de puntos, formas redondeadas y colores tierra. Cercano y actual.',
+    display: "'Bricolage Grotesque', sans-serif", body: "'Figtree', system-ui, sans-serif",
+    bg: '#F1EBE2', bgImg: 'radial-gradient(#D9CEBF 1px, transparent 1px)', bgSize: '18px 18px',
+    ink: '#2B2420', ink2: '#4A3F36', accent: '#8A4B1F', accentSoft: '#F3E1D2', secondary: '#4F6B2F', secondarySoft: '#E1E8CF', onAccent: '#FFFFFF', onSecondary: '#FFFFFF',
+    surface: 'rgba(255,253,249,0.92)', surface2: '#F7F1E8', surfaceSolida: '#FFFDF9',
+    ok: '#3E5A22', okSoft: '#E1E8CF', warn: '#7A520A', warnSoft: '#FFF4D6', danger: '#7A2E10', dangerSoft: '#F6D9C7', info: '#2F4A6B', infoSoft: '#DCE6F2',
+    nomAccent: 'arcilla', nomSecondary: 'oliva',
+    h1: '96px', h2: '40px', numTam: '20px', tituloPeso: '800', cardNombre: '22px', marcador: 'none',
+    rCard: '24px', rCampo: '14px', rBtn: '14px', rChip: '999px', rBadge: '999px', rSw: '16px', rSeg: '999px', rSegItem: '999px', rSw2: '999px', rCk: '7px', rPaso: '999px', rAvatar: '999px', rFoto: '20px', rMenu: '12px', rSk: '999px',
+    reglaFuerte: '1px solid #D9CEBF', reglaSuave: '1px solid #EBE2D5', bordeSuave: '1px solid #E3D7C4', bordeFuerte: '1.5px solid #2B2420',
+    codeFondo: '#2B2420', codeTexto: '#F3E1D2',
+    btnBorde: '0', btnSombra: '0 10px 24px rgba(43,36,32,0.18)', btnTam: '15px', track: 'normal', caso: 'none',
+    campoPad: '0 14px', segFondo: '#F4ECE0', segBorde: '0', swBorde: '0', ckBorde: '2px solid #2B2420',
+    campo: { n: ['1px solid #E3D7C4', '1px solid #E3D7C4', 'none', '#F7F1E8'], f: ['1px solid #8A4B1F', '1px solid #8A4B1F', '0 0 0 4px rgba(138,75,31,0.16)', '#FFFFFF'], e: ['1px solid #7A2E10', '1px solid #7A2E10', '0 0 0 4px rgba(122,46,16,0.12)', '#FFFFFF'] },
+    chipOn: ['#2B2420', '#FFFFFF', '1px solid #2B2420'], chipOff: ['rgba(255,253,249,0.9)', '#2B2420', '1px solid #E3D7C4'],
+    iconStroke: '1.8', iconCap: 'round', iconJoin: 'round', iconRegla: 'Trazo redondeado de 1.8 px, sin relleno. Amables y simples, como el resto del estilo.',
+    bandaAlto: '0px', banda: 'transparent', avatarBorde: '0', navRadio: '999px', placeholder: 'repeating-linear-gradient(135deg, #EFE6D9 0 12px, #F7F1E8 12px 24px)', fotoRegla: 'Esquinas de 20 px, sin marcos ni filtros.',
+    esqueleto: '#EDE4D6', dialogoSombra: '0 30px 70px rgba(43,36,32,0.22)', barraFondo: '#2B2420', barraTexto: '#FFFFFF', barraBorde: '0', barraBoton: '#FFF4D6', barraBotonTexto: '#2B2420', alertaBorde: '0', badgeBorde: false,
+    menuOn: ['#F3E1D2', '#8A4B1F', '0 solid transparent', '800'], menuOff: ['transparent', '#2B2420', '0 solid transparent', '600'],
+    sec: { fondo: 'rgba(255,253,249,0.92)', img: 'none', borde: '1px solid rgba(227,215,196,0.9)', top: '1px solid rgba(227,215,196,0.9)', radio: '28px', sombra: '0 18px 50px rgba(43,36,32,0.08)', pad: '40px', blur: 'blur(12px)' },
+    cd: { fondo: '#FFFFFF', borde: '1px solid #EBE2D5', radio: '20px', sombra: '0 8px 20px rgba(43,36,32,0.06)' },
+    radios: [['--r-sm', '8px', 'Chips internos, casillas'], ['--r-md', '14px', 'Botones y campos'], ['--r-lg', '24px', 'Tarjetas'], ['--r-pill', '999px', 'Chips, menú flotante, avatares']],
+    sombras: [['--shadow-sm', '0 8px 20px rgba(43,36,32,0.06)', 'Tarjetas en reposo'], ['--shadow-md', '0 18px 50px rgba(43,36,32,0.10)', 'Secciones y menú flotante'], ['--shadow-lg', '0 30px 70px rgba(43,36,32,0.22)', 'Diálogos y paneles enfocados']],
+    avatares: ['#8A4B1F', '#4F6B2F', '#2F4A6B', '#7A520A', '#6B3F5A', '#2B2420']
+  },
+  cuaderno: {
+    titulo: 'Estilo Cuaderno', lema: 'Hojas con líneas, notas adhesivas y cada profesional como la tapa de un cuaderno. Cálido, cercano y hecho a mano.',
+    display: "'Caveat', cursive", body: "'Nunito', system-ui, sans-serif",
+    bg: '#FBF8EF', bgImg: 'linear-gradient(#DCE4EF 1px, transparent 1px)', bgSize: '100% 32px',
+    ink: '#2A2A33', ink2: '#4A4A55', accent: '#2F4A6B', accentSoft: '#DCE4EF', secondary: '#4F6B2F', secondarySoft: '#E1E8CF', onAccent: '#FFFFFF', onSecondary: '#FFFFFF',
+    surface: '#FFFFFF', surface2: '#FBF8EF', surfaceSolida: '#FFFFFF',
+    ok: '#4F6B2F', okSoft: '#E1E8CF', warn: '#7A520A', warnSoft: '#FCE38A', danger: '#A6442E', dangerSoft: '#F7DAD2', info: '#2F4A6B', infoSoft: '#DCE4EF',
+    nomAccent: 'tinta azul', nomSecondary: 'oliva',
+    h1: '120px', h2: '56px', numTam: '44px', tituloPeso: '700', cardNombre: '30px', marcador: 'linear-gradient(transparent 58%, #FCE38A 58%)',
+    rCard: '4px', rCampo: '0', rBtn: '10px', rChip: '6px', rBadge: '4px', rSw: '4px', rSeg: '6px', rSegItem: '4px', rSw2: '6px', rCk: '3px', rPaso: '4px', rAvatar: '6px', rFoto: '2px', rMenu: '4px', rSk: '2px',
+    reglaFuerte: '3px solid #2A2A33', reglaSuave: '2px dashed #CFC6B3', bordeSuave: '2px solid #2A2A33', bordeFuerte: '2px solid #2A2A33',
+    codeFondo: '#2F4A6B', codeTexto: '#FBF8EF',
+    btnBorde: '2px solid #2A2A33', btnSombra: '4px 4px 0 #2A2A33', btnTam: '15px', track: 'normal', caso: 'none',
+    campoPad: '0 4px', segFondo: '#FBF8EF', segBorde: '2px solid #2A2A33', swBorde: '2px solid #2A2A33', ckBorde: '2px solid #2A2A33',
+    campo: { n: ['0', '2px solid #2A2A33', 'none', 'transparent'], f: ['0', '3px solid #2F4A6B', 'inset 0 -12px 0 #FCE38A', 'transparent'], e: ['0', '3px solid #A6442E', 'none', 'transparent'] },
+    chipOn: ['#FCE38A', '#2A2A33', '2px solid #2A2A33'], chipOff: ['#FFFFFF', '#2A2A33', '2px solid #2A2A33'],
+    iconStroke: '2.2', iconCap: 'round', iconJoin: 'round', iconRegla: 'Trazo grueso de 2.2 px y puntas redondas, como dibujado con plumón. Sin relleno.',
+    bandaAlto: '22px', banda: '#2E6E6E', avatarBorde: '2px solid #2A2A33', navRadio: '4px', placeholder: 'repeating-linear-gradient(135deg, #FFFFFF 0 10px, #F1ECDD 10px 20px)', fotoRegla: 'Pegadas como polaroid: borde blanco grueso y una cinta en la esquina.',
+    esqueleto: '#EEE8D8', dialogoSombra: '8px 8px 0 #2A2A33', barraFondo: '#FCE38A', barraTexto: '#2A2A33', barraBorde: '2px solid #2A2A33', barraBoton: '#2F4A6B', barraBotonTexto: '#FFFFFF', alertaBorde: '2px solid currentColor', badgeBorde: true,
+    menuOn: ['#FCE38A', '#2A2A33', '0 solid transparent', '800'], menuOff: ['transparent', '#2A2A33', '0 solid transparent', '600'],
+    sec: { fondo: '#FFFFFF', img: 'linear-gradient(90deg, transparent 50px, #E7A4A4 50px, #E7A4A4 52px, transparent 52px)', borde: '2px solid #2A2A33', top: '2px solid #2A2A33', radio: '4px', sombra: '6px 6px 0 #2A2A33', pad: '40px 40px 40px 80px', blur: 'none' },
+    cd: { fondo: '#FFFFFF', borde: '2px solid #2A2A33', radio: '4px', sombra: '4px 4px 0 #2A2A33' },
+    radios: [['--r-0', '0', 'Campos: solo línea inferior'], ['--r-sm', '4px', 'Hojas, tarjetas, avatares'], ['--r-md', '6px', 'Chips y segmentado'], ['--r-btn', '10px', 'Botones']],
+    sombras: [['--shadow-sm', '4px 4px 0 #2A2A33', 'Tarjetas y botones'], ['--shadow-md', '6px 6px 0 #2A2A33', 'Hojas y secciones'], ['--shadow-lg', '8px 8px 0 #2A2A33', 'Diálogos']],
+    avatares: ['#D4A23A', '#A6442E', '#2E6E6E', '#2F4A6B', '#4F6B2F', '#B08A5E']
+  },
+  editorial: {
+    titulo: 'Estilo Editorial', lema: 'Tipografía serif, reglas finas, esquinas rectas y mucho aire. Sobrio y confiable, como una revista bien cuidada.',
+    display: "'Fraunces', serif", body: "'Inter', system-ui, sans-serif",
+    bg: '#F6F3EC', bgImg: 'none', bgSize: 'auto',
+    ink: '#141414', ink2: '#4A4A45', accent: '#141414', accentSoft: '#E6E1D6', secondary: '#1F4D3A', secondarySoft: '#DCE5DD', onAccent: '#F6F3EC', onSecondary: '#F6F3EC',
+    surface: '#F6F3EC', surface2: '#ECE7DC', surfaceSolida: '#F6F3EC',
+    ok: '#1F4D3A', okSoft: '#DCE5DD', warn: '#8A5A00', warnSoft: '#F3E7C9', danger: '#8C2A1A', dangerSoft: '#F2DCD5', info: '#23415F', infoSoft: '#DDE4EC',
+    nomAccent: 'tinta', nomSecondary: 'verde bosque',
+    h1: '104px', h2: '48px', numTam: '15px', tituloPeso: '400', cardNombre: '26px', marcador: 'none',
+    rCard: '0', rCampo: '0', rBtn: '0', rChip: '0', rBadge: '0', rSw: '0', rSeg: '0', rSegItem: '0', rSw2: '0', rCk: '0', rPaso: '0', rAvatar: '999px', rFoto: '0', rMenu: '0', rSk: '0',
+    reglaFuerte: '1px solid #141414', reglaSuave: '1px solid #C9C3B5', bordeSuave: '1px solid #C9C3B5', bordeFuerte: '1px solid #141414',
+    codeFondo: '#141414', codeTexto: '#ECE7DC',
+    btnBorde: '0', btnSombra: 'none', btnTam: '12px', track: '0.14em', caso: 'uppercase',
+    campoPad: '0', segFondo: 'transparent', segBorde: '1px solid #141414', swBorde: '1px solid #141414', ckBorde: '1px solid #141414',
+    campo: { n: ['0', '1px solid #141414', 'none', 'transparent'], f: ['0', '2px solid #1F4D3A', 'none', '#ECE7DC'], e: ['0', '2px solid #8C2A1A', 'none', 'transparent'] },
+    chipOn: ['#141414', '#F6F3EC', '1px solid #141414'], chipOff: ['transparent', '#141414', '1px solid #141414'],
+    iconStroke: '1.25', iconCap: 'square', iconJoin: 'miter', iconRegla: 'Trazo fino de 1.25 px, puntas rectas. Discretos: la tipografía manda.',
+    bandaAlto: '0px', banda: 'transparent', avatarBorde: '1px solid #141414', navRadio: '0', placeholder: 'repeating-linear-gradient(135deg, #ECE7DC 0 1px, #F6F3EC 1px 14px)', fotoRegla: 'En blanco y negro o color apagado, siempre con pie de foto.',
+    esqueleto: '#E2DCCF', dialogoSombra: 'none', barraFondo: '#141414', barraTexto: '#F6F3EC', barraBorde: '0', barraBoton: '#F6F3EC', barraBotonTexto: '#141414', alertaBorde: '1px solid currentColor', badgeBorde: true,
+    menuOn: ['#ECE7DC', '#141414', '2px solid #141414', '700'], menuOff: ['transparent', '#141414', '2px solid transparent', '500'],
+    sec: { fondo: 'transparent', img: 'none', borde: '0', top: '1px solid #141414', radio: '0', sombra: 'none', pad: '28px 0 8px', blur: 'none' },
+    cd: { fondo: 'transparent', borde: '1px solid #141414', radio: '0', sombra: 'none' },
+    radios: [['--r-0', '0', 'Todo: tarjetas, botones, campos'], ['--r-round', '999px', 'Solo avatares'], ['--rule', '1px', 'Reglas finas entre bloques'], ['--rule-strong', '2px', 'Elemento activo del menú']],
+    sombras: [['Sin sombra', 'none', 'La jerarquía la dan reglas y espacio'], ['--rule', 'none', 'Contorno de 1 px en tarjetas'], ['--paper-2', 'none', 'Fondo piedra para lo seleccionado']],
+    avatares: ['#141414', '#1F4D3A', '#23415F', '#8A5A00', '#5A3A4A', '#4A4A45']
+  }
+};
+
+var PAL = {
+  moderno: [
+    { g: 'Primario', d: 'Acciones del equipo y foco.', items: [['#8A4B1F', 'Arcilla', 'Botón del equipo, enlaces, foco', '--accent'], ['#F3E1D2', 'Arcilla suave', 'Selección y realces', '--accent-soft']] },
+    { g: 'Secundario', d: 'Acciones del paciente y confirmaciones.', items: [['#4F6B2F', 'Oliva', 'Botón del paciente, confirmar hora', '--secondary'], ['#E1E8CF', 'Oliva suave', 'Chips de motivo, estados ok', '--secondary-soft']] },
+    { g: 'Neutros', d: 'Base de lectura y superficies.', items: [['#2B2420', 'Tinta', 'Títulos y texto', '--ink'], ['#4A3F36', 'Tinta 2', 'Texto secundario', '--ink-2'], ['#F1EBE2', 'Lino', 'Fondo con trama de puntos', '--bg'], ['#FFFDF9', 'Superficie', 'Tarjetas translúcidas (92%)', '--surface'], ['#E3D7C4', 'Línea', 'Bordes y divisores', '--line']] },
+    { g: 'Semánticos', d: 'Siempre con texto o ícono, nunca solo color.', items: [['#3E5A22', 'Éxito', 'Hora confirmada, guardado', '--ok', '#E1E8CF'], ['#7A520A', 'Aviso', 'Por confirmar, vencimientos', '--warn', '#FFF4D6'], ['#7A2E10', 'Error', 'Errores y acciones destructivas', '--danger', '#F6D9C7'], ['#2F4A6B', 'Info', 'Online, novedades', '--info', '#DCE6F2']] }
+  ],
+  cuaderno: [
+    { g: 'Primario', d: 'Acciones del equipo y enlaces.', items: [['#2F4A6B', 'Tinta azul', 'Botón del equipo, enlaces', '--accent'], ['#DCE4EF', 'Azul pauta', 'Líneas de la hoja, selección', '--accent-soft']] },
+    { g: 'Secundario', d: 'Acciones del paciente y lo destacado.', items: [['#4F6B2F', 'Oliva', 'Botón del paciente', '--secondary'], ['#FCE38A', 'Destacador', 'Subrayar títulos, chip activo, foco', '--highlight']] },
+    { g: 'Neutros', d: 'Papel, grafito y margen.', items: [['#2A2A33', 'Grafito', 'Texto, bordes y sombras desplazadas', '--ink'], ['#4A4A55', 'Grafito 2', 'Texto secundario', '--ink-2'], ['#FBF8EF', 'Papel', 'Fondo con líneas cada 32 px', '--bg'], ['#FFFFFF', 'Hoja', 'Tarjetas y secciones', '--surface'], ['#E7A4A4', 'Margen', 'Línea roja de margen', '--margin']] },
+    { g: 'Tapas', d: 'Un color por profesional, fijo en todo el sitio.', items: [['#D4A23A', 'Mostaza', 'Tapa de profesional', '--tapa-1'], ['#A6442E', 'Ladrillo', 'Tapa de profesional', '--tapa-2'], ['#2E6E6E', 'Petróleo', 'Tapa de profesional', '--tapa-3'], ['#2F4A6B', 'Azul', 'Tapa de profesional', '--tapa-4'], ['#4F6B2F', 'Oliva', 'Tapa de profesional', '--tapa-5'], ['#B08A5E', 'Kraft', 'Tapa de profesional', '--tapa-6']] },
+    { g: 'Semánticos', d: 'Siempre con texto o ícono, nunca solo color.', items: [['#4F6B2F', 'Éxito', 'Hora confirmada, guardado', '--ok', '#E1E8CF'], ['#7A520A', 'Aviso', 'Por confirmar, vencimientos', '--warn', '#FCE38A'], ['#A6442E', 'Error', 'Errores y acciones destructivas', '--danger', '#F7DAD2'], ['#2F4A6B', 'Info', 'Online, novedades', '--info', '#DCE4EF']] }
+  ],
+  editorial: [
+    { g: 'Primario', d: 'Tinta para el equipo, bosque para el paciente.', items: [['#141414', 'Tinta', 'Botón del equipo, reglas, títulos', '--ink'], ['#1F4D3A', 'Bosque', 'Botón del paciente, enlaces, foco', '--accent']] },
+    { g: 'Secundario', d: 'Fondos de apoyo.', items: [['#DCE5DD', 'Bosque suave', 'Selección y estados ok', '--accent-soft'], ['#ECE7DC', 'Piedra', 'Bloques destacados, elemento activo', '--surface-2']] },
+    { g: 'Neutros', d: 'Papel marfil y grises cálidos.', items: [['#F6F3EC', 'Marfil', 'Fondo', '--bg'], ['#4A4A45', 'Gris texto', 'Texto secundario', '--ink-2'], ['#8A867C', 'Gris nota', 'Metadatos y numeración', '--muted'], ['#C9C3B5', 'Regla', 'Divisores finos', '--line']] },
+    { g: 'Semánticos', d: 'Siempre con texto o ícono, nunca solo color.', items: [['#1F4D3A', 'Éxito', 'Hora confirmada, guardado', '--ok', '#DCE5DD'], ['#8A5A00', 'Aviso', 'Por confirmar, vencimientos', '--warn', '#F3E7C9'], ['#8C2A1A', 'Error', 'Errores y acciones destructivas', '--danger', '#F2DCD5'], ['#23415F', 'Info', 'Online, novedades', '--info', '#DDE4EC']] }
+  ]
+};
+
+var TIPO = {
+  moderno: {
+    fam: [['Títulos', 'Bricolage Grotesque', '600 · 700 · 800', 'Títulos, cifras grandes y logo', 'd', '800'], ['Texto', 'Figtree', '400 · 500 · 600 · 700', 'Lectura, formularios y botones', 'b', '500']],
+    esc: [['Display', '--fs-display', '64px', '1', 'd', '800', 'Hola de nuevo.'], ['Título 1', '--fs-h1', '40px', '1.1', 'd', '800', 'Nuestro equipo'], ['Título 2', '--fs-h2', '28px', '1.2', 'd', '700', 'Terapia individual'], ['Título 3', '--fs-h3', '20px', '1.3', 'b', '700', 'Ps. Camila Rojas'], ['Cuerpo', '--fs-body', '16px', '1.5', 'b', '400', 'Entra para ver tus horas agendadas y escribirle a tu profesional.'], ['Pequeño', '--fs-small', '15px', '1.45', 'b', '400', 'La sesión se cierra tras 30 minutos sin actividad.'], ['Etiqueta', '--fs-label', '12px', '1.3', 'b', '700', 'Acceso del equipo', 'up']]
+  },
+  cuaderno: {
+    fam: [['Títulos', 'Caveat', '500 · 700', 'Títulos, nombres en tapas y notas', 'd', '700'], ['Texto', 'Nunito', '400 · 600 · 700 · 800', 'Lectura, formularios y botones', 'b', '600']],
+    esc: [['Display', '--fs-display', '84px', '0.95', 'd', '700', 'Hola de nuevo.'], ['Título 1', '--fs-h1', '56px', '1', 'd', '700', 'Nuestro equipo'], ['Título 2', '--fs-h2', '38px', '1.1', 'd', '700', 'Terapia individual'], ['Título 3', '--fs-h3', '20px', '1.3', 'b', '800', 'Ps. Camila Rojas'], ['Cuerpo', '--fs-body', '16px', '1.6', 'b', '400', 'Entra para ver tus horas agendadas y escribirle a tu profesional.'], ['Pequeño', '--fs-small', '15px', '1.5', 'b', '400', 'La sesión se cierra tras 30 minutos sin actividad.'], ['Etiqueta', '--fs-label', '12px', '1.3', 'b', '800', 'Acceso del equipo', 'up']]
+  },
+  editorial: {
+    fam: [['Títulos', 'Fraunces', '400 · 600 · itálica', 'Títulos, cifras y citas', 'd', '400'], ['Texto', 'Inter', '400 · 500 · 600 · 700', 'Lectura, formularios, botones en versalitas', 'b', '500']],
+    esc: [['Display', '--fs-display', '72px', '1', 'd', '400', 'Hola de nuevo.'], ['Título 1', '--fs-h1', '48px', '1.05', 'd', '400', 'Nuestro equipo'], ['Título 2', '--fs-h2', '32px', '1.15', 'd', '400', 'Terapia individual'], ['Título 3', '--fs-h3', '22px', '1.25', 'd', '600', 'Ps. Camila Rojas'], ['Cuerpo', '--fs-body', '16px', '1.6', 'b', '400', 'Entra para ver tus horas agendadas y escribirle a tu profesional.'], ['Pequeño', '--fs-small', '15px', '1.5', 'b', '400', 'La sesión se cierra tras 30 minutos sin actividad.'], ['Etiqueta', '--fs-label', '11px', '1.3', 'b', '600', 'Acceso del equipo', 'up']]
+  }
+};
+
+var ICONOS = [
+  ['Agenda', 'M4 6h16v14H4z M4 10h16 M8 3v4 M16 3v4'],
+  ['Paciente', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c0-4 4-6 8-6s8 2 8 6'],
+  ['Equipo', 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M17 11a3 3 0 1 0 0-6 M3 20c0-3 3-5 6-5s6 2 6 5 M15 15c3 0 6 2 6 5'],
+  ['Ficha', 'M6 3h9l4 4v14H6z M14 3v5h5 M9 13h7 M9 17h5'],
+  ['Mensaje', 'M4 5h16v11H9l-5 4z'],
+  ['Videollamada', 'M3 7h12v10H3z M15 11l6-4v10l-6-4'],
+  ['Pago', 'M3 6h18v12H3z M3 10h18 M7 15h4'],
+  ['Seguridad', 'M6 11h12v10H6z M8 11V8a4 4 0 0 1 8 0v3'],
+  ['Avisos', 'M6 17v-6a6 6 0 0 1 12 0v6l2 2H4z M10 21h4'],
+  ['Buscar', 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M21 21l-5-5'],
+  ['Ajustes', 'M4 7h10 M18 7h2 M4 17h4 M12 17h8 M16 5v4 M10 15v4'],
+  ['Confirmar', 'M5 12l5 5 9-10'],
+  ['Alerta', 'M12 3l10 18H2z M12 10v5 M12 18v.5'],
+  ['Ver', 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z']
+];
+
+var REGLAS = ['Áreas táctiles de 44 x 44 px como mínimo, también en móvil.', 'Texto de lectura desde 15 px; 11 a 13 px solo en etiquetas.', 'Contraste AA: 4.5:1 en texto y 3:1 en bordes de controles.', 'El color nunca es la única señal: estados con texto e ícono.', 'Foco visible en todo lo que se alcanza con teclado.', 'Respetar prefers-reduced-motion: sin animaciones de desplazamiento.', 'Errores que dicen qué pasó y cómo arreglarlo.', 'Lenguaje claro y cercano; sin jerga clínica del lado del paciente.'];
+
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { chip: 'Ansiedad', seg: 'Online', sw: true, ck: false, paso: 1, menu: 'Agenda', tg: false, ac: false }; }
+  renderVals() {
+    var self = this, s = this.state;
+    var key = T[this.props.tema] ? this.props.tema : 'moderno';
+    var t = T[key];
+    function set(o) { return function () { self.setState(o); }; }
+
+    var paleta = PAL[key].map(function (g) {
+      return { g: g.g, d: g.d, items: g.items.map(function (c) {
+        return { nombre: c[1], uso: c[2], token: c[3], fondo: c[4] || c[0], aa: c[0], aaTxt: c[4] ? 'Aa' : '', etiqueta: c[4] ? c[0] + ' / ' + c[4] : c[0] };
+      }) };
+    });
+    var tp = TIPO[key];
+    var ff = function (x) { return x === 'd' ? t.display : t.body; };
+
+    var codigo = ':root[data-tema="' + key + '"] {\n' +
+      '  --bg: ' + t.bg + ';\n  --ink: ' + t.ink + ';\n  --accent: ' + t.accent + ';\n  --secondary: ' + t.secondary + ';\n' +
+      '  --font-display: ' + t.display + ';\n  --r-card: ' + t.rCard + ';\n}\n' +
+      '/* Un solo atributo cambia toda la plataforma */\n<html data-tema="' + key + '">';
+
+    var btn = [
+      ['Principal', t.accent, t.onAccent, t.btnBorde, t.btnSombra, '1', 'none'],
+      ['Paciente', t.secondary, t.onSecondary, t.btnBorde, t.btnSombra, '1', 'none'],
+      ['Contorno', 'transparent', t.ink, t.bordeFuerte, 'none', '1', 'none'],
+      ['Texto', 'transparent', t.accent, '0', 'none', '1', 'underline'],
+      ['Eliminar', t.danger, '#FFFFFF', t.btnBorde, 'none', '1', 'none'],
+      ['Deshabilitado', t.surface2, t.ink2, t.bordeSuave, 'none', '0.6', 'none']
+    ].map(function (b) { return { l: b[0], fondo: b[1], color: b[2], borde: b[3], sombra: b[4], op: b[5], sub: b[6] }; });
+
+    var campos = [['Correo o RUT', 'camila@correo.cl', 'n', 'Normal', t.ink2], ['Teléfono', '+56 9 1234 5678', 'f', 'Foco: siempre visible', t.accent], ['RUT', '12.345.678-0', 'e', 'El RUT no es válido. Revisa el dígito verificador.', t.danger]]
+      .map(function (c) { var st = t.campo[c[2]]; return { l: c[0], v: c[1], ayuda: c[3], ayC: c[4], b: st[0], bb: st[1], sh: st[2], bg: st[3] }; });
+
+    var chips = ['Todos', 'Ansiedad', 'Pareja', 'Infanto-juvenil', 'Duelo'].map(function (l) {
+      var on = s.chip === l, x = on ? t.chipOn : t.chipOff; return { l: l, on: on, f: x[0], c: x[1], b: x[2], pick: set({ chip: l }) };
+    });
+    var segs = ['Presencial', 'Online'].map(function (l) {
+      var on = s.seg === l; return { l: l, on: on, f: on ? t.secondary : 'transparent', c: on ? t.onSecondary : t.ink, pick: set({ seg: l }) };
+    });
+    var pasos = ['Profesional', 'Horario', 'Tus datos', 'Listo'].map(function (l, i) {
+      var hecho = i < s.paso, act = i === s.paso;
+      return { l: l, n: hecho ? 'OK' : String(i + 1), actual: act ? 'step' : 'false', fw: act ? '800' : '600',
+        f: hecho ? t.secondary : (act ? t.accent : 'transparent'), c: (hecho || act) ? '#FFFFFF' : t.ink, b: (hecho || act) ? '0' : t.bordeFuerte,
+        linea: '3px solid ' + (i <= s.paso ? (act ? t.accent : t.secondary) : t.esqueleto), pick: set({ paso: i }) };
+    });
+    var sem = { ok: [t.okSoft, t.ok], warn: [t.warnSoft, t.warn], danger: [t.dangerSoft, t.danger], info: [t.infoSoft, t.info], neutral: [t.surface2, t.ink] };
+    var badges = [['Confirmada', 'ok'], ['Por confirmar', 'warn'], ['Cancelada', 'danger'], ['Online', 'info'], ['Practicante', 'neutral']].map(function (b) {
+      var c = sem[b[1]]; return { l: b[0], f: c[0], c: c[1], b: t.badgeBorde ? '1.5px solid ' + c[1] : '0' };
+    });
+    var menu = [['Agenda', 0], ['Pacientes', 1], ['Fichas', 3], ['Mensajes', 4], ['Equipo', 2], ['Configuración', 10]].map(function (m) {
+      var on = s.menu === m[0], x = on ? t.menuOn : t.menuOff;
+      return { l: m[0], d: ICONOS[m[1]][1], on: on ? 'page' : 'false', f: x[0], c: x[1], bl: x[2], fw: x[3], pick: set({ menu: m[0] }) };
+    });
+    var ini = ['CR', 'DM', 'JP', 'VS', 'AL', 'MT'];
+    var tl = function (on) { return on ? t.secondary : (key === 'moderno' ? '#D9CEBF' : '#C9C3B5'); };
+    var ac = s.ac, tg = s.tg;
+
+    return {
+      t: t, sec: t.sec, cd: t.cd, codigo: codigo, esCuaderno: key === 'cuaderno', esEditorial: key === 'editorial',
+      chipsHead: ['Versión 1.0', 'Noviembre 2026', 'Sitio público, panel y portal', 'Tokens CSS'],
+      paleta: paleta,
+      familias: tp.fam.map(function (f) { return { rol: f[0], fam: f[1], pesos: f[2], uso: f[3], ff: ff(f[4]), fw: f[5] }; }),
+      escala: tp.esc.map(function (e) { return { nombre: e[0], token: e[1], tam: e[2], lh: e[3], ff: ff(e[4]), fw: e[5], muestra: e[6], caso: e[7] ? 'uppercase' : 'none', track: e[7] ? '0.14em' : 'normal' }; }),
+      iconos: ICONOS.map(function (i) { return { n: i[0], d: i[1] }; }),
+      botones: btn, campos: campos, chips: chips, segs: segs, pasos: pasos, badges: badges, menu: menu,
+      navPub: ['Equipo', 'Servicios', 'Match'],
+      sw: { on: s.sw, pista: tl(s.sw), lado: s.sw ? 'flex-end' : 'flex-start', toggle: set({ sw: !s.sw }) },
+      ck: { on: s.ck, f: s.ck ? t.secondary : 'transparent', toggle: set({ ck: !s.ck }) },
+      avatares: t.avatares.map(function (c, i) { return { c: c, i: ini[i] }; }),
+      espacios: [4, 8, 12, 16, 24, 32, 48, 64].map(function (v, i) { return { token: '--space-' + (i + 1), v: v + 'px' }; }),
+      radios: t.radios.map(function (r) { return { n: r[0], v: r[1], uso: r[2] }; }),
+      sombras: t.sombras.map(function (x) { return { n: x[0], v: x[1], uso: x[2], borde: x[1] === 'none' ? t.bordeFuerte : t.bordeSuave }; }),
+      reglas: REGLAS.map(function (r, i) { return { n: String(i + 1).padStart(2, '0'), t: r }; }),
+      modos: [['Texto más grande', 'tg'], ['Alto contraste', 'ac']].map(function (m) {
+        var on = s[m[1]], o = {}; o[m[1]] = !on; return { l: m[0], on: on, pista: tl(on), lado: on ? 'flex-end' : 'flex-start', toggle: set(o) };
+      }),
+      prev: {
+        fondo: ac ? '#FFFFFF' : t.surface2, texto: ac ? '#000000' : t.ink, texto2: ac ? '#000000' : t.ink2,
+        borde: ac ? '3px solid #000000' : t.bordeSuave, btn: ac ? '#000000' : t.secondary, btnBorde: ac ? '3px solid #000000' : t.btnBorde,
+        tam: tg ? '19px' : '15px', titulo: tg ? '34px' : '26px', foco: '3px solid ' + (ac ? '#000000' : t.accent)
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

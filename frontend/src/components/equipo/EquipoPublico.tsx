@@ -12,7 +12,7 @@ import { Resenas, SeccionesPerfil } from './PerfilCompleto';
 import { CabeceraPerfil, DatosPerfil, TarjetaPerfil } from './TarjetaPerfil';
 
 const chip = (activo: boolean) =>
-  `inline-flex min-h-10 items-center rounded-full border-[1.5px] px-[18px] text-[13.5px] font-extrabold transition-colors duration-200 ${
+  `filtro-chip inline-flex min-h-10 items-center rounded-full border-[1.5px] px-[18px] text-[13.5px] font-extrabold transition-colors duration-200 ${
     activo
       ? 'border-accent-2-600 bg-accent-2-200 text-accent-2-900 hover:text-accent-2-900'
       : 'border-neutral-400 bg-bg text-text hover:border-accent-500 hover:text-text'
@@ -67,7 +67,7 @@ export function EquipoPublico({ perfiles, atencion, agenda, match }: { perfiles:
       ) : (
         <div className="grid items-stretch gap-[18px] [grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr))]">
           {lista.map((p) => (
-            <TarjetaPerfil key={p.id} perfil={p} agenda={agenda} />
+            <TarjetaPerfil key={p.id} perfil={p} agenda={agenda} orden={perfiles.indexOf(p)} />
           ))}
         </div>
       )}

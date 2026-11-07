@@ -3,6 +3,7 @@ import { Fragment, type ReactNode } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
 import { LlamadoAccion } from '@/components/shared/LlamadoAccion';
+import { TapaCuaderno } from '@/components/shared/TapaCuaderno';
 import { Badge } from '@/components/ui/Badge';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Icon } from '@/components/ui/Icon';
@@ -10,6 +11,7 @@ import type { CentroPublico, PerfilPublico } from '@/lib/api/servidor';
 import { formatoClp, formatoTelefono } from '@/lib/formato';
 import { iconoO } from '@/lib/iconos';
 import { nombrePerfil, tarifaDesde } from '@/lib/perfiles';
+import { esCuaderno } from '@/lib/tema';
 
 /*
  * Landing del centro (diseño "Landing", estilo Moderno de
@@ -59,8 +61,9 @@ export function Portada({ centro, perfiles }: { centro: CentroPublico; perfiles:
           )}
         </div>
       </div>
+      {perfiles.length > 0 && esCuaderno && <NotaEquipo perfiles={perfiles} desde={tarifas.length > 0 ? Math.min(...tarifas) : null} />}
       {/* Bloque oliva con profesionales publicados flotando (datos reales: perfiles validados). */}
-      {perfiles.length > 0 && (
+      {perfiles.length > 0 && !esCuaderno && (
         <div className="relative min-h-[380px] flex-[1_1_380px]">
           <div aria-hidden="true" className="absolute inset-[0_40px_40px_0] rounded-[40px] bg-accent-2-200" />
           {perfiles.slice(0, 3).map((p, i) => (
@@ -88,6 +91,25 @@ export function Portada({ centro, perfiles }: { centro: CentroPublico; perfiles:
   );
 }
 
+/** Tema Cuaderno: el resumen del equipo es un post-it escrito a mano (mismos datos que el bloque tinta de Moderno). */
+function NotaEquipo({ perfiles, desde }: { perfiles: PerfilPublico[]; desde: number | null }) {
+  const modalidades = new Set(perfiles.map((p) => p.modalidad));
+  const ambas = modalidades.has('MIXTA') || (modalidades.has('PRESENCIAL') && modalidades.has('ONLINE'));
+  return (
+    <div className="relative flex min-h-[340px] flex-[1_1_340px] items-start justify-center">
+      <div className="nota flex w-[min(280px,90%)] flex-col gap-1.5 px-6 pt-8 pb-6 font-manuscrita text-2xl">
+        <span className="text-[30px] leading-tight font-bold">Nuestro equipo</span>
+        <span>
+          {perfiles.length} {perfiles.length === 1 ? 'profesional' : 'profesionales'}
+        </span>
+        {desde !== null && <span>desde {formatoClp(desde)}</span>}
+        {ambas && <span>presencial y online</span>}
+        <span className="mt-3 text-[22px] text-[var(--color-ladrillo)]">sin crear cuenta para reservar</span>
+      </div>
+    </div>
+  );
+}
+
 export function Servicios({ centro }: { centro: CentroPublico }) {
   if (centro.servicios.length === 0) return null;
   return (
@@ -95,7 +117,7 @@ export function Servicios({ centro }: { centro: CentroPublico }) {
       <Rotulo>Servicios</Rotulo>
       <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(250px,1fr))]">
         {centro.servicios.map((s) => (
-          <article key={s.titulo} className="revelar flex flex-col gap-2.5 rounded-panel bg-bg p-6 shadow-suave">
+          <article key={s.titulo} className="nota revelar flex flex-col gap-2.5 rounded-panel bg-bg p-6 shadow-suave">
             {/* Icono elegido por el centro, sin tile (regla del proyecto: nada de icono en cuadrado sobre cada titulo). */}
             <Icon name={iconoO(s.icono, 'spa')} size={28} className="text-accent-700" />
             <h2 className="m-0 text-[21px] font-black tracking-[-0.01em]">{s.titulo}</h2>
@@ -140,19 +162,25 @@ export function EquipoDestacado({ perfiles }: { perfiles: PerfilPublico[] }) {
         </ButtonLink>
       </div>
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        {perfiles.slice(0, 4).map((p) => (
-          <Link
-            key={p.id}
-            href={`/equipo/${p.id}`}
-            className="revelar flex flex-col gap-2.5 rounded-panel bg-bg p-4 text-text shadow-suave transition-shadow duration-200 ease-out hover:text-text hover:shadow-flotante"
-          >
-            <AvatarProfesional nombre={nombrePerfil(p)} foto={p.foto_url} size="fluido" cuadrado />
-            <span className="flex flex-col">
-              <strong className="text-[15px]">{nombrePerfil(p)}</strong>
-              <span className="text-[13px] text-neutral-700">{p.especialidad}</span>
-            </span>
-          </Link>
-        ))}
+        {perfiles.slice(0, 4).map((p, i) =>
+          esCuaderno ? (
+            <Link key={p.id} href={`/equipo/${p.id}`} className="revelar block text-tinta hover:text-tinta">
+              <TapaCuaderno orden={i} nombre={nombrePerfil(p)} especialidad={p.especialidad} />
+            </Link>
+          ) : (
+            <Link
+              key={p.id}
+              href={`/equipo/${p.id}`}
+              className="revelar flex flex-col gap-2.5 rounded-panel bg-bg p-4 text-text shadow-suave transition-shadow duration-200 ease-out hover:text-text hover:shadow-flotante"
+            >
+              <AvatarProfesional nombre={nombrePerfil(p)} foto={p.foto_url} size="fluido" cuadrado />
+              <span className="flex flex-col">
+                <strong className="text-[15px]">{nombrePerfil(p)}</strong>
+                <span className="text-[13px] text-neutral-700">{p.especialidad}</span>
+              </span>
+            </Link>
+          ),
+        )}
       </div>
     </section>
   );

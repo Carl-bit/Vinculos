@@ -1,14 +1,24 @@
 import type { Metadata } from 'next';
-import { Figtree } from 'next/font/google';
+import { Caveat, Figtree, Nunito } from 'next/font/google';
 import localFont from 'next/font/local';
 
 import { Proveedores } from '@/components/shared/Proveedores';
 import { NOMBRE_CENTRO } from '@/components/shared/Marca';
+import { TEMA } from '@/lib/tema';
 
 import './globals.css';
 
 /** Figtree: next/font la descarga al compilar y la sirve desde el mismo origen (el navegador no llama a Google). */
-const figtree = Figtree({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800', '900'], variable: '--font-figtree', display: 'swap' });
+const figtree = Figtree({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800', '900'],
+  variable: '--font-figtree',
+  display: 'swap',
+  preload: true,
+});
+/** Tema Cuaderno (app/temas/cuaderno.css): Nunito de lectura y Caveat en titulos. Sin precarga (next/font exige literales): el navegador las baja solo si el tema las usa. */
+const nunito = Nunito({ subsets: ['latin'], variable: '--font-nunito', display: 'swap', preload: false });
+const caveat = Caveat({ subsets: ['latin'], variable: '--font-caveat', display: 'swap', preload: false });
 
 /**
  * Iconos (03b-6): Material Symbols Rounded alojada en el repo y recortada a los
@@ -38,7 +48,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // Tema del silo (build arg NEXT_PUBLIC_TEMA): los tokens de cada tema cuelgan de :root[data-tema].
-    <html lang="es" data-tema={process.env.NEXT_PUBLIC_TEMA ?? 'moderno'} className={`${figtree.variable} ${iconos.variable}`}>
+    <html lang="es" data-tema={TEMA} className={`${figtree.variable} ${nunito.variable} ${caveat.variable} ${iconos.variable}`}>
       <body>
         {/* 03b-6: primer foco de cada pagina; salta el menu y lleva al <main id="contenido"> de la zona. */}
         <a
