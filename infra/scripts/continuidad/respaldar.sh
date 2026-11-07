@@ -1,7 +1,7 @@
 #!/bin/sh
 # AUD-01 (E2.4, CENS-S5): respaldo diario cifrado de un silo.
 #
-#   CLIENTE_SLUG=<silo> sh infra/scripts/continuidad/respaldar.sh
+#   CLIENTE_SLUG=<silo> [ENV_SILO=<.env del silo>] sh infra/scripts/continuidad/respaldar.sh
 #
 # 1. pg_dump -Fc dentro del contenedor db del silo (credenciales de dueño del
 #    .env del silo; nunca salen del host).
@@ -29,7 +29,7 @@ MARCA=$(date -u +%Y%m%dT%H%M%SZ)
 SALIDA="$DIR/$CLIENTE_SLUG-$MARCA.dump.enc"
 
 # Mismo compose que los scripts de llaves (proyecto erp-<slug>, servicio db).
-docker compose -f "$RAIZ/infra/docker-compose.yml" --env-file "$RAIZ/infra/.env" exec -T db sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+docker compose -f "$RAIZ/infra/docker-compose.yml" --env-file "${ENV_SILO:-$RAIZ/infra/.env}" exec -T db sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass "file:$LLAVE" -out "$SALIDA"
 [ -s "$SALIDA" ] || { echo "Respaldo vacio: revisar" >&2; exit 1; }
 sha256sum "$SALIDA" > "$SALIDA.sha256"

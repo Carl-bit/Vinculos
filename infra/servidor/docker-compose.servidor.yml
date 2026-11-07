@@ -1,0 +1,33 @@
+# Override del silo para el servidor de pruebas: se usa SOBRE infra/docker-compose.yml
+# (lo hace servidor.sh). El silo queda igual al real; solo agrega `seed`, que
+# carga los datos demo desde dentro de la red del silo (sin Node en el host).
+#
+# seed usa la etapa `build` del Dockerfile del backend (trae ts-node y el
+# codigo fuente). Solo datos ficticios: nunca en un silo de un cliente real.
+services:
+  seed:
+    profiles: [seed]
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      target: build
+    image: erp-backend-seed:${CLIENTE_SLUG}
+    restart: 'no'
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://vinculos_owner:${OWNER_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      DATABASE_URL: postgresql://app_user:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      KEK_PATH: /llaves/kek
+      RECUPERACION_PUBLICA_PATH: /llaves/recuperacion.pub
+      SEED_PASSWORD: ${SEED_PASSWORD}
+      NODE_ENV: development
+      # El seed captura sus propios codigos; no manda correos.
+      SMTP_URL: ''
+    volumes:
+      - ./secrets/${CLIENTE_SLUG}:/llaves:ro
+      # seed-demo publica las politicas desde las plantillas (../../docs desde prisma/).
+      - ../docs/cumplimiento/plantillas:/docs/cumplimiento/plantillas:ro
+    # seed.ts (cuentas y catalogos, como dueño) y luego seed-demo.ts (por la API real, con RLS).
+    command: ['sh', '-c', 'DATABASE_URL="$$MIGRATION_DATABASE_URL" npx prisma db seed && node -r ts-node/register/transpile-only prisma/seed-demo.ts']
+    networks:
+      - interna

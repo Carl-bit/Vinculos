@@ -97,11 +97,22 @@ por separado (paso 5).
 - E2E del front, con la API arriba y el seed demo cargado (`npm run seed:demo` en `backend`):
   `cd frontend && npx playwright install chromium && npm run test:e2e`.
 
+## Servidor de pruebas (demo y estres)
+
+```bash
+cp .env.example .env    # token de Cloudflare, dominio de Mailpit
+PERFIL=estres sh infra/servidor/servidor.sh levantar estres estres.midominio.cl "Centro Estres"
+sh infra/servidor/servidor.sh levantar demo demo.midominio.cl "Centro Demo"
+```
+
+Paso a paso (Cloudflare Tunnel, llaves, reinicio del demo, k6):
+[`docs/operacion/servidor_pruebas.md`](docs/operacion/servidor_pruebas.md).
+
 ## Desplegar un silo
 
 ```bash
 docker network create proxy                                   # una vez por host
-docker compose -f infra/traefik/docker-compose.yml up -d      # una vez por host
+docker compose -f infra/traefik/docker-compose.yml up -d      # una vez por host (CF_DNS_API_TOKEN, ACME_EMAIL)
 cp infra/.env.example infra/.env                              # uno por cliente
 docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
 ```

@@ -21,6 +21,8 @@ infra/local/
 # Llaves de cada silo y de desarrollo (KEK, partes de recuperacion). Nunca en git.
 infra/secrets/
 infra/respaldos/
+# .env de los silos del servidor de pruebas (contraseñas generadas por servidor.sh).
+infra/servidor/silos/
 # Red de seguridad por si se copian fuera de infra/secrets/.
 *.shamir
 partes_entregar*/

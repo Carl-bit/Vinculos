@@ -152,6 +152,8 @@ services:
         API_URL: http://backend:3001
         NEXT_PUBLIC_CENTRO_NOMBRE: ${CENTRO_NOMBRE}
         NEXT_PUBLIC_SITE_URL: https://${DOMINIO}
+        # Estilo visual del silo (moderno por defecto). Pasara a runtime con Vinculos Control.
+        NEXT_PUBLIC_TEMA: ${TEMA:-moderno}
     restart: unless-stopped
     mem_limit: 256m
     cpus: 1.0

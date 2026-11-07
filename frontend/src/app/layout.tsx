@@ -37,7 +37,8 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${figtree.variable} ${iconos.variable}`}>
+    // Tema del silo (build arg NEXT_PUBLIC_TEMA): los tokens de cada tema cuelgan de :root[data-tema].
+    <html lang="es" data-tema={process.env.NEXT_PUBLIC_TEMA ?? 'moderno'} className={`${figtree.variable} ${iconos.variable}`}>
       <body>
         {/* 03b-6: primer foco de cada pagina; salta el menu y lleva al <main id="contenido"> de la zona. */}
         <a
