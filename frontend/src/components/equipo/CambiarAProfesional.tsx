@@ -7,7 +7,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ApiError } from '@/lib/api/errores';
 import { NOMBRE_ROL } from '@/lib/roles';
-import { cambiarRol, type Rol } from '@/lib/sesion';
+import { cambiarRolConCarga } from '@/lib/cambioRol';
+import type { Rol } from '@/lib/sesion';
 
 /**
  * Cuenta madre con rol Profesional trabajando como ADMIN/GESTION: su perfil
@@ -20,7 +21,7 @@ export function CambiarAProfesional({ rolActivo }: { rolActivo: Rol }) {
   const cliente = useQueryClient();
   const [error, setError] = useState<string>();
   const cambiar = useMutation({
-    mutationFn: () => cambiarRol('PROFESIONAL'),
+    mutationFn: () => cambiarRolConCarga('PROFESIONAL'),
     onSuccess: () => {
       cliente.clear();
       router.replace('/admin/perfil');

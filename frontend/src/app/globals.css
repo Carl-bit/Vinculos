@@ -172,14 +172,15 @@
   animation: aparecer 200ms ease-out 300ms both;
 }
 
-/* Skeleton: barrido suave sobre neutral-200. */
+/* Skeleton: barrido sobre neutral-300, un tono mas oscuro que la tarjeta y el
+   lienzo para que se distinga (los tokens los redefine cada tema). */
 @keyframes barrido {
   to {
     background-position: -200% 0;
   }
 }
 .esqueleto {
-  background: linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%) 0 0 / 200% 100%;
+  background: linear-gradient(90deg, var(--color-neutral-300) 25%, var(--color-neutral-200) 50%, var(--color-neutral-300) 75%) 0 0 / 200% 100%;
   animation: barrido 1.4s ease-in-out infinite;
 }
 

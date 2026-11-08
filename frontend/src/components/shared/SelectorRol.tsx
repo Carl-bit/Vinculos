@@ -7,7 +7,8 @@ import { useState } from 'react';
 import { Field, Select } from '@/components/ui/Field';
 import { ApiError } from '@/lib/api/errores';
 import { inicioDeRol, NOMBRE_ROL } from '@/lib/roles';
-import { cambiarRol, type Rol } from '@/lib/sesion';
+import { cambiarRolConCarga } from '@/lib/cambioRol';
+import type { Rol } from '@/lib/sesion';
 
 /**
  * Rol activo, siempre visible. Con varios roles permite cambiarlo: token
@@ -31,7 +32,7 @@ export function SelectorRol({ rol, roles }: { rol: Rol; roles: readonly Rol[] })
     setCambiando(true);
     setError(undefined);
     try {
-      await cambiarRol(nuevo);
+      await cambiarRolConCarga(nuevo);
       cliente.clear();
       router.replace(inicioDeRol(nuevo));
     } catch (e) {

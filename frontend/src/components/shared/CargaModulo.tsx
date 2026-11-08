@@ -3,6 +3,8 @@
 import { useIsFetching } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 
+import { useCambiandoRol } from '@/lib/cambioRol';
+
 /** Espera tras quedar sin consultas: cubre las que arrancan despues de otra (dependientes) y el primer render. */
 const ASENTADO_MS = 150;
 /** Tope: si algo no termina (red lenta), se muestra igual; cada panel conserva su propio estado. */
@@ -15,11 +17,15 @@ const TOPE_MS = 10_000;
  * esqueleto de pagina completa, y se muestra de una vez cuando ninguna
  * consulta sin datos sigue en vuelo. Las consultas en cache (volver a un
  * modulo) o con polling no lo retienen. Se reinicia en cada ruta (el <main>
- * de cada layout lleva key={ruta}).
+ * de cada layout lleva key={ruta}; el del panel, tambien el rol activo) y
+ * mientras se pide el token de un cambio de rol (lib/cambioRol).
  */
 export function CargaModulo({ children }: { children: ReactNode }) {
   const sinDatos = useIsFetching({ predicate: (q) => q.state.data === undefined });
   const [listo, setListo] = useState(false);
+  // Mientras se pide el token del rol nuevo, el modulo actual queda bajo el esqueleto.
+  const cambiandoRol = useCambiandoRol();
+  const visible = listo && !cambiandoRol;
 
   useEffect(() => {
     if (listo) return;
@@ -34,13 +40,29 @@ export function CargaModulo({ children }: { children: ReactNode }) {
   }, [sinDatos, listo]);
 
   return (
-    <div className="relative" aria-busy={!listo || undefined}>
-      {!listo && <EsqueletoModulo />}
+    <div className="relative" aria-busy={!visible || undefined}>
+      {!visible && <EsqueletoModulo />}
       {/* visibility y no display: el contenido se mide igual (scroll de la agenda, anchos de grilla). inert: sin foco ni lector mientras carga. */}
-      <div className={listo ? 'entrada' : 'invisible'} inert={!listo || undefined}>
+      <div className={visible ? 'entrada' : 'invisible'} inert={!visible || undefined}>
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * Tarjeta en carga: las mismas clases que Card (`crema`), asi que toma el
+ * fondo, borde, radio y sombra de cada tema (app/temas/); adentro, barras
+ * `esqueleto` un tono mas oscuras que la tarjeta.
+ */
+function TarjetaEsqueleto({ className = '', lineas = 2 }: { className?: string; lineas?: number }) {
+  return (
+    <span className={`flex flex-col gap-3 rounded-panel border border-borde bg-bg p-5 shadow-suave ${className}`}>
+      <span className="esqueleto h-3.5 w-2/5 rounded-full" />
+      {Array.from({ length: lineas }, (_, i) => (
+        <span key={i} className={`esqueleto h-3 rounded-full ${i % 2 ? 'w-3/5' : 'w-4/5'}`} />
+      ))}
+    </span>
   );
 }
 
@@ -55,12 +77,12 @@ function EsqueletoModulo() {
       </div>
       <div aria-hidden="true" className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
-          <span key={i} className="esqueleto h-24 rounded-tarjeta" />
+          <TarjetaEsqueleto key={i} lineas={1} className="h-24" />
         ))}
       </div>
       <div aria-hidden="true" className="grid gap-3.5 md:grid-cols-[3fr_2fr]">
-        <span className="esqueleto h-72 rounded-tarjeta" />
-        <span className="esqueleto h-72 rounded-tarjeta" />
+        <TarjetaEsqueleto lineas={7} className="h-72" />
+        <TarjetaEsqueleto lineas={5} className="h-72" />
       </div>
     </div>
   );

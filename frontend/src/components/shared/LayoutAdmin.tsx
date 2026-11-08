@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
+import { terminarCambioRol } from '@/lib/cambioRol';
 import { useCentroPublico, useMiCuenta, useModulos } from '@/lib/consultas';
 import { conSelectorEquipo, menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
 import { esAdministracion, NOMBRE_ROL } from '@/lib/roles';
@@ -56,6 +57,8 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
   const centro = useCentroPublico().data;
   const [menuAbierto, setMenuAbierto] = useState(false);
   useEffect(() => setMenuAbierto(false), [ruta]);
+  // Cambio de rol: con el token nuevo ya en la sesion, la carga la sigue CargaModulo (key con el rol).
+  useEffect(() => terminarCambioRol(), [sesion.rol]);
 
   return (
     <ProveedorEquipoActivo key={sesion.rol} habilitado={esAdministracion(sesion.rol)}>
@@ -116,7 +119,12 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
             </div>
           </div>
         </aside>
-        <main id="contenido" tabIndex={-1} key={ruta} className={`entrada min-w-0 outline-none px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 trama`}>
+        <main
+          id="contenido"
+          tabIndex={-1}
+          key={`${ruta}|${sesion.rol}`}
+          className={`entrada min-w-0 outline-none px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 trama`}
+        >
           {esAdministracion(sesion.rol) && <ViendoA />}
           {rutaPermitida('admin', sesion.rol, ruta) ? <CargaModulo>{children}</CargaModulo> : <EstadoVista estado="sin-permiso" />}
         </main>
