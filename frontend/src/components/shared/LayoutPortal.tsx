@@ -13,6 +13,7 @@ import { NOMBRE_ROL } from '@/lib/roles';
 import type { SesionActiva } from '@/lib/sesion';
 import { BotonSalir } from './BotonSalir';
 import { ProveedorPortal, usePortal } from './ContextoPortal';
+import { CargaModulo } from './CargaModulo';
 import { Marca } from './Marca';
 import { MarcaZona } from './MarcaZona';
 
@@ -112,7 +113,7 @@ function Shell({ sesion, children }: { sesion: SesionActiva; children: ReactNode
           )}
 
           <main id="contenido" tabIndex={-1} className="entrada outline-none" key={ruta}>
-            {children}
+            <CargaModulo>{children}</CargaModulo>
           </main>
         </div>
       </div>
