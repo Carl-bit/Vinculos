@@ -49,7 +49,8 @@ SEED_PASSWORD=$(azar 8)
 LOGIN_LIMITE_POR_MINUTO=$LOGIN
 PUBLICO_LIMITE_POR_MINUTO=$PUBLICO
 SMTP_URL=smtp://mailpit:1025
-CORREO_REMITENTE=no-responder@vinculos.cl
+# Remitente propio: los silos de prueba comparten Mailpit y las mismas cuentas demo; asi se distingue de que centro es cada codigo.
+CORREO_REMITENTE=no-responder@$DOMINIO
 FIN
   echo "Creado $ENV_SILO"
 }

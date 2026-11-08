@@ -103,6 +103,12 @@ Entrar: `https://demo.midominio.cl/ingreso`, cuentas de
 `docs/pruebas/usuarios_demo.md`. La contraseña es `SEED_PASSWORD` del `.env`
 del silo. El codigo del segundo paso llega a `https://correo.midominio.cl`.
 
+Los dos silos tienen las mismas cuentas (`admin@centro-prueba.cl`, etc.) pero
+cada uno su propia contraseña y sus propios codigos. En Mailpit, el remitente
+dice de que centro es cada correo (`no-responder@<dominio del silo>`); buscar
+`from:demo.midominio.cl`. Un codigo de un centro no sirve en el otro, y pedir
+uno nuevo anula el anterior (vale 10 minutos).
+
 ## 4. Llaves
 
 | Archivo | Que es | Donde |

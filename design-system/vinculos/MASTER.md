@@ -67,6 +67,19 @@ oliva, crema: calza con Organic), con el checklist de "Accessible & Ethical".
   Error: `error` + "Reintentar" (botón secundario). Sin permiso: `lock`.
 - Error de API: el texto sale de `mensajeError` (409/422 con el mensaje de
   la regla; el resto con un texto fijo por estado).
+- Entrada de un modulo (panel y portal, `shared/CargaModulo` en
+  `LayoutAdmin` y `LayoutPortal`): el modulo se monta oculto bajo un
+  esqueleto de pagina completa y aparece de una vez cuando ninguna consulta
+  sin datos sigue en vuelo (150 ms de asentado, tope de 10 s). Nunca pagina
+  en blanco ni paneles que llegan cada uno a su tiempo. Volver a un modulo
+  en cache no muestra esqueleto. El `EstadoVista` de carga de cada panel
+  queda para recargas dentro del modulo (filtros, paginas).
+- Cambio de rol (selector y "Trabajar como Profesional", `lib/cambioRol`):
+  el esqueleto cubre desde el clic hasta que el modulo del rol nuevo esta
+  completo (el `<main>` del panel lleva key con ruta y rol).
+- El esqueleto son tarjetas con las clases de `Card` (`crema`): cada tema
+  le da su fondo, borde, radio y sombra; las barras van en neutral-300, un
+  tono mas oscuro que la tarjeta y el lienzo.
 
 ## Login, segundo paso TOTP
 
