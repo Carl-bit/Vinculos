@@ -12,7 +12,7 @@ import { ApiError } from '@/lib/api/errores';
 import { formatoFechaLarga, formatoHora } from '@/lib/formato';
 
 import { ResultadoEnlace as Resultado } from './ResultadoEnlace';
-import { NOMBRE_MODALIDAD_CITA } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA } from '@/components/shared/SelectorHorario';
 
 type Verificada = components['schemas']['SolicitudVerificada'];
 type Alternativa = components['schemas']['AlternativaHorario'];
@@ -61,8 +61,8 @@ export function VerificarSolicitud() {
         <Eyebrow tone="patient">Confirmar hora</Eyebrow>
         <h1 className="m-0 mb-4 text-[clamp(30px,4vw,44px)] leading-[1.02] font-black tracking-[-0.035em] text-balance">Confirma tu correo para reservar</h1>
         <p className="m-0 mb-7 text-base leading-relaxed text-pretty text-neutral-700">
-          Al confirmar tu correo, la hora que elegiste queda reservada a tu nombre mientras el profesional revisa tu solicitud, y aceptas las condiciones
-          que viste al pedirla.
+          Al confirmar tu correo, la hora que elegiste queda reservada a tu nombre mientras el profesional revisa tu solicitud, y aceptas las condiciones que
+          viste al pedirla.
         </p>
         {estado?.tipo === 'error' && (
           <p role="alert" className="m-0 mb-5 text-sm font-bold text-accent-700">

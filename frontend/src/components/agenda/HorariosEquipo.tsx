@@ -21,7 +21,7 @@ import { inicioDiaChile, instanteChile, semanaChile, sumarDias, useEquipoAgenda,
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
-import { NOMBRE_MODALIDAD_CITA } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA } from '@/components/shared/SelectorHorario';
 import { DIAS_SEMANA, hhmm, minutos } from './tonosAgenda';
 import { MargenTraslado, useConflictosMargen } from './MargenTraslado';
 

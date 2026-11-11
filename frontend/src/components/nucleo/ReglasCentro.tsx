@@ -30,11 +30,13 @@ type Numerico =
   | 'diasGraciaMorosidad'
   | 'margenTrasladoMin'
   | 'minutosRetencionSolicitud'
+  | 'horasAprobacionSolicitud'
   | 'plazoRespuestaDerivacionHoras'
   | 'plazoConsentimientoHoras'
   | 'plazoOposicionHoras'
   | 'diasGraciaCierre'
   | 'edadMinimaCuenta'
+  | 'maxCuentasMadre'
   | 'retencionMensajesDias';
 
 interface Campo {
@@ -65,6 +67,14 @@ const GRUPOS: { id: IdGrupo; titulo: string; bajada: string; campos: Campo[] }[]
       },
       { k: 'margenTrasladoMin', etiqueta: 'Margen entre sesión presencial y online', unidad: 'min', min: 0, max: 240 },
       { k: 'minutosRetencionSolicitud', etiqueta: 'Retención de la hora mientras se verifica el correo', unidad: 'min', min: 5, max: 120 },
+      {
+        k: 'horasAprobacionSolicitud',
+        etiqueta: 'Plazo del profesional para aprobar una hora pedida',
+        unidad: 'horas',
+        min: 1,
+        max: 168,
+        ayuda: 'Corre desde que el paciente verifica su correo; nunca pasa del inicio de la sesión. Si vence, la hora se libera y se avisa al paciente.',
+      },
     ],
   },
   {
@@ -81,8 +91,16 @@ const GRUPOS: { id: IdGrupo; titulo: string; bajada: string; campos: Campo[] }[]
   {
     id: 'cuentas',
     titulo: 'Cuentas y conservación',
-    bajada: 'Cuentas propias de pacientes y mensajes internos del equipo.',
+    bajada: 'Cuentas madre del equipo, cuentas propias de pacientes y mensajes internos.',
     campos: [
+      {
+        k: 'maxCuentasMadre',
+        etiqueta: 'Máximo de cuentas madre',
+        unidad: 'cuentas',
+        min: 1,
+        max: 10,
+        ayuda: 'Entre 1 y 10. El resto del equipo combina gestión y profesional. Para bajarlo, primero quita el rol a quien sobre.',
+      },
       { k: 'edadMinimaCuenta', etiqueta: 'Edad mínima para la cuenta propia del paciente', unidad: 'años', min: 14, max: 18 },
       { k: 'retencionMensajesDias', etiqueta: 'Conservación de mensajes internos del equipo', unidad: 'días', min: 30, max: 3650 },
     ],
@@ -249,7 +267,7 @@ function Parametros({
   const campos = grupos.flatMap((g) => g.campos);
   const cobros = seccion === 'cobros';
   const [valores, setValores] = useState<Record<Numerico, string>>(
-    () => Object.fromEntries(campos.map((f) => [f.k, String(c[f.k])])) as Record<Numerico, string>,
+    () => Object.fromEntries(campos.map((f) => [f.k, String(c[f.k] ?? '')])) as Record<Numerico, string>,
   );
   const [modelo, setModelo] = useState(c.modeloCobro);
   const [exigeEvolucion, setExigeEvolucion] = useState(c.liquidarExigeEvolucion);

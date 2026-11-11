@@ -51,8 +51,24 @@ export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInpu
   return <input className={`${CONTROL} rounded-full ${className}`} {...props} />;
 }
 
-export function Textarea({ className = '', ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`${CONTROL} min-h-28 rounded-lg ${className}`} {...props} />;
+/**
+ * `enterEnvia` (mensajes, punto 14): Enter envia el formulario y Shift+Enter
+ * hace salto de linea. Respeta la composicion de acentos (IME) en curso.
+ */
+export function Textarea({ className = '', enterEnvia = false, onKeyDown, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { enterEnvia?: boolean }) {
+  return (
+    <textarea
+      className={`${CONTROL} min-h-28 rounded-lg ${className}`}
+      onKeyDown={(e) => {
+        onKeyDown?.(e);
+        if (enterEnvia && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          e.currentTarget.form?.requestSubmit();
+        }
+      }}
+      {...props}
+    />
+  );
 }
 
 export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {

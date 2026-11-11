@@ -23,6 +23,8 @@ export interface ItemMenu {
   fueraDelMenu?: readonly Rol[];
   /** Portal: se oculta en la cuenta restringida del adolescente (14-17, D-4); la API igual no lo entrega. */
   soloCuentaPlena?: boolean;
+  /** Sitio publico del centro: se abre en una pestaña nueva (punto 30). */
+  pestanaNueva?: boolean;
 }
 
 const EQUIPO: readonly Rol[] = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE'];
@@ -42,7 +44,7 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
     // 2026-11-05: la cuenta madre gestiona el equipo desde Centro (GESTION lo ve en Modulos).
     { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'centro', roles: ['ADMIN'], modulo: 'EQUIPO' },
     { etiqueta: 'Configuración', icono: 'settings', href: '/admin/configuracion', grupo: 'centro', roles: ['ADMIN'] },
-    { etiqueta: 'Página pública', icono: 'public', href: '/', grupo: 'centro', roles: ['ADMIN'], modulo: 'PAGINA_PUBLICA' },
+    { etiqueta: 'Página pública', icono: 'public', href: '/', grupo: 'centro', roles: ['ADMIN'], modulo: 'PAGINA_PUBLICA', pestanaNueva: true },
   ],
   portal: [
     { etiqueta: 'Mi cuenta', icono: 'person', href: '/portal', grupo: 'principal', roles: PORTAL },

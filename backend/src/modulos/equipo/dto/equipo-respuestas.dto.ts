@@ -304,6 +304,8 @@ export class HiloVista {
 
 export class HiloConNoLeidos extends HiloVista {
   noLeidos!: number;
+  /** Nombres de quienes participan (sin quien consulta), via nombres_hilo(): para buscar por persona. */
+  personas!: string[];
 }
 
 export class MensajeInternoVista {

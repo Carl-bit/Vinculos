@@ -13,6 +13,10 @@ import type { Rol } from '@/lib/sesion';
  * Rol activo, siempre visible. Con varios roles, un boton por rol (punto 12,
  * 2026-11-11): token nuevo, cache vaciada (permisos recargados) y vuelta al
  * inicio del rol. Mientras cambia, los botones quedan bloqueados.
+ * Correcciones 2026-11-11 (punto 5): el boton no cambia su texto al cargar (un
+ * texto distinto quebraba la fila a vertical); columnas fijas (un nombre largo
+ * pasa a dos lineas dentro de su boton) y la carga se marca con
+ * aria-busy y un pulso suave (sin animacion con prefers-reduced-motion).
  */
 export function SelectorRol({ rol, roles }: { rol: Rol; roles: readonly Rol[] }) {
   const router = useRouter();
@@ -47,19 +51,21 @@ export function SelectorRol({ rol, roles }: { rol: Rol; roles: readonly Rol[] })
       <span id="rol-activo" className="text-[12px] font-extrabold text-neutral-700">
         Rol activo
       </span>
-      <div role="group" aria-labelledby="rol-activo" className="flex flex-wrap gap-1 rounded-full bg-neutral-200 p-1">
+      <div role="group" aria-labelledby="rol-activo" className="grid auto-cols-fr grid-flow-col gap-1 rounded-[22px] bg-neutral-200 p-1">
         {roles.map((r) => (
           <button
             key={r}
             type="button"
             aria-pressed={r === rol}
+            aria-busy={cambiando === r}
+            title={NOMBRE_ROL[r]}
             disabled={cambiando !== null}
             onClick={() => r !== rol && void cambiar(r)}
-            className={`min-h-9 flex-1 cursor-pointer rounded-full px-3 text-[12.5px] font-extrabold transition-colors duration-200 disabled:cursor-wait ${
+            className={`min-h-9 min-w-0 cursor-pointer rounded-[18px] px-2 py-1 text-[12.5px] leading-tight font-extrabold transition-colors duration-200 disabled:cursor-wait ${cambiando === r ? 'motion-safe:animate-pulse' : ''} ${
               r === rol ? 'bg-accent-700 text-neutral-100' : 'text-text hover:bg-neutral-300'
             }`}
           >
-            {cambiando === r ? 'Cambiando…' : NOMBRE_ROL[r]}
+            {NOMBRE_ROL[r]}
           </button>
         ))}
       </div>

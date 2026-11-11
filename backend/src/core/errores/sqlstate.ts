@@ -66,6 +66,7 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   usuarios_ultimo_admin: 'No se puede dejar al centro sin un ADMIN activo',
   usuarios_admin_no_se_desactiva: 'Un ADMIN no se desactiva a si mismo',
   usuarios_gestion_requiere_habilitacion: 'El rol GESTION no esta habilitado en el centro',
+  usuarios_gestion_habilitado: 'El rol GESTION no esta habilitado en el centro',
   usuarios_email_key: 'Ya existe un usuario con ese email',
   profesionales_publicar_requiere_tarifa: 'Publicar el perfil exige una tarifa general vigente',
   evoluciones_tipo_sesion_aprobado: 'El tipo de sesion no esta aprobado o esta inactivo',
@@ -102,7 +103,12 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   configuracion_centro_recordatorio_antes_de_cancelacion:
     'El recordatorio debe salir antes del plazo de aviso de cancelacion: recordatorioHorasAntes mayor que plazoAvisoCancelacionHoras (o 0 para desactivarlo)',
   // 03a
-  roles_adicionales_combinacion: 'Combinacion de roles invalida: solo ADMIN o GESTION suman PROFESIONAL',
+  roles_adicionales_combinacion: 'Combinacion de roles invalida: solo una cuenta del equipo (cuenta madre, gestion o profesional) suma otro de esos roles',
+  roles_adicionales_retiro: 'El rol profesional se da de baja con fecha: su agenda y sus citas pasan a reprogramar',
+  roles_adicionales_retiro_propio: 'No puedes quitarte un rol a ti mismo: lo hace otra cuenta madre',
+  bajas_supervisa_practicantes: 'Supervisa practicantes activos: asígnales otro supervisor y vuelve a programar la baja',
+  configuracion_centro_cuentas_madre_activas: 'Hay más cuentas madre activas que el nuevo máximo: quita el rol a alguna antes',
+  usuarios_maximo_cuentas_madre: 'El centro ya tiene el máximo de cuentas madre: súbelo en Configuración o quita el rol a otra cuenta',
   usuarios_paciente_edad_minima: 'La cuenta de paciente exige correo y la edad minima configurada (antes: el adulto responsable)',
   // 03a-2: plantillas clinicas, mensajeria interna y duplicados.
   registro_plantilla_valida: 'Use una plantilla publicada del tipo correcto (una correccion usa la version del registro que corrige)',
@@ -168,6 +174,9 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   citas_transferencia_sin_cuenta: 'No hay una cuenta registrada para transferir: elija otro medio de pago',
   citas_pago_coherente: 'Una cita pendiente de pago necesita su plazo de pago',
   solicitudes_hora_tomada: 'La hora ya no esta disponible: elija otra',
+  // Punto 7 (2026-11-11): propuesta de cambio de hora.
+  citas_propuestas_cantidad: 'Propone entre 1 y 5 horas',
+  citas_propuesta_futura: 'Una de las horas propuestas ya paso: elige otra',
   transferencias_coherente: 'Transferencia invalida (comprobante PDF, PNG o JPEG; motivo de rechazo de 3 a 300 caracteres)',
   cobros_pasarela_coherente: 'Cobro en linea invalido',
   // 03b-3.3: morosidad y caja de la hora retenida
@@ -279,6 +288,13 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/fecha de alta no puede ser futura/, 'altas_paciente_fecha'],
   [/Periodo invalido \(maximo un año\)/, 'reporte_cobros_periodo'],
   [/menor de 18: el solicitante se declara adulto responsable/, 'citas_menor_requiere_adulto_responsable'],
+  // Correcciones 2026-11-11: iniciar_baja_profesional / iniciar_baja_rol no nombran la restriccion.
+  [/Supervisa practicantes activos/, 'bajas_supervisa_practicantes'],
+  [/El centro ya tiene el maximo de cuentas madre/, 'usuarios_maximo_cuentas_madre'],
+  [/Hay mas cuentas madre activas que el nuevo maximo/, 'configuracion_centro_cuentas_madre_activas'],
+  [/El rol profesional se da de baja con fecha/, 'roles_adicionales_retiro'],
+  [/No puedes quitarte un rol a ti mismo/, 'roles_adicionales_retiro_propio'],
+  [/El rol de gestion no esta habilitado en el centro/, 'usuarios_gestion_habilitado'],
 ];
 
 function restriccionDeMensaje(mensaje: string | undefined): string | undefined {

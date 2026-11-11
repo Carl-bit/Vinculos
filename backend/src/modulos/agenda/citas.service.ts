@@ -16,7 +16,16 @@ import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { MENSAJE_POR_RESTRICCION } from '../../core/errores/sqlstate';
 import { EVENTOS, type CitaCancelada, type CitaConfirmada, type NotificacionSolicitada } from '../../core/eventos/eventos';
 import { AgendaService } from './agenda.service';
-import type { CrearCitaDto, CubrirCitaDto, DecidirSolicitudDto, FiltroCitasDto, HorarioDto, LiberarHoraDto, ReprogramarCitaDto } from './dto/agenda.dto';
+import type {
+  CrearCitaDto,
+  CubrirCitaDto,
+  DecidirSolicitudDto,
+  FiltroCitasDto,
+  HorarioDto,
+  LiberarHoraDto,
+  ReprogramarCitaDto,
+  ResponderPropuestaDto,
+} from './dto/agenda.dto';
 import { ProveedorVideollamada } from '../../core/integraciones/videollamada';
 
 /** Sin enlace (cifrado) en las listas: se pide aparte en /citas/:id/enlace. */
@@ -34,6 +43,7 @@ const VISTA = {
   canceladaEn: true,
   pagoVenceEn: true,
   aprobacionVenceEn: true,
+  propuestaDeId: true,
   medioConfirmacion: true,
   motivoLiberacion: true,
   createdAt: true,
@@ -166,9 +176,18 @@ export class CitasService {
   /**
    * MVP sin COBROS: aprobar o rechazar la hora SOLICITADA (funciones de la BD: solo su profesional).
    * Rechazar avisa desde la BD; aprobar genera el enlace online y avisa como al agendar.
+   * Punto 7: rechazar con alternativas las deja PROPUESTA (bloqueadas) y avisa al paciente desde la BD; el enlace
+   * de las online se genera ahora, con el contexto del profesional (el paciente no puede escribir en citas).
    */
-  async decidirSolicitud(id: string, { aprobar }: DecidirSolicitudDto) {
+  async decidirSolicitud(id: string, { aprobar, alternativas }: DecidirSolicitudDto) {
     const tx = this.bd.tx();
+    if (!aprobar && alternativas?.length) {
+      for (const a of alternativas) this.validarRango(a.inicio, a.fin);
+      const opciones = JSON.stringify(alternativas.map((a) => ({ modalidad: a.modalidad, inicio: a.inicio.toISOString(), fin: a.fin.toISOString() })));
+      const nuevas = await tx.$queryRaw<{ id: string }[]>`SELECT proponer_cambio_hora(${id}::uuid, ${opciones}::jsonb) AS id`;
+      for (const { id: propuesta } of nuevas) await this.generarEnlace(await this.obtener(propuesta));
+      return this.obtener(id);
+    }
     if (!aprobar) {
       await tx.$queryRaw`SELECT rechazar_cita(${id}::uuid)::text AS estado`;
       return this.obtener(id);
@@ -176,6 +195,17 @@ export class CitasService {
     await tx.$queryRaw`SELECT aprobar_cita(${id}::uuid)::text AS estado`;
     const cita = await this.obtener(id);
     this.emitirConfirmada(EVENTOS.CITA_CONFIRMADA, cita, await this.generarEnlace(cita));
+    return this.obtener(id);
+  }
+
+  /**
+   * Punto 7: el paciente (o su adulto responsable) acepta una hora PROPUESTA (CONFIRMADA; las otras se sueltan) o
+   * rechaza todas (vuelve a elegir entre las horas libres). Avisos y enlace online: los deja listos la BD.
+   */
+  async responderPropuesta(id: string, { aceptar }: ResponderPropuestaDto) {
+    const tx = this.bd.tx();
+    if (aceptar) await tx.$queryRaw`SELECT aceptar_propuesta(${id}::uuid)::text AS estado`;
+    else await tx.$queryRaw`SELECT rechazar_propuestas(${id}::uuid) AS n`;
     return this.obtener(id);
   }
 

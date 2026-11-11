@@ -87,9 +87,10 @@ export class JobsService implements OnApplicationBootstrap {
   /**
    * Bajas, practicantes vencidos y cierre de cuentas fuera de gracia. Despues
    * alerta (log de error + alertas_internas) si una baja quedo pendiente
-   * porque dejaria al centro sin ADMIN.
+   * porque dejaria al centro sin ADMIN. Cada 5 minutos (antes cada hora): la
+   * baja "ahora" de la cuenta madre cierra el acceso en minutos.
    */
-  @Cron(CronExpression.EVERY_HOUR, { name: 'procesar_bajas' })
+  @Cron(CronExpression.EVERY_5_MINUTES, { name: 'procesar_bajas' })
   procesarBajas(): Promise<ResultadoJob> {
     return this.conLock('procesar_bajas', async (tx) => {
       const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT procesar_bajas() AS n`;

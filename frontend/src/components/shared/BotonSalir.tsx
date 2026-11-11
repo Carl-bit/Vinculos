@@ -4,11 +4,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { cerrarSesion } from '@/lib/sesion';
 
 /** Cierra la sesion (revoca el refresh en la API), vacia la cache y vuelve al login. */
-export function BotonSalir({ className = '' }: { className?: string }) {
+export function BotonSalir({ className = '', grande = false }: { className?: string; grande?: boolean }) {
   const router = useRouter();
   const cliente = useQueryClient();
   const [saliendo, setSaliendo] = useState(false);
@@ -21,6 +22,20 @@ export function BotonSalir({ className = '' }: { className?: string }) {
       router.replace('/ingreso');
     }
   };
+  // Grande (tarjeta de la cuenta del portal, punto 42): ancho, con texto y el color de salida (terracota).
+  if (grande)
+    return (
+      <Button
+        variant="primary"
+        size="lg"
+        icon="logout"
+        loading={saliendo}
+        onClick={() => void salir()}
+        className={`w-full !border-accent-700 !bg-accent-700 !text-neutral-100 hover:!bg-accent-800 ${className}`}
+      >
+        Salir
+      </Button>
+    );
   return (
     <button
       type="button"

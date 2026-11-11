@@ -146,6 +146,13 @@ export class EditarConfiguracionDto {
   @IsBoolean()
   rolGestionHabilitado?: boolean;
 
+  /** Maximo de cuentas madre activas (principal o adicional). Bajarlo exige quitar el rol antes (BD). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  maxCuentasMadre?: number;
+
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -268,6 +275,13 @@ export class EditarConfiguracionDto {
   @Max(120)
   minutosRetencionSolicitud?: number;
 
+  /** MVP sin cobros: horas que tiene el profesional para aprobar una hora pedida (CHECK 1 a 168; nunca despues del inicio). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(168)
+  horasAprobacionSolicitud?: number;
+
   /** 03a-2 (D-4): edad minima para la cuenta propia del paciente (14 a 18; antes opera el adulto responsable). */
   @IsOptional()
   @IsInt()
@@ -352,9 +366,16 @@ export class IniciarBajaDto {
 }
 
 /** 03a (C-1): segundo rol de una cuenta ADMIN o GESTION. */
+/** Correcciones 2026-11-11 (punto 4): una cuenta del equipo suma cuenta madre, gestion o profesional. */
 export class OtorgarRolDto {
-  @IsIn([Rol.PROFESIONAL])
-  rol!: 'PROFESIONAL';
+  @IsIn([Rol.ADMIN, Rol.GESTION, Rol.PROFESIONAL])
+  rol!: 'ADMIN' | 'GESTION' | 'PROFESIONAL';
+}
+
+/** Rol adicional que se quita al instante (sin agenda): cuenta madre o gestion. */
+export class RolRetirableDto {
+  @IsIn([Rol.ADMIN, Rol.GESTION])
+  rol!: 'ADMIN' | 'GESTION';
 }
 
 export class BajaRolDto {
@@ -604,6 +625,8 @@ export class ReporteDashboard {
 /** configuracion_centro (fila unica). Los porcentajes son Decimal: llegan como texto. */
 export class ConfiguracionCentroVista {
   rolGestionHabilitado!: boolean;
+  @ApiProperty({ type: Number, nullable: true, description: 'Maximo de cuentas madre activas; null = sin limite' })
+  maxCuentasMadre!: number | null;
   plazoRespuestaDerivacionHoras!: number;
   @ApiProperty({ enum: ModeloCobro, enumName: 'ModeloCobro' })
   modeloCobro!: ModeloCobro;
@@ -633,6 +656,7 @@ export class ConfiguracionCentroVista {
   matchFiltroDirecto!: boolean;
   diasRetencionRespuestasMatch!: number;
   minutosRetencionSolicitud!: number;
+  horasAprobacionSolicitud!: number;
   retencionMensajesDias!: number;
   edadMinimaCuenta!: number;
   @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', isArray: true })

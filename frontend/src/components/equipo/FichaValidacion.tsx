@@ -165,7 +165,7 @@ export function FichaValidacion({
           )}
           <div className="flex flex-wrap gap-1.5">
             {perfil.data?.perfilPublico && profesional && (
-              <ButtonLink href={`/equipo/${miembro.id}`} variant="secondary" className={CHICO}>
+              <ButtonLink href={`/equipo/${miembro.id}`} target="_blank" rel="noopener" variant="secondary" className={CHICO}>
                 Ver perfil público
               </ButtonLink>
             )}
@@ -899,15 +899,18 @@ function Administrativo({ miembro, cuenta, admin, bajaEn }: { miembro: Integrant
         )}
         {conDatos && (
           <Fila
-            etiqueta="Datos para pagos"
+            // MVP sin COBROS (2026-11-11): solo el RUT; la cuenta bancaria no se muestra.
+            etiqueta={cobrosActivo ? 'Datos para pagos' : 'RUT'}
             valor={
               verDatos
                 ? privados.isPending
                   ? '…'
-                  : d
-                    ? `${d.banco ?? 'Banco'} · ${d.tipoCuenta ?? ''} ${d.numeroCuenta ?? ''}`.trim()
-                    : 'No los registra todavía'
-                : 'Cifrados'
+                  : !cobrosActivo
+                    ? (d?.rut ?? 'No lo registra todavía')
+                    : d
+                      ? `${d.banco ?? 'Banco'} · ${d.tipoCuenta ?? ''} ${d.numeroCuenta ?? ''}`.trim()
+                      : 'No los registra todavía'
+                : 'Cifrado'
             }
             accion={
               <Button variant="ghost" className={CHICO} icon={verDatos ? 'visibility_off' : 'visibility'} onClick={() => setVerDatos((v) => !v)}>
@@ -916,7 +919,7 @@ function Administrativo({ miembro, cuenta, admin, bajaEn }: { miembro: Integrant
             }
           />
         )}
-        {verDatos && d && (
+        {cobrosActivo && verDatos && d && (
           <p className="m-0 px-1 text-[12.5px] font-semibold text-neutral-800">
             RUT {d.rut ?? '—'} · Titular {d.titular ?? '—'}
           </p>
@@ -934,7 +937,11 @@ function Administrativo({ miembro, cuenta, admin, bajaEn }: { miembro: Integrant
           }
           tono={bajaEn || !miembro.activo ? 'alerta' : undefined}
         />
-        {conDatos && <span className="px-1 text-[12px] font-semibold text-neutral-700">Ver los datos para pagos queda en la auditoría.</span>}
+        {conDatos && (
+          <span className="px-1 text-[12px] font-semibold text-neutral-700">
+            {cobrosActivo ? 'Ver los datos para pagos queda en la auditoría.' : 'Ver el RUT queda en la auditoría.'}
+          </span>
+        )}
       </div>
     </Panel>
   );

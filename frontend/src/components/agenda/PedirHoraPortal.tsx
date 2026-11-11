@@ -21,7 +21,7 @@ import { formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Bloque } from '@/lib/horarios';
 import { clavesPortal, nombresDe, useEquipoPortal } from '@/lib/portal';
 
-import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from '@/components/shared/SelectorHorario';
 
 /**
  * "Pedir una hora" desde la cuenta: solo con el tratante actual (un tratante
@@ -109,15 +109,14 @@ export function PedirHoraPortal() {
   }
   if (!tratante) {
     return (
-      <Panel titulo="Tu primera hora" bajada="Todavía no tienes un profesional asignado en el centro.">
-        <div className="flex flex-wrap gap-2.5">
-          <ButtonLink href="/match" variant="team" icon="join">
-            Hacer el match terapéutico
-          </ButtonLink>
-          <ButtonLink href="/equipo" variant="secondary" icon="groups">
-            Ver al equipo
-          </ButtonLink>
-        </div>
+      // Punto 43: sin "Ver al equipo" en el portal; el match propone profesional (o lo asigna el centro).
+      <Panel
+        titulo="Tu primera hora"
+        bajada="Todavía no tienes un profesional asignado. El match te propone con quién atenderte; si prefieres, pídelo en recepción."
+      >
+        <ButtonLink href="/match" variant="team" icon="join">
+          Hacer el match terapéutico
+        </ButtonLink>
       </Panel>
     );
   }

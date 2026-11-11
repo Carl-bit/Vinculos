@@ -37,6 +37,7 @@ import {
   CrearBloqueoAgendaDto,
   CubrirCitaDto,
   DecidirSolicitudDto,
+  ResponderPropuestaDto,
   HorarioEspacioDto,
   CrearCitaDto,
   CrearDisponibilidadDto,
@@ -282,11 +283,18 @@ export class CitasController {
     return this.citas.cancelar(id);
   }
 
-  /** MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA. Vencida o ya decidida: 409. */
+  /** MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA; al rechazar puede proponer otras horas (punto 7). Vencida o ya decidida: 409; hora propuesta tomada: 409. */
   @Patch(':id/aprobacion')
   @Roles('PROFESIONAL')
   decidirSolicitud(@Param('id', Uuid) id: string, @Body() dto: DecidirSolicitudDto): Promise<CitaVista> {
     return this.citas.decidirSolicitud(id, dto);
+  }
+
+  /** Punto 7: el paciente (o su adulto responsable) acepta una hora PROPUESTA o rechaza todas las del grupo. Vencida: 409. */
+  @Patch(':id/propuesta')
+  @Roles('PACIENTE', 'RESPONSABLE')
+  responderPropuesta(@Param('id', Uuid) id: string, @Body() dto: ResponderPropuestaDto): Promise<CitaVista> {
+    return this.citas.responderPropuesta(id, dto);
   }
 
   /** 03b-3.3: libera a mano una hora retenida (reserva sin cuenta). Con comprobante por validar: 409. */

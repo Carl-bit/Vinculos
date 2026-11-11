@@ -86,6 +86,12 @@ export function AsistenteMatch({ preguntas, agenda, filtroDirecto = false }: { p
     <div className="flex items-start justify-center gap-[clamp(20px,3vw,40px)] pt-[clamp(10px,2vw,26px)] pb-10">
       <aside className="sticky top-6 hidden w-[292px] flex-none rounded-lg border border-divider bg-bg px-6 py-[26px] shadow-suave lg:block">
         <Eyebrow tone="patient">Match terapéutico</Eyebrow>
+        {/* Punto 26: la salida al filtro directo va al principio, visible antes del cuestionario. */}
+        {filtroDirecto && !filtrar && (
+          <Button variant="secondary" icon="tune" onClick={() => setFiltrar(true)} className="mb-5 w-full !py-2.5 !text-[13.5px]">
+            Prefiero filtrar yo mismo
+          </Button>
+        )}
         {filtrar ? (
           <p className="m-0 text-[14px] leading-relaxed font-semibold text-pretty text-neutral-800">
             Estás filtrando el equipo por tu cuenta. Puedes volver al cuestionario cuando quieras: tus respuestas siguen ahí.
@@ -133,19 +139,15 @@ export function AsistenteMatch({ preguntas, agenda, filtroDirecto = false }: { p
           <Icon name="lock" size={17} />
           Tus respuestas no se guardan: solo sirven para sugerirte un profesional del centro.
         </p>
-        {filtroDirecto && !filtrar && (
-          <button
-            type="button"
-            onClick={() => setFiltrar(true)}
-            className="mt-3 min-h-10 cursor-pointer text-left text-[13.5px] font-extrabold text-accent-700 underline underline-offset-2 hover:text-accent-800"
-          >
-            Prefiero filtrar yo mismo
-          </button>
-        )}
       </aside>
 
       <section className="w-full max-w-[720px] min-w-0 rounded-lg border border-divider bg-bg p-[clamp(22px,4vw,40px)] shadow-suave">
         <div className={`mb-[22px] lg:hidden ${filtrar ? 'hidden' : ''}`}>
+          {filtroDirecto && !filtrar && (
+            <Button variant="secondary" icon="tune" onClick={() => setFiltrar(true)} className="mb-4 w-full !py-2.5 !text-[13.5px]">
+              Prefiero filtrar yo mismo
+            </Button>
+          )}
           <div className="mb-[9px] flex items-center justify-between gap-3">
             <span className="text-[11px] font-extrabold tracking-[0.14em] text-accent-700 uppercase">Match terapéutico</span>
             <span className="text-xs font-extrabold text-neutral-700">{resultado ? 'Resultado' : `Paso ${paso + 1} de ${total}`}</span>
@@ -153,15 +155,6 @@ export function AsistenteMatch({ preguntas, agenda, filtroDirecto = false }: { p
           <div className="h-2 overflow-hidden rounded-full bg-neutral-300" aria-hidden="true">
             <div className="h-full rounded-full bg-accent-700 transition-[width] duration-500 ease-out" style={{ width: `${pct}%` }} />
           </div>
-          {filtroDirecto && !filtrar && (
-            <button
-              type="button"
-              onClick={() => setFiltrar(true)}
-              className="mt-2 min-h-10 cursor-pointer text-[13.5px] font-extrabold text-accent-700 underline underline-offset-2"
-            >
-              Prefiero filtrar yo mismo
-            </button>
-          )}
         </div>
 
         {filtrar ? (

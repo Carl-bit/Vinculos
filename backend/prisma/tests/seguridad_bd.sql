@@ -56,6 +56,8 @@
 -- dormido (implementacion futura), asi que lo enciende; el caso 164 lo apaga
 -- para probar la aprobacion del profesional.
 UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'COBROS'::modulo_centro;
+-- La suite crea varias cuentas madre: sin maximo (el caso 167 lo prueba).
+UPDATE configuracion_centro SET max_cuentas_madre = NULL;
 
 CREATE SCHEMA test;
 CREATE FUNCTION test.u(t text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
@@ -6591,6 +6593,201 @@ DO $$ BEGIN
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
 END $$;
 \connect :owner_url
+
+\echo 165 Punto 7 (2026-11-11): el profesional no acepta la solicitud y propone otras horas (PROPUESTA, ocupan la hora); el paciente elige una o rechaza todas; el job vence las propuestas; la API no fija PROPUESTA
+-- Paciente y cuenta propios del caso (las cuentas de paciente anteriores pueden estar cerradas a esta altura).
+INSERT INTO pacientes (id, nombre, apellido, fecha_nacimiento, profesional_id) VALUES (test.u('ef'), 'Pia', 'Propuesta', '1990-01-01', test.u('b1'));
+INSERT INTO fichas_clinicas (paciente_id) VALUES (test.u('ef'));
+INSERT INTO usuarios (id, email, password_hash, nombre, rol, paciente_id) VALUES (test.u('9f'), 't-pia@x', 'h', 'Pia (paciente)', 'PACIENTE', test.u('ef'));
+DO $$ DECLARE v1 uuid := gen_random_uuid(); v2 uuid := gen_random_uuid(); BEGIN
+  INSERT INTO citas (id, modalidad, profesional_id, paciente_id, inicio, fin, estado, aprobacion_vence_en) VALUES
+    (v1, 'ONLINE', test.u('b1'), test.u('ef'), test.dia(63, 10), test.dia(63, 11), 'SOLICITADA', now() + interval '1 hour'),
+    (v2, 'ONLINE', test.u('b1'), test.u('ef'), test.dia(63, 16), test.dia(63, 17), 'SOLICITADA', now() + interval '1 hour');
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin, estado, aprobacion_vence_en)
+    VALUES ('ONLINE', test.u('b1'), test.u('ef'), test.dia(64, 10), test.dia(64, 11), 'PROPUESTA', now() + interval '1 hour');
+    RAISE EXCEPTION 'caso 165: PROPUESTA exige la solicitud original';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  INSERT INTO test.ids VALUES ('165a', v1), ('165b', v2);
+END $$;
+\connect :app_url
+DO $$ DECLARE n int; BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin, estado, aprobacion_vence_en, propuesta_de_id)
+    VALUES ('ONLINE', test.u('b1'), test.u('ef'), test.dia(64, 10), test.dia(64, 11), 'PROPUESTA', now() + interval '1 hour', test.id('165a'));
+    RAISE EXCEPTION 'caso 165: la API no inserta PROPUESTA';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM proponer_cambio_hora(test.id('165a'), '[]'::jsonb);
+    RAISE EXCEPTION 'caso 165: al menos una hora';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  BEGIN
+    PERFORM proponer_cambio_hora(test.id('165a'), jsonb_build_array(jsonb_build_object('modalidad', 'ONLINE', 'inicio', test.dia(64, 10), 'fin', test.dia(64, 11))));
+    RAISE EXCEPTION 'caso 165: otro profesional no propone';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  SELECT count(*) INTO n FROM proponer_cambio_hora(test.id('165a'), jsonb_build_array(
+    jsonb_build_object('modalidad', 'ONLINE', 'inicio', test.dia(64, 10), 'fin', test.dia(64, 11)),
+    jsonb_build_object('modalidad', 'ONLINE', 'inicio', test.dia(64, 12), 'fin', test.dia(64, 13))));
+  ASSERT n = 2, 'caso 165: dos propuestas';
+  ASSERT (SELECT estado = 'CANCELADA' FROM citas WHERE id = test.id('165a')), 'caso 165: la solicitud se cancela';
+  ASSERT (SELECT count(*) FROM citas WHERE propuesta_de_id = test.id('165a') AND estado = 'PROPUESTA' AND aprobacion_vence_en IS NOT NULL) = 2,
+    'caso 165: propuestas con plazo';
+  BEGIN
+    UPDATE citas SET estado = 'CONFIRMADA' WHERE propuesta_de_id = test.id('165a');
+    RAISE EXCEPTION 'caso 165: la API no confirma una propuesta por UPDATE';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin)
+    VALUES ('ONLINE', test.u('b1'), test.u('ef'), test.dia(64, 10), test.dia(64, 11));
+    RAISE EXCEPTION 'caso 165: la hora propuesta esta ocupada';
+  EXCEPTION WHEN exclusion_violation THEN NULL; END;
+  BEGIN
+    PERFORM aceptar_propuesta((SELECT id FROM citas WHERE propuesta_de_id = test.id('165a') LIMIT 1));
+    RAISE EXCEPTION 'caso 165: el profesional no acepta por el paciente';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  -- Segunda solicitud: propuesta que el paciente rechaza.
+  PERFORM proponer_cambio_hora(test.id('165b'), jsonb_build_array(jsonb_build_object('modalidad', 'ONLINE', 'inicio', test.dia(64, 16), 'fin', test.dia(64, 17))));
+  PERFORM test.ctx('9f', 'PACIENTE');
+  ASSERT aceptar_propuesta((SELECT id FROM citas WHERE propuesta_de_id = test.id('165a') AND inicio = test.dia(64, 12))) = 'CONFIRMADA',
+    'caso 165: el paciente acepta una';
+  ASSERT (SELECT estado = 'CANCELADA' FROM citas WHERE propuesta_de_id = test.id('165a') AND inicio = test.dia(64, 10)),
+    'caso 165: la otra se suelta';
+  BEGIN
+    PERFORM aceptar_propuesta((SELECT id FROM citas WHERE propuesta_de_id = test.id('165a') AND inicio = test.dia(64, 10)));
+    RAISE EXCEPTION 'caso 165: la soltada ya no se acepta';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  ASSERT rechazar_propuestas((SELECT id FROM citas WHERE propuesta_de_id = test.id('165b'))) = 1, 'caso 165: rechaza todas';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\connect :owner_url
+DO $$ DECLARE v uuid := gen_random_uuid(); p uuid := gen_random_uuid(); BEGIN
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE referencia_id = test.id('165a') AND tipo = 'CAMBIO_HORA_PROPUESTO' AND paciente_id = test.u('ef')),
+    'caso 165: aviso al paciente';
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE referencia_id = test.id('165b') AND tipo = 'CITA_CANCELADA' AND usuario_id = test.u('b1')),
+    'caso 165: aviso al profesional cuando no acomoda ninguna';
+  ASSERT EXISTS (SELECT 1 FROM notificaciones n JOIN citas c ON c.id = n.referencia_id
+                 WHERE c.propuesta_de_id = test.id('165a') AND n.tipo = 'PROPUESTA_ACEPTADA' AND n.usuario_id = test.u('b1')),
+    'caso 165: aviso al profesional cuando el paciente elige';
+  INSERT INTO citas (id, modalidad, profesional_id, paciente_id, inicio, fin, estado, cancelada_en)
+  VALUES (v, 'ONLINE', test.u('b1'), test.u('ef'), test.dia(65, 8), test.dia(65, 9), 'CANCELADA', now());
+  INSERT INTO citas (id, modalidad, profesional_id, paciente_id, inicio, fin, estado, aprobacion_vence_en, propuesta_de_id)
+  VALUES (p, 'ONLINE', test.u('b1'), test.u('ef'), test.dia(65, 10), test.dia(65, 11), 'PROPUESTA', now() + interval '1 hour', v);
+  UPDATE citas SET aprobacion_vence_en = now() - interval '1 minute' WHERE id = p;
+  INSERT INTO test.ids VALUES ('165c', v), ('165d', p);
+END $$;
+\connect :app_url
+DO $$ BEGIN
+  ASSERT vencer_solicitudes() >= 1, 'caso 165: el job vence la propuesta';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT estado = 'CANCELADA' FROM citas WHERE id = test.id('165d')), 'caso 165: vencida queda CANCELADA';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\connect :owner_url
+DO $$ BEGIN
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE referencia_id = test.id('165c') AND tipo = 'CITA_CANCELADA' AND paciente_id = test.u('ef')),
+    'caso 165: aviso al paciente cuando vencen las propuestas';
+END $$;
+
+\echo 166 Roles flexibles (2026-11-11): una cuenta del equipo suma cuenta madre, gestion o profesional; PRACTICANTE sigue exclusivo; ADMIN/GESTION adicional se quita al instante, nunca el propio
+\connect :app_url
+DO $$ BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM otorgar_rol_adicional(test.u('b1'), 'GESTION');
+    RAISE EXCEPTION 'caso 166: GESTION no otorga roles';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM otorgar_rol_adicional(test.u('b1'), 'GESTION');
+  PERFORM otorgar_rol_adicional(test.u('b1'), 'ADMIN');
+  ASSERT roles_cuenta(test.u('b1')) @> ARRAY['PROFESIONAL', 'GESTION', 'ADMIN'], 'caso 166: profesional con gestion y cuenta madre';
+  BEGIN
+    PERFORM otorgar_rol_adicional(test.u('b1'), 'PROFESIONAL');
+    RAISE EXCEPTION 'caso 166: el principal no se suma como adicional';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM otorgar_rol_adicional(test.u('c1'), 'GESTION');
+    RAISE EXCEPTION 'caso 166: PRACTICANTE es exclusivo';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM quitar_rol_adicional(test.u('b1'), 'PROFESIONAL');
+    RAISE EXCEPTION 'caso 166: el profesional se da de baja con fecha';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM quitar_rol_adicional(test.u('a1'), 'ADMIN');
+    RAISE EXCEPTION 'caso 166: nadie se quita un rol a si mismo';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  PERFORM test.ctx('a3', 'GESTION');
+  BEGIN
+    PERFORM quitar_rol_adicional(test.u('b1'), 'GESTION');
+    RAISE EXCEPTION 'caso 166: GESTION no quita roles';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  PERFORM quitar_rol_adicional(test.u('b1'), 'GESTION');
+  PERFORM quitar_rol_adicional(test.u('b1'), 'ADMIN');
+  ASSERT NOT roles_cuenta(test.u('b1')) && ARRAY['GESTION', 'ADMIN'], 'caso 166: roles quitados';
+  BEGIN
+    PERFORM quitar_rol_adicional(test.u('b1'), 'ADMIN');
+    RAISE EXCEPTION 'caso 166: ya no lo tiene';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\echo 168 La baja cancela las horas PROPUESTA desde la fecha efectiva (con aviso al paciente); se revierte al final
+\connect :owner_url
+DO $$ DECLARE v uuid := gen_random_uuid(); BEGIN
+  BEGIN
+    INSERT INTO citas (id, modalidad, profesional_id, paciente_id, inicio, fin, estado, aprobacion_vence_en) VALUES
+      (v, 'ONLINE', test.u('b1'), test.u('ef'), test.dia(70, 10), test.dia(70, 11), 'SOLICITADA', now() + interval '1 hour');
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin, estado, aprobacion_vence_en, propuesta_de_id) VALUES
+      ('ONLINE', test.u('b1'), test.u('ef'), test.dia(71, 10), test.dia(71, 11), 'PROPUESTA', now() + interval '1 hour', v),
+      ('ONLINE', test.u('b1'), test.u('ef'), test.dia(71, 12), test.dia(71, 13), 'PROPUESTA', now() + interval '1 hour', v);
+    PERFORM cancelar_propuestas_baja(test.u('b1'), test.dia(71, 0));
+    ASSERT (SELECT count(*) FROM citas WHERE propuesta_de_id = v AND estado = 'CANCELADA') = 2, 'caso 168: propuestas canceladas';
+    ASSERT (SELECT count(*) FROM notificaciones WHERE referencia_id = v AND tipo = 'CITA_CANCELADA' AND canal = 'BANDEJA' AND paciente_id = test.u('ef')) = 1,
+      'caso 168: un aviso por grupo';
+    ASSERT pg_get_functiondef('iniciar_baja_profesional(uuid, timestamptz)'::regprocedure) LIKE '%cancelar_propuestas_baja%'
+       AND pg_get_functiondef('iniciar_baja_rol(uuid, rol, timestamptz)'::regprocedure) LIKE '%cancelar_propuestas_baja%',
+      'caso 168: ambas bajas la llaman';
+    RAISE EXCEPTION 'revertir 168';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'revertir 168' THEN RAISE; END IF;
+  END;
+END $$;
+
+\echo 167 Maximo de cuentas madre: regla del centro (principal + adicional); bajarlo exige quitar roles antes
+\connect :owner_url
+DO $$ DECLARE n int := cuentas_madre_activas(); BEGIN
+  UPDATE configuracion_centro SET max_cuentas_madre = n;
+  BEGIN
+    UPDATE configuracion_centro SET max_cuentas_madre = n - 1;
+    RAISE EXCEPTION 'caso 167: no se baja el maximo bajo las cuentas activas';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+\connect :app_url
+DO $$ BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM otorgar_rol_adicional(test.u('b1'), 'ADMIN');
+    RAISE EXCEPTION 'caso 167: adicional sobre el maximo';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- Gestion no cuenta: se suma igual con el cupo lleno.
+  PERFORM otorgar_rol_adicional(test.u('b1'), 'GESTION');
+  PERFORM quitar_rol_adicional(test.u('b1'), 'GESTION');
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\connect :owner_url
+DO $$ BEGIN
+  BEGIN
+    INSERT INTO usuarios (id, email, password_hash, nombre, rol) VALUES (gen_random_uuid(), 't-cm167@x', 'x', 'Cuenta madre 167', 'ADMIN');
+    RAISE EXCEPTION 'caso 167: principal sobre el maximo';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE configuracion_centro SET max_cuentas_madre = max_cuentas_madre + 1;
+  INSERT INTO usuarios (id, email, password_hash, nombre, rol) VALUES (gen_random_uuid(), 't-cm167@x', 'x', 'Cuenta madre 167', 'ADMIN');
+  UPDATE usuarios SET activo = false WHERE email = 't-cm167@x';
+END $$;
+UPDATE configuracion_centro SET max_cuentas_madre = NULL;
 UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'COBROS'::modulo_centro;
 
 \echo 78 Sin texto plano: toda columna bytea cifrada tiene el formato; seed sin datos sensibles; copia de autoria intacta tras cerrar cuentas

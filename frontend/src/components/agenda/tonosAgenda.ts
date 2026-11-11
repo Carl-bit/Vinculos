@@ -50,6 +50,8 @@ export const NOMBRE_ESTADO_CITA: Record<CitaVista['estado'], string> = {
   PENDIENTE_PAGO: 'Pago pendiente',
   LIBERADA: 'Liberada (pago vencido)',
   RETENIDA: 'Hora retenida (reserva en curso)',
+  // Punto 7 (2026-11-11): hora que propuso el profesional; espera que el paciente la elija.
+  PROPUESTA: 'Propuesta al paciente',
 };
 
 export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const;

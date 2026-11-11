@@ -65,6 +65,8 @@ datasource db {
 model ConfiguracionCentro {
   id                                Boolean                @id @default(true)
   rolGestionHabilitado              Boolean                @default(false) @map("rol_gestion_habilitado")
+  /// Correcciones 2026-11-11: maximo de cuentas activas con rol ADMIN (principal o adicional). NULL = sin limite (solo BD de prueba).
+  maxCuentasMadre                   Int?                   @default(2) @map("max_cuentas_madre") @db.SmallInt
   plazoRespuestaDerivacionHoras     Int                    @default(24) @map("plazo_respuesta_derivacion_horas")
   modeloCobro                       ModeloCobro            @default(CENTRO) @map("modelo_cobro")
   plazoConsentimientoHoras          Int                    @default(48) @map("plazo_consentimiento_horas")
@@ -522,6 +524,10 @@ enum TipoNotificacion {
   PAGO_PENDIENTE
   /// 03b-3.3: sesion realizada con saldo pendiente (al paciente y al profesional, una vez por cita).
   DEUDA_PENDIENTE
+  /// Correcciones 2026-11-11 (punto 7): el profesional no acepta la solicitud y propone otras horas.
+  CAMBIO_HORA_PROPUESTO
+  /// Pendiente del punto 7: el paciente eligio una hora propuesta (aviso al profesional).
+  PROPUESTA_ACEPTADA
 
   @@map("tipo_notificacion")
 }
@@ -1271,6 +1277,9 @@ enum EstadoCita {
   /// 03b-3.2: hora retenida de quien pide sin cuenta: SIN paciente hasta el pago
   /// validado (o el correo verificado si paga en el centro). Bloquea la hora (EXCLUDE).
   RETENIDA
+  /// Correcciones 2026-11-11 (punto 7): hora alternativa que propone el profesional al no aceptar la
+  /// solicitud (propuesta_de_id). Ocupa la hora (EXCLUDE) hasta que el paciente elige o vence (aprobacion_vence_en).
+  PROPUESTA
 
   @@map("estado_cita")
 }
@@ -1347,6 +1356,8 @@ model Cita {
   pagoVenceEn       DateTime?          @map("pago_vence_en") @db.Timestamptz(6)
   /// MVP: plazo para que el profesional apruebe (CHECK: SOLICITADA lo exige). Lo fija el flujo; el job vence.
   aprobacionVenceEn DateTime?          @map("aprobacion_vence_en") @db.Timestamptz(6)
+  /// Punto 7: solicitud original (CANCELADA) de la que sale esta hora PROPUESTA. Lo fija proponer_cambio_hora.
+  propuestaDeId     String?            @map("propuesta_de_id") @db.Uuid
   /// 03b-3.2: la agendo el equipo (plazo de pago hasta 12 h antes, avisos 48 h / 24 h).
   /// Lo fija la BD (trigger citas_pago_previo_equipo).
   agendadaPorEquipo Boolean            @default(false) @map("agendada_por_equipo")
@@ -1378,8 +1389,11 @@ model Cita {
   evoluciones           Evolucion[]
   borradores            BorradorEvolucion[]
   solicitud             SolicitudHora?
+  propuestaDe           Cita?                 @relation("CitaPropuesta", fields: [propuestaDeId], references: [id], onDelete: Restrict)
+  propuestas            Cita[]                @relation("CitaPropuesta")
 
   @@index([pacienteId])
+  @@index([propuestaDeId])
   /// AUD-02 BD-03: agenda por box y por profesional en un rango (todas las estados).
   @@index([espacioId, inicio])
   @@index([profesionalId, inicio])

@@ -51,7 +51,7 @@ export class PortalService {
     const filas = await this.bd.tx().cita.findMany({
       where: {
         pacienteId,
-        ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'PENDIENTE_PAGO'] }, fin: { gt: new Date() } }),
+        ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'PENDIENTE_PAGO', 'SOLICITADA', 'PROPUESTA'] }, fin: { gt: new Date() } }),
       },
       select: {
         id: true,
@@ -65,6 +65,8 @@ export class PortalService {
         estado: true,
         medioConfirmacion: true,
         pagoVenceEn: true,
+        aprobacionVenceEn: true,
+        propuestaDeId: true,
         agendadaPorEquipo: true,
       },
       orderBy: { inicio: todas ? 'desc' : 'asc' },

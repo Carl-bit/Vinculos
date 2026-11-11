@@ -75,6 +75,11 @@ export function ConfiguracionMatch() {
         {!activos.includes('AGENDA') && (
           <Aviso tono="advertencia">Sin Agenda y Espacios activo, los resultados no muestran disponibilidad en tiempo real.</Aviso>
         )}
+        {/* Punto 29: metricas y filtro directo arriba de las preguntas. */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Metricas />
+          <FiltroDirecto />
+        </div>
         <Panel
           titulo="Preguntas del cuestionario"
           bajada="Las preguntas apagadas no se le muestran al paciente ni se usan para filtrar. Arrastra el ícono de puntos para cambiar el orden en que aparecen."
@@ -92,33 +97,6 @@ export function ConfiguracionMatch() {
               </Button>
             )}
           </div>
-        </Panel>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <FiltroDirecto />
-          <Metricas />
-        </div>
-        <Panel titulo="Dependencias del módulo" bajada="El match usa datos de otros módulos del centro.">
-          <ul className="m-0 mt-4 grid list-none gap-3 p-0 sm:grid-cols-2">
-            {[
-              { id: 'EQUIPO', nombre: 'Equipo', nota: 'Perfiles publicados y tipos de atención aprobados', tipo: 'Requerido' },
-              { id: 'AGENDA', nombre: 'Agenda y Espacios', nota: 'Disponibilidad real en los resultados', tipo: 'Opcional' },
-            ].map((d) => {
-              const activo = activos.includes(d.id as (typeof activos)[number]);
-              return (
-                <li
-                  key={d.id}
-                  className={`flex items-start gap-3 rounded-[18px] border px-4 py-3 ${activo ? 'border-accent-2-500 bg-accent-2-200' : 'border-divider bg-bg'}`}
-                >
-                  <Icon name={d.id === 'EQUIPO' ? 'groups' : 'calendar_month'} className="mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <p className="m-0 text-[14px] font-extrabold">{d.nombre}</p>
-                    <p className="m-0 text-[12.5px] font-semibold text-neutral-800">{d.nota}</p>
-                  </div>
-                  <Badge tono={activo ? 'positivo' : 'neutro'}>{`${d.tipo} · ${activo ? 'activo' : 'inactivo'}`}</Badge>
-                </li>
-              );
-            })}
-          </ul>
         </Panel>
       </div>
     </>

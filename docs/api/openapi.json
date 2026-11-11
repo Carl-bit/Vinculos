@@ -3061,7 +3061,114 @@
             "jwt": []
           }
         ],
-        "summary": "C-1: segundo rol (PROFESIONAL) de una cuenta ADMIN o GESTION.",
+        "summary": "C-1 (ampliado 2026-11-11): rol adicional de una cuenta del equipo (cuenta madre, gestion o profesional).",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
+    "/api/usuarios/{id}/roles/retiro": {
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "UsuariosController_quitarRol",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RolRetirableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MiCuenta"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Quita al instante un rol adicional de cuenta madre o gestion (corta sus sesiones). La propia: 422.",
         "tags": [
           "Nucleo"
         ]
@@ -3168,7 +3275,7 @@
             "jwt": []
           }
         ],
-        "summary": "Baja de un rol adicional (no de la cuenta).",
+        "summary": "Baja programada del rol profesional adicional (agenda y citas; no de la cuenta).",
         "tags": [
           "Nucleo"
         ]
@@ -18067,7 +18174,8 @@
                 "SOLICITADA",
                 "PENDIENTE_PAGO",
                 "LIBERADA",
-                "RETENIDA"
+                "RETENIDA",
+                "PROPUESTA"
               ]
             }
           }
@@ -18738,7 +18846,114 @@
             "jwt": []
           }
         ],
-        "summary": "MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA. Vencida o ya decidida: 409.",
+        "summary": "MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA; al rechazar puede proponer otras horas (punto 7). Vencida o ya decidida: 409; hora propuesta tomada: 409.",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
+    "/api/citas/{id}/propuesta": {
+      "patch": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "CitasController_responderPropuesta",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResponderPropuestaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CitaVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Punto 7: el paciente (o su adulto responsable) acepta una hora PROPUESTA o rechaza todas las del grupo. Vencida: 409.",
         "tags": [
           "Agenda y espacios"
         ]
@@ -35432,7 +35647,9 @@
           "PAGO_VALIDADO",
           "PAGO_RECHAZADO",
           "PAGO_PENDIENTE",
-          "DEUDA_PENDIENTE"
+          "DEUDA_PENDIENTE",
+          "CAMBIO_HORA_PROPUESTO",
+          "PROPUESTA_ACEPTADA"
         ]
       },
       "CanalMensaje": {
@@ -36088,7 +36305,24 @@
           "rol": {
             "type": "string",
             "enum": [
+              "ADMIN",
+              "GESTION",
               "PROFESIONAL"
+            ]
+          }
+        },
+        "required": [
+          "rol"
+        ]
+      },
+      "RolRetirableDto": {
+        "type": "object",
+        "properties": {
+          "rol": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "GESTION"
             ]
           }
         },
@@ -36190,6 +36424,11 @@
       "ConfiguracionCentroVista": {
         "type": "object",
         "properties": {
+          "maxCuentasMadre": {
+            "type": "number",
+            "nullable": true,
+            "description": "Maximo de cuentas madre activas; null = sin limite"
+          },
           "modeloCobro": {
             "allOf": [
               {
@@ -36278,6 +36517,9 @@
           "minutosRetencionSolicitud": {
             "type": "number"
           },
+          "horasAprobacionSolicitud": {
+            "type": "number"
+          },
           "retencionMensajesDias": {
             "type": "number"
           },
@@ -36310,6 +36552,7 @@
           }
         },
         "required": [
+          "maxCuentasMadre",
           "modeloCobro",
           "rutCentro",
           "penalizacionCancelacionPorcentaje",
@@ -36333,6 +36576,7 @@
           "matchFiltroDirecto",
           "diasRetencionRespuestasMatch",
           "minutosRetencionSolicitud",
+          "horasAprobacionSolicitud",
           "retencionMensajesDias",
           "edadMinimaCuenta",
           "plazoValidacionTransferenciaHoras",
@@ -36349,6 +36593,12 @@
         "properties": {
           "rolGestionHabilitado": {
             "type": "boolean"
+          },
+          "maxCuentasMadre": {
+            "type": "number",
+            "description": "Maximo de cuentas madre activas (principal o adicional). Bajarlo exige quitar el rol antes (BD).",
+            "minimum": 1,
+            "maximum": 10
           },
           "plazoRespuestaDerivacionHoras": {
             "type": "number",
@@ -36456,6 +36706,12 @@
             "description": "03a (C-15): minutos que se retiene la hora mientras se verifica el correo.",
             "minimum": 5,
             "maximum": 120
+          },
+          "horasAprobacionSolicitud": {
+            "type": "number",
+            "description": "MVP sin cobros: horas que tiene el profesional para aprobar una hora pedida (CHECK 1 a 168; nunca despues del inicio).",
+            "minimum": 1,
+            "maximum": 168
           },
           "edadMinimaCuenta": {
             "type": "number",
@@ -41382,7 +41638,8 @@
           "SOLICITADA",
           "PENDIENTE_PAGO",
           "LIBERADA",
-          "RETENIDA"
+          "RETENIDA",
+          "PROPUESTA"
         ]
       },
       "CitaVista": {
@@ -41433,6 +41690,12 @@
             "description": "MVP sin COBROS: plazo para que el profesional apruebe la hora SOLICITADA (despues el job la cancela).",
             "format": "date-time"
           },
+          "propuestaDeId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Punto 7: solicitud original de la que sale una hora PROPUESTA (el plazo para elegir es aprobacionVenceEn).",
+            "format": "uuid"
+          },
           "medioConfirmacion": {
             "nullable": true,
             "description": "PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3).",
@@ -41482,6 +41745,7 @@
           "canceladaEn",
           "pagoVenceEn",
           "aprobacionVenceEn",
+          "propuestaDeId",
           "medioConfirmacion",
           "motivoLiberacion",
           "id",
@@ -41578,15 +41842,59 @@
           "pacienteId"
         ]
       },
+      "HoraPropuestaDto": {
+        "type": "object",
+        "properties": {
+          "modalidad": {
+            "type": "string",
+            "enum": [
+              "PRESENCIAL",
+              "ONLINE"
+            ]
+          },
+          "inicio": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fin": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "modalidad",
+          "inicio",
+          "fin"
+        ]
+      },
       "DecidirSolicitudDto": {
         "type": "object",
         "properties": {
           "aprobar": {
             "type": "boolean"
+          },
+          "alternativas": {
+            "minItems": 1,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HoraPropuestaDto"
+            }
           }
         },
         "required": [
           "aprobar"
+        ]
+      },
+      "ResponderPropuestaDto": {
+        "type": "object",
+        "properties": {
+          "aceptar": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "aceptar"
         ]
       },
       "LiberarHoraDto": {
@@ -43448,6 +43756,13 @@
           },
           "noLeidos": {
             "type": "number"
+          },
+          "personas": {
+            "description": "Nombres de quienes participan (sin quien consulta), via nombres_hilo(): para buscar por persona.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -43458,7 +43773,8 @@
           "creadoPorId",
           "creadoEn",
           "ultimoMensajeEn",
-          "noLeidos"
+          "noLeidos",
+          "personas"
         ]
       },
       "MensajeInternoVista": {
@@ -45147,7 +45463,7 @@
         "type": "object",
         "properties": {
           "estado": {
-            "description": "CONFIRMADA (03b-3.2: el enlace del correo solo concreta reservas con pago en el centro).",
+            "description": "MVP sin COBROS: SOLICITADA (la aprueba el profesional). Con COBROS: CONFIRMADA (03b-3.2: el enlace solo concreta reservas con pago en el centro).",
             "allOf": [
               {
                 "$ref": "#/components/schemas/EstadoCita"
@@ -45384,6 +45700,18 @@
             "nullable": true,
             "format": "date-time"
           },
+          "aprobacionVenceEn": {
+            "type": "string",
+            "nullable": true,
+            "description": "MVP sin COBROS: plazo de la hora por confirmar (SOLICITADA) o para elegir una hora propuesta (PROPUESTA).",
+            "format": "date-time"
+          },
+          "propuestaDeId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Punto 7 (2026-11-11): solicitud que el profesional no acepto; las PROPUESTA con el mismo valor son un grupo.",
+            "format": "uuid"
+          },
           "id": {
             "type": "string"
           },
@@ -45417,6 +45745,8 @@
           "estado",
           "medioConfirmacion",
           "pagoVenceEn",
+          "aprobacionVenceEn",
+          "propuestaDeId",
           "id",
           "pacienteId",
           "profesionalId",
@@ -47594,7 +47924,8 @@
           "LIBERADA",
           "CANCELADA",
           "POR_REPROGRAMAR",
-          "SALDO_PENDIENTE"
+          "SALDO_PENDIENTE",
+          "SOLICITADA"
         ]
       },
       "SiguientePasoPago": {
@@ -47607,6 +47938,7 @@
           "PAGAR_EN_LINEA",
           "NINGUNO",
           "ELEGIR_OTRA_HORA",
+          "REVISAR_PROPUESTAS",
           "CONTACTAR_CENTRO",
           "PAGAR_EN_CENTRO"
         ]

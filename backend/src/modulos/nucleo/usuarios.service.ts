@@ -106,6 +106,12 @@ export class UsuariosService {
     return this.obtener(id);
   }
 
+  /** Rol adicional de cuenta madre o gestion: se quita al instante (la BD corta sus sesiones). */
+  async quitarRol(id: string, rol: Rol) {
+    await this.bd.tx().$executeRaw`SELECT quitar_rol_adicional(${id}::uuid, ${rol}::rol)`;
+    return this.obtener(id);
+  }
+
   /** Baja de un rol adicional: agenda bloqueada desde la fecha; procesar_bajas lo desactiva al cumplirse. */
   async bajaRol(id: string, rol: Rol, fechaEfectiva: Date) {
     const [{ n }] = await this.bd.tx().$queryRaw<[{ n: number }]>`

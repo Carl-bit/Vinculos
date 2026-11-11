@@ -51,6 +51,12 @@ export class CitaPortal {
   pagoVenceEn!: Date | null;
   /** 03b-3.3: la agendo el equipo: si vence el plazo sin pago, la hora se mantiene y se paga en el centro (la propia se libera). */
   agendadaPorEquipo!: boolean;
+  /** MVP sin COBROS: plazo de la hora por confirmar (SOLICITADA) o para elegir una hora propuesta (PROPUESTA). */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  aprobacionVenceEn!: Date | null;
+  /** Punto 7 (2026-11-11): solicitud que el profesional no acepto; las PROPUESTA con el mismo valor son un grupo. */
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  propuestaDeId!: string | null;
 }
 
 /** Datos de transferencia del profesional: solo con cobro directo y saldo pendiente. */

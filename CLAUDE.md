@@ -68,7 +68,11 @@ naming especificos de Kibou. Proyecto de titulo, desarrollador unico.
   apagado en todos los centros y no se muestra (tablas y funciones quedan
   dormidas para la implementacion futura; sus tests lo encienden). Sin
   COBROS, la hora que pide el paciente queda SOLICITADA y la aprueba su
-  profesional (`aprobar_cita` / `rechazar_cita`; el job vence el plazo).
+  profesional (`aprobar_cita` / `rechazar_cita`; el job vence el plazo de 24 h,
+  que corre desde que se verifica el correo; sin verificar, la hora se retiene
+  solo `minutos_retencion_solicitud`). Si no la acepta, puede
+  proponer otras horas (PROPUESTA, bloqueadas hasta que el paciente elige una o
+  rechaza todas y vuelve a pedir hora).
 
 ## Diseño
 Fuente de verdad visual: el proyecto de Claude Design "Vinculos Landing Page

@@ -160,10 +160,42 @@ export class CrearCitaDto extends HorarioDto {
   motivoAutorizacionDeuda?: string;
 }
 
-/** MVP sin COBROS: el profesional aprueba (true) o rechaza (false) la hora que pidio su paciente. */
+/** Punto 7 (2026-11-11): hora de la agenda del profesional que se ofrece en lugar de la solicitada. */
+export class HoraPropuestaDto {
+  @IsEnum(ModalidadAtencion)
+  modalidad!: ModalidadAtencion;
+
+  @Type(() => Date)
+  @IsDate()
+  inicio!: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  fin!: Date;
+}
+
+/**
+ * MVP sin COBROS: el profesional aprueba (true) o rechaza (false) la hora que pidio su paciente.
+ * Al rechazar puede proponer de 1 a 5 horas de su agenda (punto 7): quedan bloqueadas hasta que el paciente elige.
+ */
 export class DecidirSolicitudDto {
   @IsBoolean()
   aprobar!: boolean;
+
+  @IsOptional()
+  @ValidateIf((o: DecidirSolicitudDto) => !o.aprobar)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => HoraPropuestaDto)
+  alternativas?: HoraPropuestaDto[];
+}
+
+/** Punto 7: el paciente acepta (true) la hora propuesta o rechaza (false) todas las del grupo. */
+export class ResponderPropuestaDto {
+  @IsBoolean()
+  aceptar!: boolean;
 }
 
 /** 03b-3.3: liberar a mano una hora retenida (reserva sin cuenta en curso). */

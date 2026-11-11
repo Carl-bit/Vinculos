@@ -30,6 +30,7 @@ function Enlace({ item, activo }: { item: ItemMenu; activo: boolean }) {
     <Link
       href={item.href}
       aria-current={activo ? 'page' : undefined}
+      {...(item.pestanaNueva ? { target: '_blank', rel: 'noopener' } : {})}
       className={`group relative flex min-h-10 items-center gap-[11px] rounded-[10px] px-2.5 py-[9px] text-sm transition-[background-color,color] duration-200 ease-out ${
         activo ? 'bg-accent-2-200 font-extrabold text-accent-2-700 hover:text-accent-2-700' : 'font-semibold text-text hover:bg-accent-200 hover:text-text'
       }`}
@@ -41,6 +42,12 @@ function Enlace({ item, activo }: { item: ItemMenu; activo: boolean }) {
       />
       <Icon name={item.icono} size={19} className="transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
       <span className="flex-1">{item.etiqueta}</span>
+      {item.pestanaNueva && (
+        <>
+          <Icon name="open_in_new" size={15} className="text-neutral-700" />
+          <span className="sr-only">(se abre en una pestaña nueva)</span>
+        </>
+      )}
     </Link>
   );
 }

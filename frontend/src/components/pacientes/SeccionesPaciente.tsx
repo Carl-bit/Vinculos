@@ -172,6 +172,7 @@ const ESTADO_CITA: Record<CitaVista['estado'], { texto: string; tono: TonoBadge 
   LIBERADA: { texto: 'Liberada (pago vencido)', tono: 'neutro' },
   // Sin paciente: nunca aparece en el historial de un paciente.
   RETENIDA: { texto: 'Hora retenida', tono: 'atencion' },
+  PROPUESTA: { texto: 'Propuesta, por elegir', tono: 'atencion' },
 };
 
 /** Historial de sesiones (metadata). El tratante ve que sesiones ya tienen evolucion y registra las pendientes. */

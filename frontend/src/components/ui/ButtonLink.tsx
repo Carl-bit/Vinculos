@@ -14,7 +14,16 @@ export function ButtonLink({
   className = '',
   children,
   ...props
-}: LinkProps & { variant?: VarianteBoton; size?: TamanoBoton; icon?: Icono; className?: string; children: ReactNode }) {
+}: LinkProps & {
+  variant?: VarianteBoton;
+  size?: TamanoBoton;
+  icon?: Icono;
+  className?: string;
+  children: ReactNode;
+  /** Sitio publico desde el panel (punto 30): '_blank'. */
+  target?: string;
+  rel?: string;
+}) {
   const texto = {
     primary: 'hover:text-neutral-100',
     team: 'hover:text-neutral-100',

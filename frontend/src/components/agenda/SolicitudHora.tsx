@@ -24,7 +24,7 @@ import { caminoReserva, useEstadoPago, type CaminoPago, type EstadoConfirmacion 
 import { nombreCorto, nombrePerfil } from '@/lib/perfiles';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
-import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from '@/components/shared/SelectorHorario';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
 import { reglaTelefono } from '@/lib/validacion';
 import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
@@ -614,7 +614,7 @@ function ResultadoReserva({
         {encabezado(correo ? 'mark_email_read' : 'payments', correo ? 'Revisa tu correo' : 'Paga para confirmar tu hora')}
         {correo &&
           parrafo(
-            `Enviamos un enlace a ${email}. Ábrelo antes de que termine el tiempo: la hora queda reservada a tu nombre y pagas al llegar a tu sesión. Si no lo ves, revisa la carpeta de spam. Puedes abrirlo en este u otro dispositivo: esta pantalla avanza sola.`,
+            `Enviamos un enlace a ${email}. Ábrelo antes de que termine el tiempo: así tu solicitud llega a ${nombreCorto(perfil)}, que tiene hasta 24 horas para confirmarla, y la hora queda guardada para ti mientras tanto. Si no lo ves, revisa la carpeta de spam. Puedes abrirlo en este u otro dispositivo: esta pantalla avanza sola.`,
           )}
         {estado.venceEn && !estado.comprobanteRecibido && (
           <div className="rounded-lg border border-divider bg-bg p-6 shadow-suave">
@@ -634,6 +634,33 @@ function ResultadoReserva({
           <Aviso tono="exito" icono="storefront" titulo="Pagas al llegar">
             El pago se hace en el centro, el día de tu sesión.
           </Aviso>
+        )}
+      </section>
+    );
+  }
+  // MVP sin COBROS: correo verificado, la hora espera la confirmacion del profesional (mismo plazo que la retencion).
+  if (estado.estado === 'SOLICITADA') {
+    return (
+      <section className="entrada flex flex-col gap-5" aria-live="polite">
+        {encabezado('schedule', `Tu solicitud llegó a ${nombreCorto(perfil)}`)}
+        {parrafo(
+          'Revisará tu hora y te avisaremos por correo cuando la confirme. Mientras tanto la hora queda guardada para ti. Si no puede atenderte en ese horario, te propondrá otras horas.',
+        )}
+        {estado.venceEn && (
+          <div className="rounded-lg border border-divider bg-bg p-6 shadow-suave">
+            <CuentaRegresiva desde={desde} hasta={new Date(estado.venceEn)} onVencida={onVencida} />
+          </div>
+        )}
+      </section>
+    );
+  }
+  // Punto 7: el profesional no acepto la hora y propuso otras (quedan guardadas por un tiempo limitado).
+  if (estado.siguiente === 'REVISAR_PROPUESTAS') {
+    return (
+      <section className="entrada flex flex-col gap-5" aria-live="polite">
+        {encabezado('event_repeat', `${nombreCorto(perfil)} te propuso otras horas`)}
+        {parrafo(
+          `No puede atenderte en el horario que pediste. Te enviamos a ${email} sus propuestas y la invitación para entrar a tu cuenta: ahí eliges una o pides otra hora. Las guardamos por un tiempo limitado.`,
         )}
       </section>
     );

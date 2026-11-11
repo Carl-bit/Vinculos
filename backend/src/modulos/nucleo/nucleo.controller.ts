@@ -33,6 +33,7 @@ import {
   FiltroDirectorioDto,
   HorarioCentroDto,
   OtorgarRolDto,
+  RolRetirableDto,
   PoliticaDto,
   CambiarPasswordDto,
   CambiarSegundoFactorDto,
@@ -203,14 +204,22 @@ export class UsuariosController {
     return this.usuarios.invitar(id);
   }
 
-  /** C-1: segundo rol (PROFESIONAL) de una cuenta ADMIN o GESTION. */
+  /** C-1 (ampliado 2026-11-11): rol adicional de una cuenta del equipo (cuenta madre, gestion o profesional). */
   @Post(':id/roles')
   @Roles('ADMIN')
   otorgarRol(@Param('id', Uuid) id: string, @Body() dto: OtorgarRolDto): Promise<MiCuenta> {
     return this.usuarios.otorgarRol(id, dto.rol);
   }
 
-  /** Baja de un rol adicional (no de la cuenta). */
+  /** Quita al instante un rol adicional de cuenta madre o gestion (corta sus sesiones). La propia: 422. */
+  @Post(':id/roles/retiro')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  quitarRol(@Param('id', Uuid) id: string, @Body() dto: RolRetirableDto): Promise<MiCuenta> {
+    return this.usuarios.quitarRol(id, dto.rol);
+  }
+
+  /** Baja programada del rol profesional adicional (agenda y citas; no de la cuenta). */
   @Post(':id/roles/PROFESIONAL/baja')
   @Roles('ADMIN')
   bajaRol(@Param('id', Uuid) id: string, @Body() dto: BajaRolDto): Promise<BajaRolResultado> {

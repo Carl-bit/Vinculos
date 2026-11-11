@@ -129,6 +129,7 @@ export function estadoCitaPortal(c: Pick<CitaPortal, 'estado' | 'realizada' | 'f
   if (c.estado === 'POR_REPROGRAMAR') return { texto: 'Por reprogramar', tono: 'atencion' };
   if (c.estado === 'PENDIENTE_PAGO') return { texto: 'Pago pendiente', tono: 'atencion' };
   if (c.estado === 'SOLICITADA') return { texto: 'Por confirmar', tono: 'atencion' };
+  if (c.estado === 'PROPUESTA') return { texto: 'Propuesta, por elegir', tono: 'atencion' };
   if (c.estado === 'LIBERADA') return { texto: 'Liberada (pago vencido)', tono: 'neutro' };
   if (c.realizada) return { texto: 'Completada', tono: 'neutro' };
   return { texto: 'Confirmada', tono: 'positivo' };

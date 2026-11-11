@@ -576,10 +576,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * C-1: segundo rol (PROFESIONAL) de una cuenta ADMIN o GESTION.
+         * C-1 (ampliado 2026-11-11): rol adicional de una cuenta del equipo (cuenta madre, gestion o profesional).
          * @description Roles: ADMIN
          */
         post: operations["UsuariosController_otorgarRol"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usuarios/{id}/roles/retiro": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Quita al instante un rol adicional de cuenta madre o gestion (corta sus sesiones). La propia: 422.
+         * @description Roles: ADMIN
+         */
+        post: operations["UsuariosController_quitarRol"];
         delete?: never;
         options?: never;
         head?: never;
@@ -596,7 +616,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Baja de un rol adicional (no de la cuenta).
+         * Baja programada del rol profesional adicional (agenda y citas; no de la cuenta).
          * @description Roles: ADMIN
          */
         post: operations["UsuariosController_bajaRol"];
@@ -2817,10 +2837,30 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA. Vencida o ya decidida: 409.
+         * MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA; al rechazar puede proponer otras horas (punto 7). Vencida o ya decidida: 409; hora propuesta tomada: 409.
          * @description Roles: PROFESIONAL
          */
         patch: operations["CitasController_decidirSolicitud"];
+        trace?: never;
+    };
+    "/api/citas/{id}/propuesta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Punto 7: el paciente (o su adulto responsable) acepta una hora PROPUESTA o rechaza todas las del grupo. Vencida: 409.
+         * @description Roles: PACIENTE, RESPONSABLE
+         */
+        patch: operations["CitasController_responderPropuesta"];
         trace?: never;
     };
     "/api/citas/{id}/liberacion": {
@@ -5666,7 +5706,7 @@ export interface components {
             token: string;
         };
         /** @enum {string} */
-        TipoNotificacion: "CITA_CONFIRMADA" | "CITA_CANCELADA" | "CITA_REPROGRAMADA" | "ENLACE_ONLINE" | "CONSENTIMIENTO_SOLICITADO" | "AVISO_CAMBIO_SUPERVISOR" | "DERIVACION_OFRECIDA" | "MENSAJE_PACIENTE" | "DOCUMENTO_CLINICO" | "DERIVACION_ACTUALIZADA" | "RECORDATORIO_CITA" | "CONSENTIMIENTO_POR_VENCER" | "PAGO_REGISTRADO" | "COMPROBANTE_EMITIDO" | "HORA_LIBERADA" | "ACCESO_CLINICO_TEMPORAL" | "ACCESO_CLINICO_REVOCADO" | "SOLICITUD_HORA" | "CIERRE_REQUERIDO" | "MENSAJE_INTERNO" | "POSIBLE_DUPLICADO" | "INSTRUCCIONES_TRANSFERENCIA" | "COMPROBANTE_RECIBIDO" | "PAGO_VALIDADO" | "PAGO_RECHAZADO" | "PAGO_PENDIENTE" | "DEUDA_PENDIENTE";
+        TipoNotificacion: "CITA_CONFIRMADA" | "CITA_CANCELADA" | "CITA_REPROGRAMADA" | "ENLACE_ONLINE" | "CONSENTIMIENTO_SOLICITADO" | "AVISO_CAMBIO_SUPERVISOR" | "DERIVACION_OFRECIDA" | "MENSAJE_PACIENTE" | "DOCUMENTO_CLINICO" | "DERIVACION_ACTUALIZADA" | "RECORDATORIO_CITA" | "CONSENTIMIENTO_POR_VENCER" | "PAGO_REGISTRADO" | "COMPROBANTE_EMITIDO" | "HORA_LIBERADA" | "ACCESO_CLINICO_TEMPORAL" | "ACCESO_CLINICO_REVOCADO" | "SOLICITUD_HORA" | "CIERRE_REQUERIDO" | "MENSAJE_INTERNO" | "POSIBLE_DUPLICADO" | "INSTRUCCIONES_TRANSFERENCIA" | "COMPROBANTE_RECIBIDO" | "PAGO_VALIDADO" | "PAGO_RECHAZADO" | "PAGO_PENDIENTE" | "DEUDA_PENDIENTE" | "CAMBIO_HORA_PROPUESTO" | "PROPUESTA_ACEPTADA";
         /** @enum {string} */
         CanalMensaje: "BANDEJA" | "CORREO" | "WHATSAPP";
         /** @enum {string} */
@@ -5865,7 +5905,11 @@ export interface components {
         };
         OtorgarRolDto: {
             /** @enum {string} */
-            rol: "PROFESIONAL";
+            rol: "ADMIN" | "GESTION" | "PROFESIONAL";
+        };
+        RolRetirableDto: {
+            /** @enum {string} */
+            rol: "ADMIN" | "GESTION";
         };
         BajaRolDto: {
             /** Format: date-time */
@@ -5891,6 +5935,8 @@ export interface components {
         /** @enum {string} */
         MedioConfirmacion: "PAGO_EN_CENTRO" | "TRANSFERENCIA" | "PASARELA";
         ConfiguracionCentroVista: {
+            /** @description Maximo de cuentas madre activas; null = sin limite */
+            maxCuentasMadre: number | null;
             modeloCobro: components["schemas"]["ModeloCobro"];
             rutCentro: string | null;
             /** @description Decimal (0 a 100) */
@@ -5918,6 +5964,7 @@ export interface components {
             matchFiltroDirecto: boolean;
             diasRetencionRespuestasMatch: number;
             minutosRetencionSolicitud: number;
+            horasAprobacionSolicitud: number;
             retencionMensajesDias: number;
             edadMinimaCuenta: number;
             plazoValidacionTransferenciaHoras: number;
@@ -5935,6 +5982,8 @@ export interface components {
         };
         EditarConfiguracionDto: {
             rolGestionHabilitado?: boolean;
+            /** @description Maximo de cuentas madre activas (principal o adicional). Bajarlo exige quitar el rol antes (BD). */
+            maxCuentasMadre?: number;
             plazoRespuestaDerivacionHoras?: number;
             /** @enum {string} */
             modeloCobro?: "CENTRO" | "DIRECTO" | "MIXTO";
@@ -5970,6 +6019,8 @@ export interface components {
             diasRetencionRespuestasMatch?: number;
             /** @description 03a (C-15): minutos que se retiene la hora mientras se verifica el correo. */
             minutosRetencionSolicitud?: number;
+            /** @description MVP sin cobros: horas que tiene el profesional para aprobar una hora pedida (CHECK 1 a 168; nunca despues del inicio). */
+            horasAprobacionSolicitud?: number;
             /** @description 03a-2 (D-4): edad minima para la cuenta propia del paciente (14 a 18; antes opera el adulto responsable). */
             edadMinimaCuenta?: number;
             /** @description 03a-2: dias que se conservan los mensajes internos del equipo (30 a 3650). */
@@ -7400,7 +7451,7 @@ export interface components {
             fin: string;
         };
         /** @enum {string} */
-        EstadoCita: "CONFIRMADA" | "CANCELADA" | "POR_REPROGRAMAR" | "SOLICITADA" | "PENDIENTE_PAGO" | "LIBERADA" | "RETENIDA";
+        EstadoCita: "CONFIRMADA" | "CANCELADA" | "POR_REPROGRAMAR" | "SOLICITADA" | "PENDIENTE_PAGO" | "LIBERADA" | "RETENIDA" | "PROPUESTA";
         CitaVista: {
             espacioId: string | null;
             modalidad: components["schemas"]["ModalidadAtencion"];
@@ -7421,6 +7472,11 @@ export interface components {
              * @description MVP sin COBROS: plazo para que el profesional apruebe la hora SOLICITADA (despues el job la cancela).
              */
             aprobacionVenceEn: string | null;
+            /**
+             * Format: uuid
+             * @description Punto 7: solicitud original de la que sale una hora PROPUESTA (el plazo para elegir es aprobacionVenceEn).
+             */
+            propuestaDeId: string | null;
             /** @description PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3). */
             medioConfirmacion: components["schemas"]["MedioConfirmacion"] | null;
             /** @description 03b-3.3: hora retenida liberada a mano por ADMIN/GESTION (LIBERADA). */
@@ -7468,8 +7524,20 @@ export interface components {
              */
             motivoAutorizacionDeuda?: string;
         };
+        HoraPropuestaDto: {
+            /** @enum {string} */
+            modalidad: "PRESENCIAL" | "ONLINE";
+            /** Format: date-time */
+            inicio: string;
+            /** Format: date-time */
+            fin: string;
+        };
         DecidirSolicitudDto: {
             aprobar: boolean;
+            alternativas?: components["schemas"]["HoraPropuestaDto"][];
+        };
+        ResponderPropuestaDto: {
+            aceptar: boolean;
         };
         LiberarHoraDto: {
             motivo: string;
@@ -7962,6 +8030,8 @@ export interface components {
             /** Format: date-time */
             ultimoMensajeEn: string;
             noLeidos: number;
+            /** @description Nombres de quienes participan (sin quien consulta), via nombres_hilo(): para buscar por persona. */
+            personas: string[];
         };
         MensajeInternoVista: {
             rolAutor: components["schemas"]["Rol"];
@@ -8420,7 +8490,7 @@ export interface components {
             token: string;
         };
         SolicitudVerificada: {
-            /** @description CONFIRMADA (03b-3.2: el enlace del correo solo concreta reservas con pago en el centro). */
+            /** @description MVP sin COBROS: SOLICITADA (la aprueba el profesional). Con COBROS: CONFIRMADA (03b-3.2: el enlace solo concreta reservas con pago en el centro). */
             estado: components["schemas"]["EstadoCita"];
             modalidad: components["schemas"]["ModalidadAtencion"];
             citaId: string;
@@ -8484,6 +8554,16 @@ export interface components {
             medioConfirmacion: components["schemas"]["MedioConfirmacion"] | null;
             /** Format: date-time */
             pagoVenceEn: string | null;
+            /**
+             * Format: date-time
+             * @description MVP sin COBROS: plazo de la hora por confirmar (SOLICITADA) o para elegir una hora propuesta (PROPUESTA).
+             */
+            aprobacionVenceEn: string | null;
+            /**
+             * Format: uuid
+             * @description Punto 7 (2026-11-11): solicitud que el profesional no acepto; las PROPUESTA con el mismo valor son un grupo.
+             */
+            propuestaDeId: string | null;
             id: string;
             pacienteId: string;
             profesionalId: string;
@@ -9086,9 +9166,9 @@ export interface components {
             reserva: string;
         };
         /** @enum {string} */
-        EstadoReserva: "RETENIDA" | "PENDIENTE_PAGO" | "CONFIRMADA" | "LIBERADA" | "CANCELADA" | "POR_REPROGRAMAR" | "SALDO_PENDIENTE";
+        EstadoReserva: "RETENIDA" | "PENDIENTE_PAGO" | "CONFIRMADA" | "LIBERADA" | "CANCELADA" | "POR_REPROGRAMAR" | "SALDO_PENDIENTE" | "SOLICITADA";
         /** @enum {string} */
-        SiguientePasoPago: "VERIFICAR_CORREO" | "ELEGIR_MEDIO" | "ESPERAR_VALIDACION" | "TRANSFERENCIA_RECHAZADA" | "PAGAR_EN_LINEA" | "NINGUNO" | "ELEGIR_OTRA_HORA" | "CONTACTAR_CENTRO" | "PAGAR_EN_CENTRO";
+        SiguientePasoPago: "VERIFICAR_CORREO" | "ELEGIR_MEDIO" | "ESPERAR_VALIDACION" | "TRANSFERENCIA_RECHAZADA" | "PAGAR_EN_LINEA" | "NINGUNO" | "ELEGIR_OTRA_HORA" | "REVISAR_PROPUESTAS" | "CONTACTAR_CENTRO" | "PAGAR_EN_CENTRO";
         EstadoConfirmacion: {
             estado: components["schemas"]["EstadoReserva"];
             /**
@@ -11573,6 +11653,85 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MiCuenta"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    UsuariosController_quitarRol: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RolRetirableDto"];
+            };
+        };
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22907,7 +23066,7 @@ export interface operations {
                 hasta?: string;
                 profesionalId?: string;
                 pacienteId?: string;
-                estado?: "CANCELADA" | "CONFIRMADA" | "POR_REPROGRAMAR" | "SOLICITADA" | "PENDIENTE_PAGO" | "LIBERADA" | "RETENIDA";
+                estado?: "CANCELADA" | "CONFIRMADA" | "POR_REPROGRAMAR" | "SOLICITADA" | "PENDIENTE_PAGO" | "LIBERADA" | "RETENIDA" | "PROPUESTA";
             };
             header?: never;
             path?: never;
@@ -23368,6 +23527,85 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DecidirSolicitudDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CitaVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CitasController_responderPropuesta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResponderPropuestaDto"];
             };
         };
         responses: {

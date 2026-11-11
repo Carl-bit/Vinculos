@@ -42,12 +42,13 @@ const diaSemana = new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago
 
 /** Citas que cuentan como agendadas en el inicio (las demas no ocupan la hora). */
 const agendada = (c: CitaVista) =>
-  c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO' || c.estado === 'POR_REPROGRAMAR' || c.estado === 'SOLICITADA';
+  c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO' || c.estado === 'POR_REPROGRAMAR' || c.estado === 'SOLICITADA' || c.estado === 'PROPUESTA';
 
 const ESTADO_SEMANA: Partial<Record<CitaVista['estado'], { texto: string; tono: TonoBadge }>> = {
   CONFIRMADA: { texto: 'Confirmada', tono: 'positivo' },
   PENDIENTE_PAGO: { texto: 'Pendiente de pago', tono: 'atencion' },
   SOLICITADA: { texto: 'Por aprobar', tono: 'atencion' },
+  PROPUESTA: { texto: 'Propuesta al paciente', tono: 'atencion' },
   POR_REPROGRAMAR: { texto: 'Por reprogramar', tono: 'atencion' },
 };
 

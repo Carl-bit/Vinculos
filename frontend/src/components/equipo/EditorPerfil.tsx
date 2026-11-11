@@ -220,7 +220,7 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
             Ver mi agenda
           </ButtonLink>
         )}
-        <ButtonLink href="/equipo" variant="ghost" className="!min-h-10 !py-2">
+        <ButtonLink href="/equipo" target="_blank" rel="noopener" variant="ghost" className="!min-h-10 !py-2">
           Ver el equipo
         </ButtonLink>
         <ButtonLink href="/admin/perfil/cuenta" variant="secondary" icon="lock" className="!min-h-10 !py-2">

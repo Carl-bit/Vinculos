@@ -56,6 +56,8 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA prueba TO app_user;
 UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'COBROS'::modulo_centro;
 -- Sin dias el centro esta cerrado (2026-11-05): los tests corren con el centro abierto todo el dia.
 INSERT INTO horario_centro (dia_semana, inicio_min, fin_min) SELECT d, 0, 1440 FROM generate_series(1, 7) d;
+-- Los tests crean muchas cuentas madre: sin maximo (roles-flexibles lo fija y lo restaura).
+UPDATE configuracion_centro SET max_cuentas_madre = NULL;
 SQL
 
 cat > "$SALIDA" <<JSON

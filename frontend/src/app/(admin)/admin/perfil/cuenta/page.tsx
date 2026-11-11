@@ -132,7 +132,8 @@ export default function Pagina() {
         contenido: <ProtocoloEquipo />,
       },
       clinico &&
-        equipo && {
+        equipo &&
+        activos.includes('COBROS') && {
           id: 'pagos',
           grupo: 'Dinero',
           titulo: 'Pagos y liquidaciones',
@@ -144,6 +145,16 @@ export default function Pagina() {
               {cobros && <MisLiquidaciones />}
             </>
           ),
+        },
+      // MVP sin COBROS (2026-11-11): sin datos bancarios; el RUT se sigue registrando (sirve para ingresar).
+      clinico &&
+        equipo &&
+        !activos.includes('COBROS') && {
+          id: 'rut',
+          grupo: 'Mis datos',
+          titulo: 'RUT',
+          descripcion: 'Se guarda cifrado y también sirve para iniciar sesión.',
+          contenido: <MisDatosPrivados usuarioId={c.id} soloRut />,
         },
     ] as (SeccionCuenta | false)[]
   ).filter((s): s is SeccionCuenta => !!s);

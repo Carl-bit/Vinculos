@@ -11,6 +11,7 @@ import { Interruptor } from '@/components/ui/Interruptor';
 import { api, datos } from '@/lib/api/cliente';
 import type { components } from '@/lib/api/esquema';
 import { ApiError } from '@/lib/api/errores';
+import { useModulos } from '@/lib/consultas';
 import { aDatosSimples, aVariables, datoInvalido, DATOS_MENSAJE } from '@/lib/variablesMensaje';
 
 type Plantilla = components['schemas']['PlantillaMensajeVista'];
@@ -29,6 +30,8 @@ const NOMBRES: Record<string, string> = {
   RECORDATORIO_CITA: 'Recordatorio de cita',
   HORA_LIBERADA: 'Hora liberada',
   SOLICITUD_HORA: 'Solicitud de hora',
+  CAMBIO_HORA_PROPUESTO: 'Horas propuestas por el profesional',
+  PROPUESTA_ACEPTADA: 'Hora propuesta aceptada',
   CIERRE_REQUERIDO: 'Cierre requerido',
   POSIBLE_DUPLICADO: 'Posible duplicado',
   INSTRUCCIONES_TRANSFERENCIA: 'Instrucciones de transferencia',
@@ -52,6 +55,19 @@ const NOMBRES: Record<string, string> = {
 };
 const nombreEvento = (e: string) => NOMBRES[e] ?? evento(e);
 
+/** Eventos del modulo COBROS (pago vencido = "hora liberada"): sin COBROS no se muestran (punto 34). */
+const EVENTOS_COBROS = new Set([
+  'HORA_LIBERADA',
+  'INSTRUCCIONES_TRANSFERENCIA',
+  'COMPROBANTE_RECIBIDO',
+  'PAGO_VALIDADO',
+  'PAGO_RECHAZADO',
+  'PAGO_PENDIENTE',
+  'PAGO_REGISTRADO',
+  'COMPROBANTE_EMITIDO',
+  'DEUDA_PENDIENTE',
+]);
+
 const GRUPOS: { titulo: string; eventos: string[] }[] = [
   {
     titulo: 'Citas',
@@ -63,6 +79,8 @@ const GRUPOS: { titulo: string; eventos: string[] }[] = [
       'RECORDATORIO_CITA',
       'HORA_LIBERADA',
       'SOLICITUD_HORA',
+      'CAMBIO_HORA_PROPUESTO',
+      'PROPUESTA_ACEPTADA',
       'CIERRE_REQUERIDO',
       'POSIBLE_DUPLICADO',
     ],
@@ -124,7 +142,12 @@ const conMuestra = (t: string) => t.replace(/\{(\w+)\}/g, (o, k: string) => MUES
  * todavia. Se escribe {paciente}; lib/variablesMensaje traduce a lo que guarda la API.
  */
 export function PlantillasMensaje() {
-  const lista = useQuery({ queryKey: ['configuracion', 'plantillas'], queryFn: () => datos(api.GET('/api/plantillas-mensaje')) });
+  const cobros = useModulos().data?.activos.includes('COBROS') ?? false;
+  const lista = useQuery({
+    queryKey: ['configuracion', 'plantillas'],
+    queryFn: () => datos(api.GET('/api/plantillas-mensaje')),
+    select: (l) => (cobros ? l : l.filter((p) => !EVENTOS_COBROS.has(p.evento))),
+  });
   const [filtro, setFiltro] = useState<string>('Todos');
   const [elegida, setElegida] = useState<string | null>(null);
   const editor = useRef<HTMLElement>(null);

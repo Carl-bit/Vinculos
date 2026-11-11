@@ -18,7 +18,7 @@ import type { Rol } from '@/lib/sesion';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
 import type { HoraElegida } from '@/lib/grillaAgenda';
-import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from '@/components/shared/SelectorHorario';
 
 interface Retencion {
   id: string;

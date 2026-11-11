@@ -17,6 +17,7 @@ import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { formatoFechaHora, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
+import { PropuestasHora } from './PropuestasHora';
 import { estadoCitaPortal, nombresDe, useCitasPortal, useEquipoPortal, useResenasPortal, type CitaPortal } from '@/lib/portal';
 
 type Filtro = 'futura' | 'pasada' | 'todas';
@@ -48,7 +49,13 @@ export function MisHoras({ limite }: { limite?: number }) {
   const centro = useQuery({ queryKey: ['publico', 'centro'], queryFn: () => datos(api.GET('/api/publico/centro')), staleTime: 10 * 60_000 });
   const nombres = nombresDe(equipo.data);
   const ahora = Date.now();
-  const delPaciente = (citas.data ?? []).filter((c) => !portal.pacienteId || c.pacienteId === portal.pacienteId);
+  const todasDelPaciente = (citas.data ?? []).filter((c) => !portal.pacienteId || c.pacienteId === portal.pacienteId);
+  // Punto 7: las horas que propuso el profesional van aparte, agrupadas por la solicitud que no acepto.
+  const delPaciente = todasDelPaciente.filter((c) => c.estado !== 'PROPUESTA');
+  const propuestas = new Map<string, CitaPortal[]>();
+  for (const c of todasDelPaciente) {
+    if (c.estado === 'PROPUESTA' && c.propuestaDeId) propuestas.set(c.propuestaDeId, [...(propuestas.get(c.propuestaDeId) ?? []), c]);
+  }
   const futuras = delPaciente.filter((c) => new Date(c.fin).getTime() > ahora).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const pasadas = delPaciente.filter((c) => new Date(c.fin).getTime() <= ahora);
   const lista = filtro === 'futura' ? futuras : filtro === 'pasada' ? pasadas : [...futuras, ...pasadas];
@@ -72,6 +79,17 @@ export function MisHoras({ limite }: { limite?: number }) {
       titulo="Mis horas"
       bajada={`Todas tus sesiones, pasadas y futuras. Para cambiar o cancelar una hora, avísale a tu profesional${plazo ? ` con ${plazo} horas de anticipación` : ' con anticipación'}.`}
     >
+      {propuestas.size > 0 && !portal.restringida && (
+        <div className="mb-[18px] flex flex-col gap-3">
+          {[...propuestas.values()].map((grupo) => (
+            <PropuestasHora
+              key={grupo[0].propuestaDeId}
+              propuestas={[...grupo].sort((a, b) => a.inicio.localeCompare(b.inicio))}
+              profesional={nombres.get(grupo[0].profesionalId) ?? 'Tu profesional'}
+            />
+          ))}
+        </div>
+      )}
       <div className="mb-[18px]">
         <Pestanas
           etiqueta="Filtrar horas"

@@ -118,7 +118,7 @@ export const ESTADOS_VISUALES: Record<EstadoVisual, { icono: Icono; texto: strin
 export function estadoVisual(c: Pick<CitaVista, 'estado' | 'fin'>, o: { ahora: number; conEvolucion?: boolean; inasistencia?: boolean }): EstadoVisual | null {
   if (c.estado === 'CANCELADA' || c.estado === 'LIBERADA') return null;
   if (c.estado === 'POR_REPROGRAMAR') return 'por_reprogramar';
-  if (c.estado === 'PENDIENTE_PAGO' || c.estado === 'SOLICITADA') return 'pendiente_pago';
+  if (c.estado === 'PENDIENTE_PAGO' || c.estado === 'SOLICITADA' || c.estado === 'PROPUESTA') return 'pendiente_pago';
   if (c.estado === 'RETENIDA') return 'retenida';
   if (new Date(c.fin).getTime() > o.ahora) return 'confirmada';
   if (o.inasistencia) return 'no_asistio';

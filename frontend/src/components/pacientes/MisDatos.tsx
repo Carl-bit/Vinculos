@@ -28,8 +28,9 @@ const telefonoApi = (t: string) => t.replace(/[\s()-]/g, '');
  * telefono y su correo (el correo nuevo se confirma con el enlace que le
  * llega). Nombre, fecha de nacimiento, contacto de emergencia y adulto
  * responsable los corrige el centro. El adulto responsable solo los ve.
+ * Punto 42: `lectura` = menu de la cuenta (sin editar; se modifica en Seguridad).
  */
-export function MisDatos() {
+export function MisDatos({ lectura = false }: { lectura?: boolean }) {
   const portal = usePortal();
   const consulta = useMisDatos(portal.pacienteParam, !portal.cargando && !!portal.pacienteId);
   const cliente = useQueryClient();
@@ -39,7 +40,7 @@ export function MisDatos() {
   const [errores, setErrores] = useState<{ telefono?: string; correo?: string }>({});
   const [pendiente, setPendiente] = useState<string | null>(null);
   const alerta = useRef<HTMLParagraphElement>(null);
-  const editable = !portal.responsable;
+  const editable = !portal.responsable && !lectura;
   const d = consulta.data;
   const sucio = editando && !!d && (telefonoApi(telefono) !== (d.telefono ?? '') || correo.trim().toLowerCase() !== (d.email ?? ''));
   const guarda = useGuardaCambios(sucio);
@@ -106,9 +107,11 @@ export function MisDatos() {
           ) : undefined
         }
         bajada={
-          editable
-            ? 'Puedes corregir tu teléfono y tu correo cuando quieras. Para cambiar otros datos, pídelo en el centro.'
-            : 'Estos datos los mantiene el centro. Si algo cambió, avísale a recepción o al profesional.'
+          lectura && !portal.responsable
+            ? undefined
+            : editable
+              ? 'Puedes corregir tu teléfono y tu correo cuando quieras. Para cambiar otros datos, pídelo en el centro.'
+              : 'Estos datos los mantiene el centro. Si algo cambió, avísale a recepción o al profesional.'
         }
       >
         <EstadoConsulta consulta={consulta}>

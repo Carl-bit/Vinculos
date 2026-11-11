@@ -20,7 +20,7 @@ import { inicioDiaChile, sumarDias, useAccesosTemporales, useEquipoAgenda, useEs
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
-import { NOMBRE_MODALIDAD_CITA } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA } from '@/components/shared/SelectorHorario';
 import { NOMBRE_ESTADO_CITA } from './tonosAgenda';
 
 const diaChile = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
@@ -131,8 +131,7 @@ export function DetalleCita({
         {cita.estado === 'SOLICITADA' && (
           <Aviso tono="advertencia" titulo="Hora por aprobar">
             El paciente pidió esta hora. {esTratante ? 'Apruébala o recházala' : 'La aprueba o rechaza su profesional'}
-            {cita.aprobacionVenceEn ? ` antes del ${formatoFechaHora(cita.aprobacionVenceEn)}` : ''}; si nadie responde, se cancela sola y se avisa al
-            paciente.
+            {cita.aprobacionVenceEn ? ` antes del ${formatoFechaHora(cita.aprobacionVenceEn)}` : ''}; si nadie responde, se cancela sola y se avisa al paciente.
           </Aviso>
         )}
         {esTratante && cita.estado === 'SOLICITADA' && !pasada && <AprobarSolicitud citaId={cita.id} onListo={listo} />}

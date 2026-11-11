@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useRef, useState } from 'react';
 
-import { EstadoConsulta } from '@/components/shared/EstadoVista';
+import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
@@ -119,12 +119,10 @@ function useContadores(admin: boolean) {
   const resenas = useQuery({ queryKey: ['equipo', 'resenas'], queryFn: () => datos(api.GET('/api/resenas')), enabled: admin });
   const alertas = useQuery({ queryKey: ['equipo', 'alertas'], queryFn: () => datos(api.GET('/api/alertas')), enabled: admin });
   const bajas = useQuery({ queryKey: ['equipo', 'bajas'], queryFn: () => datos(api.GET('/api/bajas')) });
-  const porReasignar = useQuery({ queryKey: ['equipo', 'por-reasignar'], queryFn: () => datos(api.GET('/api/bajas/por-reasignar')) });
   return {
     propuestas: propuestas.data?.length ?? 0,
     resenas: (resenas.data ?? []).filter((r) => r.estado === 'PENDIENTE' || (r.reportes.length > 0 && r.estado === 'PUBLICADA')).length,
-    alertas:
-      (alertas.data ?? []).filter((a) => !a.atendidaEn).length + (porReasignar.data?.length ?? 0) + (bajas.data ?? []).filter((b) => !b.procesadaEn).length,
+    alertas: (alertas.data ?? []).filter((a) => !a.atendidaEn).length + (bajas.data ?? []).filter((b) => !b.procesadaEn).length,
   };
 }
 
@@ -195,7 +193,7 @@ function Integrantes({
   rol: Rol;
   equipo: ReturnType<typeof useEquipoValidado>;
   abierto: string | null;
-  onAbrir: (id: string) => void;
+  onAbrir: (id: string | null) => void;
 }) {
   const admin = rol === 'ADMIN';
   const [busqueda, setBusqueda] = useState('');
@@ -208,7 +206,8 @@ function Integrantes({
       (!texto || m.nombre.toLocaleLowerCase('es').includes(texto)) &&
       (filtro === 'todos' || (filtro === 'pendientes' ? m.estado === 'POR_VALIDAR' : m.estado === 'VENCIDO')),
   );
-  const elegido = filas.find((m) => m.id === abierto) ?? visibles[0] ?? filas[0];
+  // Sin integrante elegido al entrar; volver a elegirlo lo cierra (correcciones 2026-11-11, punto 3).
+  const elegido = filas.find((m) => m.id === abierto);
   const cuenta = (n: EstadoIntegrante) => filas.filter((f) => f.estado === n).length;
   const resumen = [
     { n: filas.length, l: filas.length === 1 ? 'integrante' : 'integrantes', c: 'bg-neutral-200 text-neutral-800' },
@@ -294,8 +293,8 @@ function Integrantes({
                         <button
                           key={m.id}
                           type="button"
-                          aria-current={actual ? 'true' : undefined}
-                          onClick={() => onAbrir(m.id)}
+                          aria-pressed={actual}
+                          onClick={() => onAbrir(actual ? null : m.id)}
                           className={`flex min-h-[54px] w-full cursor-pointer items-center gap-2.5 rounded-[16px] px-2.5 py-1.5 text-left transition-colors duration-200 ${
                             actual ? 'bg-neutral-100 shadow-md' : 'hover:bg-neutral-200'
                           }`}
@@ -328,7 +327,7 @@ function Integrantes({
               })}
             </section>
             <div className="min-w-0 flex-[999_1_560px]">
-              {elegido && (
+              {elegido ? (
                 <FichaValidacion
                   key={elegido.id}
                   miembro={elegido}
@@ -338,6 +337,8 @@ function Integrantes({
                   estado={elegido.estado}
                   bajaEn={elegido.bajaEn}
                 />
+              ) : (
+                <EstadoVista estado="vacio" titulo="Elige un integrante" mensaje="Su ficha aparece aquí. Vuelve a elegirlo en la lista para cerrarla." />
               )}
             </div>
           </div>

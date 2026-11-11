@@ -11,11 +11,11 @@ import { DerivacionesVista } from '@/components/pacientes/Derivaciones';
 import { FichasProfesional } from '@/components/pacientes/FichasProfesional';
 import { ListaPacientes } from '@/components/pacientes/ListaPacientes';
 import { NuevoPaciente } from '@/components/pacientes/NuevoPaciente';
+import { PacientesPorReasignar } from '@/components/pacientes/PacientesPorReasignar';
 import { PlantillasClinicas } from '@/components/pacientes/PlantillasClinicas';
 import { RetencionFichas } from '@/components/pacientes/RetencionFichas';
 import { SeguimientoEquipo } from '@/components/pacientes/SeguimientoEquipo';
 import { Encabezado } from '@/components/shared/Encabezado';
-import { ButtonLink } from '@/components/ui/ButtonLink';
 import { ControlSegmentado } from '@/components/ui/ControlSegmentado';
 import { Icon } from '@/components/ui/Icon';
 import { Pestanas } from '@/components/ui/Pestanas';
@@ -142,18 +142,15 @@ function Fichas() {
       <div className="flex flex-col gap-4">
         {pestanas}
         {vista === 'equipo' && (
-          <SeguimientoEquipo
-            rol={rol}
-            agregarProfesional={
-              rol === 'ADMIN' ? (
-                <ButtonLink href="/admin/equipo?nuevo=1" variant="ghost" icon="person_add" className="!py-2 !text-[13px]">
-                  Agregar profesional
-                </ButtonLink>
-              ) : undefined
-            }
-          />
+          // Punto 15: sin "Agregar profesional" aqui; las cuentas se crean en Equipo.
+          <SeguimientoEquipo rol={rol} />
         )}
-        {vista === 'pacientes' && <ListaPacientes rol={rol} />}
+        {vista === 'pacientes' && (
+          <div className="flex flex-col gap-6">
+            {admin && <PacientesPorReasignar />}
+            <ListaPacientes rol={rol} />
+          </div>
+        )}
         {vista === 'derivaciones' && <DerivacionesVista rol={rol} />}
         {vista === 'accesos' && <AccesosTemporalesVista rol={rol} />}
         {vista === 'practicas' && <ConsentimientosEquipo rol={rol} />}

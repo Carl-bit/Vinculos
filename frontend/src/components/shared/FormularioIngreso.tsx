@@ -112,12 +112,16 @@ export function FormularioIngreso() {
     else if (sesion.tipo === 'activa' && !desafio && !eligiendo && !enviando) router.replace(destinoTrasIngreso(sesion.sesion.rol));
   }, [sesion, desafio, eligiendo, enviando, router]);
 
+  // Punto 21: un solo ingreso en vuelo (Enter repetido o doble clic no duplican la peticion).
+  const enVuelo = useRef(false);
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
+    if (enVuelo.current) return;
     setError(undefined);
     const esRut = pareceRut(usuario);
     // El campo ya muestra el error del digito verificador (03b-4.1): no se envia.
     if (esRut && !rutValido(usuario)) return;
+    enVuelo.current = true;
     setEnviando(true);
     try {
       const r = await iniciarSesion({ ...(esRut ? { rut: rutNormalizado(usuario) } : { email: usuario.trim() }), password });
@@ -128,6 +132,7 @@ export function FormularioIngreso() {
         setError('Los datos no coinciden con una cuenta con acceso. Revisa tu correo o RUT y la contraseña.');
       } else setError(err instanceof ApiError ? err.message : 'No pudimos conectar con el centro. Intenta de nuevo.');
     } finally {
+      enVuelo.current = false;
       setEnviando(false);
     }
   };

@@ -71,8 +71,13 @@ describe('programacion de jobs (reloj simulado)', () => {
     }
   });
 
-  it('cada hora: procesar bajas, avisar deudas y detectar anomalias (AUD-01)', () => {
-    for (const job of ['procesar_bajas', 'avisar_deudas', 'detectar_anomalias']) {
+  it('cada 5 minutos: procesar bajas (la baja "ahora" cierra el acceso en minutos)', () => {
+    expect(de('procesar_bajas')).toHaveLength(288);
+    expect(de('procesar_bajas').every((d) => d.en.getUTCMinutes() % 5 === 0 && d.en.getUTCSeconds() === 0)).toBe(true);
+  });
+
+  it('cada hora: avisar deudas y detectar anomalias (AUD-01)', () => {
+    for (const job of ['avisar_deudas', 'detectar_anomalias']) {
       expect(de(job)).toHaveLength(24);
       expect(de(job).every((d) => d.en.getUTCMinutes() === 0)).toBe(true);
     }

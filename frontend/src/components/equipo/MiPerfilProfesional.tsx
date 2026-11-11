@@ -486,13 +486,18 @@ export function MisTarifas({ usuarioId }: { usuarioId: string }) {
   );
 }
 
-export function MisDatosPrivados({ usuarioId }: { usuarioId: string }) {
+/** `soloRut`: MVP sin COBROS (2026-11-11), sin datos bancarios a la vista ni en el formulario. */
+export function MisDatosPrivados({ usuarioId, soloRut = false }: { usuarioId: string; soloRut?: boolean }) {
   const [abierto, setAbierto] = useState(false);
   const privados = useDatosPrivados(usuarioId, abierto);
   return (
     <Panel
-      titulo="Datos para pagos"
-      bajada="Tu RUT y cuenta bancaria, para liquidaciones y comprobantes de pago. Se guardan cifrados y solo los ve administración."
+      titulo={soloRut ? 'Mi RUT' : 'Datos para pagos'}
+      bajada={
+        soloRut
+          ? 'Se guarda cifrado y solo lo ve administración.'
+          : 'Tu RUT y cuenta bancaria, para liquidaciones y comprobantes de pago. Se guardan cifrados y solo los ve administración.'
+      }
       accion={
         <Button variant="secondary" icon={abierto ? 'visibility_off' : 'edit'} onClick={() => setAbierto((v) => !v)} className="!py-2.5">
           {abierto ? 'Cerrar' : 'Ver o editar'}
@@ -501,14 +506,14 @@ export function MisDatosPrivados({ usuarioId }: { usuarioId: string }) {
     >
       {abierto && (
         <div className="mt-4">
-          <EstadoConsulta consulta={privados}>{(d) => <FormularioPrivados key={d?.updatedAt ?? 'nuevo'} inicial={d} />}</EstadoConsulta>
+          <EstadoConsulta consulta={privados}>{(d) => <FormularioPrivados key={d?.updatedAt ?? 'nuevo'} inicial={d} soloRut={soloRut} />}</EstadoConsulta>
         </div>
       )}
     </Panel>
   );
 }
 
-function FormularioPrivados({ inicial }: { inicial: components['schemas']['DatosPrivadosVista'] | null }) {
+function FormularioPrivados({ inicial, soloRut }: { inicial: components['schemas']['DatosPrivadosVista'] | null; soloRut: boolean }) {
   const cliente = useQueryClient();
   const [f, setF] = useState({
     rut: inicial?.rut ?? '',
@@ -522,13 +527,16 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
     mutationFn: () =>
       datos(
         api.PUT('/api/profesionales/yo/datos-privados', {
-          body: {
-            rut: rutNormalizado(f.rut) || undefined,
-            banco: (f.banco || undefined) as DatosPrivadosDto['banco'],
-            tipoCuenta: (f.tipoCuenta || undefined) as DatosPrivadosDto['tipoCuenta'],
-            numeroCuenta: f.numeroCuenta.trim() || undefined,
-            titular: f.titular.trim() || undefined,
-          },
+          // Sin COBROS solo viaja el RUT: la API deja intactos los campos que no llegan.
+          body: soloRut
+            ? { rut: rutNormalizado(f.rut) || undefined }
+            : {
+                rut: rutNormalizado(f.rut) || undefined,
+                banco: (f.banco || undefined) as DatosPrivadosDto['banco'],
+                tipoCuenta: (f.tipoCuenta || undefined) as DatosPrivadosDto['tipoCuenta'],
+                numeroCuenta: f.numeroCuenta.trim() || undefined,
+                titular: f.titular.trim() || undefined,
+              },
         }),
       ),
     onSuccess: () => {
@@ -547,34 +555,38 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
     <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <CampoRut label="RUT" hint="También sirve para iniciar sesión." value={f.rut} onChange={(v) => setF((a) => ({ ...a, rut: v }))} />
-        <Field label="Titular de la cuenta">{(x) => <Input {...x} value={f.titular} maxLength={120} onChange={cambiar('titular')} />}</Field>
-        <Field label="Banco">
-          {(x) => (
-            <Select {...x} value={f.banco} onChange={cambiar('banco')}>
-              <option value="">Elige un banco</option>
-              {BANCOS.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-        <Field label="Tipo de cuenta">
-          {(x) => (
-            <Select {...x} value={f.tipoCuenta} onChange={cambiar('tipoCuenta')}>
-              <option value="">Elige un tipo</option>
-              {(Object.keys(CUENTAS) as (keyof typeof CUENTAS)[]).map((k) => (
-                <option key={k} value={k}>
-                  {CUENTAS[k]}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-        <Field label="Número de cuenta">
-          {(x) => <Input {...x} inputMode="numeric" value={f.numeroCuenta} maxLength={30} onChange={cambiar('numeroCuenta')} />}
-        </Field>
+        {!soloRut && (
+          <>
+            <Field label="Titular de la cuenta">{(x) => <Input {...x} value={f.titular} maxLength={120} onChange={cambiar('titular')} />}</Field>
+            <Field label="Banco">
+              {(x) => (
+                <Select {...x} value={f.banco} onChange={cambiar('banco')}>
+                  <option value="">Elige un banco</option>
+                  {BANCOS.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="Tipo de cuenta">
+              {(x) => (
+                <Select {...x} value={f.tipoCuenta} onChange={cambiar('tipoCuenta')}>
+                  <option value="">Elige un tipo</option>
+                  {(Object.keys(CUENTAS) as (keyof typeof CUENTAS)[]).map((k) => (
+                    <option key={k} value={k}>
+                      {CUENTAS[k]}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="Número de cuenta">
+              {(x) => <Input {...x} inputMode="numeric" value={f.numeroCuenta} maxLength={30} onChange={cambiar('numeroCuenta')} />}
+            </Field>
+          </>
+        )}
       </div>
       {estado.error && (
         <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
@@ -588,7 +600,7 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
           </p>
         )}
         <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
-          Guardar datos para pagos
+          {soloRut ? 'Guardar RUT' : 'Guardar datos para pagos'}
         </Button>
       </div>
     </form>

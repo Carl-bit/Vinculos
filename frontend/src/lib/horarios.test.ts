@@ -36,5 +36,6 @@ describe('restante', () => {
     expect(restante(fin, new Date('2026-10-19T13:00:00Z')).texto).toBe('30:00');
     expect(restante(fin, new Date('2026-10-19T13:29:01Z')).texto).toBe('0:59');
     expect(restante(fin, new Date('2026-10-19T14:00:00Z'))).toEqual({ ms: 0, texto: '0:00' });
+    expect(restante(new Date('2026-10-20T13:00:00Z'), new Date('2026-10-19T13:00:01Z')).texto).toBe('23:59:59');
   });
 });

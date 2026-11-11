@@ -62,7 +62,11 @@ export function MensajeProfesional({ historial = 3 }: { historial?: number }) {
   const delPaciente = (mensajes.data ?? []).filter((m) => !portal.pacienteId || !m.pacienteId || m.pacienteId === portal.pacienteId);
 
   return (
-    <Panel id="mensajes" titulo={`Escribirle a ${primerNombre}`} bajada={`${primerNombre} responde por correo o teléfono, no dentro de la plataforma.`}>
+    <Panel
+      id="mensajes"
+      titulo={`Escribirle a ${primerNombre}`}
+      bajada={`Le llega a su correo y queda en su bandeja; ${primerNombre} te responde a tu correo o teléfono.`}
+    >
       <Aviso tono="advertencia" className="mb-4">
         Evita incluir detalles clínicos sensibles: este mensaje se reenvía al correo de tu profesional. Para temas delicados, pide una hora.
       </Aviso>
@@ -89,10 +93,11 @@ export function MensajeProfesional({ historial = 3 }: { historial?: number }) {
               )}
             </Field>
           )}
-          <Field label="Mensaje" hint={texto.length ? `${texto.length} de ${MAXIMO} caracteres` : 'Sin respuestas dentro de la plataforma.'}>
+          <Field label="Mensaje" hint={texto.length ? `${texto.length} de ${MAXIMO} caracteres` : 'Enter envía; Shift+Enter hace un salto de línea.'}>
             {(p) => (
               <Textarea
                 {...p}
+                enterEnvia
                 rows={4}
                 maxLength={MAXIMO}
                 value={texto}
@@ -138,7 +143,7 @@ export function MensajeProfesional({ historial = 3 }: { historial?: number }) {
         </EstadoConsulta>
         <p className="m-0 mt-4 flex items-center gap-2 text-[12.5px] font-semibold text-neutral-700">
           <Icon name="info" size={16} />
-          Las respuestas de tu profesional llegan a tu correo o teléfono, no acá.
+          Tu profesional te responderá a tu correo o teléfono.
         </p>
       </div>
     </Panel>

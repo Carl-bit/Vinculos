@@ -4,12 +4,13 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 
-import { EstadoConsulta } from '@/components/shared/EstadoVista';
+import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
+import { Paginador, usePaginacion } from '@/components/ui/Paginador';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import {
@@ -99,7 +100,7 @@ const iniciales = (nombre: string) =>
  * evolucion y su plazo, no que dice. GESTION no ve derivaciones ni accesos
  * (matriz de permisos).
  */
-export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agregarProfesional?: ReactNode }) {
+export function SeguimientoEquipo({ rol }: { rol: Rol }) {
   const admin = rol === 'ADMIN';
   const equipo = useEquipoAgenda();
   const pacientes = usePacientes();
@@ -349,8 +350,12 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
   const lista = [...todos].sort(
     (a, b) => Number(practicante(a.m)) - Number(practicante(b.m)) || b.items.length - a.items.length || carga(b.m.id) - carga(a.m.id),
   );
-  const actual = lista.find((x) => x.m.id === elegido) ?? lista[0];
+  // Sin profesional elegido al entrar: su informacion se ve solo al elegirlo (y se oculta al volver a tocarlo).
+  const actual = elegido ? lista.find((x) => x.m.id === elegido) : undefined;
   const visibles = (actual?.items ?? []).filter((i) => !foco || i.grupo === foco || (foco === 'der' && i.grupo === 'acc'));
+  // Trabajo pendiente por paginas (punto 45): minimo 10 filas, el tamaño lo ajusta quien mira.
+  const paginas = usePaginacion(visibles, 'seguimiento-pendiente', `${elegido}|${foco}`);
+  const mostrados = paginas.visibles;
   const item = visibles.find((i) => i.key === itemElegido) ?? visibles[0];
 
   // Tarjetas "Requiere atencion en el centro".
@@ -446,12 +451,7 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
         </EstadoConsulta>
       </section>
 
-      <EstadoConsulta
-        consulta={equipo}
-        vacio={() => lista.length === 0}
-        textoVacio="Todavía no hay profesionales en el centro"
-        accionVacio={agregarProfesional}
-      >
+      <EstadoConsulta consulta={equipo} vacio={() => lista.length === 0} textoVacio="Todavía no hay profesionales en el centro">
         {() => (
           <div className="flex flex-wrap items-start gap-4">
             <section
@@ -478,7 +478,7 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
                     type="button"
                     aria-pressed={on}
                     onClick={() => {
-                      setElegido(m.id);
+                      setElegido(on ? undefined : m.id);
                       setItemElegido(undefined);
                     }}
                     className={`flex min-h-[58px] w-full cursor-pointer items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left transition-[opacity,background-color] duration-200 ${
@@ -513,9 +513,6 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
                   </button>
                 );
               })}
-              {agregarProfesional && (
-                <div className="mt-1.5 flex justify-center rounded-sm border border-dashed border-neutral-400 p-2.5">{agregarProfesional}</div>
-              )}
             </section>
 
             {actual && (
@@ -540,7 +537,7 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
                     </p>
                   ) : (
                     GRUPOS.map((g) => {
-                      const del = visibles.filter((i) => i.grupo === g.g);
+                      const del = mostrados.filter((i) => i.grupo === g.g);
                       if (!del.length) return null;
                       return (
                         <div key={g.g} className="flex flex-col gap-1.5">
@@ -575,8 +572,19 @@ export function SeguimientoEquipo({ rol, agregarProfesional }: { rol: Rol; agreg
                       );
                     })
                   )}
+                  <Paginador {...paginas} etiqueta="pendientes" />
                 </div>
               </section>
+            )}
+
+            {!actual && (
+              <div className="min-w-0 flex-[999_1_440px]">
+                <EstadoVista
+                  estado="vacio"
+                  titulo="Elige un profesional"
+                  mensaje="Su trabajo pendiente aparece aquí. Vuelve a tocarlo en la lista para ocultarlo."
+                />
+              </div>
             )}
 
             {actual && (

@@ -563,6 +563,13 @@ describe('03a-2 plantillas clinicas y mensajeria interna', () => {
         .set(await tk(gestion))
         .send({ tipo: 'GENERAL', asunto: 'Turnos de diciembre', participantes: [prof.id, salida.id] });
       expect(hilo.status).toBe(201);
+      // La lista trae los nombres de los participantes (sin quien consulta) para buscar por persona.
+      const lista = await t
+        .http()
+        .get('/api/hilos')
+        .set(await tk(gestion));
+      const fila = (lista.body as { id: string; personas: string[] }[]).find((h) => h.id === hilo.body.id);
+      expect(fila?.personas).toContain('Ps. Que Se Va');
       expect(
         (
           await t
