@@ -21,7 +21,8 @@ describe('AUD-02 paginacion', () => {
   async function todas(u: UsuarioPrueba, ruta: string, query: Record<string, unknown>) {
     const ids: string[] = [];
     let cursor: string | null | undefined;
-    for (let vuelta = 0; vuelta < 50; vuelta++) {
+    // La BD de tests es compartida por todas las suites: con limite 2 ya pasa de 100 pacientes.
+    for (let vuelta = 0; vuelta < 200; vuelta++) {
       const r = await t
         .http()
         .get(ruta)

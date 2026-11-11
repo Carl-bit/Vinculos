@@ -24,12 +24,13 @@ import { join } from 'node:path';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { type ModalidadAtencion, PrismaClient } from '@prisma/client';
+import { type ModalidadAtencion, type ModuloCentro, PrismaClient } from '@prisma/client';
 
 import { AppModule } from '../src/app.module';
 import { configurarApp } from '../src/configurar-app';
 import { hashToken } from '../src/core/auth/tokens-correo';
 import { JobsService } from '../src/core/jobs/jobs.service';
+import { ModulosGuard } from '../src/core/modulos/modulos';
 import { type Correo, ProveedorCorreo } from '../src/core/notificaciones/correo';
 import { dvRut } from '../src/core/validacion/validadores';
 
@@ -216,7 +217,18 @@ async function main(): Promise<void> {
     return token;
   };
 
+  // MVP (2026-11-11): COBROS viene apagado. El demo carga tambien los datos del modulo dormido (pagos,
+  // acuerdos, un moroso) para la implementacion futura y lo apaga al final: en el MVP no se ven.
+  const modulosMvp: ModuloCentro[] = (await dueno.configuracionCentro.findUniqueOrThrow({ where: { id: true } })).modulosActivos.filter(
+    (m) => m !== 'COBROS',
+  );
+  const conCobros = async (activo: boolean) => {
+    await dueno.configuracionCentro.update({ where: { id: true }, data: { modulosActivos: activo ? [...modulosMvp, 'COBROS'] : modulosMvp } });
+    app.get(ModulosGuard).olvidar();
+  };
+
   try {
+    await conCobros(true);
     // --- Centro y equipo -------------------------------------------------------
     const admin = await login(`admin@${DOMINIO}`);
     await llamar(admin, 'PATCH', '/configuracion', {
@@ -873,61 +885,31 @@ async function main(): Promise<void> {
       contenido: 'Mensaje demo de la madre: Sofía llegará 10 minutos tarde el martes.',
     });
 
-    // --- 03b-3.1 / 03b-3.2: la hora se confirma con el pago ------------------------
-    // Cuenta del centro, los tres medios (pasarela simulada: modo demostracion) y 50% para confirmar. Las citas
-    // anteriores quedan CONFIRMADAS (se agendaron con solo pago en el centro); abajo, un ejemplo de cada estado.
-    await llamar(admin, 'PUT', '/cobros/cuenta-centro', {
-      rut: rut('76111222'),
-      banco: 'Banco Ficticio (Demo)',
-      tipoCuenta: 'Cuenta corriente',
-      numeroCuenta: '000-111-222',
-      titular: 'Centro de Prueba Vinculos SpA (Demo)',
-    });
-    await llamar(admin, 'PATCH', '/configuracion', {
-      mediosPagoHabilitados: ['PAGO_EN_CENTRO', 'TRANSFERENCIA', 'PASARELA'],
-      plazoValidacionTransferenciaHoras: 24,
-      porcentajePagoConfirmacion: 50,
-      penalizacionCancelacionPorcentaje: 25,
-      cobroInasistenciaPorcentaje: 100,
-    });
-    // Agendada por el equipo: pendiente de pago hasta 12 h antes de la sesion (aviso al paciente; recordatorios 48 h y 24 h).
-    await cita({ pacienteId: diego.id, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(8, '11:00') });
+    // --- MVP sin cobros (2026-11-11): la hora que pide el paciente la aprueba su profesional ---------------
+    // Con COBROS apagado (como queda el centro), dos solicitudes para "Esta semana" de Profesional Uno: una desde
+    // la cuenta de Paciente Prueba y una de alguien nuevo que verifico su correo (ahi nacen su paciente y su
+    // ficha). Profesional Uno las aprueba o rechaza desde el inicio; si nadie responde, el job las cancela.
+    await conCobros(false);
     const politicaDatos = (await llamar(null, 'GET', '/publico/politicas/POLITICA_DATOS')).id;
     const terminosAgenda = (await llamar(null, 'GET', '/publico/politicas/TERMINOS_AGENDAMIENTO')).id;
-    // Pedir hora sin cuenta: la reserva (cita RETENIDA, sin paciente) se crea con la funcion de la BD (sin cifrados: sin
-    // telefono ni RUT) para conocer el token de la reserva; el medio y el pago pasan por la API como en el navegador.
-    const pedirSinCuenta = async (nombre: string, dias: number) => {
-      const reserva = randomBytes(32).toString('base64url');
-      const h = horario(dias, '09:00');
-      const [r] = await dueno.$queryRaw<{ cita_id: string }[]>`
-        SELECT cita_id FROM crear_solicitud_hora(${randomUUID()}::uuid, ${prof1Id}::uuid, 'PRESENCIAL', ${new Date(h.inicio)},
-          ${new Date(h.fin)}, ${nombre}, 'Demo Pago', '1990-05-05', ${`${nombre.toLowerCase()}.pago@${DOMINIO}`}, NULL, NULL, NULL,
-          NULL, NULL, NULL, NULL, NULL, ${politicaDatos}::uuid, ${terminosAgenda}::uuid, ${hashToken(randomBytes(32).toString('base64url'))},
-          ${hashToken(reserva)})`;
-      return { reserva, citaId: r.cita_id };
-    };
-    // Retenida: medio sin elegir (vence a los minutos_retencion_solicitud; la libera el job).
-    await pedirSinCuenta('Rita', 13);
-    // Pago en el centro: el gatillo es el correo (aca el enlace se emite como dueño para conocer el token).
-    const centro = await pedirSinCuenta('Sara', 14);
+    await llamar(paciente, 'POST', '/portal/citas', {
+      pacienteId: pacientePrueba,
+      modalidad: 'PRESENCIAL',
+      ...horario(10, '09:00'),
+      politicaId: politicaDatos,
+      terminosId: terminosAgenda,
+    });
+    // Sin cuenta: la reserva se crea con la funcion de la BD (sin cifrados: sin telefono ni RUT) para conocer el
+    // token del correo; la verificacion pasa por la API como en el navegador.
     const correo = randomBytes(32).toString('base64url');
+    const nueva = horario(9, '09:00');
     await dueno.$queryRaw`
-      SELECT * FROM elegir_medio_reserva(${hashToken(centro.reserva)}, 'PAGO_EN_CENTRO', ${randomUUID()}::uuid, ${hashToken(correo)})`;
+      SELECT cita_id FROM crear_solicitud_hora(${randomUUID()}::uuid, ${prof1Id}::uuid, 'PRESENCIAL', ${new Date(nueva.inicio)},
+        ${new Date(nueva.fin)}, 'Sara', 'Demo Solicitud', '1990-05-05', ${`sara.solicitud@${DOMINIO}`}, NULL, NULL, NULL,
+        NULL, NULL, NULL, NULL, NULL, ${politicaDatos}::uuid, ${terminosAgenda}::uuid, ${hashToken(correo)},
+        ${hashToken(randomBytes(32).toString('base64url'))})`;
     await llamar(null, 'POST', '/publico/solicitudes/verificacion', { token: correo });
-    // Transferencia por validar (sin comprobante: es opcional; GESTION la valida en Cobros y ahi nace el paciente). Subir
-    // el comprobante extiende el plazo hasta la validacion; aca se extiende como dueño para que el ejemplo dure.
-    const transferencia = await pedirSinCuenta('Tamara', 9);
-    await llamar(null, 'POST', '/publico/reservas/medio', { reserva: transferencia.reserva, medio: 'TRANSFERENCIA' });
-    await dueno.cita.update({ where: { id: transferencia.citaId }, data: { pagoVenceEn: new Date(Date.now() + 24 * 3_600_000) } });
-    // Pagada en linea con la pasarela simulada (webhook firmado, como en produccion): ahi nace el paciente.
-    const enLinea = await pedirSinCuenta('Lina', 11);
-    await llamar(null, 'POST', '/publico/reservas/medio', { reserva: enLinea.reserva, medio: 'PASARELA' });
-    const cobro = await llamar(null, 'POST', '/publico/reservas/pasarela', { reserva: enLinea.reserva });
-    await llamar(null, 'POST', '/publico/pasarela/simulada', { referencia: cobro.referencia, pagado: true });
-    // Liberada: vencio el plazo de pago (como dueño se adelanta el plazo; el job es el que la libera).
-    const vencida = await pedirSinCuenta('Victor', 12);
-    await dueno.cita.update({ where: { id: vencida.citaId }, data: { pagoVenceEn: new Date(Date.now() - 60_000) } });
-    await app.get(JobsService).liberarReservasVencidas();
+    await conCobros(true);
 
     // Comision por derivacion: monto fijo por sesion de pacientes traidos por el centro; el resto, 20% general.
     await llamar(admin, 'PATCH', '/configuracion', {
@@ -1199,6 +1181,7 @@ async function main(): Promise<void> {
         adultoResponsableId: adulto?.id,
       });
     }
+    await conCobros(false);
   } finally {
     await app.close();
     await dueno.$disconnect();

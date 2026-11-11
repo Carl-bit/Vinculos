@@ -84,7 +84,8 @@ model ConfiguracionCentro {
   /// 02j: si esta activo, mayor que plazoAvisoCancelacionHoras (CHECK).
   recordatorioHorasAntes            Int                    @default(48) @map("recordatorio_horas_antes")
   /// 03a: modulos contratados. Solo el operador los cambia (sin GRANT UPDATE a la API).
-  modulosActivos                    ModuloCentro[]         @default([PAGINA_PUBLICA, FICHAS, AGENDA, EQUIPO, MATCH, COBROS]) @map("modulos_activos")
+  /// MVP (2026-11-11): COBROS apagado por defecto; sin COBROS, la hora del paciente la aprueba su profesional.
+  modulosActivos                    ModuloCentro[]         @default([PAGINA_PUBLICA, FICHAS, AGENDA, EQUIPO, MATCH]) @map("modulos_activos")
   /// 03a (C-11): la liquidacion solo cuenta citas realizadas con evolucion registrada.
   liquidarExigeEvolucion            Boolean                @default(false) @map("liquidar_exige_evolucion")
   /// C-11: los cargos por inasistencia y cancelacion tardia entran a la liquidacion del profesional.
@@ -95,6 +96,8 @@ model ConfiguracionCentro {
   diasRetencionRespuestasMatch      Int                    @default(30) @map("dias_retencion_respuestas_match")
   /// 03a (C-15): minutos que se retiene el horario mientras se verifica el correo.
   minutosRetencionSolicitud         Int                    @default(30) @map("minutos_retencion_solicitud")
+  /// MVP: horas que tiene el profesional para aprobar una hora pedida por el paciente (nunca despues del inicio).
+  horasAprobacionSolicitud          Int                    @default(24) @map("horas_aprobacion_solicitud") @db.SmallInt
   /// 03a-2: dias que se conservan los mensajes internos del equipo (job de purga).
   retencionMensajesDias             Int                    @default(365) @map("retencion_mensajes_dias")
   /// 03a-2 (D-4): edad minima para la cuenta propia del paciente (antes: el adulto responsable).
@@ -1258,7 +1261,8 @@ enum EstadoCita {
   CONFIRMADA
   CANCELADA
   POR_REPROGRAMAR
-  /// 03a (C-15), retirado en 03b-3.2 (CHECK citas_sin_solicitada): el pago validado es la aprobacion.
+  /// 03a (C-15), retirado en 03b-3.2 y repuesto en el MVP sin cobros: la hora pedida por el
+  /// paciente espera la aprobacion de su profesional (aprobacion_vence_en). Ocupa la hora (EXCLUDE).
   SOLICITADA
   /// 03b-3.1: correo verificado, esperando el pago (bloquea la hora hasta pago_vence_en).
   PENDIENTE_PAGO
@@ -1341,6 +1345,8 @@ model Cita {
   /// lo exige). Solo los fija el flujo de confirmacion (trigger citas_estado_pago_protegido).
   medioConfirmacion MedioConfirmacion? @map("medio_confirmacion")
   pagoVenceEn       DateTime?          @map("pago_vence_en") @db.Timestamptz(6)
+  /// MVP: plazo para que el profesional apruebe (CHECK: SOLICITADA lo exige). Lo fija el flujo; el job vence.
+  aprobacionVenceEn DateTime?          @map("aprobacion_vence_en") @db.Timestamptz(6)
   /// 03b-3.2: la agendo el equipo (plazo de pago hasta 12 h antes, avisos 48 h / 24 h).
   /// Lo fija la BD (trigger citas_pago_previo_equipo).
   agendadaPorEquipo Boolean            @default(false) @map("agendada_por_equipo")

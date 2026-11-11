@@ -9,9 +9,9 @@ import { Field, Input, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { ApiError } from '@/lib/api/errores';
 import { pareceRut, rutValido } from '@/lib/formato';
-import { destinoTrasIngreso } from '@/lib/roles';
+import { destinoTrasIngreso, NOMBRE_ROL } from '@/lib/roles';
 import { useCentroPublico, useSesion } from '@/lib/consultas';
-import { iniciarSesion, renovarSesion, type DesafioSegundoFactor, type SesionActiva } from '@/lib/sesion';
+import { cambiarRol, iniciarSesion, renovarSesion, type DesafioSegundoFactor, type Rol, type SesionActiva } from '@/lib/sesion';
 
 import { CampoRut, rutNormalizado } from './CampoRut';
 import { PasoSegundoFactor } from './PasoSegundoFactor';
@@ -84,7 +84,6 @@ const TEXTOS = {
 export function FormularioIngreso() {
   const router = useRouter();
   const parametros = useSearchParams();
-  const volver = parametros.get('volver');
   const porInactividad = parametros.get('motivo') === 'inactividad';
   const porOtroIngreso = parametros.get('motivo') === 'otro-ingreso';
   const porClaveCambiada = parametros.get('motivo') === 'clave-cambiada';
@@ -103,13 +102,15 @@ export function FormularioIngreso() {
     if (error) alerta.current?.focus();
   }, [error]);
 
-  const entrar = (sesion: SesionActiva) => router.replace(destinoTrasIngreso(sesion.rol, volver));
+  // Punto 19 (2026-11-11): con mas de un rol, entre el ingreso y el panel se elige con cual entrar.
+  const [eligiendo, setEligiendo] = useState<SesionActiva | null>(null);
+  const entrar = (s: SesionActiva) => (s.roles.length > 1 ? setEligiendo(s) : router.replace(destinoTrasIngreso(s.rol)));
   // 03b-4.1: con una sesion viva (cookie de refresh) no se pide entrar de nuevo.
   const sesion = useSesion();
   useEffect(() => {
     if (sesion.tipo === 'desconocida') void renovarSesion();
-    else if (sesion.tipo === 'activa' && !desafio) router.replace(destinoTrasIngreso(sesion.sesion.rol, volver));
-  }, [sesion, desafio, router, volver]);
+    else if (sesion.tipo === 'activa' && !desafio && !eligiendo && !enviando) router.replace(destinoTrasIngreso(sesion.sesion.rol));
+  }, [sesion, desafio, eligiendo, enviando, router]);
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
@@ -130,6 +131,14 @@ export function FormularioIngreso() {
       setEnviando(false);
     }
   };
+
+  if (eligiendo) {
+    return (
+      <TarjetaIngreso perfil="equipo">
+        <ElegirRol sesion={eligiendo} onElegido={(rol) => router.replace(destinoTrasIngreso(rol))} />
+      </TarjetaIngreso>
+    );
+  }
 
   if (desafio) {
     return (
@@ -185,7 +194,7 @@ export function FormularioIngreso() {
             className="m-0 mb-5 flex gap-2.5 rounded-lg border border-accent-500 bg-accent-200 px-4 py-3 text-[13.5px] font-bold text-accent-900"
           >
             <Icon name="timer" size={19} />
-            Cerramos tu sesión porque estuvo 30 minutos sin actividad. Vuelve a ingresar para seguir donde estabas.
+            Cerramos tu sesión porque estuvo 30 minutos sin actividad. Vuelve a ingresar: entrarás al inicio.
           </p>
         )}
         {porOtroIngreso && (
@@ -298,6 +307,53 @@ export function FormularioIngreso() {
           )}
         </div>
       </TarjetaIngreso>
+    </div>
+  );
+}
+
+/**
+ * Punto 19: la cuenta con varios roles (por ejemplo cuenta madre y profesional) elige con cual entrar. Cada rol
+ * es una sesion distinta (token nuevo); despues se cambia desde el menu. El boton queda bloqueado mientras responde la API.
+ */
+function ElegirRol({ sesion, onElegido }: { sesion: SesionActiva; onElegido: (rol: Rol) => void }) {
+  const [cambiando, setCambiando] = useState<Rol | null>(null);
+  const [error, setError] = useState<string>();
+  const elegir = async (rol: Rol) => {
+    setCambiando(rol);
+    setError(undefined);
+    try {
+      if (rol !== sesion.rol) await cambiarRol(rol);
+      onElegido(rol);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No pudimos entrar con ese rol. Intenta de nuevo.');
+      setCambiando(null);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <h2 className="m-0 text-[26px] leading-[1.1] font-black tracking-[-0.02em]">¿Con qué rol entras?</h2>
+      <p className="m-0 text-[14px] font-semibold text-neutral-800">Tu cuenta tiene más de un rol. Puedes cambiarlo después desde el menú.</p>
+      <div role="group" aria-label="Roles de tu cuenta" className="flex flex-col gap-2.5">
+        {sesion.roles.map((r) => (
+          <Button
+            key={r}
+            type="button"
+            size="lg"
+            variant={r === sesion.rol ? 'team' : 'secondary'}
+            loading={cambiando === r}
+            disabled={cambiando !== null}
+            onClick={() => void elegir(r)}
+            className="w-full"
+          >
+            {NOMBRE_ROL[r]}
+          </Button>
+        ))}
+      </div>
+      {error && (
+        <p role="alert" className="m-0 text-[13.5px] font-bold text-accent-700">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

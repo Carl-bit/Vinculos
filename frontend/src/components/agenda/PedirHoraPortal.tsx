@@ -156,7 +156,7 @@ export function PedirHoraPortal() {
         <p className="m-0 mb-5 text-[16px] leading-relaxed text-pretty text-neutral-700">
           {confirmada
             ? `Te enviamos la confirmación por correo${reservar.variables?.modalidad === 'ONLINE' ? ' con el enlace de la videollamada' : ''}.`
-            : `${nombre} revisa las horas de pacientes nuevos y te avisará por correo cuando la apruebe.`}
+            : `${nombre} revisará tu solicitud. Te avisaremos por correo cuando la confirme; mientras tanto la hora queda reservada para ti.`}
         </p>
         {reservar.variables && (
           <p className="m-0 mb-6 rounded-lg border border-divider bg-bg px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-suave first-letter:uppercase">

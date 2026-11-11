@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { useMiCuenta } from '@/lib/consultas';
+import { useMiCuenta, useModulos } from '@/lib/consultas';
 import {
   NOMBRE_MODALIDAD,
   NOMBRE_ROL,
@@ -859,10 +859,11 @@ function Administrativo({ miembro, cuenta, admin, bajaEn }: { miembro: Integrant
   const profesional = miembro.roles.includes('PROFESIONAL');
   const conDatos = profesional || miembro.roles.includes('PRACTICANTE');
   const tarifas = useTarifas(profesional ? miembro.id : undefined);
+  const cobrosActivo = useModulos().data?.activos.includes('COBROS') ?? false;
   const acuerdos = useQuery({
     queryKey: ['cobros', 'acuerdos'],
     queryFn: () => datos(api.GET('/api/cobros/acuerdos')),
-    enabled: admin && profesional,
+    enabled: admin && profesional && cobrosActivo,
     retry: false,
   });
   const [verDatos, setVerDatos] = useState(false);

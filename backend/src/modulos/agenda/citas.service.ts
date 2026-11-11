@@ -16,7 +16,7 @@ import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { MENSAJE_POR_RESTRICCION } from '../../core/errores/sqlstate';
 import { EVENTOS, type CitaCancelada, type CitaConfirmada, type NotificacionSolicitada } from '../../core/eventos/eventos';
 import { AgendaService } from './agenda.service';
-import type { CrearCitaDto, CubrirCitaDto, FiltroCitasDto, HorarioDto, LiberarHoraDto, ReprogramarCitaDto } from './dto/agenda.dto';
+import type { CrearCitaDto, CubrirCitaDto, DecidirSolicitudDto, FiltroCitasDto, HorarioDto, LiberarHoraDto, ReprogramarCitaDto } from './dto/agenda.dto';
 import { ProveedorVideollamada } from '../../core/integraciones/videollamada';
 
 /** Sin enlace (cifrado) en las listas: se pide aparte en /citas/:id/enlace. */
@@ -33,6 +33,7 @@ const VISTA = {
   monto: true,
   canceladaEn: true,
   pagoVenceEn: true,
+  aprobacionVenceEn: true,
   medioConfirmacion: true,
   motivoLiberacion: true,
   createdAt: true,
@@ -162,6 +163,22 @@ export class CitasService {
     return cita;
   }
 
+  /**
+   * MVP sin COBROS: aprobar o rechazar la hora SOLICITADA (funciones de la BD: solo su profesional).
+   * Rechazar avisa desde la BD; aprobar genera el enlace online y avisa como al agendar.
+   */
+  async decidirSolicitud(id: string, { aprobar }: DecidirSolicitudDto) {
+    const tx = this.bd.tx();
+    if (!aprobar) {
+      await tx.$queryRaw`SELECT rechazar_cita(${id}::uuid)::text AS estado`;
+      return this.obtener(id);
+    }
+    await tx.$queryRaw`SELECT aprobar_cita(${id}::uuid)::text AS estado`;
+    const cita = await this.obtener(id);
+    this.emitirConfirmada(EVENTOS.CITA_CONFIRMADA, cita, await this.generarEnlace(cita));
+    return this.obtener(id);
+  }
+
   /** 03b-3.3: liberar a mano la hora retenida (ADMIN/GESTION, con motivo; la reserva ya no se concreta). */
   async liberar(id: string, { motivo }: LiberarHoraDto) {
     await this.bd.tx().$executeRaw`SELECT liberar_hora_retenida(${id}::uuid, ${motivo})`;
@@ -182,6 +199,9 @@ export class CitasService {
       throw new ConflictException('Una cita cancelada no se reprograma');
     }
     // 03b-3.1: la hora pendiente de pago (o retenida) se confirma o se libera; la liberada ya no existe.
+    if (actual.estado === 'SOLICITADA') {
+      throw new ConflictException('La hora esta por aprobar: apruebala o rechazala antes de moverla');
+    }
     if (actual.estado === 'PENDIENTE_PAGO' || actual.estado === 'RETENIDA' || actual.estado === 'LIBERADA') {
       throw new ConflictException('La cita no esta confirmada (pago pendiente o vencido): no se reprograma');
     }

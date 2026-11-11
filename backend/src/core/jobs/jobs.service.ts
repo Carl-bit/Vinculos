@@ -119,11 +119,13 @@ export class JobsService implements OnApplicationBootstrap {
    * retenidas (03b-3.2) con el plazo vencido -> LIBERADA, con aviso al
    * paciente si ya existe (HORA_LIBERADA). 03b-3.3: la que agendo el equipo
    * se mantiene con pago en el centro (si ya no cabe en la agenda, se libera).
+   * MVP sin COBROS: tambien vence las solicitudes que el profesional no aprobo
+   * a tiempo (SOLICITADA -> CANCELADA, aviso al paciente).
    */
   @Cron(CronExpression.EVERY_MINUTE, { name: 'liberar_reservas_vencidas' })
   liberarReservasVencidas(): Promise<ResultadoJob> {
     return this.conLock('liberar_reservas_vencidas', async (tx) => {
-      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT liberar_reservas_vencidas() AS n`;
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT liberar_reservas_vencidas() + vencer_solicitudes() AS n`;
       return n;
     });
   }

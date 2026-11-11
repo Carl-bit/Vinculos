@@ -1,10 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-
-import { Icon } from '@/components/ui/Icon';
 
 import { Field, Select } from '@/components/ui/Field';
 import { useProfesionales } from '@/lib/consultas';
@@ -45,15 +42,9 @@ export function ProveedorEquipoActivo({ habilitado, children }: { habilitado: bo
   useEffect(() => {
     if (!habilitado) return;
     const enUrl = parametros.get(PARAMETRO);
-    if (enUrl && UUID.test(enUrl)) {
-      // Un enlace con ?equipo=<id> (por ejemplo "Ver mi agenda" de un perfil) elige a ese integrante.
-      setEstado(enUrl);
-    } else if (profesionalId) {
-      // Una vista sin el parametro (menu, ?vista= de una pagina) conserva el integrante elegido.
-      escribirUrl(profesionalId);
-    }
-    // profesionalId fuera a proposito: solo reacciona a la navegacion; el setter ya escribe la URL.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Correcciones 2026-11-11 (punto 11): el integrante elegido vive solo en la URL de la vista que lo
+    // filtra (agenda). Al cambiar de seccion (menu, sin ?equipo=) se vuelve a la vista de la cuenta madre.
+    setEstado(enUrl && UUID.test(enUrl) ? enUrl : null);
   }, [habilitado, ruta, parametros]);
   return <Contexto.Provider value={{ profesionalId, setProfesionalId }}>{children}</Contexto.Provider>;
 }
@@ -90,39 +81,5 @@ export function SelectorEquipo() {
         </Select>
       )}
     </Field>
-  );
-}
-
-/**
- * 03b-4.1: indicador visible del integrante elegido. Agenda, pendientes y
- * cobros ya se filtran por el; desde aca se abre su perfil (Equipo, solo
- * metadata: nunca datos clinicos para ADMIN/GESTION) o se vuelve a todo el
- * equipo.
- */
-export function ViendoA() {
-  const { profesionalId, setProfesionalId } = useEquipoActivo();
-  const nombre = useProfesionales(!!profesionalId).data?.find((m) => m.id === profesionalId)?.nombre;
-  if (!profesionalId) return null;
-  return (
-    <div
-      role="status"
-      className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[18px] border border-accent-500 bg-accent-200 px-4 py-2.5 text-[13.5px] font-bold text-accent-900"
-    >
-      <Icon name="person_search" size={19} />
-      <span className="min-w-0 flex-1">
-        Viendo a <span className="font-black">{nombre ?? 'un integrante'}</span>: agenda, pendientes y cobros muestran solo lo suyo.
-      </span>
-      <Link href={`/admin/equipo?id=${profesionalId}`} className="font-extrabold text-accent-900 underline underline-offset-2">
-        Ver su perfil
-      </Link>
-      <button
-        type="button"
-        onClick={() => setProfesionalId(null)}
-        className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-accent-700 px-3.5 font-extrabold text-accent-900 hover:bg-accent-300"
-      >
-        <Icon name="arrow_back" size={16} />
-        Volver a todo el equipo
-      </button>
-    </div>
   );
 }

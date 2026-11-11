@@ -36,6 +36,7 @@ import {
   ApartarBloquesDto,
   CrearBloqueoAgendaDto,
   CubrirCitaDto,
+  DecidirSolicitudDto,
   HorarioEspacioDto,
   CrearCitaDto,
   CrearDisponibilidadDto,
@@ -279,6 +280,13 @@ export class CitasController {
   @Roles(...EQUIPO_AGENDA)
   cancelar(@Param('id', Uuid) id: string): Promise<CitaVista> {
     return this.citas.cancelar(id);
+  }
+
+  /** MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA. Vencida o ya decidida: 409. */
+  @Patch(':id/aprobacion')
+  @Roles('PROFESIONAL')
+  decidirSolicitud(@Param('id', Uuid) id: string, @Body() dto: DecidirSolicitudDto): Promise<CitaVista> {
+    return this.citas.decidirSolicitud(id, dto);
   }
 
   /** 03b-3.3: libera a mano una hora retenida (reserva sin cuenta). Con comprobante por validar: 409. */

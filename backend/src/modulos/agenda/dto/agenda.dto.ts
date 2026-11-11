@@ -160,6 +160,12 @@ export class CrearCitaDto extends HorarioDto {
   motivoAutorizacionDeuda?: string;
 }
 
+/** MVP sin COBROS: el profesional aprueba (true) o rechaza (false) la hora que pidio su paciente. */
+export class DecidirSolicitudDto {
+  @IsBoolean()
+  aprobar!: boolean;
+}
+
 /** 03b-3.3: liberar a mano una hora retenida (reserva sin cuenta en curso). */
 export class LiberarHoraDto {
   @Recortar()

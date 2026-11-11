@@ -61,8 +61,8 @@ export function VerificarSolicitud() {
         <Eyebrow tone="patient">Confirmar hora</Eyebrow>
         <h1 className="m-0 mb-4 text-[clamp(30px,4vw,44px)] leading-[1.02] font-black tracking-[-0.035em] text-balance">Confirma tu correo para reservar</h1>
         <p className="m-0 mb-7 text-base leading-relaxed text-pretty text-neutral-700">
-          Al confirmar, la hora que elegiste queda reservada a tu nombre (pagas en el centro, el día de tu sesión) y aceptas las condiciones que viste al
-          pedirla.
+          Al confirmar tu correo, la hora que elegiste queda reservada a tu nombre mientras el profesional revisa tu solicitud, y aceptas las condiciones
+          que viste al pedirla.
         </p>
         {estado?.tipo === 'error' && (
           <p role="alert" className="m-0 mb-5 text-sm font-bold text-accent-700">
@@ -103,15 +103,16 @@ export function VerificarSolicitud() {
   }
   const r = estado.r;
   const cuando = `${formatoFechaLarga(r.inicio)}, ${formatoHora(r.inicio)} · ${NOMBRE_MODALIDAD_CITA[r.modalidad]}`;
+  // MVP sin cobros: la hora queda reservada y la confirma el profesional (SOLICITADA).
+  const porConfirmar = r.estado === 'SOLICITADA';
+  const cuenta = r.invitacionEnviada
+    ? 'Te enviamos otro correo para crear tu cuenta: desde ahí ves tus horas y documentos.'
+    : 'Puedes ver tus horas desde tu cuenta del centro.';
   return (
     <Resultado
-      icono="check_circle"
-      titulo="Tu hora quedó confirmada"
-      texto={
-        r.invitacionEnviada
-          ? 'Te enviamos otro correo para crear tu cuenta: desde ahí ves tus horas, pagos y documentos.'
-          : 'Puedes ver tus horas desde tu cuenta del centro.'
-      }
+      icono={porConfirmar ? 'schedule' : 'check_circle'}
+      titulo={porConfirmar ? 'Enviamos tu solicitud' : 'Tu hora quedó confirmada'}
+      texto={porConfirmar ? `El profesional la revisará y te avisaremos por correo cuando la confirme. ${cuenta}` : cuenta}
       detalle={cuando}
       nota={r.adultoResponsable ? `El adulto responsable debe acompañar al paciente en la primera sesión. ${VOLVER_A_LA_PESTANA}` : VOLVER_A_LA_PESTANA}
       accion={

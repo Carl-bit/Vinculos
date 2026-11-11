@@ -9,6 +9,7 @@ import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
+import { AprobarSolicitud } from '@/components/shared/AprobarSolicitud';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { MEDIO_PAGO, type MedioPago } from '@/lib/cobros';
@@ -127,6 +128,14 @@ export function DetalleCita({
             en Cobros. Si vence el plazo sin pago, la hora se mantiene y se paga en el centro.
           </Aviso>
         )}
+        {cita.estado === 'SOLICITADA' && (
+          <Aviso tono="advertencia" titulo="Hora por aprobar">
+            El paciente pidió esta hora. {esTratante ? 'Apruébala o recházala' : 'La aprueba o rechaza su profesional'}
+            {cita.aprobacionVenceEn ? ` antes del ${formatoFechaHora(cita.aprobacionVenceEn)}` : ''}; si nadie responde, se cancela sola y se avisa al
+            paciente.
+          </Aviso>
+        )}
+        {esTratante && cita.estado === 'SOLICITADA' && !pasada && <AprobarSolicitud citaId={cita.id} onListo={listo} />}
         {cita.estado === 'POR_REPROGRAMAR' && (
           <Aviso tono="advertencia" titulo="Por reprogramar">
             El profesional ya no puede atender esta hora (salida, revocación o baja). Reprográmala con el tratante o cúbrela con otro profesional.

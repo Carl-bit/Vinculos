@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { AprobarSolicitud } from '@/components/shared/AprobarSolicitud';
 import { useEquipoActivo } from '@/components/shared/EquipoActivo';
 import { Estadistica } from '@/components/shared/Estadistica';
 import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
@@ -40,11 +41,13 @@ import { MisRecordatorios } from './MisRecordatorios';
 const diaSemana = new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', weekday: 'short', day: 'numeric' });
 
 /** Citas que cuentan como agendadas en el inicio (las demas no ocupan la hora). */
-const agendada = (c: CitaVista) => c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO' || c.estado === 'POR_REPROGRAMAR';
+const agendada = (c: CitaVista) =>
+  c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO' || c.estado === 'POR_REPROGRAMAR' || c.estado === 'SOLICITADA';
 
 const ESTADO_SEMANA: Partial<Record<CitaVista['estado'], { texto: string; tono: TonoBadge }>> = {
   CONFIRMADA: { texto: 'Confirmada', tono: 'positivo' },
   PENDIENTE_PAGO: { texto: 'Pendiente de pago', tono: 'atencion' },
+  SOLICITADA: { texto: 'Por aprobar', tono: 'atencion' },
   POR_REPROGRAMAR: { texto: 'Por reprogramar', tono: 'atencion' },
 };
 
@@ -341,6 +344,9 @@ function IndicadoresPropios({ r }: { r: ReporteDashboard }) {
 /** 4a. Proximas sesiones de la semana con su estado. */
 function EstaSemana({ lista, admin }: { lista: CitaVista[]; admin: boolean }) {
   const n = useNombres();
+  // MVP sin cobros: el profesional aprueba aqui las horas que pidieron sus pacientes (primero, con sus botones).
+  const porAprobar = admin ? [] : lista.filter((c) => c.estado === 'SOLICITADA');
+  const resto = admin ? lista : lista.filter((c) => c.estado !== 'SOLICITADA');
   return (
     <section aria-labelledby="esta-semana" className="min-w-0 rounded-lg border border-divider bg-bg px-5 pt-4 pb-5 shadow-suave">
       <div className="mb-2 flex items-baseline justify-between gap-4">
@@ -351,11 +357,32 @@ function EstaSemana({ lista, admin }: { lista: CitaVista[]; admin: boolean }) {
           Ver agenda
         </Link>
       </div>
-      {lista.length === 0 ? (
+      {porAprobar.length > 0 && (
+        <div className="mb-3 rounded-md border border-accent-300 bg-accent-100 px-3 py-2">
+          <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-accent-800 uppercase">
+            {plural(porAprobar.length, 'hora por aprobar', 'horas por aprobar')}
+          </p>
+          <ul className="m-0 flex list-none flex-col p-0">
+            {porAprobar.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center gap-3 border-b border-accent-200 py-2 last:border-b-0">
+                <Link href={`/admin/agenda?cita=${c.id}`} className="flex min-w-0 flex-1 items-center gap-3 text-text hover:text-text">
+                  <span className="w-[68px] flex-none text-[12.5px] font-extrabold text-neutral-800 first-letter:uppercase">
+                    {diaSemana.format(new Date(c.inicio))}
+                  </span>
+                  <span className="w-[42px] flex-none text-[13px] font-black tabular-nums">{formatoHora(c.inicio)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-extrabold">{n.paciente(c)}</span>
+                </Link>
+                <AprobarSolicitud citaId={c.id} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {resto.length === 0 ? (
         <p className="m-0 text-[13.5px] font-semibold text-neutral-700">No hay sesiones en los próximos 7 días.</p>
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
-          {lista.slice(0, 12).map((c) => {
+          {resto.slice(0, 12).map((c) => {
             const estado = ESTADO_SEMANA[c.estado];
             return (
               <li key={c.id} className="border-b border-divider last:border-b-0">

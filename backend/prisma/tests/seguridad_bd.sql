@@ -52,6 +52,11 @@
 \set ON_ERROR_STOP 1
 \set QUIET 1
 
+-- MVP (2026-11-11): COBROS viene apagado. La suite cubre tambien el modulo
+-- dormido (implementacion futura), asi que lo enciende; el caso 164 lo apaga
+-- para probar la aprobacion del profesional.
+UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'COBROS'::modulo_centro;
+
 CREATE SCHEMA test;
 CREATE FUNCTION test.u(t text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
   SELECT ('00000000-0000-0000-0000-0000000000' || t)::uuid
@@ -3522,8 +3527,9 @@ DO $$ DECLARE v uuid; BEGIN
   BEGIN
     INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin, estado)
     VALUES (test.u('e1'), test.u('b1'), test.u('15'), test.dia(41, 10), test.dia(41, 11), 'SOLICITADA');
-    RAISE EXCEPTION 'caso 105: SOLICITADA retirada';
-  EXCEPTION WHEN check_violation THEN NULL; END;
+    RAISE EXCEPTION 'caso 105: SOLICITADA solo la fija el flujo';
+  -- MVP: SOLICITADA volvio (aprobacion del profesional sin COBROS), pero la API no la inserta.
+  EXCEPTION WHEN check_violation OR insufficient_privilege THEN NULL; END;
   INSERT INTO citas (espacio_id, profesional_id, paciente_id, inicio, fin)
   VALUES (test.u('e1'), test.u('b1'), test.u('15'), test.dia(41, 10), test.dia(41, 11)) RETURNING id INTO v;
   ASSERT (SELECT estado = 'CONFIRMADA' AND monto IS NOT NULL AND agendada_por_equipo AND pago_vence_en IS NULL
@@ -6509,6 +6515,83 @@ DO $$ BEGIN
 END $$;
 ROLLBACK;
 \connect :owner_url
+
+\echo 164 MVP sin COBROS (2026-11-11): la hora del paciente queda SOLICITADA (ocupa la hora); solo su profesional la aprueba o rechaza; el job vence las solicitudes; la API no fija SOLICITADA
+UPDATE configuracion_centro SET modulos_activos = array_remove(modulos_activos, 'COBROS');
+DO $$ DECLARE v1 uuid := gen_random_uuid(); v2 uuid := gen_random_uuid(); v3 uuid := gen_random_uuid(); BEGIN
+  INSERT INTO citas (id, modalidad, profesional_id, paciente_id, inicio, fin, estado, aprobacion_vence_en) VALUES
+    (v1, 'ONLINE', test.u('b1'), test.u('15'), test.dia(60, 10), test.dia(60, 11), 'SOLICITADA', test.dia(59, 10)),
+    (v2, 'ONLINE', test.u('b1'), test.u('15'), test.dia(60, 12), test.dia(60, 13), 'SOLICITADA', test.dia(59, 12)),
+    (v3, 'ONLINE', test.u('b1'), test.u('15'), test.dia(60, 14), test.dia(60, 15), 'SOLICITADA', now() + interval '1 hour');
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin, estado)
+    VALUES ('ONLINE', test.u('b1'), test.u('15'), test.dia(60, 10), test.dia(60, 11), 'SOLICITADA');
+    RAISE EXCEPTION 'caso 164: SOLICITADA exige plazo';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin, estado)
+    VALUES ('ONLINE', test.u('b1'), test.u('15'), test.dia(60, 10) + interval '30 minutes', test.dia(60, 11), 'CONFIRMADA');
+    RAISE EXCEPTION 'caso 164: la hora SOLICITADA esta ocupada';
+  EXCEPTION WHEN exclusion_violation THEN NULL; END;
+  INSERT INTO test.ids VALUES ('164a', v1), ('164b', v2), ('164c', v3);
+END $$;
+\connect :app_url
+DO $$ BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin, estado)
+    VALUES ('ONLINE', test.u('b1'), test.u('15'), test.dia(61, 10), test.dia(61, 11), 'SOLICITADA');
+    RAISE EXCEPTION 'caso 164: la API no inserta SOLICITADA';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE citas SET estado = 'CONFIRMADA' WHERE id = test.id('164a');
+    RAISE EXCEPTION 'caso 164: la API no aprueba por UPDATE';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b2', 'PROFESIONAL');
+  BEGIN
+    PERFORM aprobar_cita(test.id('164a'));
+    RAISE EXCEPTION 'caso 164: otro profesional no aprueba';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM rechazar_cita(test.id('164a'));
+    RAISE EXCEPTION 'caso 164: ADMIN no aprueba ni rechaza';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT aprobar_cita(test.id('164a')) = 'CONFIRMADA', 'caso 164: aprobada';
+  ASSERT (SELECT aprobacion_vence_en IS NULL FROM citas WHERE id = test.id('164a')), 'caso 164: sin plazo al aprobar';
+  BEGIN
+    PERFORM aprobar_cita(test.id('164a'));
+    RAISE EXCEPTION 'caso 164: ya no esta por aprobar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  ASSERT rechazar_cita(test.id('164b')) = 'CANCELADA', 'caso 164: rechazada';
+  -- La cancela el paciente o el equipo (la API si puede pasarla a CANCELADA).
+  UPDATE citas SET estado = 'CANCELADA', cancelada_en = now() WHERE id = test.id('164c');
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\connect :owner_url
+DO $$ DECLARE v uuid := gen_random_uuid(); BEGIN
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE referencia_id = test.id('164b') AND tipo = 'CITA_CANCELADA'), 'caso 164: aviso de rechazada';
+  INSERT INTO citas (id, modalidad, profesional_id, paciente_id, inicio, fin, estado, aprobacion_vence_en)
+  VALUES (v, 'ONLINE', test.u('b1'), test.u('15'), test.dia(62, 10), test.dia(62, 11), 'SOLICITADA', now() + interval '1 hour');
+  UPDATE citas SET aprobacion_vence_en = now() - interval '1 minute' WHERE id = v;
+  INSERT INTO test.ids VALUES ('164d', v);
+END $$;
+\connect :app_url
+DO $$ BEGIN
+  ASSERT vencer_solicitudes() >= 1, 'caso 164: el job vence la solicitud';
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT estado = 'CANCELADA' FROM citas WHERE id = test.id('164d')), 'caso 164: vencida queda CANCELADA';
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM vencer_solicitudes();
+    RAISE EXCEPTION 'caso 164: vencer solo el job';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+\connect :owner_url
+UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'COBROS'::modulo_centro;
 
 \echo 78 Sin texto plano: toda columna bytea cifrada tiene el formato; seed sin datos sensibles; copia de autoria intacta tras cerrar cuentas
 DO $$ DECLARE c record; n int; BEGIN

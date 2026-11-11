@@ -2803,6 +2803,26 @@ export interface paths {
         patch: operations["CitasController_cancelar"];
         trace?: never;
     };
+    "/api/citas/{id}/aprobacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA. Vencida o ya decidida: 409.
+         * @description Roles: PROFESIONAL
+         */
+        patch: operations["CitasController_decidirSolicitud"];
+        trace?: never;
+    };
     "/api/citas/{id}/liberacion": {
         parameters: {
             query?: never;
@@ -7396,6 +7416,11 @@ export interface components {
              * @description 03b-3.2: plazo de pago (PENDIENTE_PAGO o RETENIDA); la agendada por el equipo, hasta las horas configuradas antes (12 por defecto).
              */
             pagoVenceEn: string | null;
+            /**
+             * Format: date-time
+             * @description MVP sin COBROS: plazo para que el profesional apruebe la hora SOLICITADA (despues el job la cancela).
+             */
+            aprobacionVenceEn: string | null;
             /** @description PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3). */
             medioConfirmacion: components["schemas"]["MedioConfirmacion"] | null;
             /** @description 03b-3.3: hora retenida liberada a mano por ADMIN/GESTION (LIBERADA). */
@@ -7442,6 +7467,9 @@ export interface components {
              *     motivo, o con otro rol, la BD responde 422 citas_paciente_moroso / 403.
              */
             motivoAutorizacionDeuda?: string;
+        };
+        DecidirSolicitudDto: {
+            aprobar: boolean;
         };
         LiberarHoraDto: {
             motivo: string;
@@ -23263,6 +23291,85 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CitaVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CitasController_decidirSolicitud: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecidirSolicitudDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {

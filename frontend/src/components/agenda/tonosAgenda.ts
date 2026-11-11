@@ -43,8 +43,8 @@ export const tonoDe = (orden: string[], id: string): Tono => TONOS[Math.max(0, o
 
 export const NOMBRE_ESTADO_CITA: Record<CitaVista['estado'], string> = {
   CONFIRMADA: 'Confirmada',
-  // Retirado en 03b-3.2 (la BD ya no lo acepta); queda en el enum.
-  SOLICITADA: 'Por confirmar',
+  // MVP sin cobros: la hora que pidio el paciente espera la aprobacion de su profesional.
+  SOLICITADA: 'Por aprobar',
   POR_REPROGRAMAR: 'Por reprogramar',
   CANCELADA: 'Cancelada',
   PENDIENTE_PAGO: 'Pago pendiente',

@@ -94,6 +94,8 @@ const GRUPOS: { titulo: string; secciones: Seccion[] }[] = [
   { titulo: 'Vinculos', secciones: ['vinculos'] },
 ];
 
+const FINANZAS: Seccion[] = ['cobros', 'medios'];
+
 /** Enlaces anteriores (?vista=) a la seccion que hoy los contiene. */
 const ALIAS: Record<string, Seccion> = {
   modulos: 'vinculos',
@@ -129,7 +131,11 @@ function useChips(): Partial<Record<Seccion, { texto: string; tono: Tono }>> {
   const hayProtocolo = usePoliticas().data?.some((x) => x.tipo === 'PROTOCOLO_EQUIPO') ?? false;
   const lecturas = useLecturasProtocolo(hayProtocolo).data;
   const equipo = useDirectorioEquipo(true).data;
-  const acuerdos = useQuery({ queryKey: ['cobros', 'acuerdos'], queryFn: () => datos(api.GET('/api/cobros/acuerdos')) }).data;
+  const acuerdos = useQuery({
+    queryKey: ['cobros', 'acuerdos'],
+    queryFn: () => datos(api.GET('/api/cobros/acuerdos')),
+    enabled: !!c?.modulosActivos.includes('COBROS'),
+  }).data;
   const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
   const sinAcuerdo =
     acuerdos && equipo
@@ -161,12 +167,17 @@ function useChips(): Partial<Record<Seccion, { texto: string; tono: Tono }>> {
 export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesionales?: ReactNode } = {}) {
   const parametros = useSearchParams();
   const pedida = parametros.get('vista') ?? 'datos';
-  const seccion: Seccion = pedida in SECCIONES ? (pedida as Seccion) : (ALIAS[pedida] ?? 'datos');
+  // MVP: sin el modulo Cobros no hay seccion de Finanzas (ni por enlace directo).
+  const cobrosActivo = !!useConfiguracionCentro().data?.modulosActivos.includes('COBROS');
+  const pedidaValida: Seccion = pedida in SECCIONES ? (pedida as Seccion) : (ALIAS[pedida] ?? 'datos');
+  const seccion: Seccion = !cobrosActivo && FINANZAS.includes(pedidaValida) ? 'datos' : pedidaValida;
   const [busqueda, setBusqueda] = useState('');
   const chips = useChips();
   const filtro = normalizar(busqueda.trim());
   const coincide = (s: Seccion) => !filtro || normalizar(`${SECCIONES[s].nombre} ${SECCIONES[s].claves}`).includes(filtro);
-  const grupos = GRUPOS.map((g) => ({ ...g, secciones: g.secciones.filter(coincide) })).filter((g) => g.secciones.length);
+  const grupos = GRUPOS.map((g) => ({ ...g, secciones: g.secciones.filter((s) => coincide(s) && (cobrosActivo || !FINANZAS.includes(s))) })).filter(
+    (g) => g.secciones.length,
+  );
   const enlace = (s: Seccion) => (s === 'datos' ? '/admin/configuracion' : `/admin/configuracion?vista=${s}`);
   const actual = SECCIONES[seccion];
 

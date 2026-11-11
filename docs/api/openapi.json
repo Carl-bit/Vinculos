@@ -18637,6 +18637,113 @@
         ]
       }
     },
+    "/api/citas/{id}/aprobacion": {
+      "patch": {
+        "description": "Roles: PROFESIONAL",
+        "operationId": "CitasController_decidirSolicitud",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecidirSolicitudDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CitaVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA. Vencida o ya decidida: 409.",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
     "/api/citas/{id}/liberacion": {
       "patch": {
         "description": "Roles: ADMIN, GESTION",
@@ -41320,6 +41427,12 @@
             "description": "03b-3.2: plazo de pago (PENDIENTE_PAGO o RETENIDA); la agendada por el equipo, hasta las horas configuradas antes (12 por defecto).",
             "format": "date-time"
           },
+          "aprobacionVenceEn": {
+            "type": "string",
+            "nullable": true,
+            "description": "MVP sin COBROS: plazo para que el profesional apruebe la hora SOLICITADA (despues el job la cancela).",
+            "format": "date-time"
+          },
           "medioConfirmacion": {
             "nullable": true,
             "description": "PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3).",
@@ -41368,6 +41481,7 @@
           "monto",
           "canceladaEn",
           "pagoVenceEn",
+          "aprobacionVenceEn",
           "medioConfirmacion",
           "motivoLiberacion",
           "id",
@@ -41462,6 +41576,17 @@
           "inicio",
           "fin",
           "pacienteId"
+        ]
+      },
+      "DecidirSolicitudDto": {
+        "type": "object",
+        "properties": {
+          "aprobar": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "aprobar"
         ]
       },
       "LiberarHoraDto": {

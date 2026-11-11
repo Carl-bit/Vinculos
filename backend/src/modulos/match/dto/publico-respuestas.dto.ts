@@ -224,7 +224,7 @@ export class SolicitudCreada {
 }
 
 export class SolicitudVerificada {
-  /** CONFIRMADA (03b-3.2: el enlace del correo solo concreta reservas con pago en el centro). */
+  /** MVP sin COBROS: SOLICITADA (la aprueba el profesional). Con COBROS: CONFIRMADA (03b-3.2: el enlace solo concreta reservas con pago en el centro). */
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
   estado!: EstadoCita;
   citaId!: string;

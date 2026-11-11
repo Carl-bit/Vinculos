@@ -12,7 +12,7 @@ import { conSelectorEquipo, menuVisible, rutaPermitida, type ItemMenu } from '@/
 import { esAdministracion, NOMBRE_ROL } from '@/lib/roles';
 import type { SesionActiva } from '@/lib/sesion';
 import { BotonSalir } from './BotonSalir';
-import { ProveedorEquipoActivo, SelectorEquipo, ViendoA } from './EquipoActivo';
+import { ProveedorEquipoActivo, SelectorEquipo } from './EquipoActivo';
 import { EstadoVista } from './EstadoVista';
 import { CargaModulo } from './CargaModulo';
 import { Marca } from './Marca';
@@ -125,7 +125,6 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
           key={`${ruta}|${sesion.rol}`}
           className={`entrada min-w-0 outline-none px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 trama`}
         >
-          {esAdministracion(sesion.rol) && <ViendoA />}
           {rutaPermitida('admin', sesion.rol, ruta) ? <CargaModulo>{children}</CargaModulo> : <EstadoVista estado="sin-permiso" />}
         </main>
       </div>

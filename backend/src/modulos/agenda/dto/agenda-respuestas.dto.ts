@@ -87,6 +87,9 @@ export class CitaVista {
   /** 03b-3.2: plazo de pago (PENDIENTE_PAGO o RETENIDA); la agendada por el equipo, hasta las horas configuradas antes (12 por defecto). */
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   pagoVenceEn!: Date | null;
+  /** MVP sin COBROS: plazo para que el profesional apruebe la hora SOLICITADA (despues el job la cancela). */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  aprobacionVenceEn!: Date | null;
   /** PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3). */
   @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', nullable: true })
   medioConfirmacion!: MedioConfirmacion | null;

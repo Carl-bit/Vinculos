@@ -138,7 +138,7 @@ export const MODULOS: { id: ConfiguracionCentro['modulosActivos'][number]; nombr
   { id: 'AGENDA', nombre: 'Agenda y Espacios', icono: 'calendar_month', nota: 'Reservas por box y disponibilidad del equipo' },
   { id: 'EQUIPO', nombre: 'Equipo', icono: 'groups', nota: 'Perfiles, especialidades y roles del centro' },
   { id: 'MATCH', nombre: 'Match Terapéutico', icono: 'join', nota: 'Cuestionario público que recomienda profesionales' },
-  { id: 'COBROS', nombre: 'Cobros', icono: 'payments', nota: 'Pagos, comprobantes y liquidaciones por profesional' },
+  // MVP (2026-11-11): Cobros fuera para todos los centros; no se muestra (vuelve con la implementacion futura).
   { id: 'WHATSAPP', nombre: 'Avisos por WhatsApp', icono: 'chat', nota: 'Los pacientes pueden aceptar avisos de sus horas por WhatsApp' },
 ];
 

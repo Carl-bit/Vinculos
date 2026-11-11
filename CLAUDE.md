@@ -64,6 +64,11 @@ naming especificos de Kibou. Proyecto de titulo, desarrollador unico.
   formulario in-app (se reenvia a email del profesional + queda en historial
   in-app); el profesional responde por canal externo (no se implementa reply).
 - Websockets/Redis para tiempo real: se resuelve con polling + soft-lock TTL.
+- Cobros/finanzas en el MVP (decision 2026-11-11): el modulo COBROS queda
+  apagado en todos los centros y no se muestra (tablas y funciones quedan
+  dormidas para la implementacion futura; sus tests lo encienden). Sin
+  COBROS, la hora que pide el paciente queda SOLICITADA y la aprueba su
+  profesional (`aprobar_cita` / `rechazar_cita`; el job vence el plazo).
 
 ## Diseño
 Fuente de verdad visual: el proyecto de Claude Design "Vinculos Landing Page
