@@ -130,8 +130,13 @@ services:
       - source: recuperacion_publica
         target: /recuperacion.pub
     networks:
-      - interna
-      - proxy
+      interna:
+      proxy:
+      # Unico nombre por el que el front llega a la API. Alias solo en `silo`:
+      # `backend` en `proxy` resolveria al backend de cualquier silo del host.
+      silo:
+        aliases:
+          - api-silo
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
@@ -149,7 +154,7 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        API_URL: http://backend:3001
+        API_URL: http://api-silo:3001
         NEXT_PUBLIC_CENTRO_NOMBRE: ${CENTRO_NOMBRE}
         NEXT_PUBLIC_SITE_URL: https://${DOMINIO}
         # Estilo visual del silo (moderno por defecto). Pasara a runtime con Vinculos Control.
@@ -158,12 +163,13 @@ services:
     mem_limit: 256m
     cpus: 1.0
     environment:
-      # /sesion/* (refresh en cookie httpOnly) llama al backend por la red interna.
-      API_URL: http://backend:3001
+      # /sesion/*, SSR y el rewrite /api llaman al backend por la red `silo` (solo de este silo).
+      API_URL: http://api-silo:3001
     depends_on:
       - backend
     networks:
       - proxy
+      - silo
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
@@ -189,6 +195,9 @@ configs:
 networks:
   # Solo backend + migrate + db. La DB nunca se expone al proxy ni al host.
   interna:
+  # Solo backend + frontend de este silo. Sin salida propia (internal).
+  silo:
+    internal: true
   # Red compartida con Traefik, creada una vez: docker network create proxy
   proxy:
     external: true

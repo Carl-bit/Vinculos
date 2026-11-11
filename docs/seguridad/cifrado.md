@@ -40,6 +40,33 @@ Par de recuperacion (RSA-OAEP-4096, SHA-256)
 - **Huella de la KEK**: HMAC de la KEK, guardada en `huella_kek`. Si la KEK
   montada no coincide, la API no arranca (falla cerrado).
 
+### Indice ciego del RUT: como funciona
+
+El RUT se guarda cifrado (`rut`, AES-GCM con IV al azar). Por eso el mismo
+RUT cifrado dos veces da dos valores distintos: la BD no puede compararlos,
+ni con `UNIQUE` ni con `WHERE rut = ...`. Tampoco puede ser clave primaria.
+
+El indice ciego resuelve la busqueda sin guardar el RUT en claro:
+
+1. La API normaliza el RUT (`12.345.678-k` -> `12345678K`).
+2. Calcula `HMAC-SHA256(DEK HMAC, rut_normalizado)` y lo guarda en `rut_hmac`.
+   El HMAC es determinista: el mismo RUT siempre da el mismo valor.
+3. Para buscar o detectar duplicados, la API calcula el HMAC del RUT ingresado
+   y consulta `WHERE rut_hmac = $1`. `UNIQUE (rut_hmac)` impide dos pacientes
+   con el mismo RUT.
+
+Por que HMAC con llave y no un SHA-256 simple: los RUT son pocos (unos 30
+millones), asi que un hash sin llave se revierte probando todos. Sin la DEK
+HMAC (envuelta por la KEK, fuera de la BD) un respaldo filtrado no permite
+calcular el HMAC de ningun RUT.
+
+Lo que no hace: no permite buscar por parte del RUT ni ordenar por RUT. Solo
+coincidencia exacta.
+
+La clave primaria sigue siendo `id` (uuid). El RUT es el identificador de
+negocio unico via `rut_hmac`: los filtros y el verificador de duplicados usan
+`rut_hmac`, nunca el correo.
+
 `sesiones.token_hash` (02a) es bytea pero no es un cifrado: es el SHA-256 del
 refresh token (los tests de "sin texto plano" y de registro la excluyen).
 

@@ -45,6 +45,12 @@ HTTP: Traefik valida por DNS (crea un registro TXT temporal en la zona).
 
 Traefik no publica puertos: cloudflared lo alcanza por la red Docker `proxy`.
 
+`proxy` la comparten todos los silos del host: ningun servicio se llama por
+nombre en ella. El front llega a su API por la red privada del silo
+(`erp-<slug>_silo`, alias `api-silo`). Antes usaba `backend` en `proxy`, que
+Docker resolvia al backend de cualquier silo: un login en `estres` podia
+validarse contra `demo`, y daba 401 al azar en `/sesion/*`.
+
 1. Unir tu contenedor de cloudflared a la red (despues de que exista, paso 3):
    `docker network connect proxy <contenedor-cloudflared>`. Para que no se
    pierda al recrearlo, agregar en su compose `networks: [proxy]` con
