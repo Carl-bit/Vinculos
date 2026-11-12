@@ -173,6 +173,62 @@ Sin `DESTINO_RESPALDO`, los respaldos quedan solo en
 `infra/respaldos/<slug>/` (7 dias). El monitor `salud.sh` revisa
 `https://<dominio>/api/salud` cada 5 minutos. `ALERTA_URL` es opcional.
 
+## 8. Actualizar los silos (despues de un `git pull`)
+
+Las migraciones no se deshacen: respaldar antes cualquier silo cuyos datos se
+quieran conservar. `demo` no lo necesita (se reinicia con el seed vigente).
+
+1. Codigo:
+   ```sh
+   git status            # sin cambios locales (silos/*.env y secrets/ estan fuera de git)
+   git pull
+   git log -1 --oneline  # el commit que se quiere desplegar
+   ```
+2. Respaldo (silos con datos a conservar, p. ej. `estres`):
+   ```sh
+   CLIENTE_SLUG=estres ENV_SILO=infra/servidor/silos/estres.env sh infra/scripts/continuidad/respaldar.sh
+   ```
+   Sin `respaldo.key` (no se corrio `instalar.sh`), dump sin cifrar (solo datos
+   ficticios; borrarlo al terminar):
+   ```sh
+   docker compose -f infra/docker-compose.yml --env-file infra/servidor/silos/estres.env exec -T db \
+     sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > /tmp/estres-antes.dump
+   ```
+3. Bajar y levantar. `bajar` primero: la API vieja no debe correr sus jobs
+   mientras se migra. Conserva BD y llaves; `levantar` reconstruye imagenes,
+   migra y espera `/api/salud`.
+   ```sh
+   sh infra/servidor/servidor.sh bajar estres
+   PERFIL=estres sh infra/servidor/servidor.sh levantar estres
+   sh infra/servidor/servidor.sh reiniciar demo     # demo: datos nuevos del seed
+   ```
+4. Verificar (por silo):
+   ```sh
+   sh infra/servidor/servidor.sh estado
+   docker logs erp-<slug>-migrate-1 2>&1 | tail -5
+   docker compose -f infra/docker-compose.yml --env-file infra/servidor/silos/<slug>.env exec -T db \
+     psql -U postgres -d app -c "SELECT migration_name FROM _prisma_migrations ORDER BY finished_at DESC LIMIT 1"
+   docker network inspect erp-<slug>_silo --format '{{range .Containers}}{{.Name}} {{end}}'  # solo backend y frontend del silo
+   docker exec erp-<slug>-frontend-1 wget -qO- http://api-silo:3001/api/salud
+   docker network inspect proxy --format '{{range .Containers}}{{.Name}} {{end}}'           # cloudflared sigue ahi
+   ```
+   La ultima migracion debe ser la mas nueva de `backend/prisma/migrations/`.
+   En el navegador: ingreso con 2FA (Mailpit, remitente del silo) y una
+   accion en el panel que se vea en el portal en 15 s o menos (polling).
+5. Limpiar: `docker image prune -f` y borrar `/tmp/<slug>-antes.dump` si se uso.
+
+Si falla `migrate`, el silo queda abajo y la migracion que fallo no deja
+cambios (cada una es atomica): revisar `docker logs erp-<slug>-migrate-1`.
+Nunca editar una migracion aplicada; se corrige con una nueva.
+
+Volver atras: `git checkout <commit anterior>`, restaurar el dump
+(`pg_restore --clean --if-exists -U postgres -d app`; si esta cifrado, antes
+`descifrar_respaldo.sh`) y `levantar` de nuevo.
+
+Error de TLS o 502 tras actualizar: cloudflared fuera de `proxy`
+(`docker network connect proxy <contenedor-cloudflared>`) o Traefik
+(`docker logs vinculos-servidor-traefik-1`).
+
 ## Lo que no hay todavia
 
 - La invitacion del primer ADMIN la hara Vinculos Control. Hoy las cuentas

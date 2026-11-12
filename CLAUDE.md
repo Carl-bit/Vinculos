@@ -128,6 +128,7 @@ animaciones con easing de rebote por defecto.
 - Nada clinico en localStorage, sessionStorage ni logs; sin analitica de terceros en vistas con datos de pacientes.
 - Animaciones sutiles con `prefers-reduced-motion`; accesible por teclado; contraste AA (gana sobre el diseño: ver `docs/front/inventario_ui.md`).
 - El menu oculta modulos inactivos y opciones que el rol activo no tiene (`lib/navegacion.ts`).
+- Tiempo real (punto 10, 2026-11-12): polling global en `shared/Proveedores.tsx` (30 s; agenda, citas, horas libres, estado del tratante y chat 15 s; catalogos 2 min; nada con la pestaña oculta) y recarga en cadena de lo visible tras cada mutacion. Consultas con `staleTime: Infinity` quedan fuera. Sitio publico SSR: `RefrescoPublico` cada 60 s. Un formulario que copia datos de una consulta no debe pisar lo que el usuario esta editando.
 - Tests: Testing Library (Vitest) para componentes; Playwright (`frontend/e2e`) contra la API local y el seed demo.
 - Huecos y estilo en `design-system/vinculos/MASTER.md` (ui-ux-pro-max en `.claude/skills/`: consultar con `search.py`, nunca `--persist`; su paleta y fuentes no aplican, manda Organic). `npx impeccable detect` antes de cerrar cada vista.
 
