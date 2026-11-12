@@ -5182,11 +5182,36 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Punto 27: solo las propias del centro; las del sistema se apagan (422).
+         * @description Roles: ADMIN
+         */
+        delete: operations["MatchConfigController_eliminarPregunta"];
         options?: never;
         head?: never;
         /** @description Roles: ADMIN */
         patch: operations["MatchConfigController_editarPregunta"];
+        trace?: never;
+    };
+    "/api/match/opciones/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Punto 28: cualquier opcion, salvo la ultima de una pregunta de seleccion (422).
+         * @description Roles: ADMIN
+         */
+        delete: operations["MatchConfigController_eliminarOpcion"];
+        options?: never;
+        head?: never;
+        /** @description Roles: ADMIN */
+        patch: operations["MatchConfigController_editarOpcion"];
         trace?: never;
     };
     "/api/match/preguntas/{id}/opciones": {
@@ -5204,23 +5229,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/match/opciones/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** @description Roles: ADMIN */
-        patch: operations["MatchConfigController_editarOpcion"];
         trace?: never;
     };
     "/api/match/metricas": {
@@ -9301,24 +9309,6 @@ export interface components {
             updatedAt: string;
             opciones: components["schemas"]["MatchOpcionVista"][];
         };
-        PreguntaMatchDto: {
-            clave: string;
-            texto: string;
-            ayuda?: string;
-            /** @enum {string} */
-            tipo: "UNICA" | "MULTIPLE" | "ESCALA" | "TEXTO" | "DIAS" | "FRANJAS";
-            orden: number;
-            obligatoria?: boolean;
-            maxSelecciones?: number;
-        };
-        EditarPreguntaMatchDto: {
-            texto?: string;
-            ayuda?: string;
-            orden?: number;
-            activa?: boolean;
-            obligatoria?: boolean;
-            maxSelecciones?: number;
-        };
         OpcionMatchDto: {
             valor: string;
             etiqueta: string;
@@ -9330,6 +9320,26 @@ export interface components {
             peso?: number;
             estricto?: boolean;
             mensaje?: string;
+        };
+        PreguntaMatchDto: {
+            clave: string;
+            texto: string;
+            ayuda?: string;
+            /** @enum {string} */
+            tipo: "UNICA" | "MULTIPLE" | "ESCALA" | "TEXTO" | "DIAS" | "FRANJAS";
+            orden: number;
+            obligatoria?: boolean;
+            maxSelecciones?: number;
+            /** @description Punto 28: las opciones se crean junto con la pregunta (mismo paso). */
+            opciones?: components["schemas"]["OpcionMatchDto"][];
+        };
+        EditarPreguntaMatchDto: {
+            texto?: string;
+            ayuda?: string;
+            orden?: number;
+            activa?: boolean;
+            obligatoria?: boolean;
+            maxSelecciones?: number;
         };
         EditarOpcionMatchDto: {
             etiqueta?: string;
@@ -34935,6 +34945,79 @@ export interface operations {
             };
         };
     };
+    MatchConfigController_eliminarPregunta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
     MatchConfigController_editarPregunta: {
         parameters: {
             query?: never;
@@ -35014,7 +35097,7 @@ export interface operations {
             };
         };
     };
-    MatchConfigController_crearOpcion: {
+    MatchConfigController_eliminarOpcion: {
         parameters: {
             query?: never;
             header?: never;
@@ -35023,19 +35106,13 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OpcionMatchDto"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            201: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["MatchOpcionVista"];
-                };
+                content?: never;
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {
@@ -35109,6 +35186,85 @@ export interface operations {
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchOpcionVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    MatchConfigController_crearOpcion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpcionMatchDto"];
+            };
+        };
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

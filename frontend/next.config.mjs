@@ -19,6 +19,16 @@ const nextConfig = {
   outputFileTracingRoot: import.meta.dirname,
   // Desarrollo: /api/* se sirve desde el mismo origen del front. En el silo
   // Traefik ya enruta /api al backend antes de llegar aca.
+  // Punto 4: las vistas con sesion y el ingreso no se guardan en la cache del navegador
+  // (atras/adelante no muestra un panel cerrado ni el formulario con datos).
+  async headers() {
+    const sinCache = [{ key: 'Cache-Control', value: 'no-store, max-age=0' }];
+    return [
+      { source: '/admin/:path*', headers: sinCache },
+      { source: '/portal/:path*', headers: sinCache },
+      { source: '/ingreso', headers: sinCache },
+    ];
+  },
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${process.env.API_URL ?? 'http://localhost:3001'}/api/:path*` }];
   },

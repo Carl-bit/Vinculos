@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   HttpCode,
@@ -443,6 +444,22 @@ export class MatchConfigController {
   @Roles('ADMIN')
   editarPregunta(@Param('id', Uuid) id: string, @Body() dto: EditarPreguntaMatchDto): Promise<MatchPreguntaVista> {
     return this.config.editarPregunta(id, dto);
+  }
+
+  /** Punto 27: solo las propias del centro; las del sistema se apagan (422). */
+  @Delete('preguntas/:id')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  eliminarPregunta(@Param('id', Uuid) id: string): Promise<void> {
+    return this.config.eliminarPregunta(id);
+  }
+
+  /** Punto 28: cualquier opcion, salvo la ultima de una pregunta de seleccion (422). */
+  @Delete('opciones/:id')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  eliminarOpcion(@Param('id', Uuid) id: string): Promise<void> {
+    return this.config.eliminarOpcion(id);
   }
 
   @Post('preguntas/:id/opciones')

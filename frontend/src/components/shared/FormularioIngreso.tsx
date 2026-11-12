@@ -87,7 +87,15 @@ export function FormularioIngreso() {
   const porInactividad = parametros.get('motivo') === 'inactividad';
   const porOtroIngreso = parametros.get('motivo') === 'otro-ingreso';
   const porClaveCambiada = parametros.get('motivo') === 'clave-cambiada';
-  const [perfil, setPerfil] = useState<PerfilIngreso>(parametros.get('perfil') === 'equipo' ? 'equipo' : 'paciente');
+  // Punto 2: el perfil va en la URL (?perfil=equipo): solo el boton del header lo alterna (esta pagina es sobre todo de pacientes).
+  const perfil: PerfilIngreso = parametros.get('perfil') === 'equipo' ? 'equipo' : 'paciente';
+  const setPerfil = (p: PerfilIngreso) => {
+    const q = new URLSearchParams(parametros);
+    if (p === 'equipo') q.set('perfil', 'equipo');
+    else q.delete('perfil');
+    const texto = q.toString();
+    router.replace(texto ? `/ingreso?${texto}` : '/ingreso', { scroll: false });
+  };
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [verPassword, setVerPassword] = useState(false);
@@ -126,7 +134,11 @@ export function FormularioIngreso() {
     try {
       const r = await iniciarSesion({ ...(esRut ? { rut: rutNormalizado(usuario) } : { email: usuario.trim() }), password });
       if ('accessToken' in r) entrar(r);
-      else setDesafio(r);
+      else {
+        // Punto 4: la clave no queda en memoria ni en el formulario mientras se pide el codigo.
+        setPassword('');
+        setDesafio(r);
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('Los datos no coinciden con una cuenta con acceso. Revisa tu correo o RUT y la contraseña.');
@@ -175,22 +187,6 @@ export function FormularioIngreso() {
       </div>
 
       <TarjetaIngreso perfil={perfil}>
-        <div role="group" aria-label="Tipo de cuenta" className="mb-[18px] grid grid-cols-2 gap-1 rounded-full bg-neutral-200 p-1">
-          {(['paciente', 'equipo'] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={perfil === p}
-              onClick={() => setPerfil(p)}
-              className={`min-h-[46px] cursor-pointer rounded-full px-3 text-sm font-bold transition-colors duration-200 ${
-                perfil === p ? (p === 'paciente' ? 'bg-accent-2-700 text-neutral-100' : 'bg-accent-700 text-neutral-100') : 'text-text hover:bg-neutral-300'
-              }`}
-            >
-              {p === 'paciente' ? 'Soy paciente' : 'Soy del equipo'}
-            </button>
-          ))}
-        </div>
-
         <h2 className="m-0 mb-[18px] text-[26px] leading-[1.1] font-black tracking-[-0.02em]">{t.tarjeta}</h2>
 
         {porInactividad && (

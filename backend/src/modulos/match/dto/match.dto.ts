@@ -9,6 +9,9 @@ import {
   IsInt,
   IsObject,
   IsOptional,
+  ValidateNested,
+  IsArray,
+  ArrayMaxSize,
   IsString,
   IsUUID,
   Length,
@@ -367,6 +370,14 @@ export class PreguntaMatchDto {
   @Min(1)
   @Max(20)
   maxSelecciones?: number;
+
+  /** Punto 28: las opciones se crean junto con la pregunta (mismo paso). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => OpcionMatchDto)
+  opciones?: OpcionMatchDto[];
 }
 
 export class EditarPreguntaMatchDto {

@@ -16,7 +16,7 @@ const mensajes = vi.fn(() => lista([{ id: 'm1', pacienteId: 'pa1', leidoEn: null
 
 vi.mock('@/components/shared/EquipoActivo', () => ({ useEquipoActivo: () => ({ profesionalId: null }) }));
 vi.mock('./MisRecordatorios', () => ({ MisRecordatorios: () => <section aria-label="Mis recordatorios" /> }));
-vi.mock('@/lib/consultas', () => ({ useMiCuenta: () => lista({ id: 'p1' }) }));
+vi.mock('@/lib/consultas', () => ({ useMiCuenta: () => lista({ id: 'p1' }), useModulos: () => lista({ activos: ['AGENDA', 'FICHAS'], restringidos: [] }) }));
 vi.mock('@/lib/exportaciones', () => ({ useExportacionesPendientes: () => lista([]) }));
 vi.mock('@/lib/mensajes', () => ({ useMensajesPacientes: () => mensajes() }));
 vi.mock('@/lib/panel', async (original) => ({

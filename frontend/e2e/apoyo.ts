@@ -31,7 +31,7 @@ export async function codigoCorreo(destino: string, despues: Date): Promise<stri
  */
 export async function ingresar(page: Page, usuario: string, zona: 'admin' | 'portal' = 'admin') {
   await page.goto('/ingreso');
-  if (zona === 'admin') await page.getByRole('button', { name: 'Soy del equipo' }).click();
+  if (zona === 'admin') await page.getByRole('link', { name: 'Ingresar como profesional' }).click();
   await page.getByLabel('Correo o RUT').fill(correo(usuario));
   await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
   const antes = new Date();

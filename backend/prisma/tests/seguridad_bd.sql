@@ -7062,6 +7062,41 @@ DO $$ DECLARE p uuid; q uuid; BEGIN
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
 END $$;
 
+\echo 175 Puntos 27/28: match: ADMIN elimina preguntas propias (las del sistema no) y opciones (no la ultima de una pregunta de seleccion); otros roles no (se revierte)
+\connect :owner_url
+DO $$ DECLARE q uuid; o1 uuid; o2 uuid; sis uuid; BEGIN
+  BEGIN
+    INSERT INTO match_preguntas (clave, texto, tipo, orden, propia_centro) VALUES ('t175', 'Propia', 'UNICA', 99, true) RETURNING id INTO q;
+    INSERT INTO match_opciones (pregunta_id, valor, etiqueta, orden) VALUES (q, 'a', 'A', 1) RETURNING id INTO o1;
+    INSERT INTO match_opciones (pregunta_id, valor, etiqueta, orden) VALUES (q, 'b', 'B', 2) RETURNING id INTO o2;
+    SELECT id INTO sis FROM match_preguntas WHERE NOT propia_centro LIMIT 1;
+    PERFORM test.ctx('a3', 'GESTION');
+    BEGIN
+      PERFORM eliminar_opcion_match(o1);
+      RAISE EXCEPTION 'caso 175: GESTION no edita el match';
+    EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    PERFORM test.ctx('a1', 'ADMIN');
+    PERFORM eliminar_opcion_match(o1);
+    BEGIN
+      PERFORM eliminar_opcion_match(o2);
+      RAISE EXCEPTION 'caso 175: no la ultima opcion';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+    IF sis IS NOT NULL THEN
+      BEGIN
+        PERFORM eliminar_pregunta_match(sis);
+        RAISE EXCEPTION 'caso 175: las del sistema no se eliminan';
+      EXCEPTION WHEN check_violation THEN NULL; END;
+    END IF;
+    PERFORM eliminar_pregunta_match(q);
+    ASSERT NOT EXISTS (SELECT 1 FROM match_preguntas WHERE id = q) AND NOT EXISTS (SELECT 1 FROM match_opciones WHERE pregunta_id = q),
+      'caso 175: la propia se elimina con sus opciones';
+    RAISE EXCEPTION 'revertir 175';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'revertir 175' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+END $$;
+
 \echo 167 Maximo de cuentas madre: regla del centro (principal + adicional); bajarlo exige quitar roles antes
 \connect :owner_url
 DO $$ DECLARE n int := cuentas_madre_activas(); BEGIN

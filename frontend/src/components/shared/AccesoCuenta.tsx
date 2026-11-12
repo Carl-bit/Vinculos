@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { useSesion } from '@/lib/consultas';
@@ -15,12 +15,14 @@ const CLASE =
 /**
  * Acceso del header publico (03b-4.1): al cargar intenta renovar la sesion en
  * silencio con la cookie de refresh; con sesion activa ofrece volver al
- * panel o al portal en vez de pedir el ingreso otra vez. En el propio login
- * no se repite "Iniciar sesión" (diseño "Inicio de sesión · Moderno").
+ * panel o al portal en vez de pedir el ingreso otra vez. Punto 2: en el
+ * propio login el boton alterna el perfil ("Ingresar como profesional" /
+ * "Ingresar como paciente"); el primer ingreso muestra el de pacientes.
  */
 export function AccesoCuenta() {
   const sesion = useSesion();
   const ruta = usePathname();
+  const parametros = useSearchParams();
   useEffect(() => {
     if (sesion.tipo === 'desconocida') void renovarSesion();
   }, [sesion.tipo]);
@@ -31,7 +33,18 @@ export function AccesoCuenta() {
       </Link>
     );
   }
-  if (ruta === '/ingreso') return null;
+  if (ruta === '/ingreso') {
+    const equipo = parametros.get('perfil') === 'equipo';
+    const q = new URLSearchParams(parametros);
+    if (equipo) q.delete('perfil');
+    else q.set('perfil', 'equipo');
+    const texto = q.toString();
+    return (
+      <Link href={texto ? `/ingreso?${texto}` : '/ingreso'} replace scroll={false} className={CLASE}>
+        {equipo ? 'Ingresar como paciente' : 'Ingresar como profesional'}
+      </Link>
+    );
+  }
   return (
     <Link href="/ingreso" className={CLASE}>
       Iniciar sesión

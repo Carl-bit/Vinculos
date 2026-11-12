@@ -33316,12 +33316,188 @@
         "tags": [
           "Match publico"
         ]
+      },
+      "delete": {
+        "description": "Roles: ADMIN",
+        "operationId": "MatchConfigController_eliminarPregunta",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Punto 27: solo las propias del centro; las del sistema se apagan (422).",
+        "tags": [
+          "Match publico"
+        ]
       }
     },
-    "/api/match/preguntas/{id}/opciones": {
-      "post": {
+    "/api/match/opciones/{id}": {
+      "delete": {
         "description": "Roles: ADMIN",
-        "operationId": "MatchConfigController_crearOpcion",
+        "operationId": "MatchConfigController_eliminarOpcion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "Punto 28: cualquier opcion, salvo la ultima de una pregunta de seleccion (422).",
+        "tags": [
+          "Match publico"
+        ]
+      },
+      "patch": {
+        "description": "Roles: ADMIN",
+        "operationId": "MatchConfigController_editarOpcion",
         "parameters": [
           {
             "name": "id",
@@ -33337,13 +33513,13 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OpcionMatchDto"
+                "$ref": "#/components/schemas/EditarOpcionMatchDto"
               }
             }
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "",
             "content": {
               "application/json": {
@@ -33425,10 +33601,10 @@
         ]
       }
     },
-    "/api/match/opciones/{id}": {
-      "patch": {
+    "/api/match/preguntas/{id}/opciones": {
+      "post": {
         "description": "Roles: ADMIN",
-        "operationId": "MatchConfigController_editarOpcion",
+        "operationId": "MatchConfigController_crearOpcion",
         "parameters": [
           {
             "name": "id",
@@ -33444,13 +33620,13 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EditarOpcionMatchDto"
+                "$ref": "#/components/schemas/OpcionMatchDto"
               }
             }
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -49394,6 +49570,63 @@
           "opciones"
         ]
       },
+      "OpcionMatchDto": {
+        "type": "object",
+        "properties": {
+          "valor": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,40}$"
+          },
+          "etiqueta": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "nota": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "orden": {
+            "type": "number",
+            "minimum": 0
+          },
+          "criterio": {
+            "enum": [
+              "TIPO_ATENCION",
+              "ENFOQUE",
+              "ESPECIALIDAD",
+              "MODALIDAD",
+              "PREVISION",
+              "PRESUPUESTO"
+            ],
+            "type": "string"
+          },
+          "objetivo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "peso": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "estricto": {
+            "type": "boolean"
+          },
+          "mensaje": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "valor",
+          "etiqueta",
+          "orden"
+        ]
+      },
       "PreguntaMatchDto": {
         "type": "object",
         "properties": {
@@ -49433,6 +49666,14 @@
             "type": "number",
             "minimum": 1,
             "maximum": 20
+          },
+          "opciones": {
+            "description": "Punto 28: las opciones se crean junto con la pregunta (mismo paso).",
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpcionMatchDto"
+            }
           }
         },
         "required": [
@@ -49471,63 +49712,6 @@
             "maximum": 20
           }
         }
-      },
-      "OpcionMatchDto": {
-        "type": "object",
-        "properties": {
-          "valor": {
-            "type": "string",
-            "pattern": "^[a-z0-9_-]{1,40}$"
-          },
-          "etiqueta": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "nota": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "orden": {
-            "type": "number",
-            "minimum": 0
-          },
-          "criterio": {
-            "type": "string",
-            "enum": [
-              "TIPO_ATENCION",
-              "ENFOQUE",
-              "ESPECIALIDAD",
-              "MODALIDAD",
-              "PREVISION",
-              "PRESUPUESTO"
-            ]
-          },
-          "objetivo": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "peso": {
-            "type": "number",
-            "minimum": -100,
-            "maximum": 100
-          },
-          "estricto": {
-            "type": "boolean"
-          },
-          "mensaje": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 500
-          }
-        },
-        "required": [
-          "valor",
-          "etiqueta",
-          "orden"
-        ]
       },
       "EditarOpcionMatchDto": {
         "type": "object",

@@ -5,7 +5,7 @@ import { codigoCorreo, correo, ingresar, PASSWORD } from './apoyo';
 /** Primer paso del login (correo o RUT y contraseña), sin responder el segundo. */
 async function primerPaso(page: Page, usuario: string, perfil: 'paciente' | 'equipo' = 'equipo') {
   await page.goto('/ingreso');
-  if (perfil === 'equipo') await page.getByRole('button', { name: 'Soy del equipo' }).click();
+  if (perfil === 'equipo') await page.getByRole('link', { name: 'Ingresar como profesional' }).click();
   await page.getByLabel('Correo o RUT').fill(usuario.includes('.') && !usuario.includes('@') ? usuario : correo(usuario));
   await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
   const antes = new Date();

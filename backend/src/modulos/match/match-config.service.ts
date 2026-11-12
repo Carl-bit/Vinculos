@@ -4,7 +4,11 @@ import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import type { MetricasMatch } from './dto/publico-respuestas.dto';
 import type { EditarOpcionMatchDto, EditarPreguntaMatchDto, OpcionMatchDto, PreguntaMatchDto } from './dto/match.dto';
 
-/** Configuracion del cuestionario del match (ADMIN, D-5). Nunca DELETE: se desactiva. */
+/**
+ * Configuracion del cuestionario del match (ADMIN, D-5). Puntos 27/28: las
+ * preguntas propias y las opciones se eliminan via funciones de la BD (las del
+ * sistema solo se apagan); una pregunta nueva llega con sus opciones.
+ */
 @Injectable()
 export class MatchConfigService {
   constructor(private readonly bd: ContextoBd) {}
@@ -13,8 +17,19 @@ export class MatchConfigService {
     return this.bd.tx().matchPregunta.findMany({ include: { opciones: { orderBy: { orden: 'asc' } } }, orderBy: { orden: 'asc' } });
   }
 
-  crearPregunta(dto: PreguntaMatchDto) {
-    return this.bd.tx().matchPregunta.create({ data: { ...dto, propiaCentro: true }, include: { opciones: true } });
+  crearPregunta({ opciones, ...dto }: PreguntaMatchDto) {
+    return this.bd.tx().matchPregunta.create({
+      data: { ...dto, propiaCentro: true, opciones: opciones?.length ? { create: opciones } : undefined },
+      include: { opciones: { orderBy: { orden: 'asc' } } },
+    });
+  }
+
+  async eliminarPregunta(id: string) {
+    await this.bd.tx().$executeRaw`SELECT eliminar_pregunta_match(${id}::uuid)`;
+  }
+
+  async eliminarOpcion(id: string) {
+    await this.bd.tx().$executeRaw`SELECT eliminar_opcion_match(${id}::uuid)`;
   }
 
   async editarPregunta(id: string, dto: EditarPreguntaMatchDto) {

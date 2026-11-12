@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -34,7 +35,10 @@ export async function LayoutPublico({ children }: { children: ReactNode }) {
         <header className="barra-publica translucida sticky top-3 z-20 mt-[18px] flex flex-wrap items-center gap-2 rounded-[28px] border border-borde py-2 pr-2 pl-5 shadow-suave md:rounded-full">
           <Marca nombre={nombre} />
           <NavPublica enlaces={nav} />
-          <AccesoCuenta />
+          {/* useSearchParams (alternar perfil en el login) exige Suspense en paginas estaticas. */}
+          <Suspense>
+            <AccesoCuenta />
+          </Suspense>
         </header>
         <main id="contenido" tabIndex={-1} className="flex-1 pt-[clamp(12px,2vw,28px)] outline-none">
           {children}

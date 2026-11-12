@@ -13,9 +13,9 @@ Estados: **Hecho**, **Parcial** (que falta), **Pendiente**, **Bloqueado**
 | # | Tema | Estado | Nota |
 |---|---|---|---|
 | 1, 5, 6, 8 | Dashboard | Hecho | Dos columnas desde arriba (pendientes a la altura de la sesion); bloques con arrastrar y soltar o flechas, por persona; informacion rapida de a 3 con flechas |
-| 2 | Login paciente / profesional con boton alternable | Pendiente | |
+| 2 | Login paciente / profesional con boton alternable | Hecho | Solo el boton del header alterna "Ingresar como profesional" / "como paciente" (se quito el selector de la tarjeta); primer ingreso: pacientes |
 | 3 | Panel de control de accesos en Vinculos Control (sin datos de pacientes) | Pendiente | Fuera del silo |
-| 4 | Atras/adelante del navegador tras el login | Pendiente | `no-store`, `history.replace`, limpiar formulario |
+| 4 | Atras/adelante del navegador tras el login | Hecho | Cache-Control no-store en /admin, /portal e /ingreso; recarga al restaurar desde bfcache; la clave se borra al pedir el codigo |
 | 7 | Cambio de rol cuenta madre -> profesional | Hecho (sin probar en navegador) | Cubierto por 19 |
 | 9 | Ausencias del profesional | Hecho | Bloqueo con causa reprograma y avisa; "no atendera mas"; el paciente elige otra hora, cancelar o atencion temporal; en la siguiente asignacion se pregunta si el principal esta disponible (si lo esta se indica y se ofrece volver con una derivacion; si no, sigue con el actual) |
 | 10 | Tiempo real (bajas y pausas en calendario, portal y pagina) | Pendiente, decision | CLAUDE.md solo permite polling: decidir SSE sin Redis |
@@ -32,7 +32,7 @@ Estados: **Hecho**, **Parcial** (que falta), **Pendiente**, **Bloqueado**
 | 24 | Seleccion multiple y acciones rapidas | Hecho | Por reprogramar (avisar, cancelar) y pacientes por reasignar (derivar en grupo); componente `ui/Seleccion` |
 | 25, 41 | Finanzas fuera del MVP | Hecho | Tablas dormidas para despues |
 | 26, 29 | Match: "filtrar yo mismo" al inicio; metricas y filtro arriba | Hecho | |
-| 27, 28 | Match: eliminar preguntas/opciones y generarlas solas | Pendiente | |
+| 27, 28 | Match: eliminar preguntas y opciones; crear con opciones | Hecho | Propias se eliminan (sistema se apaga). Editor visual por tipo (2026-11-12): alternativas con orden, prioridad y filtro; escala con plantillas; dias del centro; franjas editables dentro del horario; plantillas Si/No y Modalidad |
 | 30 | Pagina del centro en pestaña nueva | Hecho | Menu "Pagina publica", perfil publico y equipo desde el panel |
 | 31 | Solicitar modulos desactivados | Pendiente (en espera) | El usuario revisa antes Vinculos Control; va con el 3 |
 | 32 | No repetir "activo" en los modulos | Hecho | Sale el panel de dependencias del match |
@@ -60,7 +60,7 @@ supervisor y la baja cancela las propuestas.
 3. ~~Ausencias del profesional: 9 y 24~~ (hecho 2026-11-11).
 4. ~~Comunicacion: 40 + 44 y 17~~ (hecho 2026-11-11).
 5. ~~Dashboard y tablas: 1 + 5 + 6 + 8, 45, 35 y 23~~ (hecho 2026-11-11; quedan listas menores del 45 y la decision del 36).
-6. **Match y login:** 27 + 28, 2 y 4.
+6. ~~Match y login: 27 + 28, 2 y 4~~ (hecho 2026-11-12).
 7. **Tiempo real (10)**, una vez decidido el mecanismo.
 8. **Plataforma:** 3 + 31 en Vinculos Control.
 

@@ -24,7 +24,10 @@ vi.mock('@/lib/api/cliente', () => ({
   api: { GET: (ruta: string) => (ruta === '/api/match/preguntas' ? [pregunta('a', 1), pregunta('b', 2), pregunta('c', 3)] : { ranking: [] }), PATCH },
   datos: async (r: unknown) => r,
 }));
-vi.mock('@/lib/centro', () => ({ useConfiguracionCentro: () => consulta({ matchFiltroDirecto: false, diasRetencionRespuestasMatch: 30 }) }));
+vi.mock('@/lib/centro', () => ({
+  useConfiguracionCentro: () => consulta({ matchFiltroDirecto: false, diasRetencionRespuestasMatch: 30 }),
+  useHorarioCentro: () => consulta([]),
+}));
 vi.mock('@/lib/consultas', () => ({ useModulos: () => consulta({ activos: ['AGENDA', 'EQUIPO'] }) }));
 
 const montar = () =>
