@@ -12,7 +12,7 @@ import { ApiError } from '@/lib/api/errores';
 import { useProfesionales } from '@/lib/consultas';
 import { formatoFechaHora, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Bloque } from '@/lib/horarios';
-import { usePacientes, type CitaVista } from '@/lib/panel';
+import { useEquipoAgenda, usePacientes, type CitaVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
@@ -288,6 +288,7 @@ export function AgendarSesion({
             </Field>
           )}
           {paciente && !paciente.profesionalId && <Aviso tono="advertencia">El paciente no tiene profesional tratante: asígnalo antes de agendar.</Aviso>}
+          {pacienteId && <RetornoAlAgendar pacienteId={pacienteId} />}
           {profesionalId && (
             <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
               Horas libres de <strong>{nombreProfesional}</strong>, dentro de sus horas de box apartadas.
@@ -392,5 +393,23 @@ export function AgendarSesion({
         </div>
       )}
     </Modal>
+  );
+}
+
+/** Punto 9: al agendar, si el paciente esta en atencion temporal y su principal ya esta disponible, se indica. */
+function RetornoAlAgendar({ pacienteId }: { pacienteId: string }) {
+  const equipo = useEquipoAgenda();
+  const retorno = useQuery({
+    queryKey: ['panel', 'paciente', pacienteId, 'retorno'],
+    queryFn: () => datos(api.GET('/api/pacientes/{id}/retorno', { params: { path: { id: pacienteId } } })),
+  });
+  const r = retorno.data;
+  if (!r || !r.principalDisponible) return null;
+  const principal = (equipo.data ?? []).find((m) => m.id === r.profesionalPrincipalId)?.nombre ?? 'su profesional principal';
+  return (
+    <Aviso tono="info" icono="swap_horiz">
+      Está en atención temporal y {principal} ya está disponible{r.pideVolver ? ' (el paciente pidió volver)' : ''}. Pregúntale si quiere volver: la vuelta la
+      coordina la cuenta madre en Derivaciones. Si no, agenda con su profesional actual.
+    </Aviso>
   );
 }

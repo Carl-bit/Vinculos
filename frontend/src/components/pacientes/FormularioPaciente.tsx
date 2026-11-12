@@ -1,12 +1,12 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
-import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { Field, Input, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
@@ -59,6 +59,15 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
   const alerta = useRef<HTMLParagraphElement>(null);
   const cambiar = (k: keyof Datos, v: string) => setD((x) => ({ ...x, [k]: v }));
   const menor = d.fechaNacimiento ? edadEn(d.fechaNacimiento) < 18 : false;
+  // Punto 16: verificador de duplicados por RUT (indice ciego rut_hmac). Avisa antes de guardar;
+  // la BD igual rechaza el repetido (409). Cada rol ve solo los pacientes que su RLS permite.
+  const rutListo = rutValido(d.rut) ? rutNormalizado(d.rut) : '';
+  const existente = useQuery({
+    queryKey: ['panel', 'pacientes', 'por-rut', rutListo],
+    queryFn: () => datos(api.GET('/api/pacientes', { params: { query: { rut: rutListo } } })),
+    enabled: !!rutListo,
+    select: (r) => r.items[0],
+  });
 
   const crear = useMutation({
     mutationFn: async () => {
@@ -67,13 +76,12 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
           body: {
             nombre: d.nombre.trim(),
             apellido: d.apellido.trim(),
-            rut: rutNormalizado(d.rut) || undefined,
+            rut: rutNormalizado(d.rut),
             fechaNacimiento: d.fechaNacimiento,
             email: d.email.trim().toLowerCase() || undefined,
             telefono: d.telefono ? telefono(d.telefono) : undefined,
             profesionalId: admin ? d.profesionalId : undefined,
             tipoAtencionId: d.tipoAtencionId || undefined,
-            contactoEmergencia: d.contactoEmergencia.trim() || undefined,
           },
         }),
       );
@@ -114,7 +122,9 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
     if (!d.apellido.trim()) err.apellido = 'Escribe el apellido.';
     if (!d.fechaNacimiento) err.fechaNacimiento = 'La fecha de nacimiento es obligatoria (define si es menor de edad).';
     else if (new Date(d.fechaNacimiento) > new Date()) err.fechaNacimiento = 'La fecha no puede ser futura.';
-    if (d.rut && !rutValido(d.rut)) err.rut = 'El RUT no es válido. Revisa el dígito verificador.';
+    if (!d.rut.trim()) err.rut = 'El RUT es obligatorio: identifica al paciente aunque cambie su correo.';
+    else if (!rutValido(d.rut)) err.rut = 'El RUT no es válido. Revisa el dígito verificador.';
+    else if (existente.data) err.rut = 'Ya existe un paciente con este RUT.';
     if (!correoValido(d.email)) err.email = MENSAJE_CORREO;
     if (!telefonoValido(d.telefono)) err.telefono = MENSAJE_TELEFONO;
     if (admin && !d.profesionalId) err.profesionalId = 'Elige el profesional tratante.';
@@ -144,13 +154,24 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
           onChange={(v) => cambiar('fechaNacimiento', v)}
           avisoMenor="Es menor de edad: registra abajo a su adulto responsable para poder agendarle horas."
         />
-        <CampoRut
-          label="RUT"
-          hint="Opcional ahora; se exige antes de la primera evolución."
-          error={errores.rut}
-          value={d.rut}
-          onChange={(v) => cambiar('rut', v)}
-        />
+        <div className="flex flex-col gap-2">
+          <CampoRut
+            label="RUT"
+            required
+            hint="Identifica al paciente aunque cambie su correo."
+            error={errores.rut}
+            value={d.rut}
+            onChange={(v) => cambiar('rut', v)}
+          />
+          {existente.data && (
+            <Aviso tono="advertencia" icono="person_search" role="status">
+              Ya existe: {existente.data.nombre} {existente.data.apellido}.{' '}
+              <ButtonLink href={`/admin/fichas/${existente.data.id}`} variant="ghost" className="!min-h-8 !px-2 !py-0 !text-[13px]">
+                Abrir su ficha
+              </ButtonLink>
+            </Aviso>
+          )}
+        </div>
         <Field label="Correo" error={errores.email}>
           {(p) => <Input {...p} type="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} onBlur={alSalir('email')} />}
         </Field>
@@ -195,18 +216,6 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
           )}
         </Field>
       </div>
-      <Field label="Contacto de emergencia" hint="Nombre, relación y teléfono. Se guarda cifrado.">
-        {(p) => (
-          <Textarea
-            {...p}
-            rows={2}
-            maxLength={500}
-            value={d.contactoEmergencia}
-            onChange={(e) => cambiar('contactoEmergencia', e.target.value)}
-            className="!min-h-16"
-          />
-        )}
-      </Field>
 
       {menor && (
         <fieldset className="m-0 flex flex-col gap-4 rounded-[18px] border border-accent-500 bg-accent-100 px-[18px] pt-3 pb-4">

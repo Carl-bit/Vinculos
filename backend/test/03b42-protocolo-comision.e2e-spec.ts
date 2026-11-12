@@ -4,7 +4,7 @@
  * paciente traido por el centro (regla del centro: GENERAL, PORCENTAJE o
  * MONTO_FIJO por sesion; origen del paciente solo lo corrige ADMIN/GESTION).
  */
-import { auth, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, rutUnico, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const HORA = 3_600_000;
 const fechaChile = (n = 0) => new Date(Date.now() + n * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
@@ -104,7 +104,7 @@ describe('03b-4.2 protocolo del centro y comision por derivacion', () => {
       .http()
       .post('/api/pacientes')
       .set(await tk(prof))
-      .send({ nombre: 'Origen', apellido: 'Propio', fechaNacimiento: '1990-02-02' });
+      .send({ nombre: 'Origen', apellido: 'Propio', rut: rutUnico(), fechaNacimiento: '1990-02-02' });
     expect(creado.status).toBe(201);
     expect(creado.body.traidoPorCentro).toBe(false);
     const origen = (u: UsuarioPrueba, traidoPorCentro: boolean) =>

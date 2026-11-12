@@ -34,6 +34,9 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Paciente', campo: 'telefono', tabla: 'pacientes', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'AdultoResponsable', campo: 'rut', tabla: 'adultos_responsables', columna: 'rut', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'AdultoResponsable', campo: 'telefono', tabla: 'adultos_responsables', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
+  // Punto 38: los abre la API desde datos_contactos_emergencia() (app_user no tiene SELECT de estas columnas).
+  { modelo: 'ContactoEmergencia', campo: 'nombre', tabla: 'contactos_emergencia', columna: 'nombre', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'ContactoEmergencia', campo: 'telefono', tabla: 'contactos_emergencia', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'Evolucion', campo: 'notas', tabla: 'evoluciones', columna: 'notas', categoria: 'CLINICO', id: 'id' },
   { modelo: 'Evolucion', campo: 'autorNombre', tabla: 'evoluciones', columna: 'autor_nombre', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'Evolucion', campo: 'autorRut', tabla: 'evoluciones', columna: 'autor_rut', categoria: 'IDENTIFICACION', id: 'id' },

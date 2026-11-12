@@ -11,7 +11,7 @@ import sharp = require('sharp');
 
 import { ModulosGuard } from '../src/core/modulos/modulos';
 import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
-import { auth, binario, CLAVE, crearApp, ultimoCodigo, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, rutUnico, binario, CLAVE, crearApp, ultimoCodigo, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const DIA = 86_400_000;
 const HORA = 3_600_000;
@@ -79,6 +79,7 @@ describe('03a alineacion con el diseño', () => {
     nombre: 'Ema',
     apellido: 'Portal',
     fechaNacimiento: '1990-03-03',
+    rut: rutUnico(),
     email,
     telefono: '+56911112222',
     respuestas: { motivos: ['ansiedad'], relato: 'Duermo mal hace meses y me cuesta concentrarme' },

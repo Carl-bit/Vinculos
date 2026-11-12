@@ -14,6 +14,7 @@ import type { SesionActiva } from '@/lib/sesion';
 import { BotonSalir } from './BotonSalir';
 import { ProveedorEquipoActivo, SelectorEquipo } from './EquipoActivo';
 import { EstadoVista } from './EstadoVista';
+import { AvisoInactividad } from './AvisoInactividad';
 import { CargaModulo } from './CargaModulo';
 import { Marca } from './Marca';
 import { MarcaZona } from './MarcaZona';
@@ -133,6 +134,7 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
           className={`entrada min-w-0 outline-none px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 trama`}
         >
           {rutaPermitida('admin', sesion.rol, ruta) ? <CargaModulo>{children}</CargaModulo> : <EstadoVista estado="sin-permiso" />}
+          <AvisoInactividad />
         </main>
       </div>
     </ProveedorEquipoActivo>

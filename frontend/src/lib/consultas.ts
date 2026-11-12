@@ -19,7 +19,13 @@ export function useCentroPublico() {
 }
 
 export function useModulos() {
-  return useQuery({ queryKey: ['modulos'], queryFn: () => datos(api.GET('/api/modulos')), staleTime: 60_000 });
+  // Punto 36: lo que el perfil de la cuenta restringe se trata como no activo (menu, accesos y vistas lo ocultan; la API responde 403).
+  return useQuery({
+    queryKey: ['modulos'],
+    queryFn: () => datos(api.GET('/api/modulos')),
+    staleTime: 60_000,
+    select: (d) => ({ ...d, activos: d.activos.filter((m) => !d.restringidos.includes(m)) }),
+  });
 }
 
 export function useMiCuenta() {

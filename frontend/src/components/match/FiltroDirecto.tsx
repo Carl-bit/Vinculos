@@ -163,7 +163,7 @@ export function FiltroDirecto({ agenda, onVolver }: { agenda: boolean; onVolver:
                   )}
                 </ul>
                 <div className="mt-4 flex flex-wrap gap-2.5">
-                  {agenda && (
+                  {agenda && r.perfil.recibe_pacientes && (
                     <ButtonLink href={`/pedir-hora/${r.perfil.id}`} variant="team" icon="calendar_month">
                       Pedir hora con {nombreCorto(r.perfil)}
                     </ButtonLink>

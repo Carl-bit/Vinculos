@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 
+import { PerfilesController } from './perfiles.controller';
+import { PerfilesService } from './perfiles.service';
+
 import { AuditoriaService } from './auditoria.service';
 import { CentroService } from './centro.service';
 import { DerechosService } from './derechos.service';
@@ -46,6 +49,7 @@ import { UsuariosService } from './usuarios.service';
     FeriadosController,
     RecordatoriosController,
     DirectorioController,
+    PerfilesController,
   ],
   providers: [
     UsuariosService,
@@ -58,6 +62,7 @@ import { UsuariosService } from './usuarios.service';
     ExportacionCentroService,
     FeriadosService,
     RecordatoriosPersonalesService,
+    PerfilesService,
   ],
 })
 export class NucleoModule {}

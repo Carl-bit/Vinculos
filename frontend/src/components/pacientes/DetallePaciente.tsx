@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button, clasesBoton } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { EnlaceVolver } from '@/components/ui/EnlaceVolver';
-import { Field, Input, Textarea } from '@/components/ui/Field';
+import { Field, Input } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
@@ -47,6 +47,7 @@ import { AdjuntosFicha } from './AdjuntosFicha';
 import { AltaPaciente } from './AltaPaciente';
 import { CobrosPaciente, usePagosPaciente } from './CobrosPaciente';
 import { CrearDerivacion } from './CrearDerivacion';
+import { ResumenContactoTratante } from './FichaClinica';
 import { DocumentosFicha } from './DocumentosFicha';
 import { ExportacionClinicaPendiente } from './ExportacionClinicaPendiente';
 import { EvolucionesFicha, useMotivoConsulta } from './FichaClinica';
@@ -567,7 +568,6 @@ function EncabezadoPaciente({
               valor={e.adultos.map((a) => `${a.nombre}${a.parentesco ? ` (${a.parentesco})` : ''}`).join(', ') || 'Falta registrarlo'}
             />
           )}
-          {p.contactoEmergencia && <DatoRapido etiqueta="Emergencia" valor={p.contactoEmergencia.split('\n')[0]!} />}
         </dl>
 
         <nav aria-label="Índice de la ficha" className="flex flex-wrap gap-0.5 border-t border-divider pt-2">
@@ -693,8 +693,7 @@ function ResumenClinico({
       <div className={TARJETA}>
         <p className={ROTULO}>Equipo y contacto</p>
         <p className="m-0 text-[13.5px] font-semibold">
-          Contacto de emergencia:{' '}
-          {p.contactoEmergencia ? <strong>{p.contactoEmergencia.split('\n')[0]}</strong> : <strong className="text-pendiente-900">sin registrar</strong>}
+          Contacto de emergencia: <ResumenContactoTratante pacienteId={p.id} />
         </p>
         <p className="m-0 text-[13.5px] font-semibold">
           {conversaciones.length === 0
@@ -879,7 +878,6 @@ function EditarPaciente({ paciente, onListo }: { paciente: PacienteVista; onList
             fechaNacimiento: d.fechaNacimiento,
             email: d.email.trim().toLowerCase() || undefined,
             telefono: d.telefono.replace(/[\s()-]/g, '') || undefined,
-            contactoEmergencia: d.contactoEmergencia.trim() || undefined,
           },
         }),
       ),
@@ -934,9 +932,6 @@ function EditarPaciente({ paciente, onListo }: { paciente: PacienteVista; onList
           )}
         </Field>
       </div>
-      <Field label="Contacto de emergencia" hint="Nombre, relación y teléfono. Se guarda cifrado.">
-        {(p) => <Textarea {...p} rows={2} value={d.contactoEmergencia} onChange={(e) => cambiar('contactoEmergencia', e.target.value)} className="!min-h-16" />}
-      </Field>
       {error && (
         <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
           {error}

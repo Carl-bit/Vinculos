@@ -112,11 +112,12 @@ export function TarjetaPerfil({ perfil, agenda, orden = 0 }: { perfil: PerfilPub
         <p className="m-0 line-clamp-4 text-[14.5px] leading-[1.65] font-medium text-pretty text-neutral-800">{perfil.cita_destacada ?? perfil.bio}</p>
       )}
       <div className="mt-auto flex flex-wrap items-center gap-2.5">
-        {agenda && (
+        {agenda && perfil.recibe_pacientes && (
           <ButtonLink href={`/pedir-hora/${perfil.id}`} variant="team" icon="calendar_month" className="min-h-11 flex-auto">
             Pedir hora con {nombreCorto(perfil)}
           </ButtonLink>
         )}
+        {agenda && !perfil.recibe_pacientes && <span className="flex-auto text-[13px] font-bold text-neutral-700">No está recibiendo pacientes</span>}
         <ButtonLink href={`/equipo/${perfil.id}`} variant="secondary" icon="arrow_forward" className="min-h-11 flex-none whitespace-nowrap">
           Ver perfil completo
           <span className="sr-only"> de {nombrePerfil(perfil)}</span>

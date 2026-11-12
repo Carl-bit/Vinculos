@@ -187,9 +187,12 @@ export function SeguimientoEquipo({ rol }: { rol: Rol }) {
           acciones: (
             <>
               <EnviarEnlace pacienteId={p.paciente_id} />
-              <ButtonLink href={`/admin/fichas/${p.paciente_id}?vista=consentimientos`} variant="secondary" className="!px-4 !py-2.5 !text-[13px]">
-                Registrar firmado en el centro
-              </ButtonLink>
+              {/* Punto 20: la cuenta madre no abre el perfil del paciente; el firmado lo registra recepcion. */}
+              {!admin && (
+                <ButtonLink href={`/admin/fichas/${p.paciente_id}?vista=consentimientos`} variant="secondary" className="!px-4 !py-2.5 !text-[13px]">
+                  Registrar firmado en el centro
+                </ButtonLink>
+              )}
             </>
           ),
           regla: 'El enlace va al correo registrado (del adulto responsable si es menor). Tú no ves el contenido de la ficha.',
@@ -213,12 +216,14 @@ export function SeguimientoEquipo({ rol }: { rol: Rol }) {
             ['Próxima sesión', proxima(p.fecha)],
             ['Bloquea', rut ? 'La primera evolución' : 'Confirmar sus horas'],
           ],
-          acciones: (
+          acciones: admin ? null : (
             <ButtonLink href={`/admin/fichas/${p.paciente_id}${rut ? '' : '?vista=datos'}`} variant="team" className="!px-4 !py-2.5 !text-[13px]">
               Completar datos
             </ButtonLink>
           ),
-          regla: 'Los datos administrativos sí los puede editar la administración.',
+          regla: admin
+            ? 'Los completa recepción (gestión) o su profesional; la cuenta madre no abre el perfil del paciente.'
+            : 'Los datos administrativos sí los puede editar la administración.',
         },
       });
     }

@@ -1,5 +1,6 @@
 'use client';
 
+import { ListaPaginada } from '@/components/ui/Paginador';
 import Link from 'next/link';
 
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
@@ -36,26 +37,33 @@ export function BandejaAvisos() {
   const bandeja = useBandejaAvisos();
   return (
     <EstadoConsulta consulta={bandeja} vacio={(l) => l.length === 0} textoVacio="No tienes avisos">
-      {(lista) => (
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {lista.map((a) => {
-            const destino = DE_CITA.includes(a.tipo) && a.referenciaId ? `/admin/agenda?cita=${a.referenciaId}` : DESTINO[a.tipo];
-            return (
-              <li key={a.id} className="rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="m-0 text-[15px] font-black">{a.asunto ?? 'Aviso'}</p>
-                  <span className="text-[12.5px] font-semibold text-neutral-700">{formatoFechaHora(a.creadaEn)}</span>
-                </div>
-                {a.cuerpo && <p className="m-0 mt-2 text-[14px] font-semibold whitespace-pre-line text-pretty text-neutral-800">{a.cuerpo}</p>}
-                {destino && (
-                  <Link href={destino} className="mt-2.5 inline-flex min-h-10 items-center text-[13px] font-extrabold text-accent-700 hover:text-accent-800">
-                    Ir a resolverlo
-                  </Link>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+      {(todos) => (
+        <ListaPaginada items={todos} clave="avisos-equipo" etiqueta="avisos">
+          {(lista) => (
+            <ul className="m-0 flex list-none flex-col gap-3 p-0">
+              {lista.map((a) => {
+                const destino = DE_CITA.includes(a.tipo) && a.referenciaId ? `/admin/agenda?cita=${a.referenciaId}` : DESTINO[a.tipo];
+                return (
+                  <li key={a.id} className="rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="m-0 text-[15px] font-black">{a.asunto ?? 'Aviso'}</p>
+                      <span className="text-[12.5px] font-semibold text-neutral-700">{formatoFechaHora(a.creadaEn)}</span>
+                    </div>
+                    {a.cuerpo && <p className="m-0 mt-2 text-[14px] font-semibold whitespace-pre-line text-pretty text-neutral-800">{a.cuerpo}</p>}
+                    {destino && (
+                      <Link
+                        href={destino}
+                        className="mt-2.5 inline-flex min-h-10 items-center text-[13px] font-extrabold text-accent-700 hover:text-accent-800"
+                      >
+                        Ir a resolverlo
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </ListaPaginada>
       )}
     </EstadoConsulta>
   );

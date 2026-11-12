@@ -65,6 +65,7 @@ vi.mock('./SeccionesPaciente', () => ({
 vi.mock('./FichaClinica', () => ({
   useMotivoConsulta: () => 'Sin ficha de ingreso registrada.',
   EvolucionesFicha: () => <p>editor-evoluciones</p>,
+  ResumenContactoTratante: () => <strong>sin registrar</strong>,
 }));
 vi.mock('./IngresoFicha', () => ({ IngresoFicha: () => <p>ingreso</p> }));
 // La ficha monta todas las secciones a la vez: las de Datos tienen sus propias pruebas.

@@ -76,6 +76,17 @@ export class MensajeDto {
   contenido!: string;
 }
 
+/** Puntos 40/44: el tratante responde en la plataforma a un mensaje del portal. */
+export class RespuestaMensajeDto {
+  @IsUUID()
+  mensajeId!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(1, 5000)
+  contenido!: string;
+}
+
 export class SolicitarEpicrisisDto {
   /** Adulto responsable (03a): el menor a cargo. */
   @IsOptional()
@@ -165,11 +176,10 @@ export class SolicitudHoraDto {
   @Matches(TELEFONO_CL, { message: 'telefono: formato +56XXXXXXXXX' })
   telefono?: string;
 
-  /** Opcional aqui; obligatorio antes o en la primera sesion (D-2). */
-  @IsOptional()
+  /** Punto 37: obligatorio (antes D-2 lo dejaba para la primera sesion). Del paciente, tambien si es menor. */
   @IsRut()
   @NormalizarRut()
-  rut?: string;
+  rut!: string;
 
   @IsOptional()
   @Recortar()
@@ -302,6 +312,12 @@ export class MisDatosDto {
   @IsEmail()
   @MaxLength(254)
   email?: string;
+}
+
+/** Punto 9: el paciente decide que hacer con una hora que su profesional no podra atender. */
+export class RespuestaAusenciaDto {
+  @IsIn(['CANCELAR', 'ATENCION_TEMPORAL'])
+  opcion!: 'CANCELAR' | 'ATENCION_TEMPORAL';
 }
 
 export class PacienteDelPortalDto {

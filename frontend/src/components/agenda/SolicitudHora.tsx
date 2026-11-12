@@ -169,7 +169,8 @@ export function SolicitudHora({
       e.fechaNacimiento = 'Indica una fecha de nacimiento válida.';
     if (!CORREO.test(d.email.trim())) e.email = MENSAJE_CORREO;
     e.telefono = reglaTelefono(d.telefono);
-    if (d.rut && !rutValido(d.rut)) e.rut = 'El RUT no es válido. Revisa el dígito verificador.';
+    if (!d.rut.trim()) e.rut = menor ? 'Escribe el RUT del paciente (el menor).' : 'Escribe tu RUT.';
+    else if (!rutValido(d.rut)) e.rut = 'El RUT no es válido. Revisa el dígito verificador.';
     if (menor) {
       if (!d.adultoNombre.trim()) e.adultoNombre = 'Falta el nombre del adulto responsable.';
       if (!d.adultoParentesco.trim()) e.adultoParentesco = 'Indica la relación con el paciente.';
@@ -205,7 +206,7 @@ export function SolicitudHora({
             fechaNacimiento: d.fechaNacimiento,
             email: d.email.trim(),
             telefono: opcional(d.telefono),
-            rut: rutNormalizado(d.rut) || undefined,
+            rut: rutNormalizado(d.rut),
             ...(menor ? { adultoNombre: d.adultoNombre.trim(), adultoParentesco: d.adultoParentesco.trim(), adultoTelefono: opcional(d.adultoTelefono) } : {}),
             ...(match
               ? { respuestas: match.respuestas, recomendadoId: match.recomendadoId ?? undefined }
@@ -360,8 +361,9 @@ export function SolicitudHora({
                 avisoMenor={d.paraMenor ? undefined : 'Es menor de 18 años: más abajo te pediremos los datos de su adulto responsable.'}
               />
               <CampoRut
-                label="RUT"
-                hint="Opcional. Lo pedimos en la primera sesión si no lo tienes a mano."
+                label={menor ? 'RUT del paciente' : 'RUT'}
+                required
+                hint="Con él te identificamos aunque cambies de correo."
                 error={errores.rut}
                 value={d.rut}
                 onChange={(v) => cambiar('rut', v)}

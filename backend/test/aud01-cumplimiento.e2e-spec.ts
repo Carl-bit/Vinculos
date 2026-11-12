@@ -23,7 +23,8 @@ const en = (horas: number) => {
   // Sin cruzar la medianoche de Chile (la disponibilidad es por dia): segun la hora en que corre la
   // suite, ahora + 80 h caia a las 23:xx y la sesion de una hora daba 422 (como test.sin_cruzar en SQL).
   const horaChile = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Santiago', hour: 'numeric', hourCycle: 'h23' }).format(inicio));
-  if (horaChile >= 22) inicio.setTime(inicio.getTime() - 3 * HORA);
+  // 6 h (no 3): con 3, una hora +52 corrida caia encima de la +50 sin correr (409 segun la hora de la corrida).
+  if (horaChile >= 22) inicio.setTime(inicio.getTime() - 6 * HORA);
   return { inicio: inicio.toISOString(), fin: new Date(inicio.getTime() + HORA).toISOString() };
 };
 

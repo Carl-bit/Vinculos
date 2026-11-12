@@ -52,6 +52,9 @@ export function vistaPreviaPerfil(d: DatosVistaPrevia): PerfilPublicoVista {
       ? { estado: r.estado, numero: r.numero, verificado_en: r.verificadoEn }
       : null;
   return {
+    // Vista previa del editor: como se ve recibiendo pacientes (el estado real lo fija la cuenta madre, punto 9).
+    recibe_pacientes: true,
+    vuelve_en: null,
     id: d.perfil.usuarioId,
     nombre_publico: d.perfil.nombrePublico || d.nombreCuenta || null,
     bio: d.perfil.bio,

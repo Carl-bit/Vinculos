@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { InicioPanel } from './InicioPanel';
@@ -65,7 +65,7 @@ describe('InicioPanel (03b-4.2)', () => {
     // Mensaje del portal anterior a la sesion.
     expect(screen.getByText(/te escribió desde el portal/)).toBeInTheDocument();
     const linea = screen.getByRole('region', { name: 'Sesiones de hoy' });
-    const semana = screen.getByRole('heading', { name: 'Esta semana' });
+    const semana = screen.getByRole('heading', { name: 'Información rápida' });
     expect(antes(foco, linea) && antes(linea, semana)).toBe(true);
     // La linea termina en la agenda completa.
     expect(within(linea).getAllByRole('link').at(-1)).toHaveAttribute('href', '/admin/agenda');
@@ -84,5 +84,49 @@ describe('InicioPanel (03b-4.2)', () => {
     expect(screen.queryByText(/te escribió desde el portal/)).toBeNull();
     expect(mensajes).not.toHaveBeenCalled();
     expect(screen.getByRole('region', { name: 'Mis recordatorios' })).toBeInTheDocument();
+  });
+
+  it('punto 1: "Personalizar" sube un bloque y lo recuerda; "Volver al orden original" lo restablece', () => {
+    localStorage.clear();
+    const { unmount } = render(<InicioPanel rol="PROFESIONAL" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizar' }));
+    const tarjeta = (n: string) => screen.getByRole('group', { name: n });
+    expect(antes(tarjeta('Sesiones de hoy'), tarjeta('Información rápida'))).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Subir Información rápida' }));
+    expect(antes(tarjeta('Información rápida'), tarjeta('Sesiones de hoy'))).toBe(true);
+    unmount();
+    const semana = () => screen.getByRole('heading', { name: 'Información rápida' });
+    const linea = () => screen.getByRole('region', { name: 'Sesiones de hoy' });
+    render(<InicioPanel rol="PROFESIONAL" />);
+    expect(antes(semana(), linea())).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al orden original' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }));
+    expect(antes(linea(), semana())).toBe(true);
+  });
+
+  it('punto 1: arrastrar y soltar un bloque sobre otro lo deja antes de ese bloque', () => {
+    localStorage.clear();
+    render(<InicioPanel rol="PROFESIONAL" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizar' }));
+    const bloque = (nombre: string) => screen.getByRole('button', { name: `Subir ${nombre}` }).closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(bloque('Información rápida'));
+    // Vista previa: al pasar sobre "Indicadores" ya se ve en su nuevo lugar, antes de soltar.
+    fireEvent.dragOver(bloque('Indicadores'));
+    expect(antes(screen.getByRole('group', { name: 'Información rápida' }), screen.getByRole('group', { name: 'Sesiones de hoy' }))).toBe(true);
+    fireEvent.drop(bloque('Indicadores'));
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }));
+    expect(antes(screen.getByRole('heading', { name: 'Información rápida' }), screen.getByRole('region', { name: 'Sesiones de hoy' }))).toBe(true);
+  });
+
+  it('punto 1: soltar fuera deja el orden como estaba', () => {
+    localStorage.clear();
+    render(<InicioPanel rol="PROFESIONAL" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizar' }));
+    const bloque = (nombre: string) => screen.getByRole('button', { name: `Subir ${nombre}` }).closest('[draggable]') as HTMLElement;
+    fireEvent.dragStart(bloque('Información rápida'));
+    fireEvent.dragOver(bloque('Indicadores'));
+    fireEvent.dragEnd(bloque('Información rápida'));
+    expect(antes(screen.getByRole('group', { name: 'Sesiones de hoy' }), screen.getByRole('group', { name: 'Información rápida' }))).toBe(true);
   });
 });

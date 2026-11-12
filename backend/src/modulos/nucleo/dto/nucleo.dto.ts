@@ -497,6 +497,9 @@ export class FiltroDirectorioDto {
 export class ModulosActivos {
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
   activos!: ModuloCentro[];
+  /** Punto 36: los que el perfil de la cuenta le restringe en el rol activo (el front los oculta). */
+  @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
+  restringidos!: ModuloCentro[];
 }
 
 export class RolAdicionalVista {
@@ -594,6 +597,9 @@ export class ReporteDashboard {
   por_confirmar?: number;
   @ApiProperty({ required: false, description: 'ADMIN/GESTION: % de horas apartadas sobre el horario de boxes (muestra)' })
   ocupacion_boxes_hoy?: number;
+  /** Punto 23: horas libres de hoy en los boxes (apartadas y sin cita). */
+  @ApiProperty({ required: false })
+  horas_libres_boxes_hoy?: number;
   @ApiProperty({ required: false })
   boxes_activos?: number;
   @ApiProperty({ required: false, description: 'ADMIN/GESTION: sesiones realizadas sin evolucion (7 dias)' })

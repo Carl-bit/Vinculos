@@ -45,6 +45,9 @@ function resumenHorario(horario: HorarioEspacio[]): string {
  * (horas de box apartadas por profesionales ÷ horas abiertas, como en el
  * dashboard). Crear y editar: ADMIN/GESTION.
  */
+/** Minutos en horas legibles: 90 -> "1,5 h". */
+const horas = (min: number) => `${(Math.round((min / 60) * 10) / 10).toLocaleString('es-CL')} h`;
+
 export function EspaciosAgenda({ puedeEditar, nuevo, onNuevoCerrado }: { puedeEditar: boolean; nuevo: boolean; onNuevoCerrado: () => void }) {
   const espacios = useEspacios();
   const semana = semanaChile(0);
@@ -94,8 +97,11 @@ export function EspaciosAgenda({ puedeEditar, nuevo, onNuevoCerrado }: { puedeEd
                 <Dato etiqueta="Sesión por defecto" valor={e.duracionDefectoMin ? `${e.duracionDefectoMin} min` : '—'} />
                 <div className="min-w-[160px] flex-[1_1_180px]">
                   <div className="mb-1.5 flex items-baseline justify-between gap-2.5">
-                    <span className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Apartado esta semana</span>
-                    <span className="text-[13px] font-black tabular-nums">{abiertoMin ? `${pct}%` : '—'}</span>
+                    {/* Punto 23: horas libres (mas util que un porcentaje); la barra muestra lo apartado. */}
+                    <span className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Libres esta semana</span>
+                    <span className="text-[13px] font-black tabular-nums">
+                      {abiertoMin ? `${horas(Math.max(abiertoMin - ocupadoMin, 0))} de ${horas(abiertoMin)}` : '—'}
+                    </span>
                   </div>
                   <span
                     className="block h-[7px] overflow-hidden rounded-full bg-neutral-300"

@@ -14,7 +14,7 @@ import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../s
 import { PasarelaSimulada, ProveedorPasarela } from '../src/core/integraciones/pasarela';
 import { JobsService } from '../src/core/jobs/jobs.service';
 import { BANCOS } from '../src/modulos/equipo/dto/equipo.dto';
-import { auth, crearApp, procesarMensajes, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, rutUnico, crearApp, procesarMensajes, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const DIA = 86_400_000;
 const HORA = 3_600_000;
@@ -90,6 +90,7 @@ describe('03b-3.1 / 03b-3.2 la hora se confirma con el pago', () => {
         nombre: 'Pia',
         apellido: 'Pago',
         fechaNacimiento: '1990-03-03',
+        rut: rutUnico(),
         email,
         politicaId,
         terminosId,

@@ -2,7 +2,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 
 import { dvRut } from '../src/core/validacion/validadores';
-import { auth, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, rutUnico, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const rutNuevo = () => {
   const cuerpo = String(randomInt(10_000_000, 25_000_000));
@@ -75,7 +75,7 @@ describe('02c fichas y pacientes', () => {
         .http()
         .post('/api/pacientes')
         .set(await tk(gestion))
-        .send({ nombre: 'G', apellido: 'Gestion', fechaNacimiento: '2000-01-01', profesionalId: profesional.id });
+        .send({ nombre: 'G', apellido: 'Gestion', rut: rutUnico(), fechaNacimiento: '2000-01-01', profesionalId: profesional.id });
       expect(r.status).toBe(201);
       expect(r.body.fichaId).toBeNull();
       expect(
@@ -102,7 +102,7 @@ describe('02c fichas y pacientes', () => {
         .http()
         .post('/api/pacientes')
         .set(await tk(admin))
-        .send({ nombre: 'X', apellido: 'Y', fechaNacimiento: '2000-01-01', profesionalId: practicante.id });
+        .send({ nombre: 'X', apellido: 'Y', rut: rutUnico(), fechaNacimiento: '2000-01-01', profesionalId: practicante.id });
       expect(directo.status).toBe(403);
     });
 

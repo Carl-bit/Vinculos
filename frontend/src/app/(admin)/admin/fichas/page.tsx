@@ -11,7 +11,6 @@ import { DerivacionesVista } from '@/components/pacientes/Derivaciones';
 import { FichasProfesional } from '@/components/pacientes/FichasProfesional';
 import { ListaPacientes } from '@/components/pacientes/ListaPacientes';
 import { NuevoPaciente } from '@/components/pacientes/NuevoPaciente';
-import { PacientesPorReasignar } from '@/components/pacientes/PacientesPorReasignar';
 import { PlantillasClinicas } from '@/components/pacientes/PlantillasClinicas';
 import { RetencionFichas } from '@/components/pacientes/RetencionFichas';
 import { SeguimientoEquipo } from '@/components/pacientes/SeguimientoEquipo';
@@ -47,8 +46,8 @@ function secciones(rol: Rol, supervisa: boolean, n: { derivaciones: number; acce
   const con = (texto: string, k: number) => (k ? `${texto} (${k})` : texto);
   if (rol === 'ADMIN')
     return [
+      // Punto 20: la cuenta madre no ve pacientes; solo el seguimiento del trabajo de cada profesional.
       { valor: 'equipo', etiqueta: 'Seguimiento' },
-      { valor: 'pacientes', etiqueta: 'Pacientes' },
       { valor: 'derivaciones', etiqueta: con('Derivaciones', n.derivaciones) },
       { valor: 'accesos', etiqueta: con('Accesos temporales', n.accesos) },
       { valor: 'practicas', etiqueta: con('Prácticas', n.practicas) },
@@ -109,16 +108,6 @@ function Fichas() {
   const ir = (v: string) => router.replace(v === opciones[0]!.valor ? '/admin/fichas' : `/admin/fichas?vista=${v}`, { scroll: false });
   const pestanas = <Pestanas etiqueta="Secciones" tono="team" valor={vista} onChange={(v) => ir(v === 'configuracion' ? config : v)} pestanas={opciones} />;
 
-  // Profesional y practicante en "Mis pacientes": el riel lleva el titulo y la ficha ocupa el resto.
-  if (!admin && vista === 'pacientes') {
-    return (
-      <div className="flex flex-col gap-2 pt-[clamp(12px,2vw,20px)]">
-        {pestanas}
-        <FichasProfesional rol={rol} />
-      </div>
-    );
-  }
-
   return (
     <>
       <Encabezado
@@ -135,7 +124,7 @@ function Fichas() {
                 Pacientes identificados solo por código de ficha
               </span>
             )}
-            {rol !== 'PRACTICANTE' && <NuevoPaciente rol={rol} variante="team" />}
+            {rol !== 'PRACTICANTE' && rol !== 'ADMIN' && <NuevoPaciente rol={rol} variante="team" />}
           </div>
         }
       />
@@ -145,12 +134,8 @@ function Fichas() {
           // Punto 15: sin "Agregar profesional" aqui; las cuentas se crean en Equipo.
           <SeguimientoEquipo rol={rol} />
         )}
-        {vista === 'pacientes' && (
-          <div className="flex flex-col gap-6">
-            {admin && <PacientesPorReasignar />}
-            <ListaPacientes rol={rol} />
-          </div>
-        )}
+        {/* Profesional: mismo encabezado que las otras pestañas (antes subian las pestañas y se descuadraba). */}
+        {vista === 'pacientes' && (admin ? <ListaPacientes rol={rol} /> : <FichasProfesional rol={rol} />)}
         {vista === 'derivaciones' && <DerivacionesVista rol={rol} />}
         {vista === 'accesos' && <AccesosTemporalesVista rol={rol} />}
         {vista === 'practicas' && <ConsentimientosEquipo rol={rol} />}

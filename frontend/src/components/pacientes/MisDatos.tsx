@@ -168,7 +168,7 @@ export function MisDatos({ lectura = false }: { lectura?: boolean }) {
                   <Dato etiqueta="Correo">{d.email ?? 'Sin correo registrado'}</Dato>
                 </>
               )}
-              <Dato etiqueta="Contacto de emergencia">{d.contactoEmergencia ?? 'Sin contacto registrado. Puedes dejarlo en tu próxima visita.'}</Dato>
+              {d.contactoEmergencia && <Dato etiqueta="Contacto de emergencia registrado por el centro">{d.contactoEmergencia}</Dato>}
 
               {d.adultosResponsables.length > 0 && (
                 <div className="mt-2 border-t border-divider pt-5">

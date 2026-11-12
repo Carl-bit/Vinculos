@@ -10,6 +10,7 @@ import { CitasService } from './citas.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
 import { RecordatoriosService } from './recordatorios.service';
 import {
+  AvisoPorReprogramar,
   BloqueAtencionVista,
   BloqueoAgendaVista,
   BloquesLiberados,
@@ -34,6 +35,7 @@ import {
 } from './dto/agenda-respuestas.dto';
 import {
   ApartarBloquesDto,
+  AvisoPorReprogramarDto,
   CrearBloqueoAgendaDto,
   CubrirCitaDto,
   DecidirSolicitudDto,
@@ -254,6 +256,14 @@ export class CitasController {
   @Roles(...EQUIPO_AGENDA)
   porReprogramar(): Promise<CitaVista[]> {
     return this.citas.porReprogramar();
+  }
+
+  /** Punto 24: avisa a los pacientes de varias horas por reprogramar para que elijan (el profesional, solo las suyas). */
+  @Post('por-reprogramar/aviso')
+  @HttpCode(200)
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  avisarPorReprogramar(@Body() dto: AvisoPorReprogramarDto): Promise<AvisoPorReprogramar> {
+    return this.citas.avisarPorReprogramar(dto.citas);
   }
 
   /** Verificacion previa (opcion C): disponibilidad, margen y box, con alternativas. */

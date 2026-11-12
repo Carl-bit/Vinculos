@@ -14,6 +14,8 @@ indica de donde salio. Se mueve al plan activo cuando se decida retomarlo.
 | Lista de espera | 03b-3.2 | Retirada; si vuelve, LIBERADA es el punto donde avisar |
 | Menores (D-4) | 03b-4.1 | Revision legal antes de pacientes reales |
 | Fusion de pacientes duplicados | 03b-4.1 | Hoy `MISMO_PACIENTE` y conciliacion manual |
+| Permisos a medida por rol (capacidades) | Punto 36, 2026-11-11 | Reescribir la RLS (~100 tablas) a permisos por capacidad. En el MVP: perfiles sobre un rol base que solo restringen secciones |
+| Avisos por WhatsApp | MVP 2026-11-11 | Modulo oculto en Configuracion; el codigo queda para despues |
 
 ## Operacion y rendimiento
 

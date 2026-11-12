@@ -289,6 +289,11 @@ export class CitasService {
   }
 
   /** POR_REPROGRAMAR: tratante saliente, revocacion o baja (lista para reprogramar y avisar). */
+  async avisarPorReprogramar(citas: string[]) {
+    const [{ n }] = await this.bd.tx().$queryRaw<[{ n: number }]>`SELECT avisar_horas_por_reprogramar(${citas}::uuid[]) AS n`;
+    return { avisadas: n };
+  }
+
   porReprogramar() {
     return this.bd.tx().cita.findMany({ where: { estado: 'POR_REPROGRAMAR' }, select: VISTA, orderBy: { inicio: 'asc' } });
   }

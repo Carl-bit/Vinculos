@@ -318,6 +318,12 @@ export class Fixtures {
 
 export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
+/** RUT valido al azar (punto 37: el alta y la reserva lo exigen). */
+export function rutUnico(): string {
+  const cuerpo = String(10_000_000 + Math.floor(Math.random() * 89_999_999));
+  return `${cuerpo}-${dvRut(cuerpo)}`;
+}
+
 /** 03b-4.1: ultimo codigo de verificacion (6 digitos) enviado a un correo por el proveedor simulado. */
 export function ultimoCodigo(app: NestExpressApplication, para: string): string {
   const enviados = app.get<ProveedorCorreo, ProveedorCorreoSimulado>(ProveedorCorreo).enviados;

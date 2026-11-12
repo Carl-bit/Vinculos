@@ -2,12 +2,14 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useState } from 'react';
 
 import { usePortal } from '@/components/shared/ContextoPortal';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Aviso } from '@/components/ui/Aviso';
 import { Icon } from '@/components/ui/Icon';
 import { Interruptor } from '@/components/ui/Interruptor';
+import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import { useModulos } from '@/lib/consultas';
@@ -26,8 +28,11 @@ const DESTINO: Partial<Record<MensajeBandeja['tipo'], { icono: Icono; href: stri
   CONSENTIMIENTO_SOLICITADO: { icono: 'verified_user', href: '/portal/consentimientos', accion: 'Responder' },
   CONSENTIMIENTO_POR_VENCER: { icono: 'verified_user', href: '/portal/consentimientos', accion: 'Responder' },
   AVISO_CAMBIO_SUPERVISOR: { icono: 'supervisor_account', href: '/portal/consentimientos', accion: 'Revisar' },
-  ACCESO_CLINICO_TEMPORAL: { icono: 'shield_person', href: '/portal/avisos', accion: '' },
-  ACCESO_CLINICO_REVOCADO: { icono: 'shield_person', href: '/portal/avisos', accion: '' },
+  ACCESO_CLINICO_TEMPORAL: { icono: 'shield_person', href: '/portal', accion: '' },
+  ACCESO_CLINICO_REVOCADO: { icono: 'shield_person', href: '/portal', accion: '' },
+  MENSAJE_PROFESIONAL: { icono: 'chat', href: '/portal/avisos', accion: 'Leer la respuesta' },
+  CITA_AUSENCIA_PROFESIONAL: { icono: 'event_busy', href: '/portal#horas', accion: 'Elegir qué hacer' },
+  CONTACTO_EMERGENCIA_PENDIENTE: { icono: 'call', href: '/portal/seguridad?seccion=contactos', accion: 'Agregar contacto' },
   DOCUMENTO_CLINICO: { icono: 'description', href: '/portal/documentos', accion: 'Ver documentos' },
   PAGO_REGISTRADO: { icono: 'payments', href: '/portal/pagos', accion: 'Ver pagos' },
   COMPROBANTE_EMITIDO: { icono: 'receipt_long', href: '/portal/pagos', accion: 'Ver pagos' },
@@ -39,42 +44,72 @@ const DESTINO: Partial<Record<MensajeBandeja['tipo'], { icono: Icono; href: stri
  * preferencias de correo. Los avisos legales llegan siempre.
  */
 export function AvisosPortal() {
-  const bandeja = useBandeja();
+  return <PreferenciasCorreo />;
+}
+
+/** Un aviso de la bandeja (icono, asunto, fecha, cuerpo y a donde ir). */
+function FilaAviso({ m }: { m: MensajeBandeja }) {
+  const d = DESTINO[m.tipo];
   return (
-    <div className="grid items-start gap-[18px] [grid-template-columns:repeat(auto-fit,minmax(min(330px,100%),1fr))]">
-      <Panel
-        titulo="Bandeja de avisos"
-        bajada="Todo lo que el centro te comunicó: confirmaciones, recordatorios, pagos y avisos importantes."
-        className="min-w-0"
-      >
-        <EstadoConsulta consulta={bandeja} vacio={(d) => d.length === 0} textoVacio="No tienes avisos todavía">
-          {(lista) => (
-            <ul className="m-0 flex list-none flex-col gap-[11px] p-0">
-              {lista.map((m) => {
-                const d = DESTINO[m.tipo];
-                return (
-                  <li key={m.id} className="rounded-[18px] border border-divider bg-bg px-[18px] py-4">
-                    <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
-                      <Icon name={d?.icono ?? 'notifications'} size={18} className="text-accent-2-700" />
-                      <span className="min-w-0 flex-1 text-[14px] font-black tracking-[-0.01em]">{m.asunto ?? 'Aviso del centro'}</span>
-                      <span className="text-xs font-bold text-neutral-700">{formatoFechaHora(m.creadaEn)}</span>
-                    </div>
-                    {m.cuerpo && <p className="m-0 text-[13.5px] leading-relaxed font-medium whitespace-pre-line text-pretty text-neutral-800">{m.cuerpo}</p>}
-                    {d?.accion && (
-                      <Link href={d.href} className="mt-2 inline-flex min-h-10 items-center gap-1.5 text-[13px] font-extrabold">
-                        {d.accion}
-                        <Icon name="arrow_forward" size={16} />
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </EstadoConsulta>
-      </Panel>
-      <PreferenciasCorreo />
-    </div>
+    <li className="rounded-[18px] border border-divider bg-bg px-[18px] py-4">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
+        <Icon name={d?.icono ?? 'notifications'} size={18} className="text-accent-2-700" />
+        <span className="min-w-0 flex-1 text-[14px] font-black tracking-[-0.01em]">{m.asunto ?? 'Aviso del centro'}</span>
+        <span className="text-xs font-bold text-neutral-700">{formatoFechaHora(m.creadaEn)}</span>
+      </div>
+      {m.cuerpo && <p className="m-0 text-[13.5px] leading-relaxed font-medium whitespace-pre-line text-pretty text-neutral-800">{m.cuerpo}</p>}
+      {d?.accion && (
+        <Link href={d.href} className="mt-2 inline-flex min-h-10 items-center gap-1.5 text-[13px] font-extrabold">
+          {d.accion}
+          <Icon name="arrow_forward" size={16} />
+        </Link>
+      )}
+    </li>
+  );
+}
+
+/**
+ * Punto 44: en el inicio del portal, los ultimos avisos; "Ver todos" abre la
+ * bandeja completa en un popup (registro oficial de lo que el centro te
+ * comunico).
+ */
+export function UltimosAvisos({ cantidad = 3 }: { cantidad?: number }) {
+  const bandeja = useBandeja();
+  const [todos, setTodos] = useState(false);
+  return (
+    <Panel
+      titulo="Últimos avisos"
+      accion={
+        (bandeja.data?.length ?? 0) > cantidad ? (
+          <button
+            type="button"
+            onClick={() => setTodos(true)}
+            className="flex min-h-10 cursor-pointer items-center gap-1.5 text-[13px] font-extrabold text-accent-2-700 hover:text-accent-2-800"
+          >
+            Ver todos ({bandeja.data!.length})
+          </button>
+        ) : undefined
+      }
+    >
+      <EstadoConsulta consulta={bandeja} vacio={(d) => d.length === 0} textoVacio="No tienes avisos todavía">
+        {(lista) => (
+          <ul className="m-0 flex list-none flex-col gap-[11px] p-0">
+            {lista.slice(0, cantidad).map((m) => (
+              <FilaAviso key={m.id} m={m} />
+            ))}
+          </ul>
+        )}
+      </EstadoConsulta>
+      <Modal abierto={todos} onCerrar={() => setTodos(false)} titulo="Todos tus avisos" ancho="lg">
+        {todos && (
+          <ul className="m-0 flex list-none flex-col gap-[11px] p-0">
+            {(bandeja.data ?? []).map((m) => (
+              <FilaAviso key={m.id} m={m} />
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </Panel>
   );
 }
 

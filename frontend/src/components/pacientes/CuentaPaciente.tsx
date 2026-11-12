@@ -59,7 +59,7 @@ export function CuentaPaciente() {
           className="absolute top-full right-0 z-30 mt-2 flex w-[min(380px,calc(100vw-32px))] flex-col gap-3 rounded-lg border border-divider bg-surface p-3 shadow-lg motion-safe:animate-[aparecer_160ms_ease-out]"
         >
           <MisDatos lectura />
-          <ButtonLink href="/portal/seguridad" variant="outlinePatient" icon="edit" className="w-full">
+          <ButtonLink href="/portal/seguridad?seccion=datos" variant="outlinePatient" icon="edit" className="w-full">
             Modificar mis datos
           </ButtonLink>
           <BotonSalir grande />

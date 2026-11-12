@@ -1,5 +1,6 @@
 'use client';
 
+import { useMutation, useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -9,7 +10,11 @@ import { Aviso } from '@/components/ui/Aviso';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
+import { Field, Input } from '@/components/ui/Field';
+import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
+import { api, datos } from '@/lib/api/cliente';
+import { ApiError } from '@/lib/api/errores';
 import { useMiCuenta } from '@/lib/consultas';
 import { NIVEL_RIESGO, useBorradores, useIngresos, type BorradorVista, type EvolucionVista } from '@/lib/fichas';
 import { formatoFecha, formatoTelefono } from '@/lib/formato';
@@ -258,13 +263,74 @@ export function ConversacionesCaso({ pacienteId }: { pacienteId: string }) {
   );
 }
 
-/** Contacto de emergencia y adultos responsables: visibles para el tratante dentro de la ficha. */
+/** Punto 38: contactos que agrego el paciente (existencia y parentesco; la RLS limita al tratante). */
+export function useContactosTratante(pacienteId: string) {
+  return useQuery({
+    queryKey: ['panel', 'contactos-emergencia', pacienteId],
+    queryFn: () => datos(api.GET('/api/pacientes/{id}/contactos-emergencia', { params: { path: { id: pacienteId } } })),
+  });
+}
+
+/** Linea corta para el resumen de la ficha: "Madre, Hermano" o "sin registrar". */
+export function ResumenContactoTratante({ pacienteId }: { pacienteId: string }) {
+  const contactos = useContactosTratante(pacienteId);
+  if (!contactos.data) return null;
+  return contactos.data.length ? (
+    <strong>{contactos.data.map((c) => c.parentesco).join(', ')}</strong>
+  ) : (
+    <strong className="text-pendiente-900">sin registrar</strong>
+  );
+}
+
+/**
+ * Contacto de emergencia (punto 38): el tratante ve que existe y el
+ * parentesco. Nombre y telefono, solo en una emergencia: pide el motivo y la
+ * BD lo registra en accesos_ficha. Sin contactos, puede pedirle al paciente que
+ * agregue uno (una vez por semana). Adultos responsables y telefono del
+ * paciente siguen visibles (son de la atencion).
+ */
 export function ContactoEmergencia({ paciente }: { paciente: PacienteVista }) {
   const adultos = useAdultosResponsables(paciente.id);
+  const contactos = useContactosTratante(paciente.id);
+  const [emergencia, setEmergencia] = useState(false);
+  const pedir = useMutation({
+    mutationFn: () => datos(api.POST('/api/pacientes/{id}/contactos-emergencia/aviso', { params: { path: { id: paciente.id } } })),
+  });
+  const lista = contactos.data ?? [];
   return (
     <Panel titulo="Contacto de emergencia" nivel={2}>
       <div className="flex flex-col gap-3">
-        <p className="m-0 text-[14.5px] font-semibold whitespace-pre-line">{paciente.contactoEmergencia ?? 'Sin registrar. Pídelo en recepción.'}</p>
+        {contactos.isPending ? (
+          <span aria-hidden="true" className="esqueleto block h-6 w-40 rounded" />
+        ) : lista.length ? (
+          <>
+            <p className="m-0 text-[14.5px] font-semibold">
+              {lista.length === 1 ? 'Tiene uno: ' : `Tiene ${lista.length}: `}
+              <strong>{lista.map((c) => c.parentesco).join(', ')}</strong>
+            </p>
+            <Button variant="secondary" icon="call" onClick={() => setEmergencia(true)} className="self-start !py-2 !text-[13px]">
+              Ver datos (emergencia)
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="m-0 text-[14.5px] font-semibold text-pendiente-900">El paciente no ha agregado un contacto de emergencia.</p>
+            {pedir.isSuccess ? (
+              <p role="status" className="m-0 text-[13px] font-bold text-accent-2-800">
+                Le enviamos el aviso a su bandeja y su correo.
+              </p>
+            ) : (
+              <Button variant="secondary" icon="send" loading={pedir.isPending} onClick={() => pedir.mutate()} className="self-start !py-2 !text-[13px]">
+                Pedirle que agregue uno
+              </Button>
+            )}
+            {pedir.error && (
+              <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+                {pedir.error instanceof ApiError ? pedir.error.message : 'No pudimos enviar el aviso.'}
+              </p>
+            )}
+          </>
+        )}
         {(adultos.data ?? []).length > 0 && (
           <div className="border-t border-divider pt-3">
             <p className="m-0 mb-1.5 text-xs font-extrabold text-neutral-700">Adulto responsable</p>
@@ -283,6 +349,56 @@ export function ContactoEmergencia({ paciente }: { paciente: PacienteVista }) {
           </p>
         )}
       </div>
+      <Modal abierto={emergencia} onCerrar={() => setEmergencia(false)} titulo="Datos de contacto de emergencia">
+        {emergencia && <DatosEmergencia paciente={paciente} />}
+      </Modal>
     </Panel>
+  );
+}
+
+function DatosEmergencia({ paciente }: { paciente: PacienteVista }) {
+  const [motivo, setMotivo] = useState('');
+  const abrir = useMutation({
+    mutationFn: () =>
+      datos(api.POST('/api/pacientes/{id}/contactos-emergencia/emergencia', { params: { path: { id: paciente.id } }, body: { motivo: motivo.trim() } })),
+  });
+  if (abrir.data)
+    return (
+      <div className="flex flex-col gap-2.5">
+        {abrir.data.map((c) => (
+          <p key={c.id} className="m-0 rounded-lg border border-divider bg-bg px-4 py-3 text-[14.5px] font-semibold">
+            <strong>{c.nombre}</strong> ({c.parentesco}) ·{' '}
+            <a href={`tel:${c.telefono}`} className="font-extrabold text-accent-2-800">
+              {formatoTelefono(c.telefono)}
+            </a>
+          </p>
+        ))}
+        {paciente.contactoEmergencia && (
+          <p className="m-0 text-[13px] font-semibold text-neutral-800">Registrado antes por el centro: {paciente.contactoEmergencia}</p>
+        )}
+        <p className="m-0 text-[12.5px] font-semibold text-neutral-700">Quedó registrado que abriste estos datos y por qué.</p>
+      </div>
+    );
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (motivo.trim().length >= 5) abrir.mutate();
+      }}
+      className="flex flex-col gap-3"
+    >
+      <p className="m-0 text-[13.5px] font-semibold text-neutral-800">Solo en una emergencia. Escribe el motivo: queda registrado en los accesos a la ficha.</p>
+      <Field label="Motivo de la emergencia" required hint="Entre 5 y 200 caracteres.">
+        {(p) => <Input {...p} maxLength={200} value={motivo} onChange={(e) => setMotivo(e.target.value)} />}
+      </Field>
+      {abrir.error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {abrir.error instanceof ApiError ? abrir.error.message : 'No pudimos abrir los datos.'}
+        </p>
+      )}
+      <Button type="submit" variant="team" icon="call" disabled={motivo.trim().length < 5} loading={abrir.isPending} className="self-end">
+        Ver datos
+      </Button>
+    </form>
   );
 }

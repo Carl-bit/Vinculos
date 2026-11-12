@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { AprobarSolicitud } from '@/components/shared/AprobarSolicitud';
 import { useEquipoActivo } from '@/components/shared/EquipoActivo';
 import { Estadistica } from '@/components/shared/Estadistica';
 import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
 import { Badge, type TonoBadge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Icon } from '@/components/ui/Icon';
 import { useMiCuenta } from '@/lib/consultas';
@@ -78,26 +79,260 @@ export function InicioPanel({ rol }: { rol: Rol }) {
   const lista = [...(citas.data ?? [])].filter(agendada).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const deHoy = lista.filter((c) => c.inicio >= hoyChile().desde && c.inicio < hoyChile().hasta);
 
+  const orden = useOrdenBloques(rol);
   return (
     <EstadoConsulta consulta={reporte}>
-      {(r) => (
-        <div className="flex flex-col gap-4">
-          {admin ? <AhoraCentro deHoy={deHoy} /> : <SesionFoco lista={lista} />}
-          <LineaDia deHoy={deHoy} admin={admin} />
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))]">
-            {admin ? <IndicadoresCentro r={r} /> : <IndicadoresPropios r={r} />}
+      {(r) => {
+        // Puntos 1, 5, 6 y 8: dos columnas. Izquierda: la sesion (u "Hoy en el centro"), indicadores compactos,
+        // la linea del dia e informacion rapida. Derecha: pendientes a la altura de la sesion, y recordatorios.
+        const bloques: Record<IdBloque, { titulo: string; contenido: ReactNode }> = {
+          foco: { titulo: admin ? 'Hoy en el centro' : 'Próxima sesión', contenido: admin ? <AhoraCentro deHoy={deHoy} /> : <SesionFoco lista={lista} /> },
+          indicadores: {
+            titulo: 'Indicadores',
+            contenido: (
+              <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+                {admin ? <IndicadoresCentro r={r} /> : <IndicadoresPropios r={r} />}
+              </div>
+            ),
+          },
+          linea: { titulo: 'Sesiones de hoy', contenido: <LineaDia deHoy={deHoy} admin={admin} /> },
+          rapida: {
+            titulo: 'Información rápida',
+            contenido: <EstaSemana lista={lista.filter((c) => new Date(c.fin).getTime() > Date.now())} admin={admin} r={r} />,
+          },
+          pendientes: {
+            titulo: 'Pendientes',
+            contenido: admin ? <Pendientes items={pendientesCentro(r, rol)} /> : <PendientesPropios r={r} rol={rol} />,
+          },
+          recordatorios: { titulo: 'Mis recordatorios', contenido: <MisRecordatorios /> },
+        };
+        // Arrastrar y soltar (HTML nativo) en modo "Personalizar"; los botones quedan para teclado y pantallas tactiles.
+        // Mientras se arrastra, las tarjetas se acomodan en vivo donde quedarian (vista previa); soltar lo confirma.
+        const columna = (lado: Lado) => (
+          <div
+            className={`flex min-w-0 flex-col gap-4 ${orden.editando ? 'min-h-24 rounded-lg' : ''}`}
+            onDragOver={(e) => {
+              if (!orden.editando) return;
+              e.preventDefault();
+              orden.sobreColumna(lado);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              orden.soltar();
+            }}
+          >
+            {orden.vista[lado].map((id, i) => (
+              <div
+                key={id}
+                draggable={orden.editando}
+                onDragStart={(e) => {
+                  // Firefox solo inicia el arrastre con datos; sin dataTransfer (pruebas) se sigue igual.
+                  if (e.dataTransfer) {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', id);
+                  }
+                  orden.tomar(id);
+                }}
+                onDragOver={(e) => {
+                  if (!orden.editando) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Mitad superior: antes de esta tarjeta; mitad inferior: despues.
+                  const caja = e.currentTarget.getBoundingClientRect();
+                  orden.sobre(lado, id, e.clientY > caja.top + caja.height / 2);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  orden.soltar();
+                }}
+                onDragEnd={orden.soltarFuera}
+                role={orden.editando ? 'group' : undefined}
+                aria-label={orden.editando ? bloques[id].titulo : undefined}
+                className={
+                  orden.editando
+                    ? `flex cursor-grab flex-col gap-2 rounded-lg border-2 p-2.5 shadow-suave transition-[background-color,border-color,opacity] duration-200 active:cursor-grabbing ${
+                        orden.arrastrando === id ? 'border-dashed border-accent-2-700 bg-accent-2-100 opacity-70' : 'border-accent-2-500 bg-bg'
+                      }`
+                    : ''
+                }
+              >
+                {orden.editando && (
+                  <div className="flex w-full flex-wrap items-center gap-1.5">
+                    <Icon name="drag_indicator" size={18} className="text-accent-2-700" />
+                    <span className="mr-auto text-[12.5px] font-extrabold text-accent-2-900">{bloques[id].titulo}</span>
+                    <button
+                      type="button"
+                      aria-label={`Subir ${bloques[id].titulo}`}
+                      disabled={i === 0}
+                      onClick={() => orden.mover(lado, i, -1)}
+                      className={BOTON_ORDEN}
+                    >
+                      <Icon name="expand_less" size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Bajar ${bloques[id].titulo}`}
+                      disabled={i === orden.vista[lado].length - 1}
+                      onClick={() => orden.mover(lado, i, 1)}
+                      className={BOTON_ORDEN}
+                    >
+                      <Icon name="expand_more" size={18} />
+                    </button>
+                    <button type="button" onClick={() => orden.cambiarColumna(lado, i)} className={`${BOTON_ORDEN} !w-auto px-3 text-[12.5px] font-extrabold`}>
+                      {lado === 'izquierda' ? 'Pasar a la derecha' : 'Pasar a la izquierda'}
+                    </button>
+                  </div>
+                )}
+                {/* Al personalizar se mantiene el tamaño real de cada tarjeta: el contenido se ve atenuado e inactivo. */}
+                {orden.editando ? (
+                  <div inert className="pointer-events-none opacity-45 select-none">
+                    {bloques[id].contenido}
+                  </div>
+                ) : (
+                  bloques[id].contenido
+                )}
+              </div>
+            ))}
+            {/* Grilla de fondo: casilleros libres donde se puede soltar (al final de la columna). */}
+            {orden.editando &&
+              Array.from({ length: Math.max(1, TOTAL_BLOQUES - orden.vista[lado].length) }, (_, k) => (
+                <div
+                  key={`libre-${k}`}
+                  aria-hidden="true"
+                  className="h-28 rounded-lg border-2 border-dashed border-neutral-300 bg-[color-mix(in_oklab,var(--color-neutral-200)_40%,transparent)]"
+                />
+              ))}
           </div>
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-            <EstaSemana lista={lista.filter((c) => new Date(c.fin).getTime() > Date.now())} admin={admin} />
-            <div className="flex min-w-0 flex-col gap-4">
-              {admin ? <Pendientes items={pendientesCentro(r, rol)} /> : <PendientesPropios r={r} rol={rol} />}
-              <MisRecordatorios />
+        );
+        return (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {orden.editando && (
+                <span className="mr-auto text-[13px] font-semibold text-neutral-800">Arrastra los bloques o usa las flechas. Se guarda solo para ti.</span>
+              )}
+              {orden.editando && (
+                <Button variant="ghost" onClick={orden.restablecer} className="!py-2 !text-[13px]">
+                  Volver al orden original
+                </Button>
+              )}
+              <Button variant="secondary" icon={orden.editando ? 'check' : 'tune'} onClick={orden.alternar} className="!py-2 !text-[13px]">
+                {orden.editando ? 'Listo' : 'Personalizar'}
+              </Button>
+            </div>
+            <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+              {columna('izquierda')}
+              {columna('derecha')}
             </div>
           </div>
-        </div>
-      )}
+        );
+      }}
     </EstadoConsulta>
   );
+}
+
+type IdBloque = 'foco' | 'indicadores' | 'linea' | 'rapida' | 'pendientes' | 'recordatorios';
+type Lado = 'izquierda' | 'derecha';
+const TOTAL_BLOQUES = 6;
+const ORDEN_INICIAL: Record<Lado, IdBloque[]> = { izquierda: ['foco', 'indicadores', 'linea', 'rapida'], derecha: ['pendientes', 'recordatorios'] };
+const BOTON_ORDEN =
+  'grid size-8 cursor-pointer place-items-center rounded-full border border-divider bg-bg hover:bg-accent-2-100 disabled:cursor-not-allowed disabled:opacity-40';
+
+/**
+ * Punto 1: cada persona ordena sus bloques (subir, bajar, cambiar de columna).
+ * Preferencia de quien mira: localStorage por rol (nunca datos); si el
+ * almacen no esta disponible, vuelve al orden original.
+ */
+function useOrdenBloques(rol: Rol) {
+  const clave = `inicio:bloques:${rol}`;
+  const [columnas, setColumnas] = useState<Record<Lado, IdBloque[]>>(ORDEN_INICIAL);
+  const [editando, setEditando] = useState(false);
+  const [arrastrando, setArrastrando] = useState<IdBloque | null>(null);
+  const [previa, setPrevia] = useState<Record<Lado, IdBloque[]> | null>(null);
+  // Con tarjetas de distinto alto, reacomodar mueve todo bajo el cursor: se ignoran 150 ms de eventos tras cada cambio.
+  const ultimoCambio = useRef(0);
+  const cambiarPrevia = (nueva: Record<Lado, IdBloque[]>) => {
+    if (Date.now() - ultimoCambio.current < 150) return;
+    ultimoCambio.current = Date.now();
+    setPrevia(nueva);
+  };
+  useEffect(() => {
+    try {
+      const guardado = JSON.parse(localStorage.getItem(clave) ?? 'null') as Record<Lado, IdBloque[]> | null;
+      const todos = [...ORDEN_INICIAL.izquierda, ...ORDEN_INICIAL.derecha].sort().join();
+      if (guardado && [...guardado.izquierda, ...guardado.derecha].sort().join() === todos) setColumnas(guardado);
+    } catch {
+      // Sin almacen: orden original.
+    }
+  }, [clave]);
+  const guardar = (c: Record<Lado, IdBloque[]>) => {
+    setColumnas(c);
+    try {
+      localStorage.setItem(clave, JSON.stringify(c));
+    } catch {
+      // Igual funciona sin recordarlo.
+    }
+  };
+  return {
+    columnas,
+    editando,
+    alternar: () => setEditando((e) => !e),
+    restablecer: () => {
+      guardar(ORDEN_INICIAL);
+      try {
+        localStorage.removeItem(clave);
+      } catch {
+        // nada
+      }
+    },
+    mover: (lado: Lado, i: number, paso: -1 | 1) => {
+      const l = [...columnas[lado]];
+      [l[i], l[i + paso]] = [l[i + paso]!, l[i]!];
+      guardar({ ...columnas, [lado]: l });
+    },
+    arrastrando,
+    /** Lo que se ve: la vista previa mientras se arrastra, si no el orden guardado. */
+    vista: previa ?? columnas,
+    tomar: (id: IdBloque) => {
+      ultimoCambio.current = 0;
+      setArrastrando(id);
+      setPrevia(columnas);
+    },
+    /** Soltar fuera (o Esc): vuelve al orden guardado. */
+    soltarFuera: () => {
+      setArrastrando(null);
+      setPrevia(null);
+    },
+    /** Sobre la tarjeta `objetivo`: el arrastrado pasa antes (o despues) de ella en la vista previa. */
+    sobre: (lado: Lado, objetivo: IdBloque, despues: boolean) => {
+      if (!arrastrando || objetivo === arrastrando) return;
+      const actual = previa ?? columnas;
+      const sin = { izquierda: actual.izquierda.filter((x) => x !== arrastrando), derecha: actual.derecha.filter((x) => x !== arrastrando) };
+      const destino = [...sin[lado]];
+      destino.splice(destino.indexOf(objetivo) + (despues ? 1 : 0), 0, arrastrando);
+      const nueva = { ...sin, [lado]: destino };
+      if (JSON.stringify(nueva) !== JSON.stringify(actual)) cambiarPrevia(nueva);
+    },
+    /** Sobre el espacio libre de una columna: al final de esa columna (si no estaba ya ahi). */
+    sobreColumna: (lado: Lado) => {
+      const actual = previa ?? columnas;
+      if (!arrastrando || actual[lado].includes(arrastrando)) return;
+      const otro: Lado = lado === 'izquierda' ? 'derecha' : 'izquierda';
+      const nueva = { [otro]: actual[otro].filter((x) => x !== arrastrando), [lado]: [...actual[lado], arrastrando] } as Record<Lado, IdBloque[]>;
+      cambiarPrevia(nueva);
+    },
+    /** Soltar: la vista previa queda como orden guardado. */
+    soltar: () => {
+      if (arrastrando && previa) guardar(previa);
+      setArrastrando(null);
+      setPrevia(null);
+    },
+    cambiarColumna: (lado: Lado, i: number) => {
+      const otro: Lado = lado === 'izquierda' ? 'derecha' : 'izquierda';
+      const id = columnas[lado][i]!;
+      guardar({ ...columnas, [lado]: columnas[lado].filter((x) => x !== id), [otro]: [...columnas[otro], id] });
+    },
+  };
 }
 
 /** Nombres que usa el inicio: pacientes que el rol ve, boxes y equipo. */
@@ -299,17 +534,11 @@ function IndicadoresCentro({ r }: { r: ReporteDashboard }) {
       />
       <Estadistica
         compacta
-        etiqueta="Uso de boxes hoy"
-        valor={`${r.ocupacion_boxes_hoy ?? 0}%`}
+        // Punto 23: horas libres (sin apartar) en vez de un porcentaje.
+        etiqueta="Horas libres en boxes hoy"
+        valor={`${(r.horas_libres_boxes_hoy ?? 0).toLocaleString('es-CL')} h`}
         nota={`${r.boxes_activos ?? 0} ${r.boxes_activos === 1 ? 'box activo' : 'boxes activos'}`}
         href="/admin/agenda?vista=espacios"
-      />
-      <Estadistica
-        compacta
-        etiqueta="Fichas por cerrar"
-        valor={r.fichas_por_cerrar ?? 0}
-        nota={r.fichas_por_cerrar ? 'Sesiones de 7 días sin evolución' : 'Al día'}
-        notaTono={r.fichas_por_cerrar ? 'atencion' : 'positiva'}
       />
     </>
   );
@@ -343,8 +572,10 @@ function IndicadoresPropios({ r }: { r: ReporteDashboard }) {
 }
 
 /** 4a. Proximas sesiones de la semana con su estado. */
-function EstaSemana({ lista, admin }: { lista: CitaVista[]; admin: boolean }) {
+function EstaSemana({ lista, admin, r }: { lista: CitaVista[]; admin: boolean; r: ReporteDashboard }) {
   const n = useNombres();
+  // De a 3 (conciso); las flechas recorren las siguientes sin alargar el bloque.
+  const [desde, setDesde] = useState(0);
   // MVP sin cobros: el profesional aprueba aqui las horas que pidieron sus pacientes (primero, con sus botones).
   const porAprobar = admin ? [] : lista.filter((c) => c.estado === 'SOLICITADA');
   const resto = admin ? lista : lista.filter((c) => c.estado !== 'SOLICITADA');
@@ -352,12 +583,31 @@ function EstaSemana({ lista, admin }: { lista: CitaVista[]; admin: boolean }) {
     <section aria-labelledby="esta-semana" className="min-w-0 rounded-lg border border-divider bg-bg px-5 pt-4 pb-5 shadow-suave">
       <div className="mb-2 flex items-baseline justify-between gap-4">
         <h2 id="esta-semana" className="m-0 text-[17px] font-black tracking-[-0.02em]">
-          Esta semana
+          Información rápida
         </h2>
         <Link href="/admin/agenda" className="text-[12.5px] font-extrabold">
-          Ver agenda
+          Ver agenda completa
         </Link>
       </div>
+      <ul className="m-0 mb-3 flex list-none flex-wrap gap-1.5 p-0">
+        {[
+          { n: r.sesiones_hoy, texto: 'hoy', href: '/admin/agenda?vista=calendario' },
+          { n: lista.length, texto: 'en 7 días', href: '/admin/agenda' },
+          { n: r.pendientes?.por_reprogramar ?? 0, texto: 'por reprogramar', href: '/admin/agenda?vista=pendientes' },
+          { n: r.mensajes_sin_leer ?? 0, texto: 'mensajes sin leer', href: '/admin/mensajes?vista=pacientes' },
+        ]
+          .filter((d) => d.n > 0)
+          .map((d) => (
+            <li key={d.texto}>
+              <Link
+                href={d.href}
+                className="inline-flex min-h-8 items-center gap-1 rounded-full bg-neutral-200 px-3 text-[12.5px] font-extrabold text-text hover:text-text"
+              >
+                <span className="tabular-nums">{d.n}</span> {d.texto}
+              </Link>
+            </li>
+          ))}
+      </ul>
       {porAprobar.length > 0 && (
         <div className="mb-3 rounded-md border border-accent-300 bg-accent-100 px-3 py-2">
           <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-accent-800 uppercase">
@@ -380,10 +630,10 @@ function EstaSemana({ lista, admin }: { lista: CitaVista[]; admin: boolean }) {
         </div>
       )}
       {resto.length === 0 ? (
-        <p className="m-0 text-[13.5px] font-semibold text-neutral-700">No hay sesiones en los próximos 7 días.</p>
+        <p className="m-0 text-[13.5px] font-semibold text-neutral-700">No hay más sesiones en los próximos 7 días.</p>
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
-          {resto.slice(0, 12).map((c) => {
+          {resto.slice(desde, desde + 3).map((c) => {
             const estado = ESTADO_SEMANA[c.estado];
             return (
               <li key={c.id} className="border-b border-divider last:border-b-0">
@@ -405,6 +655,31 @@ function EstaSemana({ lista, admin }: { lista: CitaVista[]; admin: boolean }) {
             );
           })}
         </ul>
+      )}
+      {resto.length > 3 && (
+        <div className="mt-2 flex items-center justify-end gap-1.5">
+          <span className="mr-auto text-[12px] font-bold text-neutral-700 tabular-nums">
+            {desde + 1}–{Math.min(desde + 3, resto.length)} de {resto.length}
+          </span>
+          <button
+            type="button"
+            aria-label="Sesiones anteriores"
+            disabled={desde === 0}
+            onClick={() => setDesde((d) => Math.max(0, d - 3))}
+            className={BOTON_ORDEN}
+          >
+            <Icon name="chevron_left" size={18} />
+          </button>
+          <button
+            type="button"
+            aria-label="Sesiones siguientes"
+            disabled={desde + 3 >= resto.length}
+            onClick={() => setDesde((d) => d + 3)}
+            className={BOTON_ORDEN}
+          >
+            <Icon name="chevron_right" size={18} />
+          </button>
+        </div>
       )}
     </section>
   );
@@ -478,6 +753,13 @@ function pendientesCentro(r: ReporteDashboard, rol: Rol): Pendiente[] {
       titulo: plural(p.pacientes_con_deuda, 'paciente con deuda', 'pacientes con deuda'),
       meta: 'Sesiones realizadas sin pagar: no agendan hasta regularizar',
       href: '/admin/cobros?vista=deudas',
+      tono: 'atencion',
+    },
+    (r.fichas_por_cerrar ?? 0) > 0 && {
+      icono: 'edit_note',
+      titulo: plural(r.fichas_por_cerrar!, 'ficha por cerrar', 'fichas por cerrar'),
+      meta: 'Sesiones de 7 días sin evolución: el detalle por profesional está en Seguimiento',
+      href: '/admin/fichas',
       tono: 'atencion',
     },
     p.por_reprogramar > 0 && {

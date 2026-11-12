@@ -191,6 +191,7 @@ export function PedirHoraPortal() {
         titulo={`Con ${nombre}`}
         bajada={portal.responsable ? `Elige una hora para ${portal.paciente?.nombre ?? 'tu menor'}.` : 'Elige una de sus horas libres.'}
       >
+        <RetornoPrincipal actual={nombre} />
         <div className="mb-4 flex items-center gap-3">
           <AvatarProfesional nombre={perfil?.nombre_publico ?? nombre} foto={perfil?.foto_url ?? null} size={52} />
           {perfil && <span className="text-[13.5px] font-bold text-neutral-700">{perfil.especialidad}</span>}
@@ -276,5 +277,45 @@ export function PedirHoraPortal() {
         </Aviso>
       </div>
     </div>
+  );
+}
+
+/**
+ * Punto 9: en atencion temporal, la siguiente hora pregunta si el profesional
+ * principal ya volvio. Si esta disponible, el paciente puede pedir volver (lo
+ * coordina la cuenta madre con una derivacion); si no, sigue con su
+ * profesional actual (flujo normal). Nunca se cambia solo.
+ */
+function RetornoPrincipal({ actual }: { actual: string }) {
+  const portal = usePortal();
+  const equipo = useEquipoPortal();
+  const cliente = useQueryClient();
+  const retorno = useQuery({
+    queryKey: ['portal', 'retorno', portal.pacienteParam ?? 'propio'],
+    queryFn: () => datos(api.GET('/api/portal/retorno', { params: { query: { pacienteId: portal.pacienteParam } } })),
+    enabled: !portal.cargando && !!portal.pacienteId,
+  });
+  const pedir = useMutation({
+    mutationFn: () => datos(api.POST('/api/portal/retorno', { body: { pacienteId: portal.pacienteParam } })),
+    onSuccess: () => void cliente.invalidateQueries({ queryKey: ['portal', 'retorno'] }),
+  });
+  const r = retorno.data;
+  if (!r || !r.principalDisponible) return null;
+  const principal = nombresDe(equipo.data).get(r.profesionalPrincipalId) ?? 'tu profesional principal';
+  return (
+    <Aviso tono={r.pideVolver ? 'exito' : 'info'} icono="swap_horiz" className="mb-4">
+      {r.pideVolver ? (
+        `Le avisamos al centro: coordinarán tu vuelta con ${principal}. Mientras tanto puedes seguir con ${actual}.`
+      ) : (
+        <span className="flex flex-col gap-2.5">
+          <span>
+            {principal} ya volvió a atender. ¿Quieres volver con {principal}? Si prefieres, sigues con {actual}.
+          </span>
+          <Button variant="secondary" icon="swap_horiz" loading={pedir.isPending} onClick={() => pedir.mutate()} className="self-start !py-2 !text-[13px]">
+            Quiero volver con {principal}
+          </Button>
+        </span>
+      )}
+    </Aviso>
   );
 }

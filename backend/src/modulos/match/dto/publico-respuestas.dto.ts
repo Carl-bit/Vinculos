@@ -114,6 +114,11 @@ export class PerfilPublico {
   /** 03b-4.2: registro en la Superintendencia de Salud, solo si esta verificado (sin registro: null). */
   @ApiProperty({ type: () => RegistroSisPublico, nullable: true })
   registro_sis!: RegistroSisPublico | null;
+  /** Punto 9: false si la cuenta madre indico que no atendera mas (bloqueo sin fin): sin botones para agendar. */
+  recibe_pacientes!: boolean;
+  /** Punto 9: ausente con fecha de regreso (vacaciones, licencia); sin motivo. */
+  @ApiProperty({ type: Date, nullable: true })
+  vuelve_en!: Date | null;
 }
 
 export class RegistroSisPublico {

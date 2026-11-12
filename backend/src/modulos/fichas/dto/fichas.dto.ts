@@ -52,10 +52,10 @@ export class CrearPacienteDto {
   @Length(1, 120)
   apellido!: string;
 
-  @IsOptional()
+  /** Punto 37: obligatorio. Identifica al paciente via rut_hmac (UNIQUE: un RUT repetido -> 409). */
   @NormalizarRut()
   @IsRut()
-  rut?: string;
+  rut!: string;
 
   @Type(() => Date)
   @IsDate()

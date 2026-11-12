@@ -1,5 +1,6 @@
 'use client';
 
+import { ListaPaginada } from '@/components/ui/Paginador';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
@@ -19,6 +20,7 @@ const TIPO = {
   SOLICITUD_DERECHO_POR_VENCER: 'Solicitud de datos por vencer',
   ACCESO_ANOMALO: 'Acceso inusual a fichas',
   LOGIN_FALLIDO_REPETIDO: 'Ingresos fallidos repetidos',
+  ATENCION_TEMPORAL: 'Paciente pide atención temporal',
 } as const;
 
 /**
@@ -45,34 +47,38 @@ export function AlertasEquipo({ rol }: { rol: Rol }) {
         <Panel titulo="Alertas internas" bajada="Situaciones que necesitan una decisión de la cuenta madre.">
           <div className="mt-4">
             <EstadoConsulta consulta={alertas} vacio={(l) => l.length === 0} textoVacio="Sin alertas">
-              {(l) => (
-                <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                  {l.map((a) => (
-                    <li
-                      key={a.id}
-                      className={`flex flex-wrap items-center gap-3 rounded-[14px] border px-4 py-3 ${a.atendidaEn ? 'border-divider bg-bg' : 'border-accent-500 bg-accent-100'}`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="m-0 text-[14px] font-extrabold">{TIPO[a.tipo]}</p>
-                        <p className="m-0 text-[13px] font-semibold text-neutral-800">{a.detalle}</p>
-                        <p className="m-0 text-[12px] font-semibold text-neutral-700">{formatoFechaHora(a.creadaEn)}</p>
-                      </div>
-                      {a.atendidaEn ? (
-                        <Badge tono="neutro">Atendida</Badge>
-                      ) : (
-                        <Button
-                          variant="secondary"
-                          icon="check"
-                          loading={atender.isPending && atender.variables === a.id}
-                          onClick={() => atender.mutate(a.id)}
-                          className="!py-2"
+              {(todos) => (
+                <ListaPaginada items={todos} clave="alertas-internas" etiqueta="alertas">
+                  {(l) => (
+                    <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                      {l.map((a) => (
+                        <li
+                          key={a.id}
+                          className={`flex flex-wrap items-center gap-3 rounded-[14px] border px-4 py-3 ${a.atendidaEn ? 'border-divider bg-bg' : 'border-accent-500 bg-accent-100'}`}
                         >
-                          Marcar atendida
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                          <div className="min-w-0 flex-1">
+                            <p className="m-0 text-[14px] font-extrabold">{TIPO[a.tipo]}</p>
+                            <p className="m-0 text-[13px] font-semibold text-neutral-800">{a.detalle}</p>
+                            <p className="m-0 text-[12px] font-semibold text-neutral-700">{formatoFechaHora(a.creadaEn)}</p>
+                          </div>
+                          {a.atendidaEn ? (
+                            <Badge tono="neutro">Atendida</Badge>
+                          ) : (
+                            <Button
+                              variant="secondary"
+                              icon="check"
+                              loading={atender.isPending && atender.variables === a.id}
+                              onClick={() => atender.mutate(a.id)}
+                              className="!py-2"
+                            >
+                              Marcar atendida
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </ListaPaginada>
               )}
             </EstadoConsulta>
           </div>
@@ -81,16 +87,20 @@ export function AlertasEquipo({ rol }: { rol: Rol }) {
       <Panel titulo="Bajas programadas" bajada="Desde la fecha efectiva la agenda queda bloqueada; la cuenta se cierra en los minutos siguientes.">
         <div className="mt-4">
           <EstadoConsulta consulta={bajas} vacio={(l) => l.length === 0} textoVacio="Sin bajas programadas">
-            {(l) => (
-              <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                {l.map((b) => (
-                  <li key={b.id} className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-bg px-4 py-2.5 text-[13.5px]">
-                    <span className="min-w-0 flex-1 font-extrabold">{nombre.get(b.usuarioId) ?? 'Integrante'}</span>
-                    <span className="font-semibold text-neutral-800">Efectiva el {formatoFechaHora(b.fechaEfectiva)}</span>
-                    <Badge tono={b.procesadaEn ? 'neutro' : 'atencion'}>{b.procesadaEn ? 'Procesada' : 'Programada'}</Badge>
-                  </li>
-                ))}
-              </ul>
+            {(todos) => (
+              <ListaPaginada items={todos} clave="bajas-programadas" etiqueta="bajas">
+                {(l) => (
+                  <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                    {l.map((b) => (
+                      <li key={b.id} className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-bg px-4 py-2.5 text-[13.5px]">
+                        <span className="min-w-0 flex-1 font-extrabold">{nombre.get(b.usuarioId) ?? 'Integrante'}</span>
+                        <span className="font-semibold text-neutral-800">Efectiva el {formatoFechaHora(b.fechaEfectiva)}</span>
+                        <Badge tono={b.procesadaEn ? 'neutro' : 'atencion'}>{b.procesadaEn ? 'Procesada' : 'Programada'}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </ListaPaginada>
             )}
           </EstadoConsulta>
         </div>

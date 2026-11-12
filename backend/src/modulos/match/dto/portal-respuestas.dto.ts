@@ -86,6 +86,13 @@ export class MensajePortal {
   creadoEn!: Date;
   @ApiProperty({ type: String, format: 'date-time', nullable: true, required: false })
   leidoEn?: Date | null;
+  /** Puntos 40/44: true = respuesta del tratante (destinatario: la cuenta del portal). */
+  @ApiProperty({ required: false })
+  deProfesional?: boolean;
+  @ApiProperty({ type: String, nullable: true, required: false })
+  autorId?: string | null;
+  @ApiProperty({ type: String, nullable: true, required: false })
+  destinatarioId?: string | null;
 }
 
 export class SolicitudEpicrisisPortal {
@@ -215,4 +222,38 @@ export class ReservaPortal {
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
   estado!: EstadoCita;
   profesionalId!: string;
+}
+
+/** Punto 9: respuesta del paciente a una hora afectada por la ausencia de su profesional. */
+export class RespuestaAusencia {
+  citaId!: string;
+  opcion!: 'CANCELAR' | 'ATENCION_TEMPORAL';
+}
+
+/** Punto 9: atencion temporal abierta: si el profesional principal ya esta disponible. */
+export class RetornoPortal {
+  profesionalPrincipalId!: string;
+  principalDisponible!: boolean;
+  pideVolver!: boolean;
+}
+
+/** Estado del tratante para el portal: si puede atender y si hay un reemplazo (atencion temporal). */
+export class EstadoTratantePortal {
+  tratanteId!: string;
+  disponible!: boolean;
+  @ApiProperty({ type: Date, nullable: true })
+  vuelveEn!: Date | null;
+  /** Profesional principal si lo atiende un reemplazo (null si no). */
+  @ApiProperty({ type: String, nullable: true })
+  principalId!: string | null;
+  @ApiProperty({ type: Boolean, nullable: true })
+  principalDisponible!: boolean | null;
+  /** Proximas horas con el tratante (confirmadas, por aprobar o por reprogramar). */
+  horasConTratante!: number;
+  /** Ya pidio otro profesional (la cuenta madre lo esta derivando). */
+  solicitudPendiente!: boolean;
+}
+
+export class HorasCanceladas {
+  canceladas!: number;
 }

@@ -332,3 +332,12 @@ export class ApartarBloquesDto {
   @Type(() => BloqueAtencionDto)
   bloques!: BloqueAtencionDto[];
 }
+
+/** Punto 24: varias horas por reprogramar a la vez (maximo 100). */
+export class AvisoPorReprogramarDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID('4', { each: true })
+  citas!: string[];
+}

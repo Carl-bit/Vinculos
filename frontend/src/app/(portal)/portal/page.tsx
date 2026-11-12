@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 
 import { MisHoras } from '@/components/agenda/MisHoras';
 import { MiProfesional } from '@/components/equipo/MiProfesional';
+import { ResumenContactosPortal } from '@/components/pacientes/ContactosEmergenciaPortal';
 import { MensajeProfesional } from '@/components/pacientes/MensajeProfesional';
-import { NotaFicha } from '@/components/pacientes/NotaFicha';
+import { UltimosAvisos } from '@/components/nucleo/AvisosPortal';
 import { SaludoPortal } from '@/components/shared/SaludoPortal';
 
 export const metadata: Metadata = { title: 'Mi cuenta' };
@@ -16,9 +17,10 @@ export const metadata: Metadata = { title: 'Mi cuenta' };
 export default function InicioPortal() {
   return (
     <>
-      <div className="grid items-center gap-x-[18px] [grid-template-columns:repeat(auto-fit,minmax(min(330px,100%),1fr))]">
+      <div className="grid items-start gap-x-[18px] [grid-template-columns:repeat(auto-fit,minmax(min(330px,100%),1fr))]">
         <SaludoPortal />
-        <div className="pb-[26px]">
+        {/* Misma altura que el sobretitulo "Mi cuenta" (el padding superior del encabezado), separado de la barra de secciones. */}
+        <div className="pt-[clamp(16px,3vw,32px)] pb-[26px]">
           <MiProfesional />
         </div>
       </div>
@@ -26,8 +28,11 @@ export default function InicioPortal() {
         <MisHoras />
         <div className="flex min-w-0 flex-col gap-[18px]">
           {/* Arriba a la derecha: acceso rapido a escribirle al profesional (pedido 2026-11-06). */}
+          {/* Punto 38: si tiene contacto de emergencia (sin sus datos); se ve y modifica en Seguridad. */}
+          <ResumenContactosPortal />
           <MensajeProfesional />
-          <NotaFicha />
+          {/* Punto 44: los ultimos avisos (todos en un popup) en vez de la nota de la ficha. */}
+          <UltimosAvisos />
         </div>
       </div>
     </>

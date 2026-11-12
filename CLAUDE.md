@@ -60,9 +60,6 @@ naming especificos de Kibou. Proyecto de titulo, desarrollador unico.
   primero) contra ese tenant, 4) panel maestro. El onboarding de Kibou u
   otro cliente real viene despues de validar el producto con el tenant de
   prueba, no antes.
-- Reply in-app profesional -> paciente. El paciente contacta solo via
-  formulario in-app (se reenvia a email del profesional + queda en historial
-  in-app); el profesional responde por canal externo (no se implementa reply).
 - Websockets/Redis para tiempo real: se resuelve con polling + soft-lock TTL.
 - Cobros/finanzas en el MVP (decision 2026-11-11): el modulo COBROS queda
   apagado en todos los centros y no se muestra (tablas y funciones quedan
@@ -73,6 +70,12 @@ naming especificos de Kibou. Proyecto de titulo, desarrollador unico.
   solo `minutos_retencion_solicitud`). Si no la acepta, puede
   proponer otras horas (PROPUESTA, bloqueadas hasta que el paciente elige una o
   rechaza todas y vuelve a pedir hora).
+
+Chat profesional <-> paciente (decision 2026-11-11, puntos 40/44; antes fuera
+de alcance): el tratante responde dentro de la plataforma en `mensajes_paciente`
+(dato clinico, cifrado CLINICO, append-only; respuesta con `de_profesional` y
+`destinatario_id`). Al correo solo llega el aviso, nunca el texto. La cuenta
+madre no lee contenido. Tiempo real por polling (sin websockets).
 
 ## Diseño
 Fuente de verdad visual: el proyecto de Claude Design "Vinculos Landing Page

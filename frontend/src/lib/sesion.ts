@@ -77,6 +77,18 @@ function registrarActividad(): void {
   }
 }
 
+/** Punto 17: "Seguir conectado" del aviso de inactividad cuenta como actividad (tambien en otras pestañas). */
+export function seguirConectado(): void {
+  ultimaEscritura = 0;
+  registrarActividad();
+}
+
+/** Punto 17: milisegundos hasta el cierre por inactividad (null sin sesion activa). */
+export function msHastaInactividad(ahora = Date.now()): number | null {
+  if (estado.tipo !== 'activa') return null;
+  return estado.sesion.inactividadMinutos * 60_000 - (ahora - ultimaActividad());
+}
+
 function alSalirEnOtraPestana(e: StorageEvent): void {
   if (e.key === CLAVE_SALIDA && estado.tipo === 'activa') fijar({ tipo: 'anonima' });
 }

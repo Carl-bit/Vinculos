@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Fragment, useState, type ReactNode } from 'react';
 
@@ -15,6 +15,9 @@ import { api, datos } from '@/lib/api/cliente';
 import type { components } from '@/lib/api/esquema';
 import { ApiError } from '@/lib/api/errores';
 import { useConfiguracionCentro, useDirectorioEquipo, type ConfiguracionCentro } from '@/lib/centro';
+import { useCuentasEquipo } from '@/lib/equipo';
+import { Button } from '@/components/ui/Button';
+import { useMiCuenta } from '@/lib/consultas';
 import type { Icono } from '@/lib/iconos';
 import { IVA_PORCENTAJE, RETENCION_HONORARIOS } from '@/lib/tributario';
 
@@ -156,8 +159,7 @@ export const MODULOS: { id: ConfiguracionCentro['modulosActivos'][number]; nombr
   { id: 'AGENDA', nombre: 'Agenda y Espacios', icono: 'calendar_month', nota: 'Reservas por box y disponibilidad del equipo' },
   { id: 'EQUIPO', nombre: 'Equipo', icono: 'groups', nota: 'Perfiles, especialidades y roles del centro' },
   { id: 'MATCH', nombre: 'Match Terapéutico', icono: 'join', nota: 'Cuestionario público que recomienda profesionales' },
-  // MVP (2026-11-11): Cobros fuera para todos los centros; no se muestra (vuelve con la implementacion futura).
-  { id: 'WHATSAPP', nombre: 'Avisos por WhatsApp', icono: 'chat', nota: 'Los pacientes pueden aceptar avisos de sus horas por WhatsApp' },
+  // MVP (2026-11-11): Cobros y avisos por WhatsApp fuera para todos los centros; no se muestran (vuelven con la implementacion futura).
 ];
 
 /** 03b-4.2 (C-10): comision de las sesiones de pacientes que llegaron por el centro. */
@@ -490,7 +492,7 @@ function Modulos({ c }: { c: ConfiguracionCentro }) {
     <Panel
       titulo="Módulos contratados"
       bajada="Los activa Vinculos según lo contratado. Para sumar uno, escríbenos: la activación no es automática."
-      accion={<Badge>{`${c.modulosActivos.length} de ${MODULOS.length} activos`}</Badge>}
+      accion={<Badge>{`${MODULOS.filter((m) => c.modulosActivos.includes(m.id)).length} de ${MODULOS.length} activos`}</Badge>}
       nivel={3}
     >
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
@@ -523,8 +525,8 @@ function Modulos({ c }: { c: ConfiguracionCentro }) {
 }
 
 const JERARQUIA: { rol: 'ADMIN' | 'GESTION' | 'PROFESIONAL' | 'PRACTICANTE'; nombre: string; texto: string }[] = [
-  { rol: 'ADMIN', nombre: 'Cuenta madre', texto: 'Configuración, cobros, equipo y la vista administrativa de fichas.' },
-  { rol: 'GESTION', nombre: 'Gestión', texto: 'Agenda, recepción y cobros del día a día, sin Configuración.' },
+  { rol: 'ADMIN', nombre: 'Cuenta madre', texto: 'Configuración, equipo y el seguimiento del trabajo de cada profesional, sin ver pacientes.' },
+  { rol: 'GESTION', nombre: 'Gestión', texto: 'Agenda y recepción del día a día (datos administrativos de pacientes), sin Configuración.' },
   { rol: 'PROFESIONAL', nombre: 'Profesional', texto: 'Sus pacientes, su agenda y sus fichas. Otras fichas solo por derivación o acceso temporal.' },
   { rol: 'PRACTICANTE', nombre: 'Practicante', texto: 'Con fecha de término, bajo supervisión y con consentimiento del paciente.' },
 ];
@@ -532,20 +534,34 @@ const JERARQUIA: { rol: 'ADMIN' | 'GESTION' | 'PROFESIONAL' | 'PRACTICANTE'; nom
 function Roles({ c }: { c: ConfiguracionCentro }) {
   const guardar = useGuardarConfiguracion();
   const equipo = useDirectorioEquipo(true);
-  const personas = (rol: string) => equipo.data?.filter((m) => (m.roles as string[]).includes(rol)).length;
+  // Punto 35: cuantas personas tiene cada rol y, al tocarlo, sus nombres (lista simple) con asignacion rapida.
+  const conRol = (rol: string) => equipo.data?.filter((m) => (m.roles as string[]).includes(rol));
+  const [abierto, setAbierto] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-[18px]">
       <Panel titulo="Jerarquía de accesos" bajada="Ningún rol administrativo ve contenido clínico." nivel={3}>
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {JERARQUIA.map((r) => {
-            const n = personas(r.rol);
+            const lista = conRol(r.rol);
+            const n = lista?.length;
+            const visible = abierto === r.rol;
             return (
-              <li key={r.rol} className="flex flex-wrap items-center gap-3 rounded-[12px] border border-divider bg-bg px-3 py-2.5">
-                <span className="flex min-w-0 flex-[1_1_260px] flex-col">
-                  <strong className="text-[14px]">{r.nombre}</strong>
-                  <span className="text-[12px] font-semibold text-neutral-700">{r.texto}</span>
-                </span>
-                {n !== undefined && <Badge tono="neutro">{`${n} ${n === 1 ? 'persona' : 'personas'}`}</Badge>}
+              <li key={r.rol} className="rounded-[12px] border border-divider bg-bg">
+                <button
+                  type="button"
+                  aria-expanded={visible}
+                  disabled={!n}
+                  onClick={() => setAbierto(visible ? null : r.rol)}
+                  className="flex w-full cursor-pointer flex-wrap items-center gap-3 px-3 py-2.5 text-left disabled:cursor-default"
+                >
+                  <span className="flex min-w-0 flex-[1_1_260px] flex-col">
+                    <strong className="text-[14px]">{r.nombre}</strong>
+                    <span className="text-[12px] font-semibold text-neutral-700">{r.texto}</span>
+                  </span>
+                  {n !== undefined && <Badge tono="neutro">{`${n} ${n === 1 ? 'persona' : 'personas'}`}</Badge>}
+                  {!!n && <Icon name={visible ? 'expand_less' : 'expand_more'} size={18} />}
+                </button>
+                {visible && <PersonasDelRol rol={r.rol} />}
               </li>
             );
           })}
@@ -558,6 +574,7 @@ function Roles({ c }: { c: ConfiguracionCentro }) {
           Ver personas en Equipo
         </Link>
       </Panel>
+      <PerfilesRol />
       <Panel titulo="Opciones" nivel={3}>
         <div>
           <Interruptor
@@ -576,5 +593,336 @@ function Roles({ c }: { c: ConfiguracionCentro }) {
         </div>
       </Panel>
     </div>
+  );
+}
+
+const COMBINABLES = ['ADMIN', 'GESTION', 'PROFESIONAL'];
+
+/**
+ * Punto 35: quienes tienen el rol y asignacion rapida (mismas reglas que la
+ * ficha en Equipo: el rol principal no se cambia aqui; cuenta madre y gestion
+ * se agregan y quitan al instante; el profesional adicional se da de baja con
+ * fecha desde su ficha; el practicante es exclusivo; nadie se quita un rol a
+ * si mismo; el cupo de cuentas madre lo valida la BD).
+ */
+function PersonasDelRol({ rol }: { rol: 'ADMIN' | 'GESTION' | 'PROFESIONAL' | 'PRACTICANTE' }) {
+  const cliente = useQueryClient();
+  const cuentas = useCuentasEquipo(true);
+  const yo = useMiCuenta();
+  const [agregar, setAgregar] = useState('');
+  const [aviso, setAviso] = useState<{ ok?: string; error?: string }>({});
+  const listo = (ok: string) => {
+    setAviso({ ok });
+    setAgregar('');
+    void cliente.invalidateQueries({ queryKey: ['equipo', 'cuentas'] });
+    void cliente.invalidateQueries({ queryKey: ['directorio'] });
+  };
+  const fallo = (e: unknown) => setAviso({ error: e instanceof ApiError ? e.message : 'No pudimos cambiar el rol.' });
+  const otorgar = useMutation({
+    mutationFn: (id: string) =>
+      datos(api.POST('/api/usuarios/{id}/roles', { params: { path: { id } }, body: { rol: rol as 'ADMIN' | 'GESTION' | 'PROFESIONAL' } })),
+    onSuccess: () => listo('Rol agregado. Lo usa desde su próximo ingreso.'),
+    onError: fallo,
+  });
+  const quitar = useMutation({
+    mutationFn: (id: string) => datos(api.POST('/api/usuarios/{id}/roles/retiro', { params: { path: { id } }, body: { rol: rol as 'ADMIN' | 'GESTION' } })),
+    onSuccess: () => listo('Rol quitado: sus sesiones con ese rol se cerraron.'),
+    onError: fallo,
+  });
+  const activas = (cuentas.data ?? []).filter((c) => c.activo && !c.cerradaEn);
+  const con = activas.filter((c) => c.rol === rol || c.rolesAdicionales.some((r) => r.rol === rol && r.activo));
+  const candidatas = COMBINABLES.includes(rol)
+    ? activas.filter((c) => COMBINABLES.includes(c.rol) && c.rol !== rol && !c.rolesAdicionales.some((r) => r.rol === rol && r.activo))
+    : [];
+  return (
+    <div className="flex flex-col gap-2.5 border-t border-divider px-3 py-2.5">
+      <ul className="m-0 flex list-none flex-col gap-1 p-0">
+        {con.map((c) => {
+          const principal = c.rol === rol;
+          const quitable = !principal && (rol === 'ADMIN' || rol === 'GESTION') && c.id !== yo.data?.id;
+          return (
+            <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-[10px] px-2 py-1.5 hover:bg-lienzo">
+              <span className="min-w-0 flex-1 text-[13.5px] font-bold">{c.nombre ?? 'Sin nombre'}</span>
+              <Badge tono="neutro">{principal ? 'principal' : 'adicional'}</Badge>
+              {quitable && (
+                <Button
+                  variant="ghost"
+                  icon="close"
+                  loading={quitar.isPending && quitar.variables === c.id}
+                  onClick={() => quitar.mutate(c.id)}
+                  className="!min-h-8 !px-2.5 !py-1 !text-[12.5px]"
+                >
+                  Quitar
+                </Button>
+              )}
+              {!principal && rol === 'PROFESIONAL' && (
+                <Link href={`/admin/equipo?id=${c.id}`} className="text-[12.5px] font-extrabold">
+                  Dar de baja en su ficha
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {candidatas.length > 0 && (
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Agregar a alguien del equipo">
+            {(p) => (
+              <Select {...p} value={agregar} onChange={(e) => setAgregar(e.target.value)} className="!py-2 text-[13.5px]">
+                <option value="">Elige una persona</option>
+                {candidatas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre ?? 'Sin nombre'}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Button variant="team" icon="add" disabled={!agregar} loading={otorgar.isPending} onClick={() => otorgar.mutate(agregar)} className="!py-2.5">
+            Agregar
+          </Button>
+        </div>
+      )}
+      {rol === 'PRACTICANTE' && (
+        <p className="m-0 text-[12px] font-semibold text-neutral-700">El practicante es exclusivo: se crea como cuenta nueva en Equipo.</p>
+      )}
+      {aviso.error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {aviso.error}
+        </p>
+      )}
+      {aviso.ok && !aviso.error && (
+        <p role="status" className="m-0 text-[13px] font-bold text-accent-2-800">
+          {aviso.ok}
+        </p>
+      )}
+    </div>
+  );
+}
+
+type PerfilRol = components['schemas']['PerfilRolVista'];
+type ModuloRestringible = 'PAGINA_PUBLICA' | 'FICHAS' | 'AGENDA' | 'EQUIPO' | 'MATCH';
+const RESTRINGIBLES: ModuloRestringible[] = ['AGENDA', 'FICHAS', 'EQUIPO', 'MATCH', 'PAGINA_PUBLICA'];
+const BASES = [
+  { rol: 'GESTION', nombre: 'Gestión' },
+  { rol: 'PROFESIONAL', nombre: 'Profesional' },
+  { rol: 'ADMIN', nombre: 'Cuenta madre' },
+] as const;
+const nombreModulo = (m: string) => MODULOS.find((x) => x.id === m)?.nombre ?? m;
+
+/**
+ * Punto 36: perfiles sobre un rol base (p. ej. "Recepcion" sobre Gestion).
+ * Solo restringen modulos del rol base: nunca dan mas permisos (la base de
+ * datos sigue limitando al rol base). Las profesiones (psicologo,
+ * nutricionista...) son tipos de profesional, no perfiles.
+ */
+function PerfilesRol() {
+  const cliente = useQueryClient();
+  const perfiles = useQuery({ queryKey: ['configuracion', 'perfiles'], queryFn: () => datos(api.GET('/api/perfiles')) });
+  const [editando, setEditando] = useState<string | 'nuevo' | null>(null);
+  const refrescar = () => void cliente.invalidateQueries({ queryKey: ['configuracion', 'perfiles'] });
+  return (
+    <Panel
+      titulo="Perfiles"
+      bajada="Un perfil da nombre a un rol (por ejemplo «Recepción» sobre Gestión) y puede quitarle secciones. Nunca da más permisos que su rol base."
+      nivel={3}
+    >
+      <div className="mt-3 flex flex-col gap-2.5">
+        <EstadoConsulta consulta={perfiles} vacio={(l) => l.length === 0 && editando !== 'nuevo'} textoVacio="Todavía no hay perfiles">
+          {(lista) => (
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+              {lista.map((p) =>
+                editando === p.id ? (
+                  <li key={p.id}>
+                    <FormularioPerfil inicial={p} onListo={() => setEditando(null)} onGuardado={refrescar} />
+                  </li>
+                ) : (
+                  <TarjetaPerfil key={p.id} perfil={p} onEditar={() => setEditando(p.id)} onCambio={refrescar} />
+                ),
+              )}
+            </ul>
+          )}
+        </EstadoConsulta>
+        {editando === 'nuevo' ? (
+          <FormularioPerfil onListo={() => setEditando(null)} onGuardado={refrescar} />
+        ) : (
+          <Button variant="secondary" icon="add" onClick={() => setEditando('nuevo')} className="self-start !py-2.5">
+            Nuevo perfil
+          </Button>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function TarjetaPerfil({ perfil: p, onEditar, onCambio }: { perfil: PerfilRol; onEditar: () => void; onCambio: () => void }) {
+  const cuentas = useCuentasEquipo(true);
+  const [asignar, setAsignar] = useState('');
+  const [error, setError] = useState<string>();
+  const nombre = new Map((cuentas.data ?? []).map((c) => [c.id, c.nombre ?? 'Sin nombre']));
+  // Solo cuentas activas con el rol base (principal o adicional) que aun no tienen este perfil.
+  const candidatas = (cuentas.data ?? []).filter(
+    (c) => c.activo && !c.cerradaEn && !p.asignados.includes(c.id) && (c.rol === p.rolBase || c.rolesAdicionales.some((r) => r.rol === p.rolBase && r.activo)),
+  );
+  const fallo = (e: unknown) => setError(e instanceof ApiError ? e.message : 'No pudimos completar la acción.');
+  const hecho = () => {
+    setError(undefined);
+    setAsignar('');
+    onCambio();
+  };
+  const asignarM = useMutation({
+    mutationFn: () => datos(api.POST('/api/perfiles/{id}/asignaciones', { params: { path: { id: p.id } }, body: { usuarioId: asignar } })),
+    onSuccess: hecho,
+    onError: fallo,
+  });
+  const quitarM = useMutation({
+    mutationFn: (usuarioId: string) => datos(api.DELETE('/api/perfiles/{id}/asignaciones/{usuarioId}', { params: { path: { id: p.id, usuarioId } } })),
+    onSuccess: hecho,
+    onError: fallo,
+  });
+  const eliminarM = useMutation({
+    mutationFn: () => datos(api.DELETE('/api/perfiles/{id}', { params: { path: { id: p.id } } })),
+    onSuccess: hecho,
+    onError: fallo,
+  });
+  return (
+    <li className="flex flex-col gap-2.5 rounded-[12px] border border-divider bg-bg px-3.5 py-3">
+      <div className="flex flex-wrap items-start gap-2">
+        <span className="flex min-w-0 flex-1 flex-col">
+          <strong className="text-[14.5px]">{p.nombre}</strong>
+          <span className="text-[12px] font-semibold text-neutral-700">
+            Sobre {BASES.find((b) => b.rol === p.rolBase)?.nombre ?? p.rolBase}
+            {p.descripcion ? ` · ${p.descripcion}` : ''}
+          </span>
+        </span>
+        <Button variant="ghost" icon="edit" onClick={onEditar} className="!min-h-8 !px-2.5 !py-1 !text-[12.5px]">
+          Editar
+        </Button>
+        <Button
+          variant="ghost"
+          icon="delete"
+          disabled={p.asignados.length > 0}
+          title={p.asignados.length ? 'Quita el perfil a sus personas antes de eliminarlo' : undefined}
+          loading={eliminarM.isPending}
+          onClick={() => eliminarM.mutate()}
+          className="!min-h-8 !px-2.5 !py-1 !text-[12.5px]"
+        >
+          Eliminar
+        </Button>
+      </div>
+      <p className="m-0 text-[12.5px] font-semibold text-neutral-800">
+        {p.restricciones.length ? `No ve: ${p.restricciones.map(nombreModulo).join(', ')}` : 'Ve todo lo de su rol base'}
+      </p>
+      <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+        {p.asignados.map((id) => (
+          <li key={id} className="inline-flex items-center gap-1 rounded-full bg-neutral-200 py-0.5 pr-0.5 pl-2.5 text-[12.5px] font-bold">
+            {nombre.get(id) ?? 'Cuenta'}
+            <button
+              type="button"
+              aria-label={`Quitar el perfil a ${nombre.get(id) ?? 'la cuenta'}`}
+              onClick={() => quitarM.mutate(id)}
+              className="grid size-6 cursor-pointer place-items-center rounded-full hover:bg-accent-200"
+            >
+              <Icon name="close" size={14} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {candidatas.length > 0 && (
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Asignar a">
+            {(f) => (
+              <Select {...f} value={asignar} onChange={(e) => setAsignar(e.target.value)} className="!py-2 text-[13.5px]">
+                <option value="">Elige una persona</option>
+                {candidatas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre ?? 'Sin nombre'}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Button variant="team" icon="add" disabled={!asignar} loading={asignarM.isPending} onClick={() => asignarM.mutate()} className="!py-2.5">
+            Asignar
+          </Button>
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {error}
+        </p>
+      )}
+    </li>
+  );
+}
+
+function FormularioPerfil({ inicial, onListo, onGuardado }: { inicial?: PerfilRol; onListo: () => void; onGuardado: () => void }) {
+  const [nombre, setNombre] = useState(inicial?.nombre ?? '');
+  const [descripcion, setDescripcion] = useState(inicial?.descripcion ?? '');
+  const [rolBase, setRolBase] = useState<(typeof BASES)[number]['rol']>((inicial?.rolBase as (typeof BASES)[number]['rol']) ?? 'GESTION');
+  const [restricciones, setRestricciones] = useState<ModuloRestringible[]>((inicial?.restricciones as ModuloRestringible[]) ?? []);
+  const guardar = useMutation({
+    mutationFn: () => {
+      const body = { nombre: nombre.trim(), descripcion: descripcion.trim() || undefined, rolBase, restricciones };
+      return datos(inicial ? api.PATCH('/api/perfiles/{id}', { params: { path: { id: inicial.id } }, body }) : api.POST('/api/perfiles', { body }));
+    },
+    onSuccess: () => {
+      onGuardado();
+      onListo();
+    },
+  });
+  const alternar = (m: ModuloRestringible) => setRestricciones((r) => (r.includes(m) ? r.filter((x) => x !== m) : [...r, m]));
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (nombre.trim()) guardar.mutate();
+      }}
+      className="flex flex-col gap-3 rounded-[12px] border border-accent-2-500 bg-accent-2-100 p-4"
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Nombre" required>
+          {(f) => <Input {...f} maxLength={60} placeholder="Recepción" value={nombre} onChange={(e) => setNombre(e.target.value)} />}
+        </Field>
+        <Field label="Rol base" hint="El perfil tiene, como máximo, lo que permite este rol.">
+          {(f) => (
+            <Select {...f} value={rolBase} disabled={!!inicial?.asignados.length} onChange={(e) => setRolBase(e.target.value as (typeof BASES)[number]['rol'])}>
+              {BASES.map((b) => (
+                <option key={b.rol} value={b.rol}>
+                  {b.nombre}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      </div>
+      <Field label="Descripción (opcional)">
+        {(f) => <Input {...f} maxLength={300} value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />}
+      </Field>
+      <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+        <legend className="mb-1 text-[12px] font-extrabold text-neutral-800">Secciones que este perfil no ve</legend>
+        <div className="flex flex-wrap gap-2">
+          {RESTRINGIBLES.map((m) => (
+            <label key={m} className="flex cursor-pointer items-center gap-1.5 rounded-full border border-divider bg-bg px-3 py-1.5 text-[13px] font-bold">
+              <input type="checkbox" checked={restricciones.includes(m)} onChange={() => alternar(m)} className="size-4 accent-accent-2-600" />
+              {nombreModulo(m)}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {guardar.error && (
+        <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+          {guardar.error instanceof ApiError ? guardar.error.message : 'No pudimos guardar el perfil.'}
+        </p>
+      )}
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={onListo}>
+          Cancelar
+        </Button>
+        <Button type="submit" variant="team" disabled={!nombre.trim()} loading={guardar.isPending}>
+          {inicial ? 'Guardar cambios' : 'Crear perfil'}
+        </Button>
+      </div>
+    </form>
   );
 }

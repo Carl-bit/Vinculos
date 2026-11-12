@@ -32,6 +32,8 @@ const NOMBRES: Record<string, string> = {
   SOLICITUD_HORA: 'Solicitud de hora',
   CAMBIO_HORA_PROPUESTO: 'Horas propuestas por el profesional',
   PROPUESTA_ACEPTADA: 'Hora propuesta aceptada',
+  CONTACTO_EMERGENCIA_PENDIENTE: 'Pedir contacto de emergencia',
+  CITA_AUSENCIA_PROFESIONAL: 'Profesional ausente (hora por reprogramar)',
   CIERRE_REQUERIDO: 'Cierre requerido',
   POSIBLE_DUPLICADO: 'Posible duplicado',
   INSTRUCCIONES_TRANSFERENCIA: 'Instrucciones de transferencia',

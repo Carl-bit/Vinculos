@@ -18,7 +18,8 @@ export class CentroService {
   ) {}
 
   async modulos() {
-    return { activos: await this.modulosGuard.activos() };
+    const u = this.bd.usuario();
+    return { activos: await this.modulosGuard.activos(), restringidos: await this.modulosGuard.restringidos(u.id, u.rol) };
   }
 
   contenido() {

@@ -246,3 +246,8 @@ export class CierreRequerido {
   citaId!: string;
   avisado!: boolean;
 }
+
+export class AvisoPorReprogramar {
+  /** Cuantas horas se avisaron (las que siguen por reprogramar, futuras y con paciente). */
+  avisadas!: number;
+}

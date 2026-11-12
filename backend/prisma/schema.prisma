@@ -283,7 +283,6 @@ model Usuario {
   alertasAtendidas           AlertaInterna[]
   notificacionesRecibidas    Notificacion[]               @relation("NotificacionDestino")
   notificacionesCreadas      Notificacion[]               @relation("NotificacionCreadaPor")
-  mensajesRecibidos          MensajePaciente[]
   epicrisisResueltas         SolicitudEpicrisis[]
   tiposAtencionRevisados     ProfesionalTipoAtencion[]    @relation("TipoAtencionRevisadoPor")
   documentosEmitidos         DocumentoClinico[]
@@ -328,6 +327,12 @@ model Usuario {
   hilosParticipa             ParticipanteHilo[]
   mensajesInternos           MensajeInterno[]
   lecturasHilo               LecturaHilo[]
+
+  mensajesRecibidos             MensajePaciente[]
+  atencionesTemporalesPrincipal AtencionTemporal[] @relation("AtencionTemporalPrincipal")
+  respuestasRecibidas           MensajePaciente[]  @relation("MensajeDestinatario")
+
+  perfiles UsuarioPerfil[]
 
   @@map("usuarios")
 }
@@ -484,6 +489,7 @@ enum TipoAlerta {
   ACCESO_ANOMALO
   /// AUD-01 (E2.4): ingresos fallidos repetidos con un mismo identificador.
   LOGIN_FALLIDO_REPETIDO
+  ATENCION_TEMPORAL
 
   @@map("tipo_alerta")
 }
@@ -528,6 +534,9 @@ enum TipoNotificacion {
   CAMBIO_HORA_PROPUESTO
   /// Pendiente del punto 7: el paciente eligio una hora propuesta (aviso al profesional).
   PROPUESTA_ACEPTADA
+  CONTACTO_EMERGENCIA_PENDIENTE
+  CITA_AUSENCIA_PROFESIONAL
+  MENSAJE_PROFESIONAL
 
   @@map("tipo_notificacion")
 }
@@ -639,22 +648,27 @@ model PreferenciaNotificacion {
 /// Contenido cifrado (CLINICO): id generado por la API (AAD). Lo leen el
 /// paciente y el destinatario; marcar leido solo via marcar_mensaje_leido().
 model MensajePaciente {
-  id            String    @id @db.Uuid
-  pacienteId    String    @map("paciente_id") @db.Uuid
-  profesionalId String    @map("profesional_id") @db.Uuid
+  id             String    @id @db.Uuid
+  pacienteId     String    @map("paciente_id") @db.Uuid
+  profesionalId  String    @map("profesional_id") @db.Uuid
   /// cifrado (CLINICO)
-  contenido     Bytes
-  creadoEn      DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  leidoEn       DateTime? @map("leido_en") @db.Timestamptz(6)
+  contenido      Bytes
+  creadoEn       DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  leidoEn        DateTime? @map("leido_en") @db.Timestamptz(6)
   /// 03a (D-4): cuenta que escribio (nulo = el propio paciente, antes de 03a).
-  autorId       String?   @map("autor_id") @db.Uuid
+  autorId        String?   @map("autor_id") @db.Uuid
+  /// Puntos 40/44: respuesta del tratante (destinatario = cuenta del portal a la que responde).
+  deProfesional  Boolean   @default(false) @map("de_profesional")
+  destinatarioId String?   @map("destinatario_id") @db.Uuid
 
-  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
-  profesional Usuario  @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
-  autor       Usuario? @relation("MensajeAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  paciente     Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profesional  Usuario  @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+  autor        Usuario? @relation("MensajeAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  destinatario Usuario? @relation("MensajeDestinatario", fields: [destinatarioId], references: [id], onDelete: Restrict)
 
   @@index([profesionalId, creadoEn])
   @@index([pacienteId, creadoEn])
+  @@index([destinatarioId])
   @@map("mensajes_paciente")
 }
 
@@ -755,6 +769,8 @@ model Paciente {
   usuario              Usuario?                 @relation("UsuarioPaciente")
   tipoAtencion         TipoAtencion?            @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
   adultosResponsables  AdultoResponsable[]
+  contactosEmergencia  ContactoEmergencia[]
+  atencionesTemporales AtencionTemporal[]
   consentimientos      Consentimiento[]
   fichaClinica         FichaClinica?
   citas                Cita[]
@@ -777,6 +793,75 @@ model Paciente {
 
   @@index([profesionalId])
   @@map("pacientes")
+}
+
+/// Punto 38 (2026-11-11). Categoria A+C. Los agrega el paciente (o su adulto
+/// responsable). El tratante ve existencia y parentesco; nombre y telefono solo
+/// via datos_contactos_emergencia() (emergencia, auditado). app_user no tiene
+/// SELECT de nombre ni telefono. id lo da la API (AAD).
+/// Punto 9 (2026-11-11). Categoria A. Atencion temporal con otro profesional
+/// mientras el principal no atiende. Escritura solo via funciones (responder_ausencia,
+/// pedir_volver_con_principal, mantener_atencion_temporal; cierre VOLVIO por trigger).
+model AtencionTemporal {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId             String    @map("paciente_id") @db.Uuid
+  profesionalPrincipalId String    @map("profesional_principal_id") @db.Uuid
+  solicitadaEn           DateTime  @default(now()) @map("solicitada_en") @db.Timestamptz(6)
+  pideVolverEn           DateTime? @map("pide_volver_en") @db.Timestamptz(6)
+  cerradaEn              DateTime? @map("cerrada_en") @db.Timestamptz(6)
+  cierre                 String?
+
+  paciente             Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profesionalPrincipal Usuario  @relation("AtencionTemporalPrincipal", fields: [profesionalPrincipalId], references: [id], onDelete: Restrict)
+
+  @@map("atenciones_temporales")
+}
+
+/// Punto 36 (2026-11-11). Categoria B. Perfil sobre un rol base (ADMIN, GESTION o
+/// PROFESIONAL) que solo restringe modulos; la RLS sigue por rol base. ADMIN lo escribe.
+model PerfilRol {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre        String         @unique
+  descripcion   String?
+  rolBase       Rol            @map("rol_base")
+  restricciones ModuloCentro[] @default([])
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  asignaciones UsuarioPerfil[]
+
+  @@map("perfiles_rol")
+}
+
+/// Punto 36. Categoria A. Perfil asignado (uno por rol base, solo a quien tiene ese rol).
+model UsuarioPerfil {
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  perfilId   String   @map("perfil_id") @db.Uuid
+  asignadoEn DateTime @default(now()) @map("asignado_en") @db.Timestamptz(6)
+
+  usuario Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  perfil  PerfilRol @relation(fields: [perfilId], references: [id], onDelete: Restrict)
+
+  @@id([usuarioId, perfilId])
+  @@index([perfilId])
+  @@map("usuario_perfiles")
+}
+
+model ContactoEmergencia {
+  id         String   @id @db.Uuid
+  pacienteId String   @map("paciente_id") @db.Uuid
+  /// cifrado (IDENTIFICACION)
+  nombre     Bytes
+  parentesco String
+  /// cifrado (IDENTIFICACION)
+  telefono   Bytes
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+
+  @@index([pacienteId])
+  @@map("contactos_emergencia")
 }
 
 model AdultoResponsable {

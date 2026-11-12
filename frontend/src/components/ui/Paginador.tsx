@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { Icon } from './Icon';
 
@@ -147,5 +147,29 @@ export function Paginador({
         </li>
       </ul>
     </nav>
+  );
+}
+
+/**
+ * Punto 45: envoltorio para paginar una lista dentro de un render prop (donde
+ * no se puede llamar al hook): `children` recibe solo la pagina visible.
+ */
+export function ListaPaginada<T>({
+  items,
+  clave,
+  etiqueta,
+  children,
+}: {
+  items: readonly T[];
+  clave: string;
+  etiqueta: string;
+  children: (pagina: T[]) => ReactNode;
+}) {
+  const paginas = usePaginacion(items, clave);
+  return (
+    <div className="flex flex-col gap-3">
+      {children(paginas.visibles)}
+      <Paginador {...paginas} etiqueta={etiqueta} />
+    </div>
   );
 }

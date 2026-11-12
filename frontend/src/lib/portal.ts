@@ -33,6 +33,7 @@ export const clavesPortal = {
   citas: (pacienteId?: string, todas?: boolean) => ['portal', 'citas', pacienteId ?? 'propio', todas ? 'todas' : 'proximas'] as const,
   misDatos: (pacienteId?: string) => ['portal', 'mis-datos', pacienteId ?? 'propio'] as const,
   preferencias: (pacienteId?: string) => ['portal', 'preferencias', pacienteId ?? 'propio'] as const,
+  contactos: (pacienteId?: string) => ['portal', 'contactos-emergencia', pacienteId ?? 'propio'] as const,
 };
 
 export function usePacientesPortal() {
@@ -75,8 +76,19 @@ export function useMisDatos(pacienteId: string | undefined, habilitado = true) {
   });
 }
 
+/** Punto 38: contactos de emergencia del paciente (los ve y los administra el portal). */
+export type ContactoEmergencia = components['schemas']['ContactoEmergenciaVista'];
+export function useContactosEmergencia(pacienteId: string | undefined, habilitado = true) {
+  return useQuery({
+    queryKey: clavesPortal.contactos(pacienteId),
+    queryFn: () => datos(api.GET('/api/portal/contactos-emergencia', { params: { query: { pacienteId } } })),
+    enabled: habilitado,
+  });
+}
+
 export function useMensajesPortal() {
-  return useQuery({ queryKey: ['portal', 'mensajes'], queryFn: () => datos(api.GET('/api/mensajes')) });
+  // Puntos 40/44: chat con el profesional; polling (sin websockets, CLAUDE.md).
+  return useQuery({ queryKey: ['portal', 'mensajes'], queryFn: () => datos(api.GET('/api/mensajes')), refetchInterval: 30_000 });
 }
 
 export function useResenasPortal() {

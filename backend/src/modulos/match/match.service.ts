@@ -46,12 +46,21 @@ export class MatchService {
 
   /** Perfiles publicos (solo PROFESIONAL; nunca practicantes, C-3). Filtros del equipo publico. */
   async perfiles(filtro: FiltroPerfilesDto = {}): Promise<PerfilPublico[]> {
-    const todos = await this.db.$queryRaw<Omit<PerfilPublico, 'registro_sis'>[]>`SELECT * FROM perfiles_publicos()`;
+    const todos = await this.db.$queryRaw<Omit<PerfilPublico, 'registro_sis' | 'recibe_pacientes' | 'vuelve_en'>[]>`SELECT * FROM perfiles_publicos()`;
     const registros = await this.db.$queryRaw<(RegistroSisPublico & { profesional_id: string })[]>`
       SELECT profesional_id, numero, estado, verificado_en FROM registros_sis_publicos()`;
     const registro = new Map(registros.map(({ profesional_id, ...r }) => [profesional_id, r]));
+    // Punto 9: si recibe pacientes (sin bloqueo indefinido) y cuando vuelve si esta ausente. Sin motivo.
+    const atencion = await this.db.$queryRaw<{ profesional_id: string; recibe: boolean; vuelve_en: Date | null }[]>`
+      SELECT profesional_id, recibe, vuelve_en FROM estado_atencion_publica()`;
+    const estado = new Map(atencion.map((a) => [a.profesional_id, a]));
     return todos
-      .map((p) => ({ ...p, registro_sis: registro.get(p.id) ?? null }))
+      .map((p) => ({
+        ...p,
+        registro_sis: registro.get(p.id) ?? null,
+        recibe_pacientes: estado.get(p.id)?.recibe ?? true,
+        vuelve_en: estado.get(p.id)?.vuelve_en ?? null,
+      }))
       .filter(
         (p) =>
           (!filtro.tipoAtencion || p.tipos_atencion.includes(filtro.tipoAtencion)) &&
@@ -136,7 +145,8 @@ export class MatchService {
     const dias = valoresDe('DIAS');
     const franjas = valoresDe('FRANJAS').map((f) => f.split('-').map(Number) as [number, number]);
     const modalidad = elegidas.find((o) => o.criterio === 'MODALIDAD')?.objetivo as ModalidadAtencion | undefined;
-    const perfiles = await this.perfiles();
+    // Punto 9: el match no recomienda a quien no esta recibiendo pacientes.
+    const perfiles = (await this.perfiles()).filter((p) => p.recibe_pacientes);
     const agenda = (await this.centro()).modulos.includes('AGENDA');
     const desde = new Date();
     const evaluados = await Promise.all(
@@ -196,7 +206,7 @@ export class MatchService {
   async match(dto: MatchDto) {
     const desde = dto.desde ?? new Date();
     const hasta = dto.hasta ?? new Date(desde.getTime() + 14 * DIA);
-    const candidatos = await this.perfiles({ tipoAtencion: dto.tipoAtencion, modalidad: dto.modalidad });
+    const candidatos = (await this.perfiles({ tipoAtencion: dto.tipoAtencion, modalidad: dto.modalidad })).filter((p) => p.recibe_pacientes);
     const resultados = await Promise.all(
       candidatos.map(async (p) => {
         const huecos = (await this.disponibilidad(p.id, desde, hasta)).filter((h) => !dto.modalidad || h.modalidad === dto.modalidad);

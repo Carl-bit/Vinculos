@@ -4,6 +4,8 @@ import { MulterModule } from '@nestjs/platform-express';
 
 import { AdjuntosService } from './adjuntos.service';
 import { CatalogosRetencionService } from './catalogos-retencion.service';
+import { ContactosEmergenciaController } from './contactos-emergencia.controller';
+import { ContactosEmergenciaService } from './contactos-emergencia.service';
 import { EvolucionesService } from './evoluciones.service';
 import { DocumentosService } from './documentos.service';
 import {
@@ -45,6 +47,7 @@ import { PacientesService } from './pacientes.service';
     SeguimientoController,
     PlantillasClinicasController,
     IngresosController,
+    ContactosEmergenciaController,
   ],
   providers: [
     PacientesService,
@@ -55,6 +58,7 @@ import { PacientesService } from './pacientes.service';
     SeguimientoService,
     PlantillasService,
     IngresosService,
+    ContactosEmergenciaService,
   ],
 })
 export class FichasModule {}

@@ -61,7 +61,7 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
       modulo: 'FICHAS',
       soloCuentaPlena: true,
     },
-    { etiqueta: 'Avisos', icono: 'notifications', href: '/portal/avisos', grupo: 'secciones', roles: PORTAL },
+    { etiqueta: 'Mensajes', icono: 'chat', href: '/portal/avisos', grupo: 'secciones', roles: PORTAL },
     { etiqueta: 'Reseñas', icono: 'rate_review', href: '/portal/resenas', grupo: 'secciones', roles: PORTAL, modulo: 'PAGINA_PUBLICA', soloCuentaPlena: true },
     { etiqueta: 'Seguridad', icono: 'lock', href: '/portal/seguridad', grupo: 'secciones', roles: PORTAL },
   ],
