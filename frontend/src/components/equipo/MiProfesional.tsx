@@ -25,7 +25,7 @@ export function MiProfesional() {
   const portal = usePortal();
   const equipo = useEquipoPortal();
   const cliente = useQueryClient();
-  const perfiles = useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 10 * 60_000 });
+  const perfiles = useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 60_000 });
   const tratanteId = portal.paciente?.profesionalId ?? undefined;
   const estado = useQuery({
     queryKey: ['portal', 'estado-tratante', portal.pacienteParam ?? 'propio'],

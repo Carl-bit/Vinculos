@@ -18,7 +18,7 @@ Estados: **Hecho**, **Parcial** (que falta), **Pendiente**, **Bloqueado**
 | 4 | Atras/adelante del navegador tras el login | Hecho | Cache-Control no-store en /admin, /portal e /ingreso; recarga al restaurar desde bfcache; la clave se borra al pedir el codigo |
 | 7 | Cambio de rol cuenta madre -> profesional | Hecho (sin probar en navegador) | Cubierto por 19 |
 | 9 | Ausencias del profesional | Hecho | Bloqueo con causa reprograma y avisa; "no atendera mas"; el paciente elige otra hora, cancelar o atencion temporal; en la siguiente asignacion se pregunta si el principal esta disponible (si lo esta se indica y se ofrece volver con una derivacion; si no, sigue con el actual) |
-| 10 | Tiempo real (bajas y pausas en calendario, portal y pagina) | Pendiente, decision | CLAUDE.md solo permite polling: decidir SSE sin Redis |
+| 10 | Tiempo real (bajas y pausas en calendario, portal y pagina) | Hecho | Polling (2026-11-12, sin SSE ni websockets): toda consulta visible se repide cada 30 s (agenda, citas, horas libres, estado del tratante y chat cada 15 s; catalogos cada 2 min); al volver a la pestaña; y cualquier accion recarga en cadena todo lo que esta en pantalla. Sitio publico: router.refresh cada 60 s. Solo con la pestaña visible |
 | 11, 12, 18, 19 | Eleccion de rol tras el login, roles como botones, siempre al dashboard | Hecho | |
 | 13 | Baja inmediata y reubicacion | Hecho | Baja "ahora" o al final del dia; reubicacion en grupo desde Derivaciones y aviso en lote en Agenda |
 | 14 | Enter envia, Shift+Enter salto de linea | Hecho | Chat del equipo y mensaje al profesional (`Textarea enterEnvia`) |
@@ -61,7 +61,7 @@ supervisor y la baja cancela las propuestas.
 4. ~~Comunicacion: 40 + 44 y 17~~ (hecho 2026-11-11).
 5. ~~Dashboard y tablas: 1 + 5 + 6 + 8, 45, 35 y 23~~ (hecho 2026-11-11; quedan listas menores del 45 y la decision del 36).
 6. ~~Match y login: 27 + 28, 2 y 4~~ (hecho 2026-11-12).
-7. **Tiempo real (10)**, una vez decidido el mecanismo.
+7. ~~Tiempo real (10)~~ (hecho 2026-11-12, polling).
 8. **Plataforma:** 3 + 31 en Vinculos Control.
 
 ## Despues de la lista (orden acordado)

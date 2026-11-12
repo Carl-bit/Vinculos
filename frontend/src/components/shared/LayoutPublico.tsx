@@ -9,6 +9,7 @@ import { AccesoCuenta } from './AccesoCuenta';
 import { Marca, NOMBRE_CENTRO } from './Marca';
 import { MarcaZona } from './MarcaZona';
 import { NavPublica } from './NavPublica';
+import { RefrescoPublico } from './RefrescoPublico';
 
 /**
  * Shell del sitio publico del centro (diseño "Landing", estilo Moderno de
@@ -40,6 +41,7 @@ export async function LayoutPublico({ children }: { children: ReactNode }) {
             <AccesoCuenta />
           </Suspense>
         </header>
+        <RefrescoPublico />
         <main id="contenido" tabIndex={-1} className="flex-1 pt-[clamp(12px,2vw,28px)] outline-none">
           {children}
         </main>

@@ -378,11 +378,16 @@ function OpcionesPregunta({ pregunta }: { pregunta: Pregunta }) {
   const limites = useLimitesCentro();
   const inicial = () => [...pregunta.opciones].sort((a, b) => a.orden - b.orden).map(aBorrador);
   const [borrador, setBorrador] = useState(inicial);
+  // Con cambios sin guardar, el sondeo (punto 10) no reemplaza el borrador.
+  const [editado, setEditado] = useState(false);
   const [error, setError] = useState<string>();
   const sucio = JSON.stringify(borrador) !== JSON.stringify(inicial());
   const guardar = useMutation({
     mutationFn: () => guardarOpciones(pregunta, borrador),
-    onSuccess: () => setError(undefined),
+    onSuccess: () => {
+      setError(undefined);
+      setEditado(false);
+    },
     onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos guardar las opciones.'),
     onSettled: () => cliente.invalidateQueries({ queryKey: ['match', 'preguntas'] }),
   });
@@ -391,15 +396,30 @@ function OpcionesPregunta({ pregunta }: { pregunta: Pregunta }) {
   const [vista, setVista] = useState(firma);
   if (vista !== firma) {
     setVista(firma);
-    setBorrador(inicial());
+    if (!editado) setBorrador(inicial());
   }
   return (
     <div className="flex flex-col gap-2.5">
-      <EditorOpciones tipo={pregunta.tipo} opciones={borrador} limites={limites} onChange={setBorrador} />
+      <EditorOpciones
+        tipo={pregunta.tipo}
+        opciones={borrador}
+        limites={limites}
+        onChange={(b) => {
+          setBorrador(b);
+          setEditado(true);
+        }}
+      />
       {sucio && (
         <div className="flex flex-wrap items-center gap-2 rounded-[14px] bg-accent-100 px-3 py-2">
           <span className="text-[13px] font-bold">Tienes cambios sin guardar en las opciones.</span>
-          <Button variant="ghost" onClick={() => setBorrador(inicial())} className="!px-3 !py-1.5 !text-[13px]">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setBorrador(inicial());
+              setEditado(false);
+            }}
+            className="!px-3 !py-1.5 !text-[13px]"
+          >
             Descartar
           </Button>
           <Button

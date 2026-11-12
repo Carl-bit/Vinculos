@@ -33,7 +33,7 @@ export function useAhora() {
 }
 
 export function useDashboard() {
-  return useQuery({ queryKey: ['panel', 'dashboard'], queryFn: () => datos(api.GET('/api/reportes/dashboard')), refetchInterval: 5 * MINUTO });
+  return useQuery({ queryKey: ['panel', 'dashboard'], queryFn: () => datos(api.GET('/api/reportes/dashboard')), refetchInterval: MINUTO });
 }
 
 /**
@@ -264,7 +264,7 @@ export function useDerivaciones(habilitado: boolean) {
 }
 
 export function usePerfilesPublicos() {
-  return useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 10 * MINUTO });
+  return useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: MINUTO });
 }
 
 export type MiembroDirectorio = components['schemas']['MiembroDirectorio'];

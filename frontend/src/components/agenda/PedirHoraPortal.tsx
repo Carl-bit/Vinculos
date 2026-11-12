@@ -34,7 +34,7 @@ export function PedirHoraPortal() {
   const portal = usePortal();
   const cliente = useQueryClient();
   const equipo = useEquipoPortal();
-  const perfiles = useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 10 * 60_000 });
+  const perfiles = useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 60_000 });
   const centro = useQuery({ queryKey: ['publico', 'centro'], queryFn: () => datos(api.GET('/api/publico/centro')), staleTime: 10 * 60_000 });
   const politica = useQuery({
     queryKey: clavePolitica('POLITICA_DATOS'),

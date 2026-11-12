@@ -179,7 +179,7 @@ export function usePendientesFichas(profesionalId?: string, habilitado = true) {
     queryKey: ['panel', 'pendientes-fichas', profesionalId ?? 'todos'],
     queryFn: () => datos(api.GET('/api/pendientes-fichas', { params: { query: profesionalId ? { profesionalId } : {} } })),
     enabled: habilitado,
-    refetchInterval: 2 * MINUTO,
+    refetchInterval: MINUTO,
   });
 }
 

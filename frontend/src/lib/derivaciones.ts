@@ -93,7 +93,7 @@ export function useOfertasDerivacion(habilitado: boolean) {
     // AUD-02: solo las ofertas, la pagina mas reciente (100); una oferta vieja ya vencio.
     queryFn: () => datos(api.GET('/api/notificaciones', { params: { query: { tipo: 'DERIVACION_OFRECIDA', limite: 100 } } })),
     enabled: habilitado,
-    refetchInterval: 2 * 60_000,
+    refetchInterval: 60_000,
   });
   const ids = [...new Set((avisos.data?.items ?? []).map((n) => n.referenciaId))];
   const ofertas = useQueries({
