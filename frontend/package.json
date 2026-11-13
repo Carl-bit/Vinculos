@@ -22,7 +22,8 @@
     "openapi-fetch": "^0.13.8",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "vinculos": "file:.."
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
