@@ -44,6 +44,15 @@ export const MENSAJE_POR_SQLSTATE: Record<string, string> = {
 /** Mensajes claros para las reglas que la UI necesita distinguir. */
 export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   citas_no_solapamiento_espacio: 'El box ya esta ocupado en ese horario',
+  trayectoria_verificar_con_respaldo: 'Para verificar el titulo, el profesional debe subir su respaldo (PDF o imagen)',
+  trayectoria_respaldos_archivo: 'El respaldo debe ser PDF, PNG o JPEG',
+  // 2026-11-08: equipo v1 (docs/front/equipo_validacion.md).
+  trayectoria_observacion: 'La observacion debe tener entre 3 y 500 caracteres',
+  practicante_documentos_archivo: 'El documento debe ser PDF, PNG o JPEG',
+  correcciones_perfil_valores: 'Elige campos validos del perfil y un motivo de 3 a 500 caracteres',
+  correccion_requiere_segunda_solicitud: 'La cuenta madre corrige un campo solo a la segunda solicitud sin cambios del profesional',
+  correccion_campo_editable: 'Ese campo lo corrige el profesional (la foto no la cambia la cuenta madre)',
+  correccion_valor: 'El valor no es valido para ese campo',
   citas_no_solapamiento_profesional: 'El profesional ya tiene una cita en ese horario',
   citas_margen_traslado: 'No se respeta el margen de traslado entre citas de distinta modalidad',
   citas_dentro_de_disponibilidad: 'La cita cae fuera de las horas de box que el profesional tiene apartadas',
@@ -57,6 +66,7 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   usuarios_ultimo_admin: 'No se puede dejar al centro sin un ADMIN activo',
   usuarios_admin_no_se_desactiva: 'Un ADMIN no se desactiva a si mismo',
   usuarios_gestion_requiere_habilitacion: 'El rol GESTION no esta habilitado en el centro',
+  usuarios_gestion_habilitado: 'El rol GESTION no esta habilitado en el centro',
   usuarios_email_key: 'Ya existe un usuario con ese email',
   profesionales_publicar_requiere_tarifa: 'Publicar el perfil exige una tarifa general vigente',
   evoluciones_tipo_sesion_aprobado: 'El tipo de sesion no esta aprobado o esta inactivo',
@@ -93,7 +103,26 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   configuracion_centro_recordatorio_antes_de_cancelacion:
     'El recordatorio debe salir antes del plazo de aviso de cancelacion: recordatorioHorasAntes mayor que plazoAvisoCancelacionHoras (o 0 para desactivarlo)',
   // 03a
-  roles_adicionales_combinacion: 'Combinacion de roles invalida: solo ADMIN o GESTION suman PROFESIONAL',
+  roles_adicionales_combinacion: 'Combinacion de roles invalida: solo una cuenta del equipo (cuenta madre, gestion o profesional) suma otro de esos roles',
+  roles_adicionales_retiro: 'El rol profesional se da de baja con fecha: su agenda y sus citas pasan a reprogramar',
+  roles_adicionales_retiro_propio: 'No puedes quitarte un rol a ti mismo: lo hace otra cuenta madre',
+  atenciones_temporales_principal_disponible: 'Tu profesional principal todavía no está disponible',
+  match_preguntas_sistema: 'Las preguntas del sistema no se eliminan: apágala para que no se muestre',
+  match_opciones_ultima: 'La pregunta quedaría sin opciones: agrega otra o elimina la pregunta',
+  perfiles_rol_nombre_key: 'Ya existe un perfil con ese nombre',
+  perfiles_rol_con_asignados: 'El perfil tiene personas asignadas: quítaselo antes de eliminarlo',
+  usuario_perfiles_rol_base: 'Esa cuenta no tiene el rol base del perfil',
+  usuario_perfiles_uno_por_rol: 'Esa cuenta ya tiene un perfil para ese rol',
+  perfiles_rol_base_en_uso: 'No se cambia el rol base de un perfil con personas asignadas',
+  citas_tratante_disponible: 'Tu profesional está disponible: cancela cada hora directamente con él',
+  citas_respuesta_ausencia: 'Elige cancelar la hora o pedir atención con otro profesional',
+  contactos_emergencia_maximo: 'A lo más 5 contactos de emergencia por paciente',
+  contactos_emergencia_motivo: 'Indica el motivo de la emergencia para ver los datos del contacto',
+  contactos_emergencia_existe: 'El paciente ya tiene un contacto de emergencia',
+  contactos_emergencia_aviso_reciente: 'Ya se le pidió esta semana: puedes volver a pedirlo en 7 días',
+  bajas_supervisa_practicantes: 'Supervisa practicantes activos: asígnales otro supervisor y vuelve a programar la baja',
+  configuracion_centro_cuentas_madre_activas: 'Hay más cuentas madre activas que el nuevo máximo: quita el rol a alguna antes',
+  usuarios_maximo_cuentas_madre: 'El centro ya tiene el máximo de cuentas madre: súbelo en Configuración o quita el rol a otra cuenta',
   usuarios_paciente_edad_minima: 'La cuenta de paciente exige correo y la edad minima configurada (antes: el adulto responsable)',
   // 03a-2: plantillas clinicas, mensajeria interna y duplicados.
   registro_plantilla_valida: 'Use una plantilla publicada del tipo correcto (una correccion usa la version del registro que corrige)',
@@ -104,10 +133,13 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   usuarios_responsable_de_menor: 'La cuenta de adulto responsable es para pacientes menores de 18 y requiere correo',
   tokens_correo_sin_destinatario: 'El paciente (o su adulto responsable) no tiene correo registrado',
   aceptaciones_politica_version_vigente: 'Hay una version nueva de la politica: vuelva a leerla y aceptarla',
+  // AUD-02: una sola exportacion del centro en curso.
+  exportaciones_centro_una_en_proceso: 'Ya hay una exportación del centro en curso. Espera a que termine.',
   aceptaciones_politica_coherente: 'Aceptacion invalida (menor: adulto responsable; presencial: respaldo)',
-  citas_dentro_de_horario_centro: 'La cita cae fuera del horario de atencion del centro',
+  citas_dentro_de_horario_centro: 'La cita cae fuera del horario de atención del centro (o el centro aún no define sus días de atención en Configuración)',
   citas_dentro_de_horario_espacio: 'La cita cae fuera del horario de funcionamiento del box',
   citas_profesional_con_acceso: 'El profesional no es el tratante ni tiene acceso clinico temporal en ese horario: usar derivacion o acceso temporal',
+  revocacion_con_sesiones_por_cubrir: 'El profesional tiene sesiones por cubrir con este paciente: reasignelas o cancelelas antes de revocar',
   solicitudes_hora_limite: 'Ya hay solicitudes pendientes de verificar para este correo: revise su bandeja de entrada',
   solicitudes_hora_disponible: 'La hora ya no esta disponible: elija otra',
   solicitudes_hora_coherente: 'Solicitud invalida (hora pasada o datos incompletos)',
@@ -124,6 +156,8 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   configuracion_centro_portal_valido: 'Valores fuera de rango para el portal',
   imagenes_publicas_validas: 'Imagen invalida (JPEG, PNG o WebP de hasta 1024 px y 1 MB tras procesar)',
   contenido_publico_valido: 'Contenido publico invalido (hasta 12 servicios, color #RRGGBB)',
+  contenido_publico_colores:
+    'Color sin contraste suficiente: el principal debe leerse sobre las tarjetas crema (4.5:1) y el fondo debe ser claro (la tinta a 10:1)',
   politicas_coherente: 'El texto de la politica no puede estar vacio',
   horario_centro_valido: 'Horario invalido (dia 1-7 y minutos 0-1440, inicio antes del fin)',
   horarios_espacio_valido: 'Horario invalido (dia 1-7 y minutos 0-1440, inicio antes del fin)',
@@ -135,7 +169,8 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   bloques_atencion_profesional: 'Solo un profesional o practicante vigente aparta horas de box',
   bloques_atencion_box_activo: 'El box no existe o esta inactivo',
   bloques_atencion_dentro_de_horario_espacio: 'El bloque cae fuera del horario disponible del box',
-  bloques_atencion_dentro_de_horario_centro: 'El bloque cae fuera del horario de atencion del centro',
+  bloques_atencion_dentro_de_horario_centro:
+    'El bloque cae fuera del horario de atención del centro (o el centro aún no define sus días de atención en Configuración)',
   bloques_atencion_con_citas: 'El bloque tiene citas o reservas en curso: reprograme o cancele antes de liberarlo',
   horarios_espacio_bloques_fuera: 'El horario nuevo deja bloques apartados fuera: liberelos o muevalos primero',
   // Antes de 03b-4: reserva desde la cuenta del paciente.
@@ -144,10 +179,18 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   // 03b-3.1: confirmacion por medio de pago
   configuracion_centro_medios_pago: 'Medios de pago: al menos uno; plazo de validacion entre 1 y 168 horas; porcentaje entre 1 y 100',
   configuracion_centro_transferencia_sin_cuenta: 'Para habilitar transferencia, registre primero la cuenta bancaria del centro',
+  // AUD-01 (E1.3): la pasarela del silo es la del centro.
+  configuracion_centro_pasarela_cobro_directo: 'Con cobro directo cada profesional necesita su propia pasarela de pago: por ahora no se puede habilitar',
+  citas_pasarela_cobro_directo: 'Esta hora la cobra directamente el profesional: elija otro medio de pago',
+  pacientes_tratamiento_bloqueado: 'El tratamiento de datos de este paciente esta bloqueado por una solicitud del titular: no se pueden hacer gestiones nuevas',
+  solicitudes_derechos_cancelacion: 'Se aplica con una solicitud de cancelacion abierta de este paciente',
   citas_medio_no_habilitado: 'Ese medio de pago no esta habilitado en el centro',
   citas_transferencia_sin_cuenta: 'No hay una cuenta registrada para transferir: elija otro medio de pago',
   citas_pago_coherente: 'Una cita pendiente de pago necesita su plazo de pago',
   solicitudes_hora_tomada: 'La hora ya no esta disponible: elija otra',
+  // Punto 7 (2026-11-11): propuesta de cambio de hora.
+  citas_propuestas_cantidad: 'Propone entre 1 y 5 horas',
+  citas_propuesta_futura: 'Una de las horas propuestas ya paso: elige otra',
   transferencias_coherente: 'Transferencia invalida (comprobante PDF, PNG o JPEG; motivo de rechazo de 3 a 300 caracteres)',
   cobros_pasarela_coherente: 'Cobro en linea invalido',
   // 03b-3.3: morosidad y caja de la hora retenida
@@ -158,6 +201,13 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   pagos_caja_monto: 'El pago en caja debe cubrir lo exigido para confirmar sin superar el monto de la sesion',
   citas_liberacion_coherente: 'Liberar la hora exige un motivo (3 a 500 caracteres)',
   resoluciones_cita_justificada: 'La inasistencia justificada exige motivo',
+  preferencias_notificacion_whatsapp_modulo: 'El centro no tiene avisos por WhatsApp',
+  // Acuerdos por profesional (2026-11-05)
+  acuerdos_profesional_validos:
+    'Acuerdo no válido: en el modelo A cobra el profesional y en el B el centro; comisiones entre 0 y 100 % y montos en pesos sin decimales',
+  acuerdos_profesional_profesional: 'El acuerdo es de un profesional vigente del equipo',
+  acuerdos_profesional_periodo_liquidado: 'Esa fecha cae en un período ya liquidado: elige una fecha posterior a la última liquidación emitida',
+  acuerdos_profesional_profesional_id_vigente_desde_key: 'Ya hay una versión del acuerdo con esa fecha',
 };
 
 /**
@@ -167,6 +217,12 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
  */
 const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/fuera de la disponibilidad/, 'citas_dentro_de_disponibilidad'],
+  // 2026-11-07: trigger proteger_trayectoria (UPDATE por Prisma: el error no trae el nombre de la restriccion).
+  [/Para verificar el titulo debe tener un respaldo/, 'trayectoria_verificar_con_respaldo'],
+  [/Se corrige a la segunda solicitud/, 'correccion_requiere_segunda_solicitud'],
+  [/Ese campo no lo corrige la cuenta madre/, 'correccion_campo_editable'],
+  [/Valor invalido para el campo/, 'correccion_valor'],
+  [/Elige al menos un campo/, 'correcciones_perfil_valores'],
   // 03b
   [/Solo un profesional o practicante vigente aparta/, 'bloques_atencion_profesional'],
   [/El box no existe o esta inactivo/, 'bloques_atencion_box_activo'],
@@ -179,6 +235,11 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/Ese medio de pago no esta habilitado/, 'citas_medio_no_habilitado'],
   [/No hay una cuenta registrada para transferir/, 'citas_transferencia_sin_cuenta'],
   [/registre primero la cuenta bancaria del centro/, 'configuracion_centro_transferencia_sin_cuenta'],
+  // AUD-01
+  [/necesita su propia pasarela de pago/, 'configuracion_centro_pasarela_cobro_directo'],
+  [/la cobra directamente el profesional/, 'citas_pasarela_cobro_directo'],
+  [/esta bloqueado por una solicitud del titular/, 'pacientes_tratamiento_bloqueado'],
+  [/solicitud de cancelacion abierta/, 'solicitudes_derechos_cancelacion'],
   // 03b-3.3
   [/sesiones anteriores con pago pendiente/, 'citas_paciente_moroso'],
   [/Autorizar con deuda exige motivo/, 'excepciones_morosidad_coherente'],
@@ -187,6 +248,9 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/Liberar exige motivo/, 'citas_liberacion_coherente'],
   [/La inasistencia justificada exige motivo/, 'resoluciones_cita_justificada'],
   [/agenda bloqueada/, 'citas_fuera_de_bloqueos'],
+  [/El centro no tiene avisos por WhatsApp/, 'preferencias_notificacion_whatsapp_modulo'],
+  [/El acuerdo es de un profesional vigente/, 'acuerdos_profesional_profesional'],
+  [/Esa fecha cae en un periodo ya liquidado/, 'acuerdos_profesional_periodo_liquidado'],
   [/menor de 18 sin adulto responsable/, 'citas_menor_requiere_adulto_responsable'],
   [/menor de 18: (responde|el consentimiento lo otorga) un adulto/, 'consentimientos_menor_requiere_adulto_responsable'],
   [/con respaldo documental/, 'consentimientos_respaldo_obligatorio'],
@@ -222,9 +286,11 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/Cuenta de adulto responsable/, 'usuarios_responsable_de_menor'],
   [/no tiene correo/, 'tokens_correo_sin_destinatario'],
   [/version nueva de la politica|version aceptada no es la vigente/, 'aceptaciones_politica_version_vigente'],
+  [/exportacion del centro en curso/, 'exportaciones_centro_una_en_proceso'],
   [/fuera del horario de atencion del centro/, 'citas_dentro_de_horario_centro'],
   [/fuera del horario de funcionamiento del box/, 'citas_dentro_de_horario_espacio'],
   [/no es el tratante ni tiene acceso clinico temporal/, 'citas_profesional_con_acceso'],
+  [/sesiones por cubrir/, 'revocacion_con_sesiones_por_cubrir'],
   [/solicitudes pendientes de verificar/, 'solicitudes_hora_limite'],
   [/La hora ya no esta disponible/, 'solicitudes_hora_disponible'],
   [/La hora ya paso/, 'solicitudes_hora_coherente'],
@@ -236,6 +302,25 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/fecha de alta no puede ser futura/, 'altas_paciente_fecha'],
   [/Periodo invalido \(maximo un año\)/, 'reporte_cobros_periodo'],
   [/menor de 18: el solicitante se declara adulto responsable/, 'citas_menor_requiere_adulto_responsable'],
+  // Correcciones 2026-11-11: iniciar_baja_profesional / iniciar_baja_rol no nombran la restriccion.
+  [/Supervisa practicantes activos/, 'bajas_supervisa_practicantes'],
+  [/A lo mas 5 contactos de emergencia/, 'contactos_emergencia_maximo'],
+  [/Opcion: CANCELAR o ATENCION_TEMPORAL/, 'citas_respuesta_ausencia'],
+  [/Tu profesional esta disponible: cancela cada hora/, 'citas_tratante_disponible'],
+  [/La cuenta no tiene el rol base del perfil/, 'usuario_perfiles_rol_base'],
+  [/Las preguntas del sistema no se eliminan/, 'match_preguntas_sistema'],
+  [/La pregunta quedaria sin opciones/, 'match_opciones_ultima'],
+  [/La cuenta ya tiene un perfil para ese rol/, 'usuario_perfiles_uno_por_rol'],
+  [/No se cambia el rol base de un perfil con personas/, 'perfiles_rol_base_en_uso'],
+  [/Tu profesional principal todavia no esta disponible/, 'atenciones_temporales_principal_disponible'],
+  [/Indique el motivo de la emergencia/, 'contactos_emergencia_motivo'],
+  [/El paciente ya tiene un contacto de emergencia/, 'contactos_emergencia_existe'],
+  [/Ya se le pidio en los ultimos 7 dias/, 'contactos_emergencia_aviso_reciente'],
+  [/El centro ya tiene el maximo de cuentas madre/, 'usuarios_maximo_cuentas_madre'],
+  [/Hay mas cuentas madre activas que el nuevo maximo/, 'configuracion_centro_cuentas_madre_activas'],
+  [/El rol profesional se da de baja con fecha/, 'roles_adicionales_retiro'],
+  [/No puedes quitarte un rol a ti mismo/, 'roles_adicionales_retiro_propio'],
+  [/El rol de gestion no esta habilitado en el centro/, 'usuarios_gestion_habilitado'],
 ];
 
 function restriccionDeMensaje(mensaje: string | undefined): string | undefined {

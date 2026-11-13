@@ -6,14 +6,18 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
-import { useMiCuenta, useModulos } from '@/lib/consultas';
-import { menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
+import { terminarCambioRol } from '@/lib/cambioRol';
+import { useCentroPublico, useMiCuenta, useModulos } from '@/lib/consultas';
+import { conSelectorEquipo, menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
 import { esAdministracion, NOMBRE_ROL } from '@/lib/roles';
 import type { SesionActiva } from '@/lib/sesion';
 import { BotonSalir } from './BotonSalir';
-import { ProveedorEquipoActivo, SelectorEquipo, ViendoA } from './EquipoActivo';
+import { ProveedorEquipoActivo, SelectorEquipo } from './EquipoActivo';
 import { EstadoVista } from './EstadoVista';
+import { AvisoInactividad } from './AvisoInactividad';
+import { CargaModulo } from './CargaModulo';
 import { Marca } from './Marca';
+import { MarcaZona } from './MarcaZona';
 import { SelectorRol } from './SelectorRol';
 
 const GRUPOS = [
@@ -27,6 +31,7 @@ function Enlace({ item, activo }: { item: ItemMenu; activo: boolean }) {
     <Link
       href={item.href}
       aria-current={activo ? 'page' : undefined}
+      {...(item.pestanaNueva ? { target: '_blank', rel: 'noopener' } : {})}
       className={`group relative flex min-h-10 items-center gap-[11px] rounded-[10px] px-2.5 py-[9px] text-sm transition-[background-color,color] duration-200 ease-out ${
         activo ? 'bg-accent-2-200 font-extrabold text-accent-2-700 hover:text-accent-2-700' : 'font-semibold text-text hover:bg-accent-200 hover:text-text'
       }`}
@@ -38,6 +43,12 @@ function Enlace({ item, activo }: { item: ItemMenu; activo: boolean }) {
       />
       <Icon name={item.icono} size={19} className="transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
       <span className="flex-1">{item.etiqueta}</span>
+      {item.pestanaNueva && (
+        <>
+          <Icon name="open_in_new" size={15} className="text-neutral-700" />
+          <span className="sr-only">(se abre en una pestaña nueva)</span>
+        </>
+      )}
     </Link>
   );
 }
@@ -51,11 +62,15 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
   const nombre = cuenta.data?.nombre ?? '';
   const activo = (href: string) => (href === '/admin' ? ruta === href : ruta.startsWith(href) && href !== '/');
   // Movil: el menu se despliega con un boton y se cierra al navegar (en escritorio siempre visible).
+  const centro = useCentroPublico().data;
   const [menuAbierto, setMenuAbierto] = useState(false);
   useEffect(() => setMenuAbierto(false), [ruta]);
+  // Cambio de rol: con el token nuevo ya en la sesion, la carga la sigue CargaModulo (key con el rol).
+  useEffect(() => terminarCambioRol(), [sesion.rol]);
 
   return (
-    <ProveedorEquipoActivo key={sesion.rol}>
+    <ProveedorEquipoActivo key={sesion.rol} habilitado={esAdministracion(sesion.rol)}>
+      <MarcaZona zona="panel" principal={centro?.color_panel} fondo={centro?.color_fondo_panel} />
       <div className="min-h-screen bg-neutral-300 md:grid md:grid-cols-[246px_1fr]">
         <aside className="z-[2] flex flex-col gap-[26px] border-r border-divider bg-bg px-4 pt-[22px] pb-6 shadow-md md:sticky md:top-0 md:h-screen md:overflow-y-auto">
           <div className="flex items-center justify-between gap-3 px-2">
@@ -95,7 +110,7 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
             {modulos.error && <p className="m-0 px-2 text-xs font-semibold text-neutral-700">No pudimos cargar los módulos del centro.</p>}
 
             <div className="mt-auto flex flex-col gap-4">
-              {esAdministracion(sesion.rol) && <SelectorEquipo />}
+              {conSelectorEquipo(sesion.rol) && <SelectorEquipo />}
               <SelectorRol rol={sesion.rol} roles={sesion.roles} />
               <div className="flex items-center gap-2.5 border-t border-divider px-2.5 pt-2.5">
                 <Avatar name={nombre || NOMBRE_ROL[sesion.rol]} />
@@ -112,9 +127,14 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
             </div>
           </div>
         </aside>
-        <main key={ruta} className="entrada min-w-0 px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14">
-          {esAdministracion(sesion.rol) && <ViendoA />}
-          {rutaPermitida('admin', sesion.rol, ruta) ? children : <EstadoVista estado="sin-permiso" />}
+        <main
+          id="contenido"
+          tabIndex={-1}
+          key={`${ruta}|${sesion.rol}`}
+          className={`entrada min-w-0 outline-none px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 trama`}
+        >
+          {rutaPermitida('admin', sesion.rol, ruta) ? <CargaModulo>{children}</CargaModulo> : <EstadoVista estado="sin-permiso" />}
+          <AvisoInactividad />
         </main>
       </div>
     </ProveedorEquipoActivo>

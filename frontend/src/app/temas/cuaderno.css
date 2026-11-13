@@ -1,0 +1,318 @@
+/*
+ * Tema Cuaderno (design-reference/Segundo Silo: "Sistema de diseño · Cuaderno",
+ * "Estilo Cuaderno" e "Inicio de sesión · Cuaderno"). Se activa con
+ * <html data-tema="cuaderno"> (TEMA=cuaderno en el .env del silo).
+ *
+ * Papel con lineas cada 32 px y margen rojo, tinta azul, oliva para el
+ * paciente, grafito en bordes y sombras desplazadas, Caveat en titulos y
+ * Nunito de lectura, esquinas casi rectas. Va fuera de @layer: gana a las
+ * utilidades de Tailwind sin !important.
+ *
+ * Reglas del diseño que aplica este archivo:
+ *   - Panel del equipo: solo destacador en el h1 (los post-its y tapas son del
+ *     sitio publico). Tablas y ficha clinica sin adornos.
+ *   - Inclinacion maxima de 2 grados y nunca en campos de formulario.
+ *   - Todo adorno es decorativo (pseudo-elementos o aria-hidden).
+ *   - Contraste AA: tinta azul sobre papel 9:1, grafito 13:1, oliva 6:1.
+ */
+
+:root[data-tema='cuaderno'] {
+  --font-cuerpo: var(--font-nunito);
+
+  /* Superficies: tarjetas en hoja blanca, fondo de papel. */
+  --color-bg: #ffffff;
+  --color-surface: #fbf8ef;
+  --color-text: #2a2a33;
+  --color-divider: color-mix(in srgb, #2a2a33 18%, transparent);
+  --color-papel: #ffffff;
+  --color-lienzo: #fbf8ef;
+  --color-punto: #dce4ef;
+  --color-borde: #cfc6b3;
+  --color-tinta: #2a2a33;
+
+  /* Primario (equipo y enlaces): tinta azul. Misma escala que lib/marca.ts. */
+  --color-accent: #2f4a6b;
+  --color-arcilla: #2f4a6b;
+  --color-accent-100: color-mix(in srgb, #2f4a6b 8%, white);
+  --color-accent-200: #dce4ef;
+  --color-accent-300: color-mix(in srgb, #2f4a6b 32%, white);
+  --color-accent-400: color-mix(in srgb, #2f4a6b 52%, white);
+  --color-accent-500: color-mix(in srgb, #2f4a6b 72%, white);
+  --color-accent-600: color-mix(in srgb, #2f4a6b 86%, white);
+  --color-accent-700: #2f4a6b;
+  --color-accent-800: #1e3550;
+  --color-accent-900: color-mix(in srgb, #2f4a6b 55%, black);
+
+  /* Secundario (paciente): oliva. */
+  --color-accent-2: #4f6b2f;
+  --color-oliva: #4f6b2f;
+  --color-accent-2-100: color-mix(in srgb, #4f6b2f 8%, white);
+  --color-accent-2-200: #e1e8cf;
+  --color-accent-2-300: color-mix(in srgb, #4f6b2f 32%, white);
+  --color-accent-2-400: color-mix(in srgb, #4f6b2f 52%, white);
+  --color-accent-2-500: color-mix(in srgb, #4f6b2f 72%, white);
+  --color-accent-2-600: color-mix(in srgb, #4f6b2f 86%, white);
+  --color-accent-2-700: #4f6b2f;
+  --color-accent-2-800: color-mix(in srgb, #4f6b2f 80%, black);
+  --color-accent-2-900: color-mix(in srgb, #4f6b2f 55%, black);
+
+  /* Neutros: papel y grafito. 700 = grafito 2 (AA sobre 300: 6.3:1). */
+  --color-neutral-100: #fbf8ef;
+  --color-neutral-200: #f1ecdd;
+  --color-neutral-300: #e3dccb;
+  --color-neutral-400: #cfc6b3;
+  --color-neutral-500: #a9a293;
+  --color-neutral-600: #7e7a70;
+  --color-neutral-700: #4a4a55;
+  --color-neutral-800: #3a3a44;
+  --color-neutral-900: #2a2a33;
+
+  /* Elementos de cuaderno (seccion 09 del sistema). */
+  --color-destacador: #fce38a;
+  --color-margen: #e7a4a4;
+  --color-ladrillo: #a6442e;
+  --cinta: rgb(176 196 222 / 0.72);
+  --postit-1: #fff3a8;
+  --postit-2: #ffd6e0;
+  --postit-3: #cdefd8;
+  --postit-4: #d4e6ff;
+  --postit-5: #ffe0b8;
+
+  /* Radios: hojas y tarjetas 4 px, chips 6 px, botones 10 px, campos 0. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;
+  --radius-3xl: 4px;
+  --radius-campo: 0;
+  --radius-tarjeta: 4px;
+  --radius-panel: 4px;
+
+  /* Sombras desplazadas de grafito, sin desenfoque. */
+  /* Sutil: la llevan las sesiones de la agenda (grilla densa, sin adornos). */
+  --shadow-sm: 1px 1px 0 color-mix(in srgb, #2a2a33 35%, transparent);
+  --shadow-md: 4px 4px 0 #2a2a33;
+  --shadow-lg: 6px 6px 0 #2a2a33;
+  --shadow-suave: 4px 4px 0 #2a2a33;
+  --shadow-flotante: 8px 8px 0 #2a2a33;
+}
+
+/* Fondo de pagina: hoja rayada con margen rojo. */
+:root[data-tema='cuaderno'] .trama {
+  background-color: var(--color-lienzo);
+  background-image:
+    linear-gradient(90deg, transparent 30px, var(--color-margen) 30px, var(--color-margen) 32px, transparent 32px),
+    linear-gradient(var(--color-punto) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    100% 32px;
+}
+
+/* Sombras: Tailwind 4 copia el valor del token dentro de cada utilidad (para
+   shadow-color), asi que las variables de arriba no bastan: se reemplazan las
+   clases. Las hojas (suave, flotante) llevan ademas el borde de grafito. */
+:root[data-tema='cuaderno'] .shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+:root[data-tema='cuaderno'] :is(.shadow-md, .shadow-suave) {
+  box-shadow: var(--shadow-md);
+}
+:root[data-tema='cuaderno'] .shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+:root[data-tema='cuaderno'] .shadow-flotante {
+  box-shadow: var(--shadow-flotante);
+}
+:root[data-tema='cuaderno'] :is(.shadow-suave, .shadow-flotante) {
+  border: 2px solid var(--color-tinta);
+}
+:root[data-tema='cuaderno'] .translucida {
+  background-color: var(--color-papel);
+  backdrop-filter: none;
+}
+
+/* Esquinas: las pildoras (tambien md:rounded-full) y los radios fijos pasan a casi rectos. */
+:root[data-tema='cuaderno'] :is([class*='rounded-full'], [class*='rounded-[']) {
+  border-radius: var(--radius-md);
+}
+
+/* Titulos: Caveat (h1, h2); h3 y menores siguen en Nunito 800. Caveat es
+   chica a igual cuerpo: font-size-adjust la iguala en altura de x. */
+:root[data-tema='cuaderno'] :is(h1, h2) {
+  font-family: var(--font-caveat), cursive;
+  font-weight: 700;
+  font-size-adjust: 0.52;
+  letter-spacing: 0;
+  line-height: 1.05;
+}
+/* Destacador: mitad inferior de la letra, una vez por pantalla (el h1). */
+:root[data-tema='cuaderno'] h1 {
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-destacador);
+  text-decoration-thickness: 0.34em;
+  text-underline-offset: -0.2em;
+  text-decoration-skip-ink: none;
+}
+
+/* Botones: borde de plumon y sombra desplazada; al presionar se "hunde". */
+:root[data-tema='cuaderno'] .boton {
+  border: 2px solid var(--color-tinta);
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--color-tinta);
+}
+:root[data-tema='cuaderno'] .boton:hover:not(:disabled) {
+  box-shadow: 4px 4px 0 var(--color-tinta);
+  transform: translate(-1px, -1px);
+}
+:root[data-tema='cuaderno'] .boton:active:not(:disabled) {
+  box-shadow: 1px 1px 0 var(--color-tinta);
+  transform: translate(2px, 2px);
+}
+:root[data-tema='cuaderno'] .boton-ghost {
+  border-color: transparent;
+  box-shadow: none;
+}
+:root[data-tema='cuaderno'] :is(.boton-secondary, .boton-contornoOscuro) {
+  background-color: var(--color-papel);
+  color: var(--color-tinta);
+}
+/* El Cuaderno no tiene bloques oscuros: la accion principal vuelve a tinta azul. */
+:root[data-tema='cuaderno'] .boton-sobreOscuro {
+  background-color: var(--color-accent-700);
+  color: #ffffff;
+}
+
+/* Campos: solo la linea inferior; con foco, linea de tinta y destacador. */
+:root[data-tema='cuaderno'] .control {
+  background-color: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--color-tinta);
+  border-radius: 0;
+  padding-inline: 4px;
+}
+:root[data-tema='cuaderno'] .control:focus-visible {
+  outline: none;
+  border-bottom: 3px solid var(--color-accent-700);
+  box-shadow: inset 0 -12px 0 var(--color-destacador);
+}
+:root[data-tema='cuaderno'] .control[aria-invalid='true'] {
+  border-bottom-color: var(--color-ladrillo);
+}
+:root[data-tema='cuaderno'] textarea.control {
+  border: 2px solid var(--color-tinta);
+  border-radius: 4px;
+  background-color: var(--color-papel);
+  padding-inline: 14px;
+}
+:root[data-tema='cuaderno'] textarea.control:focus-visible {
+  border: 3px solid var(--color-accent-700);
+  box-shadow: none;
+}
+
+/* Sitio publico: barra con pestañas de separador sobre una regla gruesa. */
+:root[data-tema='cuaderno'] .barra-publica {
+  border: 0;
+  border-bottom: 3px solid var(--color-tinta);
+  border-radius: 0;
+  box-shadow: none;
+  background-color: var(--color-lienzo);
+  padding-bottom: 0;
+  align-items: flex-end;
+}
+:root[data-tema='cuaderno'] .barra-publica .marca-centro {
+  font-family: var(--font-caveat), cursive;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding-bottom: 6px;
+}
+:root[data-tema='cuaderno'] .pestana {
+  border: 2px solid var(--color-tinta);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background-color: var(--color-papel);
+  font-family: var(--font-caveat), cursive;
+  font-size: 22px;
+}
+:root[data-tema='cuaderno'] .pestana[aria-current='page'] {
+  background-color: var(--color-destacador);
+}
+
+/* Servicios como post-its pegados con cinta (5 colores rotando, ±1.5°). */
+:root[data-tema='cuaderno'] .nota {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background-color: var(--postit-1);
+  box-shadow: 0 10px 20px rgb(0 0 0 / 0.12);
+  rotate: -1.5deg;
+}
+:root[data-tema='cuaderno'] .nota:nth-child(5n + 2) {
+  background-color: var(--postit-2);
+  rotate: 1deg;
+}
+:root[data-tema='cuaderno'] .nota:nth-child(5n + 3) {
+  background-color: var(--postit-3);
+  rotate: -0.5deg;
+}
+:root[data-tema='cuaderno'] .nota:nth-child(5n + 4) {
+  background-color: var(--postit-4);
+  rotate: 1.5deg;
+}
+:root[data-tema='cuaderno'] .nota:nth-child(5n + 5) {
+  background-color: var(--postit-5);
+  rotate: -1deg;
+}
+:root[data-tema='cuaderno'] :is(.nota, .con-cinta)::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 40%;
+  width: 84px;
+  height: 24px;
+  background: var(--cinta);
+  rotate: 3deg;
+  pointer-events: none;
+}
+
+/* Login y cuenta: hoja blanca pegada con cinta (sin inclinar: lleva campos). */
+:root[data-tema='cuaderno'] .con-cinta {
+  position: relative;
+  border: 1px solid var(--color-borde);
+  box-shadow: 0 14px 28px rgb(0 0 0 / 0.14);
+}
+
+/* Llamado a la accion: el bloque tinta pasa a un recuadro punteado sobre la hoja. */
+:root[data-tema='cuaderno'] .llamado-oscuro {
+  border: 2px dashed var(--color-tinta);
+  border-radius: 14px;
+  background-color: rgb(255 255 255 / 0.6);
+  color: var(--color-tinta);
+}
+:root[data-tema='cuaderno'] .llamado-oscuro :is(.text-neutral-300, .text-neutral-400) {
+  color: var(--color-neutral-700);
+}
+:root[data-tema='cuaderno'] .llamado-oscuro a:hover {
+  color: var(--color-accent-800);
+}
+
+/* Filtros del equipo: post-its con borde de plumon; el activo, destacador. */
+:root[data-tema='cuaderno'] .filtro-chip {
+  border: 2px solid var(--color-tinta);
+  border-radius: 4px;
+  background-color: var(--color-papel);
+  color: var(--color-tinta);
+}
+:root[data-tema='cuaderno'] .filtro-chip[aria-current='page'] {
+  background-color: var(--color-destacador);
+}
+
+/* "Iniciar sesión" del header: boton punteado sobre la hoja, sin relleno. */
+:root[data-tema='cuaderno'] .acceso-cuenta {
+  border: 2px dashed var(--color-tinta);
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--color-tinta);
+  align-self: center;
+}

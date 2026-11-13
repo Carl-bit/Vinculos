@@ -109,7 +109,7 @@ export function RecordatorioEnlace() {
   return (
     <article className="entrada max-w-[640px] py-[clamp(28px,5vw,64px)]">
       <h1 className="m-0 mb-4 text-[clamp(30px,4vw,44px)] leading-[1.02] font-black tracking-[-0.035em] text-balance">Recordatorio de tu hora</h1>
-      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-divider bg-neutral-100 px-6 py-5 shadow-sm">
+      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-divider bg-bg px-6 py-5 shadow-suave">
         <span className="grid size-11 flex-none place-items-center rounded-full border border-accent-2-500 bg-accent-2-200 text-accent-2-700">
           <Icon name={r.modalidad === 'ONLINE' ? 'videocam' : 'event_available'} size={22} />
         </span>

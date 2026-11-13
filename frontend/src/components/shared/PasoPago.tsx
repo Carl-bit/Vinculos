@@ -140,7 +140,7 @@ function ElegirMedio({
           {plazo && <> (plazo: {plazo})</>}, {seMantiene ? 'pagas en el centro el día de la atención.' : 'la hora se libera para otras personas.'}
         </p>
       )}
-      <div className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+      <div className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
         <ChoiceGroup
           legend="¿Cómo vas a pagar?"
           type="radio"
@@ -202,7 +202,7 @@ function Transferencia({
           Revisa los datos y vuelve a transferir o sube otro comprobante{plazo ? ` (plazo: ${plazo})` : ''}.
         </Aviso>
       )}
-      <section className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm" aria-labelledby="titulo-transferencia">
+      <section className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave" aria-labelledby="titulo-transferencia">
         <h2 id="titulo-transferencia" className="m-0 mb-3.5 text-[19px] font-black tracking-[-0.025em]">
           Datos para transferir
         </h2>

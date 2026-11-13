@@ -38,6 +38,7 @@ describe('02g match y portal', () => {
           .send({ ...perfil, perfilPublico: true })
       ).status,
     ).toBe(200);
+    await t.datos.validar(u.id);
     if (opciones.tipo !== false) {
       await t
         .http()
@@ -139,6 +140,22 @@ describe('02g match y portal', () => {
           estados.push((await limitada.http().get('/api/publico/profesionales')).status);
         }
         expect(estados).toEqual([200, 200, 200, 429]);
+      } finally {
+        await limitada.cerrar();
+      }
+    });
+
+    it('AUD-02: el limite es por visitante: con X-Forwarded-For desde la red interna (SSR del front) cada IP tiene su cuota', async () => {
+      const limitada = await crearApp({ PUBLICO_LIMITE_POR_MINUTO: '3' });
+      try {
+        const politica = (ip: string) => limitada.http().get('/api/publico/politicas/POLITICA_DATOS').set('X-Forwarded-For', ip);
+        // Ocho visitantes distintos detras del mismo servidor Next: ninguno se bloquea.
+        const distintos = await Promise.all(Array.from({ length: 8 }, (_v, i) => politica(`203.0.113.${i + 1}`).then((r) => r.status)));
+        expect(distintos.every((e) => e !== 429)).toBe(true);
+        // Un mismo visitante si agota su cuota.
+        const mismo: number[] = [];
+        for (let i = 0; i < 4; i++) mismo.push((await politica('198.51.100.7')).status);
+        expect(mismo[3]).toBe(429);
       } finally {
         await limitada.cerrar();
       }

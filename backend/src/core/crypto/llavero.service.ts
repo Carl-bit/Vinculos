@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { aad, ErrorCifrado, type FilaLlave, Llavero } from '../../common/crypto/cifrado';
-import { CAMPOS_CIFRADOS } from '../../common/crypto/registro';
+import { ErrorCifrado, type FilaLlave, Llavero } from '../../common/crypto/cifrado';
+import { aadDe, CAMPOS_CIFRADOS } from '../../common/crypto/registro';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface FilaLlaveBd {
@@ -106,16 +106,21 @@ export class LlaveroService implements OnModuleInit {
     if (valor === null || valor === undefined) {
       return null;
     }
-    this.campo(tabla, columna);
-    return this.llavero.descifrar(Buffer.from(valor), aad(tabla, columna, idFila));
+    return this.llavero.descifrar(Buffer.from(valor), aadDe(this.campo(tabla, columna), idFila));
   }
 
   /** Cifra para pasar a una funcion SQL que recibe el bytea (crear_derivacion). */
   cifrarCampo(valor: string, tabla: string, columna: string, idFila: string): Buffer {
-    return this.llavero.cifrar(valor, this.campo(tabla, columna).categoria, aad(tabla, columna, idFila));
+    const c = this.campo(tabla, columna);
+    return this.llavero.cifrar(valor, c.categoria, aadDe(c, idFila));
   }
 
   /** Indice ciego del RUT normalizado (busqueda exacta: where rutHmac). */
+  /** AUD-01 (E2.4): HMAC de un identificador cualquiera (correo o RUT de un ingreso fallido); nunca se guarda el valor. */
+  hmacIdentificador(valor: string): Buffer {
+    return this.llavero.hmac(`identificador:${valor}`);
+  }
+
   hmacRut(rut: string): Uint8Array<ArrayBuffer> {
     return new Uint8Array(this.llavero.hmacRut(rut));
   }

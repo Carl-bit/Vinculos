@@ -30,13 +30,17 @@ const MENU_ADMIN = [
   'Mensajes',
   'Fichas y Pacientes',
   'Agenda y Espacios',
-  'Equipo',
   'Match Terapéutico',
   'Cobros',
+  'Equipo',
   'Configuración',
   'Página pública',
 ];
-const MENU_CLINICO = ['Inicio', 'Mi perfil', 'Mensajes', 'Fichas y Pacientes', 'Agenda y Espacios', 'Equipo', 'Cobros', 'Página pública'];
+// 2026-10-27: la seccion Centro (Configuracion y Pagina publica) es solo de la cuenta madre.
+// 2026-11-05: Centro suma Equipo (gestion de profesionales) para la cuenta madre.
+const MENU_GESTION = ['Inicio', 'Mi perfil', 'Mensajes', 'Fichas y Pacientes', 'Agenda y Espacios', 'Equipo', 'Cobros'];
+// 2026-10-29: Equipo es solo de ADMIN/GESTION.
+const MENU_CLINICO = MENU_GESTION.filter((m) => m !== 'Equipo');
 const SECCIONES = ['Resumen', 'Pagos', 'Documentos', 'Consentimientos', 'Avisos', 'Reseñas', 'Seguridad'];
 
 const CASOS: Caso[] = [
@@ -64,7 +68,7 @@ const CASOS: Caso[] = [
     nombre: 'GESTION',
     usuario: 'gestion',
     zona: 'admin',
-    menu: MENU_CLINICO,
+    menu: MENU_GESTION,
     bloqueadas: [
       { ruta: '/admin/configuracion', texto: SIN_PERMISO },
       { ruta: '/admin/match', texto: SIN_PERMISO },

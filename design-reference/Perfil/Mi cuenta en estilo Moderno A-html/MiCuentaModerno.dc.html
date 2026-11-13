@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mi cuenta, estilo moderno</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8A4B1F}a:hover{color:#6B3714}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1100px; box-sizing: border-box; background: #E6DED1; color: #2B2420; font-family: 'Figtree', system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-wrap: wrap">
+
+<nav aria-label="Menú principal" style="flex: 1 1 200px; max-width: 210px; box-sizing: border-box; background: #F4ECE0; padding: 24px 14px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #DCCFBB">
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 17px; padding: 0 10px 24px"><span style="width: 8px; height: 8px; border-radius: 999px; background: #4F6B2F"></span>Centro de Prueba</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Inicio</a>
+<a href="#" style="text-decoration: none; color: #2F3B1F; padding: 10px 12px; border-radius: 10px; background: #E1E8CF; font-weight: 600">Mi perfil</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mensajes</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 20px 12px 6px">MÓDULOS</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Fichas y Pacientes</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Agenda y Espacios</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Cobros</a>
+<div style="margin-top: auto; padding: 12px; font-size: 13px; color: #5E5247">Rol activo: <strong>Profesional</strong></div>
+</nav>
+
+<main style="position: relative; flex: 999 1 640px; min-width: 0; box-sizing: border-box; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 20px; background-color: #F1EBE2; background-image: radial-gradient(#D6CBBB 1px, transparent 1px); background-size: 18px 18px">
+
+<div style="align-self: center; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 8px 8px 18px; border-radius: 999px; background: #FFFDF9; box-shadow: 0 8px 28px rgba(43,36,32,0.14); border: 1px solid #EBE2D5">
+<strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 15px">Mi cuenta</strong>
+<span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #2B2420; color: #F4ECE0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Privado</span>
+<span aria-hidden="true" style="width: 1px; height: 24px; background: #E3D7C4; margin: 0 4px"></span>
+<a href="ModernoA.dc.html" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 16px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF; font-weight: 700; text-decoration: none">Volver a mi perfil público</a>
+<a href="#" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 999px; color: #2B2420; font-weight: 700; text-decoration: none">Ver mi agenda</a>
+<a href="#" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 999px; color: #2B2420; font-weight: 700; text-decoration: none">Ver el equipo</a>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; max-width: 1140px; width: 100%; align-self: center">
+
+<nav aria-label="Secciones de la cuenta" style="flex: 1 1 240px; max-width: 270px; position: sticky; top: 20px; background: rgba(255,253,249,0.92); backdrop-filter: blur(10px); border: 1px solid #EBE2D5; border-radius: 24px; box-shadow: 0 20px 50px rgba(43,36,32,0.12); padding: 14px; display: flex; flex-direction: column; gap: 4px">
+<sc-for list="{{ grupos }}" as="g" hint-placeholder-count="3">
+<span style="font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: #8A6E55; padding: 10px 10px 4px">{{ g.t }}</span>
+<sc-for list="{{ g.items }}" as="i" hint-placeholder-count="2">
+<button type="button" aria-current="{{ i.actual }}" onClick="{{ i.pick }}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 0 12px; border: 0; border-radius: 14px; background: {{ i.fondo }}; color: {{ i.color }}; font-weight: 700; text-align: left; box-shadow: {{ i.sombra }}">
+<span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 999px; background: {{ i.punto }}"></span>
+<span style="flex: 1">{{ i.l }}</span>
+<sc-if value="{{ i.hayChip }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: {{ i.cf }}; color: {{ i.cc }}">{{ i.chip }}</span></sc-if>
+</button>
+</sc-for>
+</sc-for>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 6px">
+<span style="font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: #8A4B1F">{{ sec.grupo }}</span>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 32px; line-height: 1.1">{{ sec.t }}</h1>
+<span style="font-size: 14px; color: #5E5247">{{ sec.d }}</span>
+</div>
+<sc-for list="{{ sec.bloques }}" as="b" hint-placeholder-count="2">
+<section style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 22px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column"><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px">{{ b.t }}</h2><span style="font-size: 13px; color: #5E5247">{{ b.d }}</span></div>
+<sc-if value="{{ b.hayCampos }}" hint-placeholder-val="{{ false }}">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+<sc-for list="{{ b.campos }}" as="f" hint-placeholder-count="2">
+<label style="display: flex; flex-direction: column; gap: 5px"><span style="font-size: 12px; font-weight: 700">{{ f.l }}</span><input type="{{ f.tipo }}" value="{{ f.v }}" onInput="{{ f.set }}" style="min-height: 46px; padding: 0 14px; border-radius: 14px; border: 1px solid {{ f.borde }}; background: #F7F1E8; font-size: 14px"><span style="font-size: 11px; color: #5E5247">{{ f.a }}</span></label>
+</sc-for>
+</div>
+</sc-if>
+<sc-for list="{{ b.filas }}" as="r" hint-placeholder-count="0">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: #FFFDF9">
+<span style="flex: 1 1 240px; display: flex; flex-direction: column"><strong>{{ r.l }}</strong><span style="font-size: 12px; color: #5E5247">{{ r.d }}</span></span>
+<sc-if value="{{ r.hayChip }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: {{ r.cf }}; color: {{ r.cc }}">{{ r.chip }}</span></sc-if>
+<sc-if value="{{ r.hayBoton }}" hint-placeholder-val="{{ false }}"><button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #2B2420; font-weight: 700; font-size: 13px">{{ r.boton }}</button></sc-if>
+<sc-if value="{{ r.haySw }}" hint-placeholder-val="{{ false }}"><button type="button" role="switch" aria-checked="{{ r.on }}" aria-label="{{ r.l }}" onClick="{{ r.toggle }}" style="width: 50px; height: 30px; border-radius: 999px; border: 0; background: {{ r.swFondo }}; position: relative; padding: 0; flex: none"><span style="position: absolute; top: 3px; left: {{ r.swLeft }}; width: 24px; height: 24px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 2px 4px rgba(0,0,0,0.2)"></span></button></sc-if>
+</div>
+</sc-for>
+<sc-if value="{{ b.hayAccion }}" hint-placeholder-val="{{ false }}"><div><button type="button" style="min-height: 46px; padding: 0 20px; border-radius: 16px; border: 1px solid #8A4B1F; background: #FFFDF9; color: #8A4B1F; font-weight: 800">{{ b.accion }}</button></div></sc-if>
+</section>
+</sc-for>
+
+<sc-if value="{{ sucio }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position: sticky; bottom: 16px; align-self: center; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; border-radius: 999px; background: #2B2420; color: #F4ECE0; box-shadow: 0 16px 40px rgba(43,36,32,0.35)">
+<span style="font-size: 13px; font-weight: 600">Cambios sin guardar en {{ sec.t }}</span>
+<button type="button" onClick="{{ descartar }}" style="min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #5A4E45; background: transparent; color: #F4ECE0; font-weight: 600">Descartar</button>
+<button type="button" onClick="{{ guardar }}" style="min-height: 40px; padding: 0 18px; border-radius: 999px; border: 0; background: #D98A5B; color: #2B1408; font-weight: 800">Guardar</button>
+</div>
+</sc-if>
+</div>
+</div>
+
+<sc-if value="{{ hayConfirm }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 50; background: rgba(43,36,32,0.45); backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding-top: 240px">
+<div role="alertdialog" aria-modal="true" aria-labelledby="t-conf" style="width: min(440px, 90%); background: #FFFDF9; border-radius: 24px; box-shadow: 0 30px 70px rgba(0,0,0,0.35); padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="t-conf" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 21px; line-height: 1.2">Estás modificando "{{ sec.t }}"</h2>
+<span style="font-size: 14px; color: #4A3F36">¿Seguro que quieres descartar los cambios?</span>
+<div style="display: flex; gap: 8px">
+<button type="button" onClick="{{ confirmNo }}" style="flex: 1; min-height: 48px; border-radius: 16px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800">No, seguir editando</button>
+<button type="button" onClick="{{ confirmSi }}" style="flex: 1; min-height: 48px; border-radius: 16px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #7A2E10; font-weight: 700">Sí, descartar</button>
+</div>
+</div>
+</div>
+</sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+var OK = ['#E1E8CF', '#2F3B1F'], AM = ['#FFF4D6', '#7A520A'], NE = ['#EFE5D6', '#4A3F36'];
+var GR = [['MIS DATOS', [['contacto', 'Datos de contacto'], ['seguridad', 'Seguridad']]], ['MI TRABAJO', [['avisos', 'Avisos y recordatorios'], ['video', 'Sala de videollamada'], ['protocolo', 'Protocolo del centro', 'Sin leer', AM]]], ['DINERO', [['pagos', 'Pagos y liquidaciones']]]];
+var V0 = { nombre: 'Profesional Uno', correo: 'profesional1@centro-prueba.cl', tel: '', rut: '12.345.678-5', pass1: '', pass2: '', enlace: 'https://meet.example.com/profesional-uno', banco: 'Banco Ficticio', tipo: 'Cuenta vista', numero: '•••• 4821', rutTit: '12.345.678-5' };
+var SW0 = { a1: true, a2: true, a3: true, a4: true, a5: false, a6: true };
+var SWL = { a1: ['Nueva solicitud de hora', 'Bandeja y correo'], a2: ['Cancelación o reprogramación', 'Bandeja y correo'], a3: ['Derivación ofrecida', 'Con plazo para responder'], a4: ['Mensaje de un paciente', 'Bandeja y correo'], a5: ['Resumen diario de mi agenda', 'Correo a las 07:30'], a6: ['Evoluciones sin cerrar', 'Cada lunes, mientras haya alguna'] };
+function fila(l, d, chip, tono, boton) { var c = tono || NE; return { l: l, d: d, hayChip: !!chip, chip: chip, cf: c[0], cc: c[1], hayBoton: !!boton, boton: boton, haySw: false }; }
+function blo(t, d, campos, filas, accion) { return { t: t, d: d || '', campos: campos || [], hayCampos: !!(campos && campos.length), filas: filas || [], hayAccion: !!accion, accion: accion }; }
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { sec: 'contacto', vals: Object.assign({}, V0), draft: Object.assign({}, V0), sw: Object.assign({}, SW0), swDraft: Object.assign({}, SW0), sucio: false, confirm: null }; }
+  renderVals() {
+    var st = this.state, self = this;
+    function campo(k, l, a, tipo) { return { l: l, a: a || '', tipo: tipo || 'text', v: st.draft[k], borde: st.draft[k] !== st.vals[k] ? '#D98A5B' : '#E3D7C4',
+      set: function (e) { var d = Object.assign({}, self.state.draft); d[k] = e.target.value; self.setState({ draft: d, sucio: true }); } }; }
+    var S = {
+      contacto: ['MIS DATOS', 'Datos de contacto', 'Los usa el centro para coordinarse contigo. No aparecen en tu perfil público.', [blo('Contacto privado', 'Con tu correo ingresas y recibes el código de verificación.', [campo('nombre', 'Nombre'), campo('correo', 'Correo', 'Ingreso y códigos', 'email'), campo('tel', 'Teléfono', '+56 9 XXXX XXXX', 'tel'), campo('rut', 'RUT', 'Nunca se publica')])]],
+      seguridad: ['MIS DATOS', 'Seguridad', 'Acceso a tu cuenta.', [blo('Contraseña', '', [campo('pass1', 'Contraseña actual', '', 'password'), campo('pass2', 'Nueva contraseña', 'Al menos 12 caracteres', 'password')]),
+        blo('Verificación en dos pasos', 'Obligatoria para profesionales y administración.', null, [fila('Código por correo', 'Se envía en cada ingreso', 'Activa', OK, ''), fila('Aplicación de autenticación', 'Disponible más adelante', 'Próximamente', NE, '')]),
+        blo('Sesiones abiertas', '', null, [fila('Chrome en Windows · Santiago', 'Ahora', 'Esta sesión', OK, ''), fila('Safari en iPhone', 'Hace 2 días', '', null, 'Cerrar sesión')])]],
+      avisos: ['MI TRABAJO', 'Avisos y recordatorios', 'Qué te avisa Vinculos y por dónde.', [blo('Avisos', '', null, Object.keys(SWL).map(function (k) { var on = st.swDraft[k];
+        return { l: SWL[k][0], d: SWL[k][1], hayChip: false, hayBoton: false, haySw: true, on: on, swFondo: on ? '#4F6B2F' : '#CDBFAE', swLeft: on ? '23px' : '3px',
+          toggle: function () { var o = Object.assign({}, self.state.swDraft); o[k] = !o[k]; self.setState({ swDraft: o, sucio: true }); } }; }))]],
+      video: ['MI TRABAJO', 'Sala de videollamada', 'El paciente recibe este enlace al confirmar una hora online.', [blo('Mi enlace fijo', 'Meet, Zoom, Jitsi u otra plataforma.', [campo('enlace', 'Enlace de la sala', 'Solo lo reciben pacientes con hora online confirmada', 'url')], [fila('Probar el enlace', 'Abre la sala en una pestaña nueva', '', null, 'Probar')])]],
+      protocolo: ['MI TRABAJO', 'Protocolo del centro', 'Solo lo ve el equipo. Una versión nueva vuelve a quedar pendiente.', [blo('Protocolo interno, versión 1', 'Publicado el 31 oct 2026', null, [fila('1. Registra la evolución de cada sesión dentro de 48 horas.', ''), fila('2. Ante riesgo vital, sigue el plan de crisis y avisa a la dirección.', ''), fila('3. No compartas datos de pacientes por canales personales.', ''), fila('4. Informa cancelaciones con 24 horas de anticipación.', ''), fila('5. Las derivaciones se hacen por la plataforma.', '')], 'Marcar como leído')]],
+      pagos: ['DINERO', 'Pagos y liquidaciones', 'Vinculos calcula; el dinero lo mueve el centro o tu propia cuenta.', [blo('Mi acuerdo con el centro', 'Lo define la administración.', null, [fila('Cobra el centro (acuerdo B)', '20% de lo cobrado · $5.000 por sesión de pacientes que llegaron por el centro', 'Vigente desde 1 nov', OK, 'Escribir a administración')]),
+        blo('Cuenta para recibir mis pagos', 'Se guarda cifrada.', [campo('banco', 'Banco'), campo('tipo', 'Tipo de cuenta'), campo('numero', 'Número', 'Solo se muestran los últimos dígitos'), campo('rutTit', 'RUT del titular')]),
+        blo('Liquidaciones', 'Documento informativo, no tributario.', null, [fila('Octubre 2026', '22 sesiones · boleta por $576.000 · recibes $488.160', 'Pagada', OK, 'PDF'), fila('Noviembre 2026', 'En curso · 6 sesiones hasta hoy', 'Abierta', AM, 'Ver detalle')])]]
+    };
+    function ir(id) { if (self.state.sec === id) return; if (self.state.sucio) { self.setState({ confirm: id }); return; } self.setState({ sec: id }); }
+    var grupos = GR.map(function (g) { return { t: g[0], items: g[1].map(function (i) { var on = st.sec === i[0]; var c = i[3] || NE;
+      return { l: i[1], actual: on ? 'page' : 'false', fondo: on ? '#FFFFFF' : 'transparent', color: '#2B2420', sombra: on ? '0 4px 14px rgba(43,36,32,0.12)' : 'none', punto: on ? '#8A4B1F' : '#D6CBBB',
+        hayChip: !!i[2], chip: i[2], cf: c[0], cc: c[1], pick: function () { ir(i[0]); } }; }) }; });
+    var x = S[st.sec];
+    var reset = { sucio: false, draft: Object.assign({}, st.vals), swDraft: Object.assign({}, st.sw) };
+    return {
+      grupos: grupos, sec: { grupo: x[0], t: x[1], d: x[2], bloques: x[3] }, sucio: st.sucio, hayConfirm: !!st.confirm,
+      guardar: function () { self.setState({ vals: Object.assign({}, self.state.draft), sw: Object.assign({}, self.state.swDraft), sucio: false }); },
+      descartar: function () { self.setState(reset); },
+      confirmNo: function () { self.setState({ confirm: null }); },
+      confirmSi: function () { self.setState(Object.assign({}, reset, { sec: self.state.confirm, confirm: null })); }
+    };
+  }
+}
+</script>
+</body>
+</html>

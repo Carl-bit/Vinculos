@@ -13,7 +13,7 @@ const TONOS = {
   advertencia: { caja: 'border border-accent-500 bg-accent-200 text-accent-900', icono: 'text-accent-700', base: 'warning' },
   exito: { caja: 'border border-accent-2-500 bg-accent-2-200 text-accent-2-900', icono: 'text-accent-2-700', base: 'check_circle' },
   nota: { caja: 'border-[1.5px] border-dashed border-neutral-400 bg-bg text-neutral-800', icono: 'text-neutral-700', base: 'lock' },
-  info: { caja: 'border border-divider bg-neutral-100 text-neutral-800', icono: 'text-neutral-700', base: 'info' },
+  info: { caja: 'border border-divider bg-bg text-neutral-800', icono: 'text-neutral-700', base: 'info' },
 } as const satisfies Record<string, { caja: string; icono: string; base: Icono }>;
 
 export type TonoAviso = keyof typeof TONOS;

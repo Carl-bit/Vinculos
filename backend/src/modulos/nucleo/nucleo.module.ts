@@ -1,16 +1,34 @@
 import { Module } from '@nestjs/common';
 
+import { PerfilesController } from './perfiles.controller';
+import { PerfilesService } from './perfiles.service';
+
+import { AuditoriaService } from './auditoria.service';
 import { CentroService } from './centro.service';
+import { DerechosService } from './derechos.service';
+import { ExportacionCentroService } from './exportacion-centro.service';
+import { ExportacionesService } from './exportaciones.service';
+import { FeriadosService } from './feriados.service';
+import { RecordatoriosPersonalesService } from './recordatorios-personales.service';
 import { EquipoAccesoService } from './equipo-acceso.service';
 import {
   AlertasController,
+  AuditoriaController,
   BajasController,
   CentroController,
   ConfiguracionController,
+  DerechosController,
+  DerechosPublicoController,
   DirectorioController,
+  ExportacionPublicaController,
+  ExportacionesController,
+  FeriadosController,
+  RecordatoriosController,
   PracticantesController,
+  SoporteController,
   UsuariosController,
 } from './nucleo.controller';
+import { SoporteService } from './soporte.service';
 import { UsuariosService } from './usuarios.service';
 
 /** Nucleo (02b): usuarios, configuracion, accesos de practicantes, bajas, alertas y directorio. */
@@ -22,8 +40,29 @@ import { UsuariosService } from './usuarios.service';
     PracticantesController,
     BajasController,
     AlertasController,
+    AuditoriaController,
+    SoporteController,
+    DerechosController,
+    DerechosPublicoController,
+    ExportacionesController,
+    ExportacionPublicaController,
+    FeriadosController,
+    RecordatoriosController,
     DirectorioController,
+    PerfilesController,
   ],
-  providers: [UsuariosService, EquipoAccesoService, CentroService],
+  providers: [
+    UsuariosService,
+    EquipoAccesoService,
+    CentroService,
+    AuditoriaService,
+    SoporteService,
+    DerechosService,
+    ExportacionesService,
+    ExportacionCentroService,
+    FeriadosService,
+    RecordatoriosPersonalesService,
+    PerfilesService,
+  ],
 })
 export class NucleoModule {}

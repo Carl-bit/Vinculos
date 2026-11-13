@@ -1,16 +1,16 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
+import { EnlacePolitica, esVersionNueva, MENSAJE_VERSION_NUEVA, vigentePolitica } from '@/components/shared/EnlacePolitica';
 import { PasoPago } from '@/components/shared/PasoPago';
 import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Casilla } from '@/components/ui/Casilla';
-import { Field, Input } from '@/components/ui/Field';
+import { Field, Input, Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
 import type { components } from '@/lib/api/esquema';
@@ -24,8 +24,9 @@ import { caminoReserva, useEstadoPago, type CaminoPago, type EstadoConfirmacion 
 import { nombreCorto, nombrePerfil } from '@/lib/perfiles';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
-import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from '@/components/shared/SelectorHorario';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { reglaTelefono } from '@/lib/validacion';
 import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
 
 type Centro = components['schemas']['CentroPublico'];
@@ -33,7 +34,6 @@ type Perfil = components['schemas']['PerfilPublico'];
 type Politica = { id: string; version: number };
 
 const PASOS = ['Horario', 'Tus datos', 'Pago', 'Confirmada'] as const;
-const TELEFONO = /^\+56\d{9}$/;
 
 interface Datos {
   nombre: string;
@@ -48,6 +48,10 @@ interface Datos {
   adultoTelefono: string;
   aceptaDatos: boolean;
   aceptaTerminos: boolean;
+  /** AUD-01: consentimiento propio del canal, opcional y desmarcado. */
+  aceptaWhatsapp: boolean;
+  /** Sin match: en sus palabras, que lo trae (llega cifrado al tratante, D-6). */
+  motivoSesion: string;
   sitioWeb: string;
 }
 
@@ -64,8 +68,13 @@ const VACIO: Datos = {
   adultoTelefono: '',
   aceptaDatos: false,
   aceptaTerminos: false,
+  aceptaWhatsapp: false,
+  motivoSesion: '',
   sitioWeb: '',
 };
+
+/** Largo maximo del motivo escrito (mismo tope que la API). */
+const MAX_MOTIVO_SESION = 1000;
 
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MENSAJE_CORREO = 'Escribe un correo válido: ahí llegan la confirmación y la invitación a tu cuenta.';
@@ -88,14 +97,18 @@ const tarifaPara = (p: Perfil, m: Bloque['modalidad']) =>
 export function SolicitudHora({
   perfil,
   centro,
-  politicaDatos,
-  terminos,
+  politicaDatos: politicaInicial,
+  terminos: terminosInicial,
 }: {
   perfil: Perfil;
   centro: Centro;
   politicaDatos: Politica;
   terminos: Politica | null;
 }) {
+  // Version que se acepta: parte con la del servidor y se actualiza al abrir el
+  // documento o si la BD avisa que hay una nueva (entonces se vuelve a aceptar).
+  const [politicaDatos, setPoliticaDatos] = useState(politicaInicial);
+  const [terminos, setTerminos] = useState(terminosInicial);
   const [paso, setPaso] = useState(0);
   const [bloque, setBloque] = useState<Bloque | null>(null);
   const [d, setD] = useState<Datos>(VACIO);
@@ -111,6 +124,8 @@ export function SolicitudHora({
   const alerta = useRef<HTMLParagraphElement>(null);
   const montado = useRef(false);
   const cliente = useQueryClient();
+  // Llego sin el cuestionario del match: se le pide el motivo en sus palabras.
+  const [sinMatch] = useState(() => !ultimoMatch());
 
   const edad = bloque && /^\d{4}-\d{2}-\d{2}$/.test(d.fechaNacimiento) ? edadEn(d.fechaNacimiento, bloque.inicio) : null;
   const menor = d.paraMenor || (edad !== null && edad < 18);
@@ -119,10 +134,23 @@ export function SolicitudHora({
     // El error de un campo se vuelve a revisar al salir de el (03b-4.1), no al final.
     if (errores[k]) setErrores((e) => ({ ...e, [k]: undefined }));
   };
+  // Version distinta a la aceptada: se guarda el id nuevo y se desmarca su casilla.
+  const versionDatos = useCallback((p: Politica) => {
+    setPoliticaDatos((a) => {
+      if (a.id !== p.id) setD((x) => ({ ...x, aceptaDatos: false }));
+      return a.id === p.id ? a : p;
+    });
+  }, []);
+  const versionTerminos = useCallback((p: Politica) => {
+    setTerminos((a) => {
+      if (a?.id !== p.id) setD((x) => ({ ...x, aceptaTerminos: false }));
+      return a?.id === p.id ? a : p;
+    });
+  }, []);
   const alSalir = (k: 'email' | 'telefono' | 'adultoTelefono') => () => {
     const v = d[k].trim();
-    const malo = k === 'email' ? v !== '' && !CORREO.test(v) : v !== '' && !TELEFONO.test(v.replace(/\s/g, ''));
-    if (malo) setErrores((e) => ({ ...e, [k]: k === 'email' ? MENSAJE_CORREO : 'Formato +56 9 1234 5678.' }));
+    const mensaje = k === 'email' ? (v !== '' && !CORREO.test(v) ? MENSAJE_CORREO : undefined) : reglaTelefono(v);
+    if (mensaje) setErrores((e) => ({ ...e, [k]: mensaje }));
   };
 
   useEffect(() => {
@@ -140,17 +168,18 @@ export function SolicitudHora({
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fechaNacimiento) || new Date(d.fechaNacimiento) > new Date())
       e.fechaNacimiento = 'Indica una fecha de nacimiento válida.';
     if (!CORREO.test(d.email.trim())) e.email = MENSAJE_CORREO;
-    if (d.telefono && !TELEFONO.test(d.telefono.replace(/\s/g, ''))) e.telefono = 'Formato +56 9 1234 5678.';
-    if (d.rut && !rutValido(d.rut)) e.rut = 'El RUT no es válido. Revisa el dígito verificador.';
+    e.telefono = reglaTelefono(d.telefono);
+    if (!d.rut.trim()) e.rut = menor ? 'Escribe el RUT del paciente (el menor).' : 'Escribe tu RUT.';
+    else if (!rutValido(d.rut)) e.rut = 'El RUT no es válido. Revisa el dígito verificador.';
     if (menor) {
       if (!d.adultoNombre.trim()) e.adultoNombre = 'Falta el nombre del adulto responsable.';
       if (!d.adultoParentesco.trim()) e.adultoParentesco = 'Indica la relación con el paciente.';
-      if (d.adultoTelefono && !TELEFONO.test(d.adultoTelefono.replace(/\s/g, ''))) e.adultoTelefono = 'Formato +56 9 1234 5678.';
+      e.adultoTelefono = reglaTelefono(d.adultoTelefono);
     }
     if (!d.aceptaDatos) e.aceptaDatos = 'Para pedir hora debes aceptar la política de datos.';
     if (terminos && !d.aceptaTerminos) e.aceptaTerminos = 'Debes aceptar los términos de agendamiento.';
     setErrores(e);
-    return Object.keys(e).length === 0;
+    return Object.values(e).every((x) => !x);
   };
 
   const enviar = async (ev: FormEvent) => {
@@ -177,11 +206,16 @@ export function SolicitudHora({
             fechaNacimiento: d.fechaNacimiento,
             email: d.email.trim(),
             telefono: opcional(d.telefono),
-            rut: rutNormalizado(d.rut) || undefined,
+            rut: rutNormalizado(d.rut),
             ...(menor ? { adultoNombre: d.adultoNombre.trim(), adultoParentesco: d.adultoParentesco.trim(), adultoTelefono: opcional(d.adultoTelefono) } : {}),
-            ...(match ? { respuestas: match.respuestas, recomendadoId: match.recomendadoId ?? undefined } : {}),
+            ...(match
+              ? { respuestas: match.respuestas, recomendadoId: match.recomendadoId ?? undefined }
+              : d.motivoSesion.trim()
+                ? { respuestas: { motivo_sesion: d.motivoSesion.trim() } }
+                : {}),
             politicaId: politicaDatos.id,
             terminosId: terminos?.id,
+            aceptaWhatsapp: (centro.modulos.includes('WHATSAPP') && d.aceptaWhatsapp) || undefined,
             sitioWeb: d.sitioWeb || undefined,
           },
         }),
@@ -196,6 +230,14 @@ export function SolicitudHora({
         void cliente.invalidateQueries({ queryKey: ['disponibilidad-publica', perfil.id] });
         setBloque(null);
         setPaso(0);
+      }
+      if (esVersionNueva(e)) {
+        // El centro publico otra version mientras se llenaba el formulario.
+        const [pd, pt] = await Promise.all([vigentePolitica(cliente, 'POLITICA_DATOS'), terminos ? vigentePolitica(cliente, 'TERMINOS_AGENDAMIENTO') : null]);
+        if (pd) versionDatos(pd);
+        if (pt) versionTerminos(pt);
+        setError(MENSAJE_VERSION_NUEVA);
+        return;
       }
       setError(e instanceof ApiError ? e.message : 'No pudimos enviar la solicitud. Intenta de nuevo.');
     } finally {
@@ -255,7 +297,7 @@ export function SolicitudHora({
             <p className="m-0 mb-6 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
               Estas son las horas libres de {nombreCorto(perfil)}. Al enviar tus datos, te guardamos la hora unos minutos mientras pagas.
             </p>
-            <div className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+            <div className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
               <SelectorHorario
                 profesionalId={perfil.id}
                 valor={bloque}
@@ -291,7 +333,7 @@ export function SolicitudHora({
               Con el pago confirmamos tu hora y te enviamos al correo la confirmación y la invitación para crear tu cuenta.
             </p>
 
-            <fieldset className="m-0 grid gap-4 rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm sm:grid-cols-2">
+            <fieldset className="m-0 grid gap-4 rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave sm:grid-cols-2">
               <legend className="sr-only">Datos del paciente</legend>
               <label className="flex cursor-pointer items-center gap-2.5 text-[14px] font-bold sm:col-span-2">
                 <input
@@ -319,8 +361,9 @@ export function SolicitudHora({
                 avisoMenor={d.paraMenor ? undefined : 'Es menor de 18 años: más abajo te pediremos los datos de su adulto responsable.'}
               />
               <CampoRut
-                label="RUT"
-                hint="Opcional. Lo pedimos en la primera sesión si no lo tienes a mano."
+                label={menor ? 'RUT del paciente' : 'RUT'}
+                required
+                hint="Con él te identificamos aunque cambies de correo."
                 error={errores.rut}
                 value={d.rut}
                 onChange={(v) => cambiar('rut', v)}
@@ -356,6 +399,25 @@ export function SolicitudHora({
               </p>
             </fieldset>
 
+            {sinMatch && (
+              <section className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
+                <Field
+                  label="¿Qué te gustaría trabajar en la sesión?"
+                  hint="Opcional. Con tus palabras: ayuda a que tu profesional prepare mejor la primera sesión. Solo lo lee tu profesional."
+                >
+                  {(p) => (
+                    <Textarea
+                      {...p}
+                      maxLength={MAX_MOTIVO_SESION}
+                      value={d.motivoSesion}
+                      onChange={(e) => cambiar('motivoSesion', e.target.value)}
+                      placeholder="Por ejemplo: hace unos meses me cuesta dormir y estoy con mucha ansiedad en el trabajo."
+                    />
+                  )}
+                </Field>
+              </section>
+            )}
+
             {menor && (
               <fieldset className="entrada m-0 grid gap-4 rounded-lg border border-accent-500 bg-accent-200 p-[clamp(18px,3vw,28px)] sm:grid-cols-2">
                 <legend className="float-left mb-1 flex w-full items-center gap-2.5 text-[19px] font-black tracking-[-0.025em] text-accent-900">
@@ -389,7 +451,7 @@ export function SolicitudHora({
               </fieldset>
             )}
 
-            <section className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+            <section className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
               <h2 className="m-0 mb-3.5 text-[19px] font-black tracking-[-0.025em]">Condiciones de agendamiento</h2>
               <ul className="m-0 mb-[18px] flex flex-col gap-2 pl-5">
                 {condicionesAgendamiento(centro, menor).map((c) => (
@@ -401,18 +463,24 @@ export function SolicitudHora({
               <div className="flex flex-col gap-2.5">
                 <Casilla checked={d.aceptaDatos} onChange={(v) => cambiar('aceptaDatos', v)} error={errores.aceptaDatos}>
                   Leí y acepto la{' '}
-                  <Link href="/politicas/POLITICA_DATOS" target="_blank" className="font-extrabold underline underline-offset-2">
+                  <EnlacePolitica tipo="POLITICA_DATOS" onVersion={versionDatos} onAceptar={() => cambiar('aceptaDatos', true)}>
                     política de datos personales
-                  </Link>{' '}
+                  </EnlacePolitica>{' '}
                   (versión {politicaDatos.version}).
                 </Casilla>
                 {terminos && (
                   <Casilla checked={d.aceptaTerminos} onChange={(v) => cambiar('aceptaTerminos', v)} error={errores.aceptaTerminos}>
                     Acepto los{' '}
-                    <Link href="/politicas/TERMINOS_AGENDAMIENTO" target="_blank" className="font-extrabold underline underline-offset-2">
+                    <EnlacePolitica tipo="TERMINOS_AGENDAMIENTO" onVersion={versionTerminos} onAceptar={() => cambiar('aceptaTerminos', true)}>
                       términos de agendamiento y cancelación
-                    </Link>{' '}
+                    </EnlacePolitica>{' '}
                     (versión {terminos.version}).
+                  </Casilla>
+                )}
+                {/* Solo si el centro contrato el modulo WHATSAPP (desactivado por defecto). */}
+                {centro.modulos.includes('WHATSAPP') && (
+                  <Casilla checked={d.aceptaWhatsapp} onChange={(v) => cambiar('aceptaWhatsapp', v)}>
+                    Opcional: quiero recibir avisos de mis horas por WhatsApp. Puedes cambiarlo cuando quieras en tu portal.
                   </Casilla>
                 )}
               </div>
@@ -548,10 +616,10 @@ function ResultadoReserva({
         {encabezado(correo ? 'mark_email_read' : 'payments', correo ? 'Revisa tu correo' : 'Paga para confirmar tu hora')}
         {correo &&
           parrafo(
-            `Enviamos un enlace a ${email}. Ábrelo antes de que termine el tiempo: la hora queda reservada a tu nombre y pagas al llegar a tu sesión. Si no lo ves, revisa la carpeta de spam. Puedes abrirlo en este u otro dispositivo: esta pantalla avanza sola.`,
+            `Enviamos un enlace a ${email}. Ábrelo antes de que termine el tiempo: así tu solicitud llega a ${nombreCorto(perfil)}, que tiene hasta 24 horas para confirmarla, y la hora queda guardada para ti mientras tanto. Si no lo ves, revisa la carpeta de spam. Puedes abrirlo en este u otro dispositivo: esta pantalla avanza sola.`,
           )}
         {estado.venceEn && !estado.comprobanteRecibido && (
-          <div className="rounded-lg border border-divider bg-neutral-100 p-6 shadow-sm">
+          <div className="rounded-lg border border-divider bg-bg p-6 shadow-suave">
             <CuentaRegresiva desde={desde} hasta={new Date(estado.venceEn)} onVencida={onVencida} />
           </div>
         )}
@@ -568,6 +636,33 @@ function ResultadoReserva({
           <Aviso tono="exito" icono="storefront" titulo="Pagas al llegar">
             El pago se hace en el centro, el día de tu sesión.
           </Aviso>
+        )}
+      </section>
+    );
+  }
+  // MVP sin COBROS: correo verificado, la hora espera la confirmacion del profesional (mismo plazo que la retencion).
+  if (estado.estado === 'SOLICITADA') {
+    return (
+      <section className="entrada flex flex-col gap-5" aria-live="polite">
+        {encabezado('schedule', `Tu solicitud llegó a ${nombreCorto(perfil)}`)}
+        {parrafo(
+          'Revisará tu hora y te avisaremos por correo cuando la confirme. Mientras tanto la hora queda guardada para ti. Si no puede atenderte en ese horario, te propondrá otras horas.',
+        )}
+        {estado.venceEn && (
+          <div className="rounded-lg border border-divider bg-bg p-6 shadow-suave">
+            <CuentaRegresiva desde={desde} hasta={new Date(estado.venceEn)} onVencida={onVencida} />
+          </div>
+        )}
+      </section>
+    );
+  }
+  // Punto 7: el profesional no acepto la hora y propuso otras (quedan guardadas por un tiempo limitado).
+  if (estado.siguiente === 'REVISAR_PROPUESTAS') {
+    return (
+      <section className="entrada flex flex-col gap-5" aria-live="polite">
+        {encabezado('event_repeat', `${nombreCorto(perfil)} te propuso otras horas`)}
+        {parrafo(
+          `No puede atenderte en el horario que pediste. Te enviamos a ${email} sus propuestas y la invitación para entrar a tu cuenta: ahí eliges una o pides otra hora. Las guardamos por un tiempo limitado.`,
         )}
       </section>
     );
@@ -592,7 +687,7 @@ function ResultadoReserva({
           ? 'Venció el plazo y la hora quedó disponible para otras personas. Elige otra hora: tus datos se conservan.'
           : 'Esta hora ya no está vigente. Elige otra hora: tus datos se conservan.',
       )}
-      <div className="rounded-lg border border-divider bg-neutral-100 p-[clamp(18px,3vw,28px)] shadow-sm">
+      <div className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
         <SelectorHorario profesionalId={perfil.id} valor={otra} onElegir={setOtra} sinHoras={<SinHoras perfil={perfil} centro={centro} />} />
       </div>
       <div>

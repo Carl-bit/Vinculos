@@ -18,6 +18,28 @@ services:
   db:
     image: postgres:18-alpine
     restart: unless-stopped
+    # AUD-02: estadisticas de consultas (postgres/init/20-pg-stat-statements.sh).
+    # track=top: solo las sentencias de nivel superior (no las internas de las funciones).
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=top
+      # AUD-02 (INFRA-03, BD-04): ajustado a 256 MB. La API usa 12 conexiones
+      # (connection_limit). 24 = 12 de la API + migrate, respaldo (pg_dump) y
+      # soporte (~4) + 3 reservadas del superusuario + ~20 % de margen.
+      # 04_pruebas (2026-11-07): con 8 el pool se agoto en rafagas (P2028 -> 503).
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=24
+      - -c
+      - work_mem=2MB
+    # AUD-02 (INFRA-03): presupuesto de un host de 1 GB / 1 vCPU con un silo.
+    # db 256M + backend 256M + frontend 256M + Traefik 128M; el resto, el SO.
+    mem_limit: 256m
+    cpus: 1.0
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -66,12 +88,18 @@ services:
       dockerfile: Dockerfile
     image: erp-backend:${CLIENTE_SLUG}
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: 1.0
     depends_on:
       migrate:
         condition: service_completed_successfully
     environment:
       # Solo app_user (sujeto a RLS). Sin MIGRATION_DATABASE_URL.
-      DATABASE_URL: postgresql://app_user:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      # AUD-02 (BD-04): 12 conexiones (Prisma usaria 3 con 1 vCPU). Cada request
+      # autenticada retiene la suya toda la request (transaccion RLS) y el job de
+      # exportacion una durante toda su corrida. 04_pruebas: 8 se agotaba en una
+      # rafaga de 30 reservas simultaneas; 12 = +50 % (max_connections del silo: 24).
+      DATABASE_URL: postgresql://app_user:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public&connection_limit=12
       PORT: 3001
       FRONTEND_URL: https://${DOMINIO}
       JWT_SECRET: ${JWT_SECRET}
@@ -84,27 +112,41 @@ services:
       # Integraciones (docs/api/integraciones.md): SMTP de la plataforma, Jitsi opcional.
       SMTP_URL: ${SMTP_URL:-}
       CORREO_REMITENTE: ${CORREO_REMITENTE:-no-responder@vinculos.cl}
+      SES_CONFIGURATION_SET: ${SES_CONFIGURATION_SET:-}
       JITSI_HABILITADO: ${JITSI_HABILITADO:-false}
       JITSI_URL_BASE: ${JITSI_URL_BASE:-https://meet.jit.si}
       DOCUMENTO_ENLACE_HORAS: ${DOCUMENTO_ENLACE_HORAS:-72}
       ADJUNTO_MAX_MB: ${ADJUNTO_MAX_MB:-10}
+      # AUD-02: archivo cifrado de la exportacion del centro hasta su descarga (maximo 24 h).
+      EXPORTACIONES_DIR: /var/lib/vinculos/exportaciones
       # Archivo, nunca variable de entorno con la llave.
       KEK_PATH: /run/secrets/vinculos_kek
       RECUPERACION_PUBLICA_PATH: /recuperacion.pub
+    volumes:
+      - exportaciones:/var/lib/vinculos/exportaciones
     secrets:
       - vinculos_kek
     configs:
       - source: recuperacion_publica
         target: /recuperacion.pub
     networks:
-      - interna
-      - proxy
+      interna:
+      proxy:
+      # Unico nombre por el que el front llega a la API. Alias solo en `silo`:
+      # `backend` en `proxy` resolveria al backend de cualquier silo del host.
+      silo:
+        aliases:
+          - api-silo
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
       - traefik.http.routers.${CLIENTE_SLUG}-api.rule=Host(`${DOMINIO}`) && PathPrefix(`/api`)
       - traefik.http.routers.${CLIENTE_SLUG}-api.entrypoints=websecure
       - traefik.http.routers.${CLIENTE_SLUG}-api.tls.certresolver=letsencrypt
+      # AUD-02 (API-05): compresion solo de la API; el front ya comprime (Next).
+      # Los PDF, imagenes y .vxp no se recomprimen (excludedContentTypes).
+      - traefik.http.routers.${CLIENTE_SLUG}-api.middlewares=${CLIENTE_SLUG}-api-compress
+      - traefik.http.middlewares.${CLIENTE_SLUG}-api-compress.compress.excludedcontenttypes=application/pdf,application/octet-stream,image/jpeg,image/png,image/webp
       - traefik.http.services.${CLIENTE_SLUG}-api.loadbalancer.server.port=3001
 
   frontend:
@@ -112,17 +154,22 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        API_URL: http://backend:3001
+        API_URL: http://api-silo:3001
         NEXT_PUBLIC_CENTRO_NOMBRE: ${CENTRO_NOMBRE}
         NEXT_PUBLIC_SITE_URL: https://${DOMINIO}
+        # Estilo visual del silo (moderno por defecto). Pasara a runtime con Vinculos Control.
+        NEXT_PUBLIC_TEMA: ${TEMA:-moderno}
     restart: unless-stopped
+    mem_limit: 256m
+    cpus: 1.0
     environment:
-      # /sesion/* (refresh en cookie httpOnly) llama al backend por la red interna.
-      API_URL: http://backend:3001
+      # /sesion/*, SSR y el rewrite /api llaman al backend por la red `silo` (solo de este silo).
+      API_URL: http://api-silo:3001
     depends_on:
       - backend
     networks:
       - proxy
+      - silo
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
@@ -133,6 +180,8 @@ services:
 
 volumes:
   db_data:
+  # Solo archivos cifrados con la clave del ADMIN (que no se guarda); se borran al descargar o a las 24 h.
+  exportaciones:
 
 secrets:
   vinculos_kek:
@@ -146,6 +195,9 @@ configs:
 networks:
   # Solo backend + migrate + db. La DB nunca se expone al proxy ni al host.
   interna:
+  # Solo backend + frontend de este silo. Sin salida propia (internal).
+  silo:
+    internal: true
   # Red compartida con Traefik, creada una vez: docker network create proxy
   proxy:
     external: true

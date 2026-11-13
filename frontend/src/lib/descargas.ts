@@ -27,6 +27,15 @@ export async function pedirArchivo(ruta: string, cuerpo: unknown): Promise<Blob>
   return r.blob();
 }
 
+/** Archivo de la API para verlo en pantalla (GET, mismo registro de descargas que bajarlo). */
+export async function obtenerArchivo(ruta: string): Promise<Blob> {
+  const pedir = () => fetch(ruta, { headers: { Authorization: `Bearer ${accessToken() ?? ''}` }, cache: 'no-store' });
+  let r = await pedir();
+  if (r.status === 401 && (await renovarSesion())) r = await pedir();
+  if (!r.ok) throw new ApiError(r.status, (await r.json().catch(() => ({}))) as Partial<ErrorRespuesta>);
+  return r.blob();
+}
+
 export async function descargarArchivo(ruta: string, nombrePorDefecto: string): Promise<ResultadoDescarga> {
   const pedir = () => fetch(ruta, { headers: { Authorization: `Bearer ${accessToken() ?? ''}` }, cache: 'no-store' });
   try {
@@ -47,3 +56,21 @@ export async function descargarArchivo(ruta: string, nombrePorDefecto: string): 
     return 'error';
   }
 }
+
+/** Guarda un blob como archivo (descarga del navegador); el object URL se libera despues. */
+export function guardarBlob(blob: Blob, nombre: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** Igual que pedirArchivo, sin sesion (rutas publicas con token o codigo). */
+export async function pedirArchivoPublico(ruta: string, cuerpo: unknown): Promise<Blob> {
+  const r = await fetch(ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo), cache: 'no-store' });
+  if (!r.ok) throw new ApiError(r.status, (await r.json().catch(() => ({}))) as Partial<ErrorRespuesta>);
+  return r.blob();
+}
+

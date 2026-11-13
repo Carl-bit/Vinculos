@@ -27,15 +27,20 @@ import { CatalogosRetencionService } from './catalogos-retencion.service';
 import { DocumentosService } from './documentos.service';
 import {
   AccesoTemporalDto,
+  RevocarAccesoTemporalDto,
   AltaDto,
   BorradorDto,
   BuscarPacientesDto,
+  FiltroResumenPacientesDto,
+  PacienteResumen,
+  PaginaPacientes,
   ConfirmarBorradorDto,
   ConsentimientoAtencionDto,
   CrearIngresoDto,
   EditarPlantillaClinicaDto,
   ListarPlantillasDto,
   ProponerPlantillaDto,
+  OrigenPacienteDto,
   ResolverDuplicadoDto,
   InvitarPacienteDto,
   ListarBorradoresDto,
@@ -54,6 +59,8 @@ import {
   EnlaceEnviado,
   EnviarDocumentoDto,
   EstadoFichaPaciente,
+  PendienteFicha,
+  PendientesFichasDto,
   EvolucionVista,
   FichaVista,
   InvitacionEnviada,
@@ -73,6 +80,7 @@ import {
   EnvioDocumentoDetalle,
   EnvioDocumentoVista,
   EvolucionCreada,
+  RangoCitasEvolucionDto,
   FichaSobreRetencion,
   IngresoVista,
   PlantillaClinicaVista,
@@ -110,10 +118,18 @@ export class PacientesController {
     return this.pacientes.crear(dto);
   }
 
+  /** Paginada por cursor (maximo 100); sin contacto de emergencia (esta en el detalle). */
   @Get()
   @Roles(...TODOS)
-  listar(@Query() filtro: BuscarPacientesDto): Promise<PacienteVista[]> {
+  listar(@Query() filtro: BuscarPacientesDto): Promise<PaginaPacientes> {
     return this.pacientes.listar(filtro);
+  }
+
+  /** Mapa id -> nombre del panel: todos los que el rol ve, sin columnas cifradas. */
+  @Get('resumen')
+  @Roles(...TODOS)
+  resumen(@Query() filtro: FiltroResumenPacientesDto): Promise<PacienteResumen[]> {
+    return this.pacientes.resumen(filtro);
   }
 
   @Get(':id')
@@ -153,7 +169,7 @@ export class PacientesController {
     return this.pacientes.abrirFicha(id);
   }
 
-  /** Invitacion de cuenta: el paciente (desde 14 años) o su adulto responsable si es menor. */
+  /** Invitacion de cuenta: el paciente (desde 14 aÃ±os) o su adulto responsable si es menor. */
   @Post(':id/invitacion')
   @Roles('ADMIN', 'GESTION')
   invitar(@Param('id', Uuid) id: string, @Body() dto: InvitarPacienteDto): Promise<InvitacionEnviada> {
@@ -169,6 +185,13 @@ export class PacientesController {
   @Roles('ADMIN', 'GESTION')
   duplicadoRevisado(@Param('id', Uuid) id: string, @Body() dto: ResolverDuplicadoDto): Promise<PacienteVista> {
     return this.pacientes.duplicadoRevisado(id, dto.resolucion);
+  }
+
+  /** 03b-4.2 (C-10): origen del paciente para la comision (lo fija la BD al crear; administracion lo corrige). */
+  @Put(':id/origen')
+  @Roles('ADMIN', 'GESTION')
+  marcarOrigen(@Param('id', Uuid) id: string, @Body() dto: OrigenPacienteDto): Promise<PacienteVista> {
+    return this.pacientes.marcarOrigen(id, dto.traidoPorCentro);
   }
 
   /** Politicas y consentimientos aceptados (version, canal, otorgante). */
@@ -274,11 +297,37 @@ export class SeguimientoController {
     return this.seguimiento.accesosTemporales();
   }
 
+  /** Corte antes de su fecha: ADMIN o el tratante (los mismos que lo otorgan). */
+  @Post('accesos-temporales/:id/revocacion')
+  @HttpCode(200)
+  @Roles('ADMIN', 'PROFESIONAL')
+  revocarAcceso(@Param('id', Uuid) id: string, @Body() dto: RevocarAccesoTemporalDto): Promise<AccesoTemporalVista> {
+    return this.seguimiento.revocarAccesoTemporal(id, dto.motivo);
+  }
+
+  /**
+   * 03b-4.2: ids de las sesiones del rango que ya tienen evolucion (solo el
+   * metadato, sin contenido: no se registra en accesos_ficha, como el conteo
+   * del inicio). La RLS de evoluciones deja solo las fichas del tratante.
+   */
+  @Get('citas-con-evolucion')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  citasConEvolucion(@Query() rango: RangoCitasEvolucionDto): Promise<string[]> {
+    return this.seguimiento.citasConEvolucion(rango.desde, rango.hasta);
+  }
+
   /** Vista administrativa: ultima/proxima sesion y sesiones sin cerrar por paciente (sin contenido clinico). */
   @Get('profesionales/:id/estado-fichas')
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
   estadoFichas(@Param('id', Uuid) id: string): Promise<EstadoFichaPaciente[]> {
     return this.seguimiento.estadoFichas(id);
+  }
+
+  /** Seguimiento del equipo y "Por hacer": pendientes de las fichas (metadata y codigo seudonimo, sin contenido clinico). */
+  @Get('pendientes-fichas')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  pendientesFichas(@Query() filtro: PendientesFichasDto): Promise<PendienteFicha[]> {
+    return this.seguimiento.pendientesFichas(filtro.profesionalId);
   }
 }
 

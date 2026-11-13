@@ -1,7 +1,8 @@
-import { Modalidad, ModalidadAtencion, TipoTrayectoria } from '@prisma/client';
+import { Modalidad, ModalidadAtencion, TipoDocumentoPracticante, TipoTrayectoria } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsBoolean,
@@ -9,6 +10,7 @@ import {
   IsEnum,
   IsIn,
   IsInt,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUrl,
@@ -44,6 +46,7 @@ export const BANCOS = [
 ] as const;
 export const TIPOS_CUENTA = ['CORRIENTE', 'VISTA', 'AHORRO', 'CUENTA_RUT'] as const;
 
+/** Mi perfil: nombre publico, bio y frase aceptan null para quitarlos (undefined = sin cambio). */
 export class PerfilDto {
   @Recortar()
   @IsString()
@@ -64,13 +67,13 @@ export class PerfilDto {
   @Recortar()
   @IsString()
   @Length(2, 120)
-  nombrePublico?: string;
+  nombrePublico?: string | null;
 
   @IsOptional()
   @Recortar()
   @IsString()
   @MaxLength(2000)
-  bio?: string;
+  bio?: string | null;
 
   @IsOptional()
   @IsUrl({ protocols: ['https'], require_protocol: true })
@@ -106,12 +109,12 @@ export class PerfilDto {
   @MaxLength(40, { each: true })
   idiomas?: string[];
 
-  /** Frase destacada del perfil publico. */
+  /** Frase destacada del perfil publico. null = quitarla (Mi perfil). */
   @IsOptional()
   @Recortar()
   @IsString()
   @MaxLength(300)
-  citaDestacada?: string;
+  citaDestacada?: string | null;
 }
 
 export class EditarPerfilDto {
@@ -217,15 +220,67 @@ export class TrayectoriaDto {
   @IsString()
   @Length(1, 40)
   registroSuperintendencia?: string;
-
-  @IsOptional()
-  @IsUrl({ protocols: ['https'], require_protocol: true })
-  documentoRespaldoUrl?: string;
+  // 2026-11-07: el respaldo es un archivo (POST /trayectoria/:id/respaldos); el enlace ya no se recibe.
 }
 
 export class VerificarTrayectoriaDto {
   @IsBoolean()
   verificado!: boolean;
+}
+
+/** Observacion de la cuenta madre sobre el respaldo de un titulo (2026-11-08). */
+export class ObservarTrayectoriaDto {
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  observacion!: string;
+}
+
+/** Documento del practicante (2026-11-08): el tipo y la vigencia van en la query (multipart sin campos de texto). */
+export class DocumentoPracticanteDto {
+  @IsEnum(TipoDocumentoPracticante)
+  tipo!: TipoDocumentoPracticante;
+
+  /** Solo el certificado de alumno regular: hasta cuando vale (informativo, no corta el acceso). */
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  vigenteHasta?: string;
+}
+
+/** Campos del perfil publico que la cuenta madre puede pedir corregir. */
+export const CAMPOS_PERFIL = ['nombre_publico', 'especialidad', 'cita_destacada', 'bio', 'enfoques', 'foto_url'] as const;
+export type CampoPerfil = (typeof CAMPOS_PERFIL)[number];
+/** Los que corrige ella misma a la segunda solicitud sin cambios (la foto no). */
+export const CAMPOS_CORREGIBLES = ['nombre_publico', 'especialidad', 'cita_destacada', 'bio', 'enfoques'] as const;
+
+export class PedirCorreccionDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(6)
+  @ArrayUnique()
+  @IsIn(CAMPOS_PERFIL, { each: true })
+  campos!: CampoPerfil[];
+
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  motivo!: string;
+}
+
+export class CorregirCampoDto {
+  @IsIn(CAMPOS_CORREGIBLES)
+  campo!: (typeof CAMPOS_CORREGIBLES)[number];
+
+  /** Valor nuevo (enfoques separados por coma). Vacio = quitar (no para la especialidad). */
+  @IsString()
+  @MaxLength(2000)
+  valor!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  motivo!: string;
 }
 
 export class DatosPrivadosDto {
@@ -328,4 +383,28 @@ export class ComentarioDto {
   @IsString()
   @Length(1, 5000)
   texto!: string;
+}
+
+/** 03b-4.2: numero de registro de prestador (RNPI). null = quitarlo. */
+export class InformarRegistroSisDto {
+  @ValidateIf((_, v) => v !== null)
+  @Matches(/^\d{1,10}$/, { message: 'El número de registro son solo dígitos (hasta 10)' })
+  numero!: string | null;
+}
+
+/** ADMIN: verificacion manual (respaldo de la trayectoria) cuando no hay apikey o el RNPI falla. */
+export class VerificacionManualSisDto {
+  /** false = el registro no corresponde (NO_COINCIDE). */
+  @IsBoolean()
+  coincide!: boolean;
+
+  @Recortar()
+  @IsString()
+  @Length(2, 200)
+  tituloHabilitante!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(2, 200)
+  institucion!: string;
 }

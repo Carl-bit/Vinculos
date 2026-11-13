@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Temas por silo (<html data-tema>): fuera de capas, ganan a las utilidades. */
+@import './temas/cuaderno.css';
 
 /*
  * Tokens del sistema de diseño de Vinculos (sistema Organic de Claude Design).
@@ -27,7 +29,7 @@
   --color-neutral-400: #c0b6a5;
   --color-neutral-500: #a19786;
   --color-neutral-600: #82796a;
-  --color-neutral-700: #645c50;
+  --color-neutral-700: #5f574b; /* 03b-4.1: AA sobre neutral-300 (4.8:1; antes #645c50, 4.4:1) */
   --color-neutral-800: #474238;
   --color-neutral-900: #2e2b25;
   --color-accent-100: #fff2eb;
@@ -45,20 +47,77 @@
   --color-accent-2-400: #aebf92;
   --color-accent-2-500: #8fa073;
   --color-accent-2-600: #728157;
-  --color-accent-2-700: #56633f;
+  --color-accent-2-700: #515e3b; /* 03b-4.1: AA sobre neutral-300 (4.7:1; antes #56633f, 4.35:1) */
   --color-accent-2-800: #3d472b;
   --color-accent-2-900: #272e1b;
+  /* Agenda (design-reference "Opcion A semana unificada"): sesiones por modalidad
+     y pago pendiente. Texto -900 sobre fondo -100/-200: AA (>= 7:1). */
+  --color-presencial-200: #f2d3be;
+  --color-presencial-600: #b9764b;
+  --color-presencial-900: #3e2410;
+  --color-online-100: #dce6f2;
+  --color-online-600: #5b7ca3;
+  --color-online-900: #1f3550;
+  --color-pendiente-100: #fff4d6;
+  --color-pendiente-700: #a06e0e;
+  --color-pendiente-900: #6b4709;
   --radius-sm: 8px;
   --radius-md: 16px;
-  --radius-lg: 28px;
+  --radius-lg: 24px; /* 03c Moderno A: radio de panel (antes 28 px) */
   --shadow-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
   --shadow-md: 0 3px 10px color-mix(in srgb, #2e2b25 16%, transparent);
   --shadow-lg: 0 12px 32px color-mix(in srgb, #2e2b25 22%, transparent);
+  /* 03c "Moderno A" (design-reference/Perfil y Equipo). Tinta, arcilla y oliva
+     sobre papel: AA (tinta 15:1, arcilla 6.6:1, oliva 5.9:1 sobre papel;
+     sobre lienzo 12.9 / 5.7 / 5.1). Blanco sobre arcilla u oliva: >= 6:1. */
+  --color-tinta: #2b2420;
+  --color-arcilla: #8a4b1f;
+  --color-oliva: #4f6b2f;
+  --color-papel: #fffdf9;
+  --color-lienzo: #f1ebe2;
+  --color-punto: #d6cbbb;
+  --color-borde: #e3d7c4;
+  --radius-campo: 14px;
+  --radius-tarjeta: 16px;
+  --radius-panel: 24px;
+  --shadow-suave: 0 14px 40px rgb(43 36 32 / 0.1);
+  --shadow-flotante: 0 24px 60px rgb(43 36 32 / 0.18);
 }
 
-/* Figtree (next/font en app/layout.tsx, self-hosted). */
+/* 03b-6: item de una lista larga (historial de sesiones, evoluciones): el
+   navegador no dibuja los que estan fuera de pantalla (virtualizacion nativa,
+   sin JS). ponytail: el DOM sigue completo; con miles de filas, windowing real. */
+@utility fila-diferida {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
+/* Fondo de lienzo con trama de puntos de 18 px (Moderno A). */
+@utility trama {
+  background-color: var(--color-lienzo);
+  background-image: radial-gradient(var(--color-punto) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* Superficie translucida (inspector y barras flotantes): crema al 92 % con blur.
+   Sin transparencia si el sistema la pide reducida. */
+@utility translucida {
+  background-color: color-mix(in srgb, var(--color-bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-bg);
+    backdrop-filter: none;
+  }
+}
+
+/* Figtree (next/font en app/layout.tsx, self-hosted). --font-cuerpo la
+   reemplaza cada tema (app/temas/); --font-manuscrita solo la usa Cuaderno. */
 @theme inline {
-  --font-body: var(--font-figtree), system-ui, sans-serif;
+  --font-body: var(--font-cuerpo), system-ui, sans-serif;
+  --font-manuscrita: var(--font-caveat), cursive;
+}
+:root {
+  --font-cuerpo: var(--font-figtree);
 }
 
 @layer base {
@@ -113,20 +172,22 @@
   animation: aparecer 200ms ease-out 300ms both;
 }
 
-/* Skeleton: barrido suave sobre neutral-200. */
+/* Skeleton: barrido sobre neutral-300, un tono mas oscuro que la tarjeta y el
+   lienzo para que se distinga (los tokens los redefine cada tema). */
 @keyframes barrido {
   to {
     background-position: -200% 0;
   }
 }
 .esqueleto {
-  background: linear-gradient(90deg, var(--color-neutral-200) 25%, var(--color-neutral-100) 50%, var(--color-neutral-200) 75%) 0 0 / 200% 100%;
+  background: linear-gradient(90deg, var(--color-neutral-300) 25%, var(--color-neutral-200) 50%, var(--color-neutral-300) 75%) 0 0 / 200% 100%;
   animation: barrido 1.4s ease-in-out infinite;
 }
 
 /* Material Symbols Rounded (link en app/layout.tsx, glifos de lib/iconos.ts). */
 .ms {
-  font-family: 'Material Symbols Rounded';
+  /* Fuente local (app/fuentes, next/font/local): sin pedidos a Google. */
+  font-family: var(--font-iconos), 'Material Symbols Rounded';
   font-weight: 500;
   font-style: normal;
   line-height: 1;
@@ -146,17 +207,6 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/* Deriva lenta de las manchas del login (ease-in-out, sin rebote). */
-@keyframes deriva {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(3%, -4%, 0) scale(1.06);
   }
 }
 

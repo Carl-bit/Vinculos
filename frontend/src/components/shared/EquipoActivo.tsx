@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { createContext, useContext, useState, type ReactNode } from 'react';
-
-import { Icon } from '@/components/ui/Icon';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { Field, Select } from '@/components/ui/Field';
 import { useProfesionales } from '@/lib/consultas';
@@ -12,6 +10,8 @@ import { useProfesionales } from '@/lib/consultas';
  * Contexto de equipo del backoffice (ADMIN/GESTION): "todo el equipo" o un
  * profesional. Solo filtra lo que se muestra (agenda, pacientes); no cambia
  * permisos ni el token. Vive en memoria y se reinicia al cambiar de rol.
+ * 03b-4.1: tambien va en la URL (?equipo=<id>, sin datos clinicos), asi
+ * sobrevive a recargar la pagina y el enlace se puede compartir.
  */
 interface EquipoActivoValor {
   profesionalId: string | null;
@@ -20,9 +20,41 @@ interface EquipoActivoValor {
 
 const Contexto = createContext<EquipoActivoValor>({ profesionalId: null, setProfesionalId: () => {} });
 
-export function ProveedorEquipoActivo({ children }: { children: ReactNode }) {
-  const [profesionalId, setProfesionalId] = useState<string | null>(null);
+const PARAMETRO = 'equipo';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Integrante en la URL al cargar (solo un id con formato valido; la API decide si existe). */
+const desdeUrl = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const id = new URLSearchParams(window.location.search).get(PARAMETRO);
+  return id && UUID.test(id) ? id : null;
+};
+
+export function ProveedorEquipoActivo({ habilitado, children }: { habilitado: boolean; children: ReactNode }) {
+  const [profesionalId, setEstado] = useState<string | null>(() => (habilitado ? desdeUrl() : null));
+  const ruta = usePathname();
+  const parametros = useSearchParams();
+  /** Elegir (o volver a todo el equipo) escribe la URL en el momento. */
+  const setProfesionalId = useCallback((id: string | null) => {
+    setEstado(id);
+    escribirUrl(id);
+  }, []);
+  useEffect(() => {
+    if (!habilitado) return;
+    const enUrl = parametros.get(PARAMETRO);
+    // Correcciones 2026-11-11 (punto 11): el integrante elegido vive solo en la URL de la vista que lo
+    // filtra (agenda). Al cambiar de seccion (menu, sin ?equipo=) se vuelve a la vista de la cuenta madre.
+    setEstado(enUrl && UUID.test(enUrl) ? enUrl : null);
+  }, [habilitado, ruta, parametros]);
   return <Contexto.Provider value={{ profesionalId, setProfesionalId }}>{children}</Contexto.Provider>;
+}
+
+/** null como estado del historial: asi el router de Next sincroniza useSearchParams. */
+function escribirUrl(id: string | null) {
+  const url = new URL(window.location.href);
+  if (id) url.searchParams.set(PARAMETRO, id);
+  else url.searchParams.delete(PARAMETRO);
+  if (url.href !== window.location.href) window.history.replaceState(null, '', url);
 }
 
 export const useEquipoActivo = () => useContext(Contexto);
@@ -49,39 +81,5 @@ export function SelectorEquipo() {
         </Select>
       )}
     </Field>
-  );
-}
-
-/**
- * 03b-4.1: indicador visible del integrante elegido. Agenda, pendientes y
- * cobros ya se filtran por el; desde aca se abre su perfil (Equipo, solo
- * metadata: nunca datos clinicos para ADMIN/GESTION) o se vuelve a todo el
- * equipo.
- */
-export function ViendoA() {
-  const { profesionalId, setProfesionalId } = useEquipoActivo();
-  const nombre = useProfesionales(!!profesionalId).data?.find((m) => m.id === profesionalId)?.nombre;
-  if (!profesionalId) return null;
-  return (
-    <div
-      role="status"
-      className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[18px] border border-accent-500 bg-accent-200 px-4 py-2.5 text-[13.5px] font-bold text-accent-900"
-    >
-      <Icon name="person_search" size={19} />
-      <span className="min-w-0 flex-1">
-        Viendo a <span className="font-black">{nombre ?? 'un integrante'}</span>: agenda, pendientes y cobros muestran solo lo suyo.
-      </span>
-      <Link href={`/admin/equipo?id=${profesionalId}`} className="font-extrabold text-accent-900 underline underline-offset-2">
-        Ver su perfil
-      </Link>
-      <button
-        type="button"
-        onClick={() => setProfesionalId(null)}
-        className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-accent-700 px-3.5 font-extrabold text-accent-900 hover:bg-accent-300"
-      >
-        <Icon name="arrow_back" size={16} />
-        Volver a todo el equipo
-      </button>
-    </div>
   );
 }

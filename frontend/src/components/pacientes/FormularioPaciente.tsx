@@ -1,12 +1,12 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
-import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { Field, Input, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
@@ -17,6 +17,7 @@ import { useTiposAtencion, type PacienteVista } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+import { MENSAJE_CORREO, MENSAJE_TELEFONO, reglaCorreo, reglaTelefono } from '@/lib/validacion';
 import { FechaNacimiento } from '@/components/shared/FechaNacimiento';
 
 const vacio = {
@@ -38,8 +39,8 @@ type Datos = typeof vacio;
 type Errores = Partial<Record<keyof Datos, string>>;
 
 const telefono = (t: string) => t.replace(/[\s()-]/g, '');
-const telefonoValido = (t: string) => !t || /^\+56\d{9}$/.test(telefono(t));
-const correoValido = (c: string) => !c || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.trim());
+const telefonoValido = (t: string) => !reglaTelefono(t);
+const correoValido = (c: string) => !reglaCorreo()(c);
 
 /**
  * Alta de paciente (datos administrativos). PROFESIONAL lo crea como propio;
@@ -58,6 +59,15 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
   const alerta = useRef<HTMLParagraphElement>(null);
   const cambiar = (k: keyof Datos, v: string) => setD((x) => ({ ...x, [k]: v }));
   const menor = d.fechaNacimiento ? edadEn(d.fechaNacimiento) < 18 : false;
+  // Punto 16: verificador de duplicados por RUT (indice ciego rut_hmac). Avisa antes de guardar;
+  // la BD igual rechaza el repetido (409). Cada rol ve solo los pacientes que su RLS permite.
+  const rutListo = rutValido(d.rut) ? rutNormalizado(d.rut) : '';
+  const existente = useQuery({
+    queryKey: ['panel', 'pacientes', 'por-rut', rutListo],
+    queryFn: () => datos(api.GET('/api/pacientes', { params: { query: { rut: rutListo } } })),
+    enabled: !!rutListo,
+    select: (r) => r.items[0],
+  });
 
   const crear = useMutation({
     mutationFn: async () => {
@@ -66,13 +76,12 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
           body: {
             nombre: d.nombre.trim(),
             apellido: d.apellido.trim(),
-            rut: rutNormalizado(d.rut) || undefined,
+            rut: rutNormalizado(d.rut),
             fechaNacimiento: d.fechaNacimiento,
             email: d.email.trim().toLowerCase() || undefined,
             telefono: d.telefono ? telefono(d.telefono) : undefined,
             profesionalId: admin ? d.profesionalId : undefined,
             tipoAtencionId: d.tipoAtencionId || undefined,
-            contactoEmergencia: d.contactoEmergencia.trim() || undefined,
           },
         }),
       );
@@ -103,7 +112,7 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
   /** 03b-4.1: formato al salir del campo (no al final). */
   const alSalir = (k: 'email' | 'telefono' | 'adultoTelefono' | 'adultoEmail') => () => {
     const ok = k.toLowerCase().includes('email') ? correoValido(d[k]) : telefonoValido(d[k]);
-    setErrores((e) => ({ ...e, [k]: ok ? undefined : k.toLowerCase().includes('email') ? 'Revisa el correo.' : 'Con código de país: +56 9 1234 5678.' }));
+    setErrores((e) => ({ ...e, [k]: ok ? undefined : k.toLowerCase().includes('email') ? MENSAJE_CORREO : MENSAJE_TELEFONO }));
   };
 
   const enviar = (e: FormEvent) => {
@@ -113,14 +122,16 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
     if (!d.apellido.trim()) err.apellido = 'Escribe el apellido.';
     if (!d.fechaNacimiento) err.fechaNacimiento = 'La fecha de nacimiento es obligatoria (define si es menor de edad).';
     else if (new Date(d.fechaNacimiento) > new Date()) err.fechaNacimiento = 'La fecha no puede ser futura.';
-    if (d.rut && !rutValido(d.rut)) err.rut = 'El RUT no es válido. Revisa el dígito verificador.';
-    if (!correoValido(d.email)) err.email = 'Revisa el correo.';
-    if (!telefonoValido(d.telefono)) err.telefono = 'Con código de país: +56 9 1234 5678.';
+    if (!d.rut.trim()) err.rut = 'El RUT es obligatorio: identifica al paciente aunque cambie su correo.';
+    else if (!rutValido(d.rut)) err.rut = 'El RUT no es válido. Revisa el dígito verificador.';
+    else if (existente.data) err.rut = 'Ya existe un paciente con este RUT.';
+    if (!correoValido(d.email)) err.email = MENSAJE_CORREO;
+    if (!telefonoValido(d.telefono)) err.telefono = MENSAJE_TELEFONO;
     if (admin && !d.profesionalId) err.profesionalId = 'Elige el profesional tratante.';
     if (menor) {
       if (!d.adultoNombre.trim()) err.adultoNombre = 'Un menor necesita un adulto responsable para agendar.';
-      if (!telefonoValido(d.adultoTelefono)) err.adultoTelefono = 'Con código de país: +56 9 1234 5678.';
-      if (!correoValido(d.adultoEmail)) err.adultoEmail = 'Revisa el correo.';
+      if (!telefonoValido(d.adultoTelefono)) err.adultoTelefono = MENSAJE_TELEFONO;
+      if (!correoValido(d.adultoEmail)) err.adultoEmail = MENSAJE_CORREO;
     }
     setErrores(err);
     if (Object.keys(err).length === 0) crear.mutate();
@@ -143,13 +154,24 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
           onChange={(v) => cambiar('fechaNacimiento', v)}
           avisoMenor="Es menor de edad: registra abajo a su adulto responsable para poder agendarle horas."
         />
-        <CampoRut
-          label="RUT"
-          hint="Opcional ahora; se exige antes de la primera evolución."
-          error={errores.rut}
-          value={d.rut}
-          onChange={(v) => cambiar('rut', v)}
-        />
+        <div className="flex flex-col gap-2">
+          <CampoRut
+            label="RUT"
+            required
+            hint="Identifica al paciente aunque cambie su correo."
+            error={errores.rut}
+            value={d.rut}
+            onChange={(v) => cambiar('rut', v)}
+          />
+          {existente.data && (
+            <Aviso tono="advertencia" icono="person_search" role="status">
+              Ya existe: {existente.data.nombre} {existente.data.apellido}.{' '}
+              <ButtonLink href={`/admin/fichas/${existente.data.id}`} variant="ghost" className="!min-h-8 !px-2 !py-0 !text-[13px]">
+                Abrir su ficha
+              </ButtonLink>
+            </Aviso>
+          )}
+        </div>
         <Field label="Correo" error={errores.email}>
           {(p) => <Input {...p} type="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} onBlur={alSalir('email')} />}
         </Field>
@@ -194,18 +216,6 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
           )}
         </Field>
       </div>
-      <Field label="Contacto de emergencia" hint="Nombre, relación y teléfono. Se guarda cifrado.">
-        {(p) => (
-          <Textarea
-            {...p}
-            rows={2}
-            maxLength={500}
-            value={d.contactoEmergencia}
-            onChange={(e) => cambiar('contactoEmergencia', e.target.value)}
-            className="!min-h-16"
-          />
-        )}
-      </Field>
 
       {menor && (
         <fieldset className="m-0 flex flex-col gap-4 rounded-[18px] border border-accent-500 bg-accent-100 px-[18px] pt-3 pb-4">
@@ -234,7 +244,9 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
               )}
             </Field>
             <Field label="Correo" hint="Recibe los avisos y consentimientos del menor." error={errores.adultoEmail}>
-              {(p) => <Input {...p} type="email" value={d.adultoEmail} onChange={(e) => cambiar('adultoEmail', e.target.value)} />}
+              {(p) => (
+                <Input {...p} type="email" value={d.adultoEmail} onChange={(e) => cambiar('adultoEmail', e.target.value)} onBlur={alSalir('adultoEmail')} />
+              )}
             </Field>
           </div>
         </fieldset>

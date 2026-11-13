@@ -431,3 +431,359 @@ sin editar las aplicadas:
   `test/03b41-correctivo.e2e-spec.ts` (nuevo) y `02a`, `02b`, `03a`
   ajustados al codigo por correo (el helper lee el codigo del proveedor
   simulado); unitario `reglas-match.spec.ts` (tramos).
+
+### 03b-4.1, pendientes aprobados (2026-10-27)
+
+- Migracion `20261030000000_03b41_reservando_purga_codigos`:
+  `retenciones_en_curso()` (C) y `purgar_codigos_verificacion()` (job).
+- API: `GET agenda/horarios-tomados/ajenos` (`RetencionEnCurso`); job
+  `purgar_codigos_verificacion` (03:45). OpenAPI y cliente del front
+  regenerados.
+- Seed demo: horas hoy y el proximo dia habil para profesional1,
+  profesional2 y practicante (las de hoy que ya empezaron, como dueño y sin
+  evolucion: "fichas por cerrar").
+- Desarrollo: `LOGIN_LIMITE_POR_MINUTO=120` en `backend/.env.example` (cuenta
+  login, segundo paso y refresh; los silos siguen con 10).
+- Tests: `seguridad_bd.sql` casos 135 y 136; integracion
+  `03b41-correctivo.e2e-spec.ts` ("Reservando..." por rol); unitario
+  `jobs.spec.ts` (programacion del job nuevo).
+
+### 03b-4.1, cierre (2026-10-28)
+
+- Sin cambios de API ni de BD. Seed demo: perfil profesional (sin publicar)
+  de `admin`, horas hoy y mañana para profesional3 a profesional6 (paciente
+  nuevo Ignacio para profesional3). Como `morosidad_desde` es la hora del
+  seed y el centro bloquea a morosos, las horas impagas que terminan despues
+  vuelven moroso al paciente: para los tests que agendan, `npm run
+  demo:reset` cada dia.
+
+### 03b-4.2, protocolo del centro, comision por derivacion y moroso del demo (2026-10-28)
+
+- Migraciones `20261031000000_03b42_enums` y
+  `20261031000100_03b42_protocolos_comision`: politicas `PROTOCOLO_EQUIPO`
+  (no publica) y `PROTOCOLO_PACIENTE` con textos iniciales; tabla
+  `lecturas_protocolo` (A); `pacientes.traido_por_centro` (trigger
+  `pacientes_origen`, `marcar_origen_paciente()`); regla
+  `comision_derivacion_tipo/_valor` en `configuracion_centro`;
+  `liquidaciones.comision_derivacion` y `sesiones_derivadas`;
+  `generar_liquidacion` y `reporte_cobros` con la comision por origen.
+- API: `GET protocolo`, `POST protocolo/lectura`, `GET protocolo/lecturas`,
+  `GET|POST portal/protocolo`, `PUT pacientes/:id/origen`; campos nuevos en
+  configuracion, paciente y liquidacion. OpenAPI y cliente del front
+  regenerados.
+- Seed demo: paciente moroso Rodrigo (`moroso@`, llego por el centro) con
+  una sesion realizada impaga hace 2 dias habiles; `morosidad_desde` se
+  adelanta como dueño a justo antes de esa sesion y las sesiones de hoy que
+  ya terminaron se registran pagadas, asi que solo el queda moroso. GESTION
+  autoriza con motivo su proxima hora (`excepciones_morosidad`) y el job
+  envia el aviso de deuda. Profesional Uno marca leido el protocolo interno y
+  Paciente Prueba acusa el de pacientes. Regla de comision: 20 % general y
+  $5.000 por sesion de pacientes del centro.
+- Tests: `seguridad_bd.sql` casos 137 (app_user) y 138 (dueño); integracion
+  `03b42-protocolo-comision.e2e-spec.ts`.
+- Seed demo (ajuste): todas las horas de hoy y del proximo dia habil se
+  registran pagadas, tambien las que terminan despues del seed, para que no
+  vuelvan morosos a sus pacientes; ya no hace falta `demo:reset` cada dia
+  (si, pasados 2 dias habiles, antes de los tests que agendan).
+
+## AUD-01 Fase 1 (alineacion con las decisiones de cumplimiento, 2026-10-28)
+
+Roadmap: `docs/cumplimiento/roadmap_aud01.md`. Informe: `docs/cumplimiento/brechas_saas.md`.
+
+- E1.1 documentos: `docs/cumplimiento/subencargados.md`, `incidentes.md`,
+  `docs/api/correo_ses.md`; `matriz_permisos.md` y `requisitos_02_apis.md`
+  corregidos: segundo factor por correo, sin TOTP.
+- E1.2 correo: Reply-To = `contenido_publico.contacto_correo` (sin columna
+  nueva); `SES_CONFIGURATION_SET` (cabecera `X-SES-CONFIGURATION-SET`);
+  Traefik con TLS 1.2 minimo (`infra/traefik/dinamico.yml`).
+- E1.3 pasarela del centro (migracion `20261101000000_aud01_pasarela_cobrador`):
+  PASARELA no se habilita con modelo DIRECTO; en MIXTO la hora de un
+  profesional con cobro directo no la ofrece ni la acepta
+  (`medios_de_profesional`, triggers `citas_pasarela_cobro_directo` y
+  `cobros_pasarela_cobro_directo`). 422 con restriccion propia.
+- E1.4 comprobante y boleta SII (migracion
+  `20261101000100_aud01_comprobante_documento_tributario`): `boletas` ->
+  `comprobantes_pago` (numero `CP-`, no tributario; AAD fijo con `aadTabla`),
+  evento `COMPROBANTE_EMITIDO`, `emitir_comprobante_pago`. Tabla nueva
+  `documentos_tributarios` (A) con `registrar_documento_tributario` y
+  `anular_documento_tributario`. API: `DetalleCobroCita.comprobante` (antes
+  `boleta`) y `documentosTributarios`; `POST cobros/citas/:id/documentos-tributarios`,
+  `POST cobros/documentos-tributarios/:id/anulacion`.
+- E1.5 trazabilidad (migracion `20261101000200_aud01_trazabilidad`):
+  `accesos_ficha.detalle`; trigger de edicion de pacientes y adultos
+  responsables (campos, nunca valores); copia del tratante y adjunto bajado
+  = DESCARGA; `registro_exportaciones` (A) para los PDF de Cobros;
+  `GET auditoria/accesos` (ADMIN) y pestaña "Auditoria de accesos" en
+  Configuracion.
+- Tests: `seguridad_bd.sql` casos 139 (dueño), 140 y 141 (app_user);
+  integracion `aud01-cumplimiento.e2e-spec.ts`; unitarios `correo.spec.ts` y
+  `cifrado.spec.ts` (AAD fijo); Vitest `DocumentosTributarios.test.tsx`;
+  Playwright `e2e/cumplimiento.spec.ts`.
+
+## AUD-01 Fase 2 (soporte, contrato, derechos, continuidad, 2026-10-28)
+
+- E2.1 soporte (migracion `20261101000300_aud01_acceso_soporte`): rol
+  `soporte_vinculos` sin tablas; `autorizaciones_soporte`, `registro_soporte`;
+  API `soporte/autorizaciones` (GET, POST, `:id/revocacion`), `soporte/registro`.
+  Runbook `docs/cumplimiento/soporte.md`.
+- E2.2 contrato (migraciones `..0400_aud01_enums_contrato`, `..0500_aud01_contrato_centro`):
+  tipos `TERMINOS_SERVICIO` y `DPA` (los publica el operador), `aceptaciones_contrato`;
+  API `contrato-centro` (GET) y `contrato-centro/aceptacion`. Plantillas en
+  `docs/cumplimiento/plantillas/`; el seed demo las publica y la cuenta madre las acepta.
+- E2.3a derechos (`..0600_aud01_enums_derechos`, `..0700_aud01_solicitudes_derechos`):
+  `feriados` (2026), `solicitudes_derechos`, plazo de 30 dias habiles, alerta a
+  5 dias; API `derechos/solicitudes` (GET, POST, `:id/estado`); job
+  `alertar_solicitudes_por_vencer` (08:00).
+- E2.3b formulario publico por RUT: pendiente de decision (ver roadmap).
+- E2.3c (`..0800_aud01_bloqueo_cancelacion_canales`): bloqueo del tratamiento,
+  cancelacion de datos perifericos, WhatsApp con consentimiento propio; API
+  `derechos/pacientes/:id/bloqueo`, `.../bloqueo/levantamiento`,
+  `.../cancelacion`; `PacienteVista.bloqueoDesde/bloqueoMotivo`;
+  `Preferencias.whatsapp`; `SolicitudHoraDto.aceptaWhatsapp`.
+- E2.4 (`..0900_aud01_enums_deteccion`, `..1000_aud01_deteccion`):
+  `intentos_login_fallidos`, job `detectar_anomalias` (cada hora); scripts
+  `infra/scripts/continuidad/` (respaldo cifrado, descifrado, salud);
+  `docs/cumplimiento/continuidad.md` (RTO/RPO propuestos).
+- Tests: `seguridad_bd.sql` casos 142 a 148; `aud01-cumplimiento.e2e-spec.ts`
+  (10 tests); `jobs.spec.ts`; Vitest `ContratoCentro.test.tsx`; Playwright
+  `e2e/cumplimiento.spec.ts` (4).
+
+## AUD-01 cierre (Fase 0 y E2.3b, 2026-10-28)
+
+- Fase 0: `bcrypt@6`, `sharp@0.35.5` (tipos via `paths` a `dist/index.d.cts`),
+  overrides de `multer`, `deepmerge-ts` y `js-yaml` (backend) y de `postcss`
+  dentro de `next` (frontend); `npm run auditoria` en la raiz. Detalle:
+  `docs/seguridad/dependencias.md`.
+- E2.3b (migracion `20261101001100_aud01_derechos_publico`):
+  `POST publico/derechos` (sin sesion, rate limit publico, trampa para bots),
+  `registrar_solicitud_publica()`, `solicitudes_derechos.pide_cambio_correo`;
+  aviso solo al correo registrado (`CorreosCuenta.enviarAviso`). Pagina
+  `/derechos`. Tests: `seguridad_bd.sql` caso 149; e2e y Playwright.
+- `infra/scripts/continuidad/instalar.sh` (el borrador `feriados_2027.sql` lo reemplazo `generar_feriados`).
+
+## AUD-01 Fase 3 (exportaciones, 2026-10-28)
+
+- Migracion `20261101001200_aud01_exportaciones`: funciones de lectura para
+  exportar, `exportaciones_paciente` (A), entrega con sesion o codigo, purga.
+- API: `POST derechos/solicitudes/:id/exportacion`, `GET exportaciones/pendientes`,
+  `POST exportaciones/:id/clinica`, `POST portal/exportacion/descarga`,
+  `POST publico/exportacion/descarga`, `POST exportacion-centro`.
+  `SolicitudDerechoVista.exportacion`. Job `purgar_exportaciones_vencidas`.
+- Front: "Preparar copia de datos", aviso en ficha e inicio del tratante,
+  `/exportacion`, `/portal/exportacion`, Configuracion > Exportar datos.
+- `infra/scripts/exportacion/descifrar.mjs`; runbook `docs/cumplimiento/baja_centro.md`.
+- Tests: `seguridad_bd.sql` caso 150; e2e (12 en `aud01-cumplimiento`);
+  `jobs.spec.ts`; Playwright.
+
+## AUD-01: copia de datos de menores y feriados por ley (2026-10-28)
+
+- Migracion `20261101001300_aud01_exportacion_menores`: `destinatarios_exportacion`
+  (A), un enlace por destinatario segun la edad (menor de 14 sus adultos
+  responsables; 14 a 17 ambos; mayor el paciente). `enviar_exportacion` recibe
+  un arreglo de enlaces; `entregar_exportacion` acepta la sesion RESPONSABLE.
+  Salen `exportaciones_paciente.token_hash/codigo_hash` y `exportacion_con_cuenta`.
+- Migracion `20261101001400_aud01_feriados_por_ley`: `feriados_legales(año)`
+  (Pascua, solsticio, traslados de las leyes 19.668, 20.299, 20.215 y
+  20.983), `generar_feriados` (job diario 02:30, este año y el siguiente),
+  `agregar_feriado` y `quitar_feriado` (ADMIN, de hoy en adelante; quitar es
+  logico y el job no lo revive). Carga 2027 al migrar.
+- API: `ExportacionPacienteVista.destinatarios`; `POST portal/exportacion/descarga`
+  tambien para RESPONSABLE; `GET/POST feriados`, `DELETE feriados/:fecha`.
+- Front: Configuracion > Feriados; la copia muestra a quien se envio; la
+  descarga del portal sirve al adulto responsable.
+- Tests: `seguridad_bd.sql` casos 151 y 152; e2e (14 en `aud01-cumplimiento`);
+  `jobs.spec.ts`; Vitest `FeriadosCentro`; Playwright.
+
+## 03b-4.2: correctivo de interfaz (2026-10-29)
+
+- Migracion `20261102000000_03b42_recordatorios_registro_sis`:
+  `recordatorios_personales` (A, texto cifrado CLINICO, solo el autor) y
+  `registros_sis` (A+C; escritura via `informar_registro_sis`,
+  `registrar_verificacion_sis`; `datos_verificacion_sis` y publico
+  `registros_sis_publicos`). Migra los numeros de `profesional_trayectoria.registro_superintendencia`.
+- Core: `VerificadorPrestadores` (`core/integraciones/verificador-prestadores.ts`):
+  SIMULADO (default) y SUPERSALUD (`SUPERSALUD_APIKEY`, `SUPERSALUD_URL`).
+  Job mensual `reverificar_registros_sis` (dia 1, 05:00; no corre sin apikey).
+- API: `mis-recordatorios` (GET/POST/PATCH/DELETE); `profesionales/yo/registro-sis`
+  (PUT), `profesionales/:id/registro-sis` (GET) y sus verificaciones (POST,
+  ADMIN); `PerfilPublico.registro_sis`; `GET citas-con-evolucion`;
+  `EstadoPagoCitaVista.inasistencia`.
+- Tests: `seguridad_bd.sql` caso 153 (y 46 con la tabla nueva con DELETE);
+  e2e `03b42b-correctivo-ui`; unit `verificador-prestadores.spec.ts`
+  (simulado; HTTP simulado: exito, 404, 401/403, 429, 5xx, no coincide,
+  minimizacion) y `jobs.spec.ts`.
+
+## Cierre hacia el MVP (2026-10-30)
+
+- Migraciones `20261103000000_mvp_enums`, `20261103000100_mvp_revocacion_cargos_avisos`
+  (detalle en `requisitos_02_apis.md` y en la matriz).
+- Seed demo: cancelacion tardia 25 %, inasistencia 100 %, comision general 20 %.
+- Decisiones: 03b-6 solo tras validar el flujo del MVP; SMTP real con el
+  despliegue; `prompts/04_pruebas.md` antes de conectar una VPS; sin pantallas
+  de pasarela (el webhook queda en excepciones de `api:cobertura`).
+- Tests: `seguridad_bd.sql` casos 154 (app_user) y 155 (dueño); integracion
+  `test/mvp-cierre.e2e-spec.ts`; Vitest `TransferenciasPorValidar`,
+  `MediosPagoCentro`, `CalendarioAgenda`; Playwright `e2e/cumplimiento.spec.ts`.
+
+## Fichas y Pacientes segun diseño (2026-11-06)
+
+- Migracion `20261106000000_pendientes_fichas`: funcion `pendientes_fichas(profesional)`
+  (SECURITY DEFINER, solo lectura, Categoria A). Sin tablas nuevas.
+- API: `GET pendientes-fichas?profesionalId=` (ADMIN, GESTION, PROFESIONAL,
+  PRACTICANTE; la BD restringe al propio). DTO `PendienteFicha`.
+- Seed demo: consentimiento de atencion firmado en el centro para todos los
+  pacientes salvo Maria Jose Aguilera (adulta) y Agustin Aguilera (menor).
+- Front: `SeguimientoEquipo` (ADMIN/GESTION), `RielPacientes` +
+  `FichasProfesional` (profesional y practicante), ficha del paciente en una
+  sola pagina con indice (`DetallePaciente`).
+- Tests: `seguridad_bd.sql` caso 158; Vitest `DetallePaciente`,
+  `pendientesFichas`; Playwright `ficha`, `cierre-flujos` (actualizados).
+
+## Mi perfil y Mi cuenta segun diseño (2026-11-05)
+
+- Sin migraciones. `PerfilDto` (PUT `profesionales/yo/perfil`): `nombrePublico`,
+  `bio` y `citaDestacada` aceptan `null` para quitarlos (`undefined` = sin
+  cambio, como antes). OpenAPI y `esquema.d.ts` regenerados.
+- Front: `/admin/perfil` = editor del perfil publico en lienzo con inspector
+  (`EditorPerfil`, vista previa con `vistaPreviaPerfil`, mismas reglas que
+  `perfiles_publicos()`); `/admin/perfil/cuenta` = Mi cuenta privada
+  (`SeccionesCuenta`: contacto, seguridad, mis pacientes, avisos,
+  videollamada, protocolo, acuerdo, datos para pagos y liquidaciones).
+  Sin perfil profesional (GESTION, practicante, cuenta madre como ADMIN)
+  "Mi perfil" lleva a Mi cuenta.
+- Formacion: el front pide el enlace https al respaldo (`documentoRespaldoUrl`,
+  ya existente en la API) al agregar o editar un titulo.
+- Tests: integracion `02e-equipo` (quitar frase con null); Vitest
+  `vistaPreviaPerfil`; Playwright `panel` (Mi perfil, Mi cuenta, cuenta
+  madre) y `protocolo-morosidad` (actualizados).
+- Pendiente (resuelto el 2026-11-07, ver la seccion siguiente): subir el
+  respaldo como archivo; sesiones abiertas del diseño.
+
+## Respaldo de titulos y sesion unica (2026-11-07)
+
+Cierra los dos pendientes de "Mi perfil y Mi cuenta". Proceso completo en
+`docs/api/respaldo_titulos.md` y `docs/api/sesion_unica_conexiones.md`.
+
+- Migraciones `20261107000000_respaldos_trayectoria` (tabla A
+  `trayectoria_respaldos`, cifrada IDENTIFICACION, versionada; funcion
+  `subir_respaldo_trayectoria`; verificar exige respaldo) y
+  `20261107000100_sesion_unica_conexiones` (`sesiones.dispositivo`, sesion
+  unica en `crear_sesion`, `sesion_vigente`, `motivo_fin_sesion`,
+  `mis_conexiones`; `rotar_sesion` y `cambiar_rol_sesion` devuelven la familia).
+- API: `POST trayectoria/:id/respaldos`, `GET trayectoria/respaldos/:id`,
+  `respaldos` en `TrayectoriaVista`, `TrayectoriaDto` sin `documentoRespaldoUrl`;
+  `GET usuarios/yo/conexiones`; JWT con `sid` validado en cada request; el
+  refresh devuelve `motivo: NUEVA_SESION`.
+- Front: Formacion con archivo (`MiTrayectoria`, `RespaldoTitulo`),
+  verificacion del ADMIN con descarga (`FichaIntegrante`), Mi cuenta >
+  Seguridad con `ConexionesCuenta`, avisos en el login (otro ingreso,
+  contraseña cambiada), el puente de sesion reenvia el User-Agent.
+- Tests: `seguridad_bd.sql` casos 159 y 160 (70, 86 y 101 adaptados);
+  integracion `sesion-respaldos` y `02e-equipo`; unitario `dispositivo`.
+
+## Equipo del centro segun diseño "version 1" (2026-11-05)
+
+Ficha del integrante con lista de validacion. Detalle, contradicciones con
+las reglas y pendientes en `docs/front/equipo_validacion.md`.
+
+- API: `GET profesionales/:id/datos-privados` registra en
+  `registro_exportaciones` (`profesional_datos_privados`) la lectura de
+  quien no es el titular. Sin migracion.
+- Front: `EquipoCentro` (barra con contadores, resumen, lista con estado y
+  filtros), `FichaValidacion` (validacion paso a paso, perfil publico en solo
+  lectura con "Pedir una correccion", trabajo con pacientes, administrativo),
+  practicantes en tarjetas, filtros de reseñas, `lib/validacionEquipo.ts`.
+- Pendientes: ocultar del sitio a quien no esta validado (hoy solo pierde el
+  sello), documentos del practicante, correo de mensajes internos y retirar o
+  no la edicion del perfil por ADMIN en la API.
+
+## Equipo v1, segunda ronda (2026-11-08)
+
+Decisiones del usuario sobre la ficha del integrante. Detalle en
+`docs/front/equipo_validacion.md`.
+
+- Migracion `20261108000000_equipo_validacion`: `profesional_validado` (el
+  sitio publico, el registro SIS publico, la disponibilidad publica y pedir
+  hora solo con profesionales validados), observacion de titulos
+  (`observar_trayectoria`), `practicante_documentos` (A, cifrada, versionada)
+  y `correcciones_perfil` (B) con `pedir_correccion_perfil` y
+  `corregir_campo_perfil`; trigger `profesionales_campos_publicos`.
+- API: `POST trayectoria/:id/observacion`; `GET|POST practicantes/:id/documentos`,
+  `GET practicantes/documentos/:id`; `GET|POST profesionales/:id/correcciones`,
+  `POST profesionales/:id/correcciones/aplicacion`. Se retira
+  `POST profesionales/:id/foto` (ADMIN). `TrayectoriaVista` suma la observacion.
+- Tests: `seguridad_bd.sql` caso 161 (49 y 70 adaptados, helper `test.validar`);
+  integracion `equipo-validacion`, `02e` y `03b42b` adaptados; helper
+  `t.datos.validar` en los tests que publican perfiles.
+- Seed demo: titulo verificado para los seis profesionales del sitio y
+  documentos del practicante demo.
+
+
+## 03c Moderno A, fase 1: sistema y marca por zona (2026-11-05)
+
+- Tokens y piezas del estilo en `design-system/vinculos/MASTER.md` (sección Moderno A); muestrario en `/dev/estilo` (solo desarrollo).
+- Fondo de todos los módulos del panel: trama de puntos (`trama` en el `<main>` de `LayoutAdmin`). Todas las tarjetas en crema (`bg`): `Panel`, `Card`, `Aviso` y 76 superficies sueltas en 50 componentes.
+- Marca por zona (migración `20261109000000_marca_por_zona`): `contenido_publico` suma `color_fondo_publico`, `color_portal`, `color_fondo_portal`, `color_panel`, `color_fondo_panel`; `color_marca` sigue siendo el principal del sitio público. CHECK `contenido_publico_colores` con `contraste_wcag()` (IMMUTABLE): principal >= 4.5:1 sobre crema #F5EAD8, fondo >= 10:1 con la tinta #2B2420. Un `color_marca` previo sin contraste vuelve a NULL. Error 422 con texto claro (`sqlstate.ts`).
+- Corrección: `color_marca` se editaba pero ninguna pantalla lo aplicaba. Ahora cada layout (`LayoutPublico`, `LayoutPortal`, `LayoutAdmin`) monta `shared/MarcaZona`, que reemplaza los tokens con un `<style>` (SSR y modales en `<body>`). Principal: terracota (accent/arcilla) en sitio público y panel, verde (accent-2/oliva) en el portal. El sitio público toma el cambio en hasta 60 s (revalidación de `publico/centro`).
+- Configuración > El centro > **Marca y apariencia** (solo ADMIN): por zona, principal y fondo con selector, hexadecimal, sugeridos, contraste en vivo, vista previa y "Usar los del sistema". El bloque "Color de marca" sale de "Datos y página pública".
+- Pruebas: `seguridad_bd.sql` caso 113 (contraste, principal claro y fondo oscuro rechazados), `03a-alineacion` (422, 403 GESTION, lectura pública), Vitest `lib/marca.test.ts` y `shared/EdicionSegura.test.tsx`.
+- Ajustes (2026-11-05): búsqueda de color por nombre (`lib/coloresNombrados.ts`, 119 tonos: primarios, secundarios y nombres de objetos; los que no cumplen el contraste se ofrecen ajustados con `tonoLegible`; test: todo tono sirve en ambos campos); muestra de color circular completa; el portal del paciente también va sobre el lienzo con puntos (`LayoutPortal`, fondo del sistema #F1EBE2) y la vista previa de portal y panel lo muestra.
+
+## 03c Moderno A, fase 2: todas las pantallas (2026-11-06)
+
+Aprobadas por pantalla: Mi perfil, Mi cuenta, Configuración. El resto (Fichas y Pacientes, Agenda, Cobros, Inicio, Match, Mensajes, Equipo, portal del paciente y sitio público) queda para la revisión del usuario.
+- Sistema: radio grande = 24 px (`--radius-lg`), sombra suave en tarjetas, paneles, tablas y modales (sombra flotante); pestañas (`ui/Pestanas`, 14 usos) agrupadas en una pastilla crema de 44 px, con la activa en el color de la zona (marca del centro).
+- Portal: lienzo con puntos, secciones en barra flotante translúcida.
+- Confirmación al salir sin guardar (`useGuardaCambios` + `DialogoDescartar`): Mi perfil, Mi cuenta, todas las secciones de Configuración (vía `BarraGuardado`), evolución (borrador pendiente o corrección a medias), plantilla clínica, mensaje del paciente a su profesional y Mis datos del portal. Los menús de Mi cuenta y Configuración pasan a enlaces para que la confirmación los intercepte.
+- Teléfono (390 px): sin desplazamiento horizontal en las 24 pantallas revisadas (se corrigieron la tabla de Cobros, "Esta semana" del Inicio y el portal).
+- Pruebas: Playwright completo 74 ok / 8 omitidas; Vitest 135 ok. impeccable solo corre sin sesión (páginas públicas: fondo crema y rótulo sobre el título, ambos del diseño).
+
+## AUD-02 Rendimiento y operacion (2026-11-06)
+
+Informe: `docs/operacion/auditoria_rendimiento.md` (decisiones: plan de 1 GB,
+pg_stat_statements, Cloudflare en el plan, exportacion como job).
+
+- Bloque 1 (P1): tokens fuera de los logs (`rutaParaLog`); SMTP con tiempos
+  maximos (`TIEMPOS_SMTP`) y 503 claro si el codigo 2FA no sale; el SSR
+  publico reenvia la IP del visitante en lecturas sin cache (limite por
+  persona); `pg_stat_statements` en el compose
+  (`docs/operacion/pg_stat_statements.md`).
+- Bloque 2: exportacion del centro como job (migraciones
+  `20261110000000_aud02_exportacion_centro` (unida, ver abajo);
+  `ExportacionCentroService`; volumen `exportaciones`; ver
+  `docs/cumplimiento/exportacion.md` seccion 3).
+- Rutas: `POST exportacion-centro` pasa a 202 (antes devolvia el archivo);
+  nuevas `GET exportacion-centro` y `GET exportacion-centro/:id/archivo`.
+  Sale la funcion `exportar_tabla_centro(text)`.
+- Pruebas: unitarias de logs y SMTP; integracion `02g`, `03b41`,
+  `aud01-cumplimiento`; BD caso 162 (TODOS LOS CASOS OK); Playwright
+  `cumplimiento.spec` (Fase 3).
+- Exportacion programada (2026-11-06, mismo dia): llave publica X25519 (la
+  clave no se guarda; formato v2), ventana nocturna por `horario_centro` o
+  urgente, reintentos ante reinicio o error (3 intentos). Migraciones
+  en la misma migracion unida. `POST exportacion-centro` acepta
+  `urgente`; la vista suma `programadaPara`, `urgente` e `intentos`.
+  `connection_limit=12` en el compose (BD-04; era 8, subido el 2026-11-07 tras 04_pruebas).
+- 2026-11-07: las 6 migraciones de AUD-02 se unieron en
+  `20261110000000_aud02_exportacion_centro` (estado final; nunca salieron de
+  este equipo; la BD local se marco con `prisma migrate resolve --applied`).
+  Modo de prueba `JOBS_MANUALES` (solo desarrollo y tests; la API no arranca
+  con el en produccion): `POST /api/pruebas/jobs/enviar_recordatorios`, fuera
+  del OpenAPI; Playwright prueba el recordatorio de punta a punta en segundos.
+  Fuente de iconos alojada en el repo (`npm run iconos`).
+
+## AUD-02: paginacion por cursor (2026-11-07)
+
+- `GET /pacientes`: `{ items, siguienteCursor }`, `limite` 1 a 100 (50 por
+  defecto), `cursor` = id de la ultima fila; orden apellido, nombre, id. Filtro
+  nuevo `sinRut`. Las filas no traen `contactoEmergencia` (solo el detalle).
+- `GET /pacientes/resumen`: todos los que el rol ve, solo columnas en claro
+  (id, nombre, apellido, tratante, nacimiento, codigo seudonimo, alta); para
+  los nombres de agenda, cobros y avisos. Sin paginar a proposito: con miles de
+  pacientes por centro, cada vista deberia recibir el nombre en su respuesta.
+- `GET /auditoria/accesos`: `{ items, siguienteCursor }`, cursor opaco
+  (base64url de ocurrido_en con microsegundos + id), una sola consulta UNION
+  de `accesos_ficha` y `registro_exportaciones`. Reemplaza el tope fijo de 300.
+- `GET /notificaciones`: `{ items, siguienteCursor }` y filtro `tipo`
+  (las ofertas de derivacion piden solo `DERIVACION_OFRECIDA`).
+- Prueba por rol: `test/aud02-paginacion.e2e-spec.ts`.

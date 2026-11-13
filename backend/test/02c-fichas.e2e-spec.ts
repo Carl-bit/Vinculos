@@ -2,7 +2,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 
 import { dvRut } from '../src/core/validacion/validadores';
-import { auth, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, rutUnico, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const rutNuevo = () => {
   const cuerpo = String(randomInt(10_000_000, 25_000_000));
@@ -75,7 +75,7 @@ describe('02c fichas y pacientes', () => {
         .http()
         .post('/api/pacientes')
         .set(await tk(gestion))
-        .send({ nombre: 'G', apellido: 'Gestion', fechaNacimiento: '2000-01-01', profesionalId: profesional.id });
+        .send({ nombre: 'G', apellido: 'Gestion', rut: rutUnico(), fechaNacimiento: '2000-01-01', profesionalId: profesional.id });
       expect(r.status).toBe(201);
       expect(r.body.fichaId).toBeNull();
       expect(
@@ -102,7 +102,7 @@ describe('02c fichas y pacientes', () => {
         .http()
         .post('/api/pacientes')
         .set(await tk(admin))
-        .send({ nombre: 'X', apellido: 'Y', fechaNacimiento: '2000-01-01', profesionalId: practicante.id });
+        .send({ nombre: 'X', apellido: 'Y', rut: rutUnico(), fechaNacimiento: '2000-01-01', profesionalId: practicante.id });
       expect(directo.status).toBe(403);
     });
 
@@ -123,7 +123,7 @@ describe('02c fichas y pacientes', () => {
           .query({ rut: sinPuntos })
           .set(await tk(u));
         expect(r.status).toBe(200);
-        expect(r.body.map((p: { id: string }) => p.id)).toEqual([creado.id]);
+        expect(r.body.items.map((p: { id: string }) => p.id)).toEqual([creado.id]);
       }
       expect(
         (
@@ -132,7 +132,7 @@ describe('02c fichas y pacientes', () => {
             .get('/api/pacientes')
             .query({ rut: sinPuntos })
             .set(await tk(otroProfesional))
-        ).body,
+        ).body.items,
       ).toEqual([]);
       expect(
         (
@@ -146,7 +146,7 @@ describe('02c fichas y pacientes', () => {
         .http()
         .get('/api/pacientes')
         .set(await tk(usuarioPaciente));
-      expect(propio.body.map((p: { id: string }) => p.id)).toEqual([usuarioPaciente.pacienteId]);
+      expect(propio.body.items.map((p: { id: string }) => p.id)).toEqual([usuarioPaciente.pacienteId]);
       expect(
         (
           await t

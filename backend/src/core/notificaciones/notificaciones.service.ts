@@ -139,10 +139,11 @@ export class NotificacionesService {
   enviarPendientes(): Promise<ResultadoJob> {
     return this.jobs.conLock('enviar_notificaciones', async (tx) => {
       const pendientes = await tx.$queryRaw<Pendiente[]>`SELECT * FROM notificaciones_por_enviar(50)`;
+      const responderA = pendientes.length > 0 ? await this.correoRespuesta(tx) : null;
       let enviadas = 0;
       let fallidas = 0;
       for (const n of pendientes) {
-        const ok = await this.procesar(tx, n);
+        const ok = await this.procesar(tx, n, responderA);
         enviadas += ok ? 1 : 0;
         fallidas += ok ? 0 : 1;
       }
@@ -160,7 +161,7 @@ export class NotificacionesService {
       const pendientes = await tx.$queryRaw<{ id: string; email: Uint8Array; asunto: string; cuerpo: Uint8Array }[]>`
         SELECT * FROM correos_cuenta_por_enviar(20)`;
       if (pendientes.length === 0) return 0;
-      const [f] = await tx.$queryRaw<[{ c: { nombre_centro: string } }]>`SELECT contenido_publico_centro() AS c`;
+      const [f] = await tx.$queryRaw<[{ c: { nombre_centro: string; contacto_correo: string | null } }]>`SELECT contenido_publico_centro() AS c`;
       let enviados = 0;
       for (const c of pendientes) {
         let ok = true;
@@ -168,6 +169,7 @@ export class NotificacionesService {
           await this.correo.enviar({
             para: this.llavero.descifrarCampo(c.email, 'correos_cuenta_pendientes', 'email', c.id)!,
             remitente: f?.c.nombre_centro ?? 'Centro',
+            responderA: f?.c.contacto_correo ?? null,
             asunto: c.asunto,
             texto: this.llavero.descifrarCampo(c.cuerpo, 'correos_cuenta_pendientes', 'cuerpo', c.id)!,
           });
@@ -181,7 +183,13 @@ export class NotificacionesService {
     });
   }
 
-  private async procesar(tx: Tx, n: Pendiente): Promise<boolean> {
+  /** Reply-To de los avisos: correo de contacto publico del centro (AUD-01, COM-02). */
+  private async correoRespuesta(tx: Tx): Promise<string | null> {
+    const [f] = await tx.$queryRaw<[{ c: { contacto_correo: string | null } }]>`SELECT contenido_publico_centro() AS c`;
+    return f?.c.contacto_correo ?? null;
+  }
+
+  private async procesar(tx: Tx, n: Pendiente, responderA: string | null): Promise<boolean> {
     const marcar = (enviada: boolean, detalle: string | null, reintentar: boolean) =>
       tx.$executeRaw`SELECT marcar_notificacion(${n.id}::uuid, ${enviada}, ${detalle}, ${reintentar})`;
     let mensaje: { asunto: string; cuerpo: string };
@@ -206,7 +214,14 @@ export class NotificacionesService {
       return false;
     }
     try {
-      await this.correo.enviar({ para: n.email, asunto: mensaje.asunto, texto: mensaje.cuerpo, remitente: n.datos.centro, adjuntos: await this.adjuntos(n) });
+      await this.correo.enviar({
+        para: n.email,
+        asunto: mensaje.asunto,
+        texto: mensaje.cuerpo,
+        remitente: n.datos.centro,
+        responderA,
+        adjuntos: await this.adjuntos(n),
+      });
     } catch {
       await marcar(false, 'fallo el envio', true);
       return false;

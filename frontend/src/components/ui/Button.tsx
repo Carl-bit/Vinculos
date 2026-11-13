@@ -15,6 +15,10 @@ const VARIANTES = {
   /** Borde verde sobre superficies accent-2 (bloques de llamado a la accion). */
   outlinePatient: 'border-[1.5px] border-accent-2-700 text-accent-2-900 hover:bg-accent-2-100',
   ghost: 'bg-transparent text-text hover:bg-accent-200',
+  /** Moderno: accion principal sobre el bloque oscuro (tinta) del sitio publico. Texto 900 sobre 400: >= 7:1. */
+  sobreOscuro: 'bg-accent-400 text-accent-900 shadow-sm hover:bg-accent-300',
+  /** Moderno: accion secundaria sobre el bloque oscuro (borde claro, sin relleno). */
+  contornoOscuro: 'border-[1.5px] border-neutral-600 text-neutral-100 hover:border-neutral-400 hover:bg-neutral-900',
 } as const;
 
 const TAMANOS = {
@@ -25,9 +29,9 @@ const TAMANOS = {
 export type VarianteBoton = keyof typeof VARIANTES;
 export type TamanoBoton = keyof typeof TAMANOS;
 
-/** Clases del boton, compartidas con ButtonLink (enlaces con forma de boton). */
+/** Clases del boton, compartidas con ButtonLink (enlaces con forma de boton). `boton boton-<variante>`: ganchos del tema (app/temas/). */
 export const clasesBoton = (variant: VarianteBoton = 'primary', size: TamanoBoton = 'md') =>
-  `inline-flex cursor-pointer items-center justify-center rounded-full font-body font-extrabold transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out active:scale-[0.98] ${VARIANTES[variant]} ${TAMANOS[size]}`;
+  `boton boton-${variant} inline-flex cursor-pointer items-center justify-center rounded-full font-body font-extrabold transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out active:scale-[0.98] ${VARIANTES[variant]} ${TAMANOS[size]}`;
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: VarianteBoton;

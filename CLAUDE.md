@@ -60,10 +60,22 @@ naming especificos de Kibou. Proyecto de titulo, desarrollador unico.
   primero) contra ese tenant, 4) panel maestro. El onboarding de Kibou u
   otro cliente real viene despues de validar el producto con el tenant de
   prueba, no antes.
-- Reply in-app profesional -> paciente. El paciente contacta solo via
-  formulario in-app (se reenvia a email del profesional + queda en historial
-  in-app); el profesional responde por canal externo (no se implementa reply).
 - Websockets/Redis para tiempo real: se resuelve con polling + soft-lock TTL.
+- Cobros/finanzas en el MVP (decision 2026-11-11): el modulo COBROS queda
+  apagado en todos los centros y no se muestra (tablas y funciones quedan
+  dormidas para la implementacion futura; sus tests lo encienden). Sin
+  COBROS, la hora que pide el paciente queda SOLICITADA y la aprueba su
+  profesional (`aprobar_cita` / `rechazar_cita`; el job vence el plazo de 24 h,
+  que corre desde que se verifica el correo; sin verificar, la hora se retiene
+  solo `minutos_retencion_solicitud`). Si no la acepta, puede
+  proponer otras horas (PROPUESTA, bloqueadas hasta que el paciente elige una o
+  rechaza todas y vuelve a pedir hora).
+
+Chat profesional <-> paciente (decision 2026-11-11, puntos 40/44; antes fuera
+de alcance): el tratante responde dentro de la plataforma en `mensajes_paciente`
+(dato clinico, cifrado CLINICO, append-only; respuesta con `de_profesional` y
+`destinatario_id`). Al correo solo llega el aviso, nunca el texto. La cuenta
+madre no lee contenido. Tiempo real por polling (sin websockets).
 
 ## Diseño
 Fuente de verdad visual: el proyecto de Claude Design "Vinculos Landing Page
@@ -116,6 +128,7 @@ animaciones con easing de rebote por defecto.
 - Nada clinico en localStorage, sessionStorage ni logs; sin analitica de terceros en vistas con datos de pacientes.
 - Animaciones sutiles con `prefers-reduced-motion`; accesible por teclado; contraste AA (gana sobre el diseño: ver `docs/front/inventario_ui.md`).
 - El menu oculta modulos inactivos y opciones que el rol activo no tiene (`lib/navegacion.ts`).
+- Tiempo real (punto 10, 2026-11-12): polling global en `shared/Proveedores.tsx` (30 s; agenda, citas, horas libres, estado del tratante y chat 15 s; catalogos 2 min; nada con la pestaña oculta) y recarga en cadena de lo visible tras cada mutacion. Consultas con `staleTime: Infinity` quedan fuera. Sitio publico SSR: `RefrescoPublico` cada 60 s. Un formulario que copia datos de una consulta no debe pisar lo que el usuario esta editando.
 - Tests: Testing Library (Vitest) para componentes; Playwright (`frontend/e2e`) contra la API local y el seed demo.
 - Huecos y estilo en `design-system/vinculos/MASTER.md` (ui-ux-pro-max en `.claude/skills/`: consultar con `search.py`, nunca `--persist`; su paleta y fuentes no aplican, manda Organic). `npx impeccable detect` antes de cerrar cada vista.
 
@@ -125,7 +138,8 @@ considera terminado solo por pasar tests unitarios. Correr
 `prompts/04_pruebas.md`: integracion con DB efimera, estres en k6
 enfocado en colision de reservas sobre el mismo espacio+horario, y
 simulacion con los limites reales del plan de Lightsail de entrada
-(512MB/1vCPU). La prueba real es la query de duplicados en `citas`
+(1 GB/1 vCPU, un silo por host: AUD-02, 2026-11-06; puede subir tras las
+pruebas de rendimiento por centro). La prueba real es la query de duplicados en `citas`
 despues del estres, no el reporte de k6.
 
 ## Convenciones

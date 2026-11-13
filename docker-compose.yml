@@ -1,0 +1,36 @@
+# Plano del host del servidor de pruebas: lo compartido por todos los silos.
+#   - Traefik (infra/traefik/docker-compose.yml): enruta cada dominio a su silo.
+#   - Mailpit: bandeja de los correos de los silos de prueba (no hay SMTP real).
+#
+# Los silos NO van aqui: cada uno es su propio stack erp-<slug> (aislamiento
+# fisico, CLAUDE.md) y se levanta con infra/servidor/servidor.sh, que corre
+# este archivo primero. Paso a paso: docs/operacion/servidor_pruebas.md.
+#
+#   cp .env.example .env   # y completar
+#   sh infra/servidor/servidor.sh levantar estres estres.midominio.cl "Centro Estres"
+
+name: vinculos-servidor
+
+include:
+  - path: infra/traefik/docker-compose.yml
+    env_file: .env
+
+services:
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      # La bandeja tiene los codigos del segundo factor: siempre con clave.
+      # Formato "usuario:contraseña". Aplica a la UI y a su API (k6 la lee).
+      MP_UI_AUTH: ${MAILPIT_UI_AUTH:?MAILPIT_UI_AUTH es obligatoria}
+      MP_MAX_MESSAGES: 2000
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.correo.rule=Host(`${DOMINIO_CORREO}`)
+      - traefik.http.routers.correo.entrypoints=websecure
+      - traefik.http.routers.correo.tls.certresolver=letsencrypt
+      - traefik.http.services.correo.loadbalancer.server.port=8025

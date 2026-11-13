@@ -11,7 +11,7 @@ import sharp = require('sharp');
 
 import { ModulosGuard } from '../src/core/modulos/modulos';
 import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
-import { auth, binario, CLAVE, crearApp, ultimoCodigo, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, rutUnico, binario, CLAVE, crearApp, ultimoCodigo, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const DIA = 86_400_000;
 const HORA = 3_600_000;
@@ -55,6 +55,7 @@ describe('03a alineacion con el diseño', () => {
       .put('/api/profesionales/yo/perfil')
       .set(await tk(u))
       .send({ ...perfil, perfilPublico: true });
+    await t.datos.validar(u.id);
     expect(r.status).toBe(200);
     await t
       .http()
@@ -78,6 +79,7 @@ describe('03a alineacion con el diseño', () => {
     nombre: 'Ema',
     apellido: 'Portal',
     fechaNacimiento: '1990-03-03',
+    rut: rutUnico(),
     email,
     telefono: '+56911112222',
     respuestas: { motivos: ['ansiedad'], relato: 'Duermo mal hace meses y me cuesta concentrarme' },
@@ -89,7 +91,7 @@ describe('03a alineacion con el diseño', () => {
   beforeAll(async () => {
     t = await crearApp();
     await t.dueno.configuracionCentro.update({ where: { id: true }, data: { rolGestionHabilitado: true } });
-    await t.dueno.horarioCentro.deleteMany({});
+    await t.datos.centroAbierto();
     // Box libre para las solicitudes presenciales del portal.
     await t.datos.espacio();
     admin = await t.datos.usuario('ADMIN');
@@ -164,7 +166,7 @@ describe('03a alineacion con el diseño', () => {
       expect(cambio.status).toBe(200);
       expect(cambio.body.rol).toBe('PROFESIONAL');
       expect((await t.http().get('/api/usuarios').set(auth(cambio.body.accessToken))).status).toBe(403);
-      expect((await t.http().get('/api/pacientes').set(auth(cambio.body.accessToken))).body).toEqual([]);
+      expect((await t.http().get('/api/pacientes').set(auth(cambio.body.accessToken))).body.items).toEqual([]);
       // El refresh anterior quedo revocado; un rol ajeno no se da.
       expect((await t.http().post('/api/auth/refresh').send({ refreshToken: comoAdmin.refreshToken })).status).toBe(401);
       expect((await t.http().post('/api/auth/cambio-rol').send({ refreshToken: cambio.body.refreshToken, rol: 'GESTION' })).status).toBe(401);
@@ -308,7 +310,7 @@ describe('03a alineacion con el diseño', () => {
       const contenido = {
         heroTitulo: 'Acompañamiento psicologico',
         servicios: [{ titulo: 'Terapia individual', texto: 'Sesiones de 50 minutos.' }],
-        colorMarca: '#B5532D',
+        colorMarca: '#8A4B1F',
       };
       expect(
         (
@@ -329,8 +331,19 @@ describe('03a alineacion con el diseño', () => {
         ).status,
       ).toBe(200);
       const centro = await t.http().get('/api/publico/centro');
-      expect(centro.body).toEqual(expect.objectContaining({ hero_titulo: 'Acompañamiento psicologico', color_marca: '#B5532D' }));
+      expect(centro.body).toEqual(expect.objectContaining({ hero_titulo: 'Acompañamiento psicologico', color_marca: '#8A4B1F' }));
       expect(centro.body.modulos).toContain('MATCH');
+
+      // 03c: marca por zona. Sin contraste sobre las tarjetas crema -> 422 (lo exige la BD).
+      const zona = (body: object, quien = admin) => tk(quien).then((h) => t.http().patch('/api/configuracion/contenido-publico').set(h).send(body));
+      expect((await zona({ colorPanel: '#D6A15A' })).status).toBe(422);
+      expect((await zona({ colorFondoPortal: '#2B2420' })).status).toBe(422);
+      expect((await zona({ colorPortal: '#4F6B2F' }, gestion)).status).toBe(403);
+      expect((await zona({ colorPortal: '#4F6B2F', colorPanel: '#8A4B1F', colorFondoPanel: '#F1EBE2' })).status).toBe(200);
+      expect((await t.http().get('/api/publico/centro')).body).toEqual(
+        expect.objectContaining({ color_portal: '#4F6B2F', color_panel: '#8A4B1F', color_fondo_panel: '#F1EBE2', color_fondo_publico: null }),
+      );
+      expect((await zona({ colorPortal: null, colorPanel: null, colorFondoPanel: null })).status).toBe(200);
 
       const antes = (await t.http().get('/api/publico/politicas/CONSENTIMIENTO_ATENCION')).body.version;
       expect(
@@ -364,11 +377,14 @@ describe('03a alineacion con el diseño', () => {
         .set(await tk(admin))
         .send({ bloques: [{ diaSemana: 1, inicioMin: 540, finMin: 1200 }] });
       expect(h.body).toHaveLength(1);
+      // Sin dias = centro cerrado (2026-11-05): se acepta y se vuelve a abrir para el resto de los tests.
       await t
         .http()
         .put('/api/configuracion/horario')
         .set(await tk(admin))
-        .send({ bloques: [] });
+        .send({ bloques: [] })
+        .expect(200);
+      await t.datos.centroAbierto();
 
       // Imagen con EXIF: se publica como WebP, redimensionada y sin metadatos.
       const png = await sharp({ create: { width: 2000, height: 1000, channels: 3, background: '#aa5500' } })
@@ -522,6 +538,9 @@ describe('03a alineacion con el diseño', () => {
         .post('/api/publico/solicitudes')
         .send(solicitud(publico.id, 'bot@test.cl', { sitioWeb: 'http://spam' }));
       expect(bot.status).toBe(202);
+      // 03b-4.2: respuestas del match o, sin match, el motivo de la sesion; con tope de largo (antes de tocar la BD).
+      const largo = solicitud(publico.id, 'largo@test.cl', { respuestas: { motivo_sesion: 'x'.repeat(9000) } });
+      expect((await t.http().post('/api/publico/solicitudes').send(largo)).status).toBe(400);
       const email = `ema-${randomUUID().slice(0, 8)}@test.cl`;
       const dto = solicitud(publico.id, email);
       const r = await t.http().post('/api/publico/solicitudes').send(dto);
@@ -708,8 +727,18 @@ describe('03a alineacion con el diseño', () => {
         .http()
         .post(`/api/fichas/${paciente.fichaId}/borradores`)
         .set(await tk(prof))
-        .send({ contenido: 'Primer borrador', citaId: cita.id });
+        .send({ contenido: 'Primer borrador', citaId: cita.id, nivelRiesgo: 'ALTO' });
       expect(b.status).toBe(201);
+      expect(b.body.nivelRiesgo).toBe('ALTO');
+      // Reabrir el borrador conserva el riesgo; un PUT sin riesgo lo deja sin indicar.
+      expect(
+        (
+          await t
+            .http()
+            .get('/api/borradores')
+            .set(await tk(prof))
+        ).body.find((x: { id: string }) => x.id === b.body.id)?.nivelRiesgo,
+      ).toBe('ALTO');
       // 03b-5: la lista de pendientes trae el paciente de cada borrador.
       expect(
         (
@@ -719,15 +748,13 @@ describe('03a alineacion con el diseño', () => {
             .set(await tk(prof))
         ).body.find((x: { id: string }) => x.id === b.body.id)?.pacienteId,
       ).toBe(paciente.pacienteId);
-      expect(
-        (
-          await t
-            .http()
-            .put(`/api/borradores/${b.body.id}`)
-            .set(await tk(prof))
-            .send({ contenido: 'Borrador corregido', citaId: cita.id })
-        ).body.contenido,
-      ).toBe('Borrador corregido');
+      const corregido = await t
+        .http()
+        .put(`/api/borradores/${b.body.id}`)
+        .set(await tk(prof))
+        .send({ contenido: 'Borrador corregido', citaId: cita.id });
+      expect(corregido.body.contenido).toBe('Borrador corregido');
+      expect(corregido.body.nivelRiesgo).toBeNull();
       expect(
         (
           await t

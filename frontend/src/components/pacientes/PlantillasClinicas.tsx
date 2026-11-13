@@ -141,7 +141,7 @@ export function PlantillasClinicas({ rol }: { rol: Rol }) {
                 const borrador = orden.find((v) => v.estado === 'BORRADOR');
                 const cabeza = publicada ?? borrador ?? orden[0];
                 return (
-                  <li key={cabeza.familiaId} className="rounded-lg border border-divider bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-4">
+                  <li key={cabeza.familiaId} className="rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="m-0 text-[15px] font-black">{cabeza.nombre}</p>

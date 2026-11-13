@@ -9,6 +9,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Field, Input } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { api } from '@/lib/api/cliente';
+import { reglaCorreo } from '@/lib/validacion';
 import type { Icono } from '@/lib/iconos';
 
 type Vista = 'inicio' | 'nuevo' | 'paciente';
@@ -181,7 +182,19 @@ function YaSoyPaciente({ titulo, onVolver }: { titulo: React.RefObject<HTMLHeadi
             Por seguridad no mostramos datos de tu atención sin que entres a tu cuenta.
           </p>
           <Field label="Correo con el que te atiendes" required error={error}>
-            {(p) => <Input {...p} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />}
+            {(p) => (
+              <Input
+                {...p}
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(undefined);
+                }}
+                onBlur={() => setError(reglaCorreo()(email))}
+              />
+            )}
           </Field>
           <div className="flex flex-wrap gap-3">
             <Button type="submit" variant="primary" size="lg" icon="mail" loading={enviando}>

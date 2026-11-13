@@ -295,6 +295,8 @@ describe('02a infraestructura', () => {
       const r = await t.http().get('/api/salud');
       expect(r.status).toBe(200);
       expect(r.body).toEqual({ estado: 'ok', bd: true, canarios: true });
+      // AUD-02: no-store global en la API.
+      expect(r.headers['cache-control']).toBe('no-store');
     });
   });
 });

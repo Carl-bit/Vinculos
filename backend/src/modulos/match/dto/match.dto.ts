@@ -9,6 +9,9 @@ import {
   IsInt,
   IsObject,
   IsOptional,
+  ValidateNested,
+  IsArray,
+  ArrayMaxSize,
   IsString,
   IsUUID,
   Length,
@@ -69,6 +72,17 @@ export class MensajeDto {
   @IsOptional()
   @IsUUID()
   pacienteId?: string;
+
+  @Recortar()
+  @IsString()
+  @Length(1, 5000)
+  contenido!: string;
+}
+
+/** Puntos 40/44: el tratante responde en la plataforma a un mensaje del portal. */
+export class RespuestaMensajeDto {
+  @IsUUID()
+  mensajeId!: string;
 
   @Recortar()
   @IsString()
@@ -165,11 +179,10 @@ export class SolicitudHoraDto {
   @Matches(TELEFONO_CL, { message: 'telefono: formato +56XXXXXXXXX' })
   telefono?: string;
 
-  /** Opcional aqui; obligatorio antes o en la primera sesion (D-2). */
-  @IsOptional()
+  /** Punto 37: obligatorio (antes D-2 lo dejaba para la primera sesion). Del paciente, tambien si es menor. */
   @IsRut()
   @NormalizarRut()
-  rut?: string;
+  rut!: string;
 
   @IsOptional()
   @Recortar()
@@ -187,7 +200,10 @@ export class SolicitudHoraDto {
   @Matches(TELEFONO_CL, { message: 'adultoTelefono: formato +56XXXXXXXXX' })
   adultoTelefono?: string;
 
-  /** Respuestas del cuestionario (se guardan cifradas solo con esta solicitud, D-6). */
+  /**
+   * Respuestas del cuestionario (se guardan cifradas solo con esta solicitud, D-6).
+   * Sin match: `{ motivo_sesion: texto }`, el motivo en palabras del paciente (03b-4.2).
+   */
   @IsOptional()
   @IsObject()
   respuestas?: Record<string, string | string[]>;
@@ -205,6 +221,11 @@ export class SolicitudHoraDto {
   @IsOptional()
   @IsUUID()
   terminosId?: string;
+
+  /** AUD-01 (E2.3c): acepta avisos por WhatsApp (casilla propia, desmarcada por defecto). */
+  @IsOptional()
+  @IsBoolean()
+  aceptaWhatsapp?: boolean;
 
   /** Trampa para bots: debe venir vacio (campo oculto del formulario). */
   @IsOptional()
@@ -296,6 +317,12 @@ export class MisDatosDto {
   email?: string;
 }
 
+/** Punto 9: el paciente decide que hacer con una hora que su profesional no podra atender. */
+export class RespuestaAusenciaDto {
+  @IsIn(['CANCELAR', 'ATENCION_TEMPORAL'])
+  opcion!: 'CANCELAR' | 'ATENCION_TEMPORAL';
+}
+
 export class PacienteDelPortalDto {
   /** Adulto responsable: el menor a cargo (el paciente adulto no lo indica). */
   @IsOptional()
@@ -343,6 +370,14 @@ export class PreguntaMatchDto {
   @Min(1)
   @Max(20)
   maxSelecciones?: number;
+
+  /** Punto 28: las opciones se crean junto con la pregunta (mismo paso). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => OpcionMatchDto)
+  opciones?: OpcionMatchDto[];
 }
 
 export class EditarPreguntaMatchDto {

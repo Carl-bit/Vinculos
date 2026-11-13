@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { createContext, useContext, type ReactNode } from 'react';
 
 /**
  * Seccion de una pagina (diseño "Mi Cuenta"): h2 de 20 px en 900, bajada
@@ -7,10 +9,16 @@ import type { ReactNode } from 'react';
  * Nunca se anida un Panel dentro de otro.
  */
 const VARIANTES = {
-  claro: 'border border-divider bg-neutral-100',
+  claro: 'border border-divider bg-bg',
   paciente: 'border border-accent-2-500 bg-accent-2-200',
   equipo: 'border border-accent-500 bg-accent-200',
 } as const;
+
+/**
+ * Dentro de un contenedor que ya tiene su titulo (inspector de Mi perfil), el
+ * Panel se dibuja sin superficie ni titulo propio: nunca un Panel dentro de otro.
+ */
+export const PanelIncrustado = createContext(false);
 
 export function Panel({
   titulo,
@@ -32,8 +40,17 @@ export function Panel({
   nivel?: 2 | 3;
 }) {
   const H = nivel === 2 ? 'h2' : 'h3';
+  const incrustado = useContext(PanelIncrustado);
+  if (incrustado)
+    return (
+      <section id={id} className={`min-w-0 ${className}`}>
+        {accion && <div className="mb-2 flex justify-end">{accion}</div>}
+        {bajada && <p className="m-0 mb-3 text-[13px] font-semibold text-pretty text-neutral-700">{bajada}</p>}
+        {children}
+      </section>
+    );
   return (
-    <section id={id} className={`min-w-0 rounded-lg px-[clamp(20px,3vw,28px)] pt-[26px] pb-[26px] shadow-sm ${VARIANTES[variante]} ${className}`}>
+    <section id={id} className={`min-w-0 rounded-lg px-[clamp(20px,3vw,28px)] pt-[26px] pb-[26px] shadow-suave ${VARIANTES[variante]} ${className}`}>
       {(titulo || accion) && (
         <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3.5 gap-y-1">
           {titulo && <H className="m-0 text-[20px] leading-tight font-black tracking-[-0.025em] text-balance">{titulo}</H>}

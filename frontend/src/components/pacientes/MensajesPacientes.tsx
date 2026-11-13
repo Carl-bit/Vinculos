@@ -1,95 +1,163 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, type FormEvent } from 'react';
 
-import { EstadoConsulta } from '@/components/shared/EstadoVista';
-import { Aviso } from '@/components/ui/Aviso';
+import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
+import { Field, Textarea } from '@/components/ui/Field';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { formatoFechaHora, formatoTelefono } from '@/lib/formato';
-import { useMensajesPacientes } from '@/lib/mensajes';
-import { usePacientes } from '@/lib/panel';
+import { formatoFechaHora } from '@/lib/formato';
+import { useMensajesPacientes, type MensajePaciente } from '@/lib/mensajes';
+import { consultaPaciente } from '@/lib/panel';
+
+const MAX = 5000;
 
 /**
- * Mensajes que escriben los pacientes (o su adulto responsable) desde el
- * portal. Quedan aca y llegan por correo al profesional; la respuesta va por
- * un canal externo (no hay respuesta in-app, CLAUDE.md), por eso se muestran
- * el telefono y el correo registrados.
+ * Puntos 40/44: bandeja del profesional con sus pacientes, agrupada por
+ * paciente. Lo que escribe el paciente (o su adulto responsable) y las
+ * respuestas del profesional quedan en la misma conversacion (dato clinico,
+ * cifrado; la cuenta madre no lo lee). Abrir una conversacion marca leido lo
+ * recibido; la respuesta va a quien escribio el ultimo mensaje.
  */
 export function MensajesPacientes() {
-  const cliente = useQueryClient();
   const mensajes = useMensajesPacientes(true);
-  const pacientes = usePacientes();
-  const paciente = new Map((pacientes.data ?? []).map((p) => [p.id, p]));
-  const leer = useMutation({
-    mutationFn: (id: string) => datos(api.POST('/api/mensajes/{id}/leido', { params: { path: { id } } })),
-    onSuccess: () => {
+  const ids = [...new Set((mensajes.data ?? []).flatMap((m) => (m.pacienteId ? [m.pacienteId] : [])))];
+  const pacientes = useQueries({ queries: ids.map(consultaPaciente) });
+  const paciente = new Map(pacientes.flatMap((q) => (q.data ? [[q.data.id, q.data] as const] : [])));
+  const [abierto, setAbierto] = useState<string | null>(null);
+  return (
+    <EstadoConsulta consulta={mensajes} vacio={(l) => l.length === 0} textoVacio="No tienes mensajes de pacientes">
+      {(lista) => {
+        // Conversaciones: por paciente, la mas reciente primero.
+        const grupos = new Map<string, MensajePaciente[]>();
+        for (const m of lista) {
+          if (!m.pacienteId) continue;
+          grupos.set(m.pacienteId, [...(grupos.get(m.pacienteId) ?? []), m]);
+        }
+        const orden = [...grupos.entries()].sort((a, b) => b[1][0]!.creadoEn.localeCompare(a[1][0]!.creadoEn));
+        const actual = abierto ? grupos.get(abierto) : undefined;
+        return (
+          <div className="grid items-start gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <section aria-label="Conversaciones con pacientes" className="flex flex-col gap-1 rounded-lg border border-divider bg-bg p-3">
+              {orden.map(([id, ms]) => {
+                const p = paciente.get(id);
+                const sinLeer = ms.filter((m) => !m.deProfesional && !m.leidoEn).length;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={abierto === id}
+                    onClick={() => setAbierto((a) => (a === id ? null : id))}
+                    className={`flex min-h-14 w-full cursor-pointer items-start justify-between gap-2 rounded-lg px-3.5 py-2.5 text-left transition-colors duration-200 ${abierto === id ? 'bg-accent-200' : 'hover:bg-accent-100'}`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-extrabold">{p ? `${p.nombre} ${p.apellido}` : 'Paciente'}</span>
+                      <span className="block text-[12px] font-semibold text-neutral-800">{formatoFechaHora(ms[0]!.creadoEn)}</span>
+                    </span>
+                    {sinLeer > 0 && <Badge tono="atencion">{sinLeer} sin leer</Badge>}
+                  </button>
+                );
+              })}
+            </section>
+            {actual && abierto ? (
+              <Conversacion
+                key={abierto}
+                pacienteId={abierto}
+                nombre={paciente.get(abierto) ? `${paciente.get(abierto)!.nombre} ${paciente.get(abierto)!.apellido}` : 'Paciente'}
+                mensajes={actual}
+                onCerrar={() => setAbierto(null)}
+              />
+            ) : (
+              <EstadoVista
+                estado="vacio"
+                titulo="Elige una conversación"
+                mensaje="Las respuestas le llegan al paciente en su cuenta; al correo solo le avisamos."
+              />
+            )}
+          </div>
+        );
+      }}
+    </EstadoConsulta>
+  );
+}
+
+function Conversacion({ pacienteId, nombre, mensajes, onCerrar }: { pacienteId: string; nombre: string; mensajes: MensajePaciente[]; onCerrar: () => void }) {
+  const cliente = useQueryClient();
+  const [texto, setTexto] = useState('');
+  const cronologico = [...mensajes].sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
+  // Se responde a quien escribio por ultimo (el paciente o su adulto responsable).
+  const ultimoRecibido = [...cronologico].reverse().find((m) => !m.deProfesional);
+  const sinLeer = mensajes.filter((m) => !m.deProfesional && !m.leidoEn).map((m) => m.id);
+  const claveSinLeer = sinLeer.join(',');
+  useEffect(() => {
+    if (!claveSinLeer) return;
+    void Promise.all(claveSinLeer.split(',').map((id) => api.POST('/api/mensajes/{id}/leido', { params: { path: { id } } }))).then(() => {
       void cliente.invalidateQueries({ queryKey: ['mensajes-pacientes'] });
       void cliente.invalidateQueries({ queryKey: ['panel', 'dashboard'] });
+    });
+  }, [claveSinLeer, cliente]);
+  const responder = useMutation({
+    mutationFn: () => datos(api.POST('/api/mensajes/respuesta', { body: { mensajeId: ultimoRecibido!.id, contenido: texto.trim() } })),
+    onSuccess: () => {
+      setTexto('');
+      void cliente.invalidateQueries({ queryKey: ['mensajes-pacientes'] });
     },
   });
+  const enviar = (e: FormEvent) => {
+    e.preventDefault();
+    if (texto.trim() && ultimoRecibido) responder.mutate();
+  };
   return (
-    <div className="flex flex-col gap-4">
-      <Aviso tono="nota" icono="mail">
-        Respóndele al paciente por teléfono o correo: desde el panel no se envían respuestas.
-      </Aviso>
-      {leer.error && (
+    <section
+      aria-label={`Conversación con ${nombre}`}
+      className="flex flex-col gap-3.5 rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-4"
+    >
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-divider pb-3">
+        <h2 className="m-0 text-[18px] font-black">{nombre}</h2>
+        <div className="flex gap-2">
+          <ButtonLink href={`/admin/fichas/${pacienteId}`} variant="ghost" className="!px-3.5 !py-2 !text-[13px]">
+            Ver ficha
+          </ButtonLink>
+          <Button variant="secondary" icon="close" onClick={onCerrar} className="!px-3.5 !py-2 !text-[13px]">
+            Cerrar
+          </Button>
+        </div>
+      </header>
+      <ol className="m-0 flex list-none flex-col gap-3 p-0">
+        {cronologico.map((m) => (
+          <li
+            key={m.id}
+            className={`max-w-[85%] rounded-lg border px-3.5 py-2.5 ${m.deProfesional ? 'self-end border-accent-300 bg-accent-200' : 'self-start border-divider bg-surface'}`}
+          >
+            <p className="m-0 text-[12px] font-extrabold text-neutral-800">
+              {m.deProfesional ? 'Tú' : nombre} · {formatoFechaHora(m.creadoEn)}
+              {m.deProfesional && (m.leidoEn ? ' · leído' : ' · sin leer')}
+            </p>
+            <p className="m-0 text-[14.5px] font-semibold whitespace-pre-line text-pretty">{m.contenido}</p>
+          </li>
+        ))}
+      </ol>
+      {responder.error && (
         <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
-          {leer.error instanceof ApiError ? leer.error.message : 'No pudimos marcar el mensaje.'}
+          {responder.error instanceof ApiError ? responder.error.message : 'No pudimos enviar la respuesta.'}
         </p>
       )}
-      <EstadoConsulta consulta={mensajes} vacio={(l) => l.length === 0} textoVacio="No tienes mensajes de pacientes">
-        {(lista) => (
-          <ul className="m-0 flex list-none flex-col gap-3 p-0">
-            {lista.map((m) => {
-              const p = m.pacienteId ? paciente.get(m.pacienteId) : undefined;
-              const nuevo = !m.leidoEn;
-              return (
-                <li
-                  key={m.id}
-                  className={`rounded-lg border bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-4 ${nuevo ? 'border-accent-500' : 'border-divider'}`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="m-0 flex flex-wrap items-center gap-2 text-[15px] font-black">
-                        {p ? `${p.nombre} ${p.apellido}` : 'Paciente'}
-                        {nuevo && <Badge tono="atencion">Sin leer</Badge>}
-                      </p>
-                      <p className="m-0 text-[12.5px] font-semibold text-neutral-700">
-                        {formatoFechaHora(m.creadoEn)}
-                        {p?.telefono ? ` · ${formatoTelefono(p.telefono)}` : ''}
-                        {p?.email ? ` · ${p.email}` : ''}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {p && (
-                        <ButtonLink href={`/admin/fichas/${p.id}`} variant="ghost" className="!px-3.5 !py-2 !text-[13px]">
-                          Ver paciente
-                        </ButtonLink>
-                      )}
-                      {nuevo && (
-                        <Button
-                          variant="secondary"
-                          icon="mark_email_read"
-                          loading={leer.isPending && leer.variables === m.id}
-                          onClick={() => leer.mutate(m.id)}
-                          className="!px-4 !py-2 !text-[13px]"
-                        >
-                          Marcar leído
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="m-0 mt-2.5 text-[14.5px] font-semibold whitespace-pre-line text-pretty">{m.contenido}</p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </EstadoConsulta>
-    </div>
+      {ultimoRecibido ? (
+        <form onSubmit={enviar} className="flex flex-col gap-2 border-t border-divider pt-3">
+          <Field label="Responder" hint="Le llega en su cuenta; al correo solo el aviso. Enter envía; Shift+Enter, salto de línea.">
+            {(p) => <Textarea {...p} enterEnvia rows={3} maxLength={MAX} value={texto} onChange={(e) => setTexto(e.target.value)} className="!min-h-20" />}
+          </Field>
+          <div className="flex justify-end">
+            <Button type="submit" variant="team" icon="send" disabled={!texto.trim()} loading={responder.isPending}>
+              Responder
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </section>
   );
 }

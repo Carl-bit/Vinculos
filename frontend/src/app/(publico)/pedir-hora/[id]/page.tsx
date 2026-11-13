@@ -24,6 +24,16 @@ export default async function PedirHoraCon({ params }: { params: Promise<{ id: s
     politica('TERMINOS_AGENDAMIENTO'),
   ]);
   if (!centro?.modulos.includes('AGENDA') || !perfil) notFound();
+  // Punto 9: la cuenta madre indico que no atiende (bloqueo sin fin): no se ofrecen horas con el.
+  if (!perfil.recibe_pacientes) {
+    return (
+      <EstadoVista
+        estado="vacio"
+        titulo={`${nombrePerfil(perfil)} no está recibiendo pacientes`}
+        mensaje="Puedes pedir hora con otro profesional del equipo o hacer el match terapéutico."
+      />
+    );
+  }
   if (!datos) {
     return (
       <EstadoVista

@@ -87,6 +87,12 @@ export class CitaVista {
   /** 03b-3.2: plazo de pago (PENDIENTE_PAGO o RETENIDA); la agendada por el equipo, hasta las horas configuradas antes (12 por defecto). */
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   pagoVenceEn!: Date | null;
+  /** MVP sin COBROS: plazo para que el profesional apruebe la hora SOLICITADA (despues el job la cancela). */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  aprobacionVenceEn!: Date | null;
+  /** Punto 7: solicitud original de la que sale una hora PROPUESTA (el plazo para elegir es aprobacionVenceEn). */
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  propuestaDeId!: string | null;
   /** PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3). */
   @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', nullable: true })
   medioConfirmacion!: MedioConfirmacion | null;
@@ -127,6 +133,17 @@ export class HorarioEspacioVista {
 /** Box ocupado en un rango (bloque apartado o soft-lock), sin pacientes ni profesionales. */
 export class OcupacionBox {
   espacio_id!: string;
+  inicio!: Date;
+  fin!: Date;
+}
+
+/**
+ * 03b-4.1: horario que otra persona tiene abierto en pantalla ("Reservando..."),
+ * categoria C: solo el box (nulo si es online) y el rango, sin quien ni profesional.
+ */
+export class RetencionEnCurso {
+  @ApiProperty({ type: String, nullable: true })
+  espacioId!: string | null;
   inicio!: Date;
   fin!: Date;
 }
@@ -228,4 +245,9 @@ export class FeedCalendario {
 export class CierreRequerido {
   citaId!: string;
   avisado!: boolean;
+}
+
+export class AvisoPorReprogramar {
+  /** Cuantas horas se avisaron (las que siguen por reprogramar, futuras y con paciente). */
+  avisadas!: number;
 }

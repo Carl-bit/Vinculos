@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import type { MotivoRevocacionAcceso } from '@prisma/client';
 
 import { registrarAcceso } from '../../core/bd/auditoria';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
-import type { AccesoTemporalDto, BorradorDto, ConfirmarBorradorDto } from './dto/fichas.dto';
+import type { AccesoTemporalDto, BorradorDto, ConfirmarBorradorDto, PendienteFicha } from './dto/fichas.dto';
 import { EvolucionesService } from './evoluciones.service';
 import { PlantillasService } from './plantillas.service';
 
@@ -17,6 +18,7 @@ const VISTA_BORRADOR = {
   contenido: true,
   plantillaId: true,
   valores: true,
+  nivelRiesgo: true,
   creadoEn: true,
   actualizadoEn: true,
 } as const;
@@ -25,6 +27,12 @@ const vistaBorrador = <B extends { contenido: Uint8Array; valores: Uint8Array | 
   ...b,
   contenido: texto(b.contenido),
   valores: b.valores ? (JSON.parse(texto(b.valores)) as Record<string, unknown>) : null,
+});
+
+const vistaAcceso = <A extends { revocacion: { motivo: MotivoRevocacionAcceso; revocadoEn: Date } | null }>({ revocacion, ...a }: A) => ({
+  ...a,
+  revocadoEn: revocacion?.revocadoEn ?? null,
+  motivoRevocacion: revocacion?.motivo ?? null,
 });
 
 /**
@@ -75,6 +83,7 @@ export class SeguimientoService {
         contenido: claro(dto.contenido),
         plantillaId: dto.plantillaId ?? null,
         valores: await this.valoresBorrador(dto),
+        nivelRiesgo: dto.nivelRiesgo ?? null,
       },
       select: VISTA_BORRADOR,
     });
@@ -87,7 +96,13 @@ export class SeguimientoService {
     encontrado(await tx.borradorEvolucion.findUnique({ where: { id }, select: { id: true } }), 'Borrador');
     const b = await tx.borradorEvolucion.update({
       where: { id },
-      data: { contenido: claro(dto.contenido), citaId: dto.citaId, plantillaId: dto.plantillaId ?? null, valores: await this.valoresBorrador(dto) },
+      data: {
+        contenido: claro(dto.contenido),
+        citaId: dto.citaId,
+        plantillaId: dto.plantillaId ?? null,
+        valores: await this.valoresBorrador(dto),
+        nivelRiesgo: dto.nivelRiesgo ?? null,
+      },
       select: VISTA_BORRADOR,
     });
     return vistaBorrador(b);
@@ -112,6 +127,14 @@ export class SeguimientoService {
     });
     await tx.borradorEvolucion.delete({ where: { id }, select: { id: true } });
     return resultado;
+  }
+
+  /** 03b-4.2: sesiones del rango con evolucion (solo ids). */
+  async citasConEvolucion(desde: Date, hasta: Date): Promise<string[]> {
+    const filas = await this.bd.tx().$queryRaw<{ cita_id: string }[]>`
+      SELECT DISTINCT e.cita_id FROM evoluciones e JOIN citas c ON c.id = e.cita_id
+      WHERE c.inicio >= ${desde} AND c.inicio < ${hasta}`;
+    return filas.map((f) => f.cita_id);
   }
 
   /** Alta (tratante): fecha y motivo cifrado; borra las respuestas del match. */
@@ -147,12 +170,25 @@ export class SeguimientoService {
     const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
       SELECT otorgar_acceso_temporal(${pacienteId}::uuid, ${dto.profesionalId}::uuid, ${dto.motivo}::motivo_acceso_temporal,
                                      ${dto.alcance}::alcance_acceso_temporal, ${dto.desde ?? null}, ${dto.hasta}) AS id`;
-    return this.bd.tx().accesoClinicoTemporal.findUniqueOrThrow({ where: { id } });
+    return this.accesoTemporal(id);
   }
 
   /** ADMIN: todos; PROFESIONAL: los que recibio y los de sus pacientes (RLS). */
-  accesosTemporales(pacienteId?: string) {
-    return this.bd.tx().accesoClinicoTemporal.findMany({ where: pacienteId ? { pacienteId } : {}, orderBy: { hasta: 'desc' } });
+  async accesosTemporales(pacienteId?: string) {
+    const filas = await this.bd
+      .tx()
+      .accesoClinicoTemporal.findMany({ where: pacienteId ? { pacienteId } : {}, include: { revocacion: true }, orderBy: { hasta: 'desc' } });
+    return filas.map(vistaAcceso);
+  }
+
+  /** ADMIN o el tratante; solo un acceso vigente y sin sesiones por cubrir (422). Avisa al paciente y al profesional. */
+  async revocarAccesoTemporal(id: string, motivo: MotivoRevocacionAcceso) {
+    await this.bd.tx().$executeRaw`SELECT revocar_acceso_temporal(${id}::uuid, ${motivo}::motivo_revocacion_acceso)`;
+    return this.accesoTemporal(id);
+  }
+
+  private async accesoTemporal(id: string) {
+    return vistaAcceso(await this.bd.tx().accesoClinicoTemporal.findUniqueOrThrow({ where: { id }, include: { revocacion: true } }));
   }
 
   /** Ultima y proxima sesion y sesiones sin cerrar (metadata, sin contenido clinico). */
@@ -160,5 +196,14 @@ export class SeguimientoService {
     return this.bd.tx().$queryRaw<
       { paciente_id: string; ultima_sesion: Date | null; proxima_sesion: Date | null; sesiones_sin_cerrar: number; alta_en: Date | null }[]
     >`SELECT * FROM estado_fichas_profesional(${profesionalId}::uuid)`;
+  }
+
+  /**
+   * Pendientes de las fichas (sin evolucion, consentimiento, RUT, adulto
+   * responsable): metadata y codigo seudonimo. ADMIN/GESTION todos o uno; el
+   * profesional o practicante, los propios (lo decide la BD).
+   */
+  pendientesFichas(profesionalId?: string) {
+    return this.bd.tx().$queryRaw<PendienteFicha[]>`SELECT * FROM pendientes_fichas(${profesionalId ?? null}::uuid) ORDER BY fecha NULLS LAST`;
   }
 }

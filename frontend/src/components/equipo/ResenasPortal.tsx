@@ -240,7 +240,7 @@ function FormularioResena({
   };
 
   return (
-    <section className="rounded-lg border border-divider bg-neutral-100 px-[clamp(20px,3vw,28px)] py-[26px] shadow-sm">
+    <section className="rounded-lg border border-divider bg-bg px-[clamp(20px,3vw,28px)] py-[26px] shadow-suave">
       <h2 ref={titulo} tabIndex={-1} className="m-0 mb-1.5 text-[20px] font-black tracking-[-0.025em]">
         {b.id ? `Editar tu reseña de ${nombre}` : `Calificar a ${nombre}`}
       </h2>

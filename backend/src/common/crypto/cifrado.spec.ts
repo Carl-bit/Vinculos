@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { CATEGORIAS, ErrorCifrado, FilaLlave, LARGO_MINIMO, Llavero, aad, crearCanario, envolverConKek, huellaKek, normalizarRut } from './cifrado';
 import { generarKek } from './contingencia';
-import { CAMPOS_CIFRADOS } from './registro';
+import { aadDe, CAMPOS_CIFRADOS } from './registro';
 
 function filaDePrueba(kek: Buffer, categoria: FilaLlave['categoria'], version: number, activa: boolean): FilaLlave {
   const id = randomUUID();
@@ -89,5 +89,12 @@ describe('cifrado de aplicacion', () => {
     const claves = CAMPOS_CIFRADOS.map((c) => `${c.tabla}.${c.columna}`);
     expect(new Set(claves).size).toBe(claves.length);
     expect(claves.some((c) => c.endsWith('_hmac'))).toBe(false);
+  });
+
+  it('AUD-01: una tabla renombrada conserva el AAD con que se cifro (comprobantes_pago = boletas)', () => {
+    const c = CAMPOS_CIFRADOS.find((x) => x.tabla === 'comprobantes_pago' && x.columna === 'emisor_rut')!;
+    expect(aadDe(c, 'id-1')).toBe('boletas:emisor_rut:id-1');
+    const sinRenombre = CAMPOS_CIFRADOS.find((x) => x.tabla === 'pacientes' && x.columna === 'rut')!;
+    expect(aadDe(sinRenombre, 'id-1')).toBe('pacientes:rut:id-1');
   });
 });

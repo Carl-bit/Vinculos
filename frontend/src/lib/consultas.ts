@@ -13,8 +13,19 @@ export function useSesion(): EstadoSesion {
 }
 
 /** Modulos contratados (la API los cachea 30 s; aca 60 s). */
+/** Contenido publico del centro (nombre, colores de marca por zona...). Misma clave que el resto de las vistas. */
+export function useCentroPublico() {
+  return useQuery({ queryKey: ['publico', 'centro'], queryFn: () => datos(api.GET('/api/publico/centro')), staleTime: 10 * 60_000 });
+}
+
 export function useModulos() {
-  return useQuery({ queryKey: ['modulos'], queryFn: () => datos(api.GET('/api/modulos')), staleTime: 60_000 });
+  // Punto 36: lo que el perfil de la cuenta restringe se trata como no activo (menu, accesos y vistas lo ocultan; la API responde 403).
+  return useQuery({
+    queryKey: ['modulos'],
+    queryFn: () => datos(api.GET('/api/modulos')),
+    staleTime: 60_000,
+    select: (d) => ({ ...d, activos: d.activos.filter((m) => !d.restringidos.includes(m)) }),
+  });
 }
 
 export function useMiCuenta() {

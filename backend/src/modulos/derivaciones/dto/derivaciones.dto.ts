@@ -226,3 +226,16 @@ export class ConsentimientoSolicitado {
   id!: string;
   pacienteId!: string;
 }
+
+/** Punto 9: paciente en atencion temporal cuyo profesional principal ya puede atenderlo. */
+export class RetornoDisponible {
+  pacienteId!: string;
+  codigo!: string;
+  nombre!: string;
+  apellido!: string;
+  profesionalPrincipalId!: string;
+  tratanteActualId!: string;
+  /** El paciente pidio volver con su principal. */
+  pideVolver!: boolean;
+  solicitadaEn!: Date;
+}

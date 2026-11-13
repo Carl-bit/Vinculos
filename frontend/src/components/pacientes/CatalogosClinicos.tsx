@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
+import { DatosDisponibles } from '@/components/shared/DatosDisponibles';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +15,7 @@ import { ApiError } from '@/lib/api/errores';
 import { useMiCuenta, useProfesionales } from '@/lib/consultas';
 import { useEstadosAvance, useIntervenciones, useTiposDocumento, useTiposSesion, type CatalogoClinico, type TipoDocumento } from '@/lib/fichas';
 import type { Rol } from '@/lib/sesion';
+import { aDatosSimples, aVariables, datoInvalido, DATOS_DOCUMENTO } from '@/lib/variablesMensaje';
 
 const textoError = (e: unknown, base: string) => (e instanceof ApiError ? e.message : base);
 
@@ -278,8 +280,6 @@ function CatalogoSimple({
   );
 }
 
-const VARIABLES_DOCUMENTO = ['{{nombre_paciente}}', '{{nombre_profesional}}', '{{fecha}}', '{{nombre_centro}}', '{{contenido}}'] as const;
-
 /** Tipos de documento clinico: formato con variables permitidas (otra variable -> 422 de la BD). */
 function TiposDocumento({ admin }: { admin: boolean }) {
   const tipos = useTiposDocumento();
@@ -310,7 +310,7 @@ function TiposDocumento({ admin }: { admin: boolean }) {
                           {t.nombre}
                           {!t.activo && <Badge tono="neutro">Inactivo</Badge>}
                         </p>
-                        <p className="m-0 line-clamp-1 font-mono text-[12.5px] text-neutral-700">{t.plantilla}</p>
+                        <p className="m-0 line-clamp-1 font-mono text-[12.5px] text-neutral-700">{aDatosSimples(t.plantilla)}</p>
                       </div>
                       {admin && (
                         <Button variant="ghost" icon="edit" onClick={() => setEditar(t)} className="!px-3.5 !py-2 !text-[13px]">
@@ -339,19 +339,25 @@ function TiposDocumento({ admin }: { admin: boolean }) {
 function FormularioTipoDocumento({ tipo, onListo }: { tipo?: TipoDocumento; onListo: () => void }) {
   const cliente = useQueryClient();
   const [nombre, setNombre] = useState(tipo?.nombre ?? '');
-  const [plantilla, setPlantilla] = useState(tipo?.plantilla ?? '{{contenido}}');
+  const [plantilla, setPlantilla] = useState(aDatosSimples(tipo?.plantilla ?? '{{contenido}}'));
   const [activo, setActivo] = useState(tipo?.activo ?? true);
   const guardar = useMutation({
     mutationFn: () =>
       tipo
-        ? datos(api.PATCH('/api/tipos-documento-clinico/{id}', { params: { path: { id: tipo.id } }, body: { nombre: nombre.trim(), plantilla, activo } }))
-        : datos(api.POST('/api/tipos-documento-clinico', { body: { nombre: nombre.trim(), plantilla } })),
+        ? datos(
+            api.PATCH('/api/tipos-documento-clinico/{id}', {
+              params: { path: { id: tipo.id } },
+              body: { nombre: nombre.trim(), plantilla: aVariables(plantilla, DATOS_DOCUMENTO), activo },
+            }),
+          )
+        : datos(api.POST('/api/tipos-documento-clinico', { body: { nombre: nombre.trim(), plantilla: aVariables(plantilla, DATOS_DOCUMENTO) } })),
     onSuccess: () => {
       void cliente.invalidateQueries({ queryKey: ['catalogos', 'tipos-documento'] });
       onListo();
     },
   });
-  const sinContenido = !plantilla.includes('{{contenido}}');
+  const sinContenido = !plantilla.includes('{contenido}');
+  const invalido = datoInvalido(plantilla, DATOS_DOCUMENTO);
   return (
     <div className="flex flex-col gap-4">
       <Field label="Nombre" required>
@@ -360,23 +366,12 @@ function FormularioTipoDocumento({ tipo, onListo }: { tipo?: TipoDocumento; onLi
       <Field
         label="Formato del documento"
         required
-        hint={`Variables permitidas: ${VARIABLES_DOCUMENTO.join(', ')}. {{contenido}} es lo que redacta el profesional.`}
-        error={sinContenido ? 'Incluye {{contenido}}: si no, el texto del profesional no aparece en el documento.' : undefined}
+        hint="Pon entre llaves lo que el sistema debe completar. {contenido} es lo que redacta el profesional."
+        error={invalido ?? (sinContenido ? 'Incluye {contenido}: si no, el texto del profesional no aparece en el documento.' : undefined)}
       >
         {(p) => <Textarea {...p} rows={8} value={plantilla} onChange={(e) => setPlantilla(e.target.value)} className="!min-h-44 font-mono !text-[13.5px]" />}
       </Field>
-      <div className="flex flex-wrap gap-1.5">
-        {VARIABLES_DOCUMENTO.map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setPlantilla((t) => `${t}${t.endsWith('\n') || !t ? '' : ' '}${v}`)}
-            className="min-h-8 cursor-pointer rounded-full border border-divider bg-neutral-100 px-3 font-mono text-[12px] font-bold hover:border-accent-500 hover:bg-accent-200"
-          >
-            {v}
-          </button>
-        ))}
-      </div>
+      <DatosDisponibles datos={DATOS_DOCUMENTO} onElegir={(v) => setPlantilla((t) => `${t}${t.endsWith('\n') || !t ? '' : ' '}${v}`)} />
       {tipo && (
         <label className="flex min-h-10 cursor-pointer items-center gap-2.5 text-[13.5px] font-bold">
           <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} className="size-[18px] accent-accent-700" />
@@ -392,7 +387,13 @@ function FormularioTipoDocumento({ tipo, onListo }: { tipo?: TipoDocumento; onLi
         <Button variant="ghost" onClick={onListo}>
           Cancelar
         </Button>
-        <Button variant="team" icon="save" disabled={nombre.trim().length < 2 || sinContenido} loading={guardar.isPending} onClick={() => guardar.mutate()}>
+        <Button
+          variant="team"
+          icon="save"
+          disabled={nombre.trim().length < 2 || sinContenido || !!invalido}
+          loading={guardar.isPending}
+          onClick={() => guardar.mutate()}
+        >
           Guardar
         </Button>
       </div>

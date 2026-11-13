@@ -12,6 +12,7 @@ si otro archivo de `core` que no sea `core.module.ts` la elige.
 | `ProveedorCorreo` | `core/notificaciones/correo.ts` | `ProveedorCorreoSmtp` (generico), `ProveedorCorreoSimulado` | `SMTP_URL` presente -> SMTP; vacio -> simulado |
 | `ProveedorVideollamada` | `core/integraciones/videollamada.ts` | `ProveedorVideollamadaPorProfesional`, `ProveedorVideollamadaSimulado` | `VIDEOLLAMADA_SIMULADA=true` -> simulado (default de los tests) |
 | `ProveedorCalendario` | `core/integraciones/calendario.ts` | `CalendarioIcs` | unica (iCalendar RFC 5545) |
+| `VerificadorPrestadores` (03b-4.2) | `core/integraciones/verificador-prestadores.ts` | `VerificadorSuperSalud`, `VerificadorSimulado` | `SUPERSALUD_APIKEY` presente -> SUPERSALUD; vacia -> SIMULADO y aviso en el log (la API arranca igual) |
 | `ProveedorPasarela` (03b-3.1) | `core/integraciones/pasarela.ts` | `PasarelaSimulada`, `PasarelaNoConfigurada` | `PASARELA_PROVEEDOR=simulada` (default fuera de produccion) o vacio (sin pasarela); en produccion la simulada no arranca |
 
 En los tests de integracion (`test/apoyo.ts`) las simuladas siguen siendo
@@ -41,7 +42,7 @@ crea los que origina ella (triggers y jobs). La categoria
 | `AVISO_CAMBIO_SUPERVISOR` | paciente | API (Equipo) | **legal** |
 | `DOCUMENTO_CLINICO` (documento emitido) | paciente | API (Fichas) | **legal** |
 | `PAGO_REGISTRADO` | paciente | API (Cobros) | operativo |
-| `BOLETA_EMITIDA` | paciente | API (Cobros) | operativo |
+| `COMPROBANTE_EMITIDO` (AUD-01, antes `BOLETA_EMITIDA`) | paciente: comprobante de pago, no tributario | API (Cobros) | operativo |
 | `MENSAJE_PACIENTE` | profesional destinatario | API (Portal) | operativo (equipo) |
 | `INSTRUCCIONES_TRANSFERENCIA` (03b-3.1) | paciente (solo si ya existe: la reserva sin cuenta ve los datos en pantalla) | BD (`elegir_medio_*`) | operativo |
 | `COMPROBANTE_RECIBIDO` (03b-3.1) | paciente (solo si ya existe) | BD (`subir_comprobante_*`) | operativo |
@@ -65,7 +66,9 @@ reprogramacion.
   `{{nombre_profesional}}`, `{{fecha}}`, `{{hora}}`, `{{modalidad}}`,
   `{{enlace}}`, `{{nombre_centro}}`. Nunca motivo, diagnostico, notas ni
   contenido clinico. Validado en la BD al guardar (CHECK
-  `plantillas_mensaje_variables_permitidas` -> 422).
+  `plantillas_mensaje_variables_permitidas` -> 422). En pantalla ADMIN escribe
+  `{paciente}`, `{profesional}`, `{centro}`, etc.; el front las traduce
+  (`frontend/src/lib/variablesMensaje.ts`) y la API sigue recibiendo `{{...}}`.
 - `nombre_paciente` solo se llena cuando el destinatario es el propio
   paciente; a un integrante del equipo nunca se le envia el nombre de un
   paciente (p. ej. una oferta de derivacion). `enlace`: la videollamada, el
@@ -108,6 +111,10 @@ tienen campo (un campo extra es 400): nunca se desactivan.
 - Remitente: la direccion de la plataforma (`CORREO_REMITENTE`, por defecto
   `no-responder@vinculos.cl`) con el **nombre del centro** como nombre visible
   (`configuracion_centro.nombre_centro`, lo edita ADMIN).
+- **Reply-To** (AUD-01): el correo de contacto publico del centro
+  (`contenido_publico.contacto_correo`, Configuracion > Centro > Contacto).
+  Sin el, el correo sale sin Reply-To. SES por silo: `SES_CONFIGURATION_SET`
+  (`docs/api/correo_ses.md`).
 - **Futuro: dominio propio por centro** (p. ej. `avisos@centro.cl`). Requiere
   que el centro publique SPF (incluir al proveedor de envio), firme con DKIM
   (llaves del proveedor en su DNS) y, idealmente, DMARC; la plataforma
@@ -286,6 +293,20 @@ terceros); la pasarela es **solo visual y simulada**.
 - **Produccion:** con `NODE_ENV=production` la API **no arranca** con
   `PASARELA_PROVEEDOR=simulada`. Sin adaptador (`PASARELA_PROVEEDOR` vacio) el
   centro no puede habilitar el medio PASARELA (422 `pasarela_sin_convenio`).
+- **Pasarela del centro, no del profesional (AUD-01, E1.3):** la pasarela
+  del silo cobra a la cuenta del centro. Mientras no exista la pasarela por
+  cobrador, PASARELA no se habilita con modelo DIRECTO (422
+  `configuracion_centro_pasarela_cobro_directo`) y, en MIXTO, la hora de un
+  profesional con cobro directo no la ofrece ni la acepta (422
+  `citas_pasarela_cobro_directo`). Asi un profesional nunca cobra con la
+  cuenta del centro.
+- **Pasarela por cobrador (post-MVP, diseño):** configuracion en BD por
+  cobrador (el centro, o cada profesional con cobro directo): proveedor y
+  credenciales cifradas (categoria FINANCIERO, `registro.ts`, nunca en logs).
+  `ProveedorPasarela.crearCobro` recibe las credenciales del cobrador de la
+  cita (`cobro_directo(profesional)`); el webhook identifica al cobrador por
+  la referencia del intento y verifica la firma con su secreto. Al existir,
+  se retira la restriccion de arriba.
 - **Adaptador real, por centro:** cada centro negocia su propio convenio
   (proveedor y comisiones, p. ej. Webpay Plus de Transbank, Flow, Mercado
   Pago o Khipu). Para habilitarlo en un silo:
@@ -319,3 +340,35 @@ antes del inicio) y `porcentaje_pago_confirmacion` (100). Transferencia: la
 cuenta del centro (`cuenta_bancaria_centro`) o la del profesional con cobro
 directo; comprobante opcional; valida GESTION/ADMIN o el profesional segun el
 modelo de cobro. Sin lectura de correos bancarios.
+
+## Registro de prestadores de la Superintendencia de Salud (03b-4.2)
+
+- **Para que:** verificar el numero de registro (RNPI) que informa cada
+  profesional: que exista, que sea de su RUT y su nombre, y que el titulo
+  habilitante coincida con su profesion. Estados: NO_INFORMADO (sin fila),
+  PENDIENTE, VERIFICADO_AUTOMATICO, VERIFICADO_MANUAL, NO_COINCIDE.
+- **Apikey:** se obtiene con una solicitud formal a la Intendencia de
+  Prestadores de Salud (convenio de acceso a la API de prestadores). Va en
+  `SUPERSALUD_APIKEY` (secreto del silo, nunca en el repo) y la URL base en
+  `SUPERSALUD_URL` (default `https://apis.superdesalud.gob.cl`). Mientras no
+  exista, la verificacion automatica es SIMULADA y el ADMIN verifica a mano
+  con el respaldo de la trayectoria y el buscador publico
+  (https://rnpi.superdesalud.gob.cl/).
+- **Consulta:** solo desde el servidor (nunca el navegador):
+  `GET /api/v2/prestadores/registro/{registro}` con cabecera `apikey`.
+  Timeout de 5 s y hasta 2 reintentos ante red caida o 5xx (cabe en los 20 s
+  de la transaccion); 404 = no existe (NO_COINCIDE); 401/403 = apikey
+  invalida; 429 = limite (sin reintento). El formato exacto de la respuesta
+  se entrega con el convenio: `parsearPrestador()` lee de forma tolerante
+  solo registro, RUT, nombre y titulos; ajustarlo ahi al recibir la
+  documentacion. `/api/v2/prestadores/rut/{rut}` (RUT sin DV) queda
+  disponible para el mismo adaptador si se necesita buscar por RUT.
+- **Minimizacion:** se guardan numero, titulo habilitante, institucion,
+  fecha, estado y metodo (`registros_sis`). Nunca fecha de nacimiento, sexo
+  ni nacionalidad de la respuesta.
+- **Cuando se consulta:** al informar el numero (el propio profesional), a
+  pedido del ADMIN ("Verificar ahora") y en el job mensual
+  `reverificar_registros_sis` (dia 1, 05:00; no corre sin apikey; omite los
+  verificados a mano). Si el RNPI falla, el registro queda PENDIENTE.
+- **Simulado:** responde coherente con lo consultado; registro que empieza
+  con 9 = no existe; con 8 = de otro RUT (para probar NO_COINCIDE).

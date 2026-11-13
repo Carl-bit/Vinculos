@@ -39,6 +39,10 @@ export function PasoSegundoFactor({
   const [espera, setEspera] = useState(ESPERA_S);
   const [entrada, setEntrada] = useState<{ sesion: SesionActiva; codigos: string[] }>();
   const alerta = useRef<HTMLParagraphElement>(null);
+  // Punto 21: una sola verificacion en vuelo. Si sale bien, el boton sigue
+  // bloqueado hasta navegar (un segundo clic gastaba el desafio usado: 401).
+  const enVuelo = useRef(false);
+  const [reenviando, setReenviando] = useState(false);
 
   useEffect(() => {
     if (espera <= 0) return;
@@ -57,15 +61,22 @@ export function PasoSegundoFactor({
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
-    if (!valido) return;
+    if (!valido || enVuelo.current) return;
+    enVuelo.current = true;
     setError(undefined);
     setEnviando(true);
     try {
       const r = await verificarSegundoFactor(desafio.desafio, codigo.trim());
-      if (!('accessToken' in r)) return;
+      if (!('accessToken' in r)) {
+        enVuelo.current = false;
+        setEnviando(false);
+        return;
+      }
       if (r.codigosRespaldo?.length) setEntrada({ sesion: r, codigos: r.codigosRespaldo });
       else onEntrar(r);
     } catch (err) {
+      enVuelo.current = false;
+      setEnviando(false);
       setError(
         err instanceof ApiError && err.status === 401
           ? 'El código no es válido o venció. Puedes pedir uno nuevo.'
@@ -73,15 +84,14 @@ export function PasoSegundoFactor({
             ? err.message
             : 'No pudimos conectar con el centro.',
       );
-    } finally {
-      setEnviando(false);
     }
   };
 
   const reenviar = async () => {
     setError(undefined);
     setAviso(undefined);
-    const r = await api.POST('/api/auth/segundo-factor/codigo', { body: { desafio: desafio.desafio } });
+    setReenviando(true);
+    const r = await api.POST('/api/auth/segundo-factor/codigo', { body: { desafio: desafio.desafio } }).finally(() => setReenviando(false));
     if (r.response.status === 204) {
       setAviso('Te enviamos un código nuevo. El anterior ya no sirve.');
       setCodigo('');
@@ -145,7 +155,7 @@ export function PasoSegundoFactor({
           Verificar
         </Button>
         {!respaldo && (
-          <Button variant="secondary" icon="mail" disabled={espera > 0} onClick={() => void reenviar()}>
+          <Button variant="secondary" icon="mail" disabled={espera > 0 || enviando} loading={reenviando} onClick={() => void reenviar()}>
             {espera > 0 ? `Reenviar código (${espera} s)` : 'Reenviar código'}
           </Button>
         )}

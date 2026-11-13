@@ -1,19 +1,31 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import { TAGS } from '../docs/openapi';
 import { Actor, Roles } from '../auth/decoradores';
 import { texto } from '../bd/claro';
 import { ContextoBd, encontrado, type UsuarioActual } from '../bd/contexto-bd.service';
-import { EditarPlantillaDto, MensajeBandeja, NotificacionRegistro, Preferencias, PreferenciasDto, PlantillaMensajeVista } from './notificaciones.dto';
+import { argumentosPagina, pagina } from '../validacion/paginacion';
+import {
+  EditarPlantillaDto,
+  FiltroNotificacionesDto,
+  MensajeBandeja,
+  PaginaNotificaciones,
+  PlantillaMensajeVista,
+  Preferencias,
+  PreferenciasDto,
+  PreferenciasEquipo,
+  PreferenciasEquipoDto,
+} from './notificaciones.dto';
 
 const Uuid = new ParseUUIDPipe();
-const PREFERENCIAS = { recordatorios: true, avisosOperativos: true } as const;
+const PREFERENCIAS = { recordatorios: true, avisosOperativos: true, whatsapp: true, whatsappConsentidoEn: true } as const;
+const PREFERENCIAS_EQUIPO = { agenda: true, cobros: true, derivaciones: true, mensajes: true } as const;
 
 /**
  * Mensajeria (02i). Registro (metadatos): ADMIN/GESTION todos; cada
  * destinatario los suyos (RLS). Bandeja (registro oficial, con contenido):
- * solo los propios. Preferencias: el paciente.
+ * solo los propios. Preferencias: el paciente y, las suyas, cada integrante.
  */
 @ApiTags(TAGS.mensajeria)
 @Controller('notificaciones')
@@ -22,9 +34,10 @@ export class NotificacionesController {
 
   @Get()
   @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
-  listar(): Promise<NotificacionRegistro[]> {
+  async listar(@Query() filtro: FiltroNotificacionesDto): Promise<PaginaNotificaciones> {
     // Sin creadaPorId: un candidato de derivacion no debe saber quien rechazo antes (02h).
-    return this.bd.tx().notificacion.findMany({
+    const filas = await this.bd.tx().notificacion.findMany({
+      where: { tipo: filtro.tipo },
       select: {
         id: true,
         tipo: true,
@@ -38,9 +51,10 @@ export class NotificacionesController {
         creadaEn: true,
         procesadaEn: true,
       },
-      orderBy: { creadaEn: 'desc' },
-      take: 200,
+      orderBy: [{ creadaEn: 'desc' }, { id: 'desc' }],
+      ...argumentosPagina(filtro),
     });
+    return pagina(filas, filtro);
   }
 
   /** Bandeja propia: mensajes ya armados (el job los arma en menos de un minuto). */
@@ -61,7 +75,14 @@ export class NotificacionesController {
   @Get('preferencias')
   @Roles('PACIENTE')
   async preferencias(): Promise<Preferencias> {
-    return (await this.bd.tx().preferenciaNotificacion.findFirst({ select: PREFERENCIAS })) ?? { recordatorios: true, avisosOperativos: true };
+    return (
+      (await this.bd.tx().preferenciaNotificacion.findFirst({ select: PREFERENCIAS })) ?? {
+        recordatorios: true,
+        avisosOperativos: true,
+        whatsapp: false,
+        whatsappConsentidoEn: null,
+      }
+    );
   }
 
   @Put('preferencias')
@@ -76,6 +97,31 @@ export class NotificacionesController {
     });
   }
 
+  /** Avisos por correo del propio integrante del equipo. La bandeja registra todo. */
+  @Get('preferencias-equipo')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  async preferenciasEquipo(@Actor() actor: UsuarioActual): Promise<PreferenciasEquipo> {
+    return (
+      (await this.bd.tx().preferenciaAvisoEquipo.findUnique({ where: { usuarioId: actor.id }, select: PREFERENCIAS_EQUIPO })) ?? {
+        agenda: true,
+        cobros: true,
+        derivaciones: true,
+        mensajes: true,
+      }
+    );
+  }
+
+  @Put('preferencias-equipo')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  guardarPreferenciasEquipo(@Actor() actor: UsuarioActual, @Body() dto: PreferenciasEquipoDto): Promise<PreferenciasEquipo> {
+    return this.bd.tx().preferenciaAvisoEquipo.upsert({
+      where: { usuarioId: actor.id },
+      create: { usuarioId: actor.id, ...dto },
+      update: dto,
+      select: PREFERENCIAS_EQUIPO,
+    });
+  }
+
   /** 03a-2: el adulto responsable elige los avisos de cada menor a su cargo (le llegan a el). */
   @Get('preferencias/pacientes/:pacienteId')
   @Roles('RESPONSABLE')
@@ -85,6 +131,8 @@ export class NotificacionesController {
       (await this.bd.tx().preferenciaNotificacion.findUnique({ where: { pacienteId }, select: PREFERENCIAS })) ?? {
         recordatorios: true,
         avisosOperativos: true,
+        whatsapp: false,
+        whatsappConsentidoEn: null,
       }
     );
   }

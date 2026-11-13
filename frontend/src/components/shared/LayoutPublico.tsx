@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -6,9 +7,13 @@ import { centroPublico } from '@/lib/api/servidor';
 
 import { AccesoCuenta } from './AccesoCuenta';
 import { Marca, NOMBRE_CENTRO } from './Marca';
+import { MarcaZona } from './MarcaZona';
+import { NavPublica } from './NavPublica';
+import { RefrescoPublico } from './RefrescoPublico';
 
 /**
- * Shell del sitio publico del centro (diseño "Landing"). Server component: el
+ * Shell del sitio publico del centro (diseño "Landing", estilo Moderno de
+ * design-reference/Landing: trama de puntos y barra pildora). Server component: el
  * nombre del centro y la navegacion salen de publico/centro (los modulos
  * inactivos no aparecen). Si la API no responde, queda la marca y el acceso.
  */
@@ -24,42 +29,46 @@ export async function LayoutPublico({ children }: { children: ReactNode }) {
   ].filter((x): x is { href: string; etiqueta: string } => !!x);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-[1180px] flex-col px-[clamp(20px,4vw,40px)]">
-      <header className="flex flex-wrap items-center gap-x-5 gap-y-2 py-[22px]">
-        <Marca nombre={nombre} />
-        <nav
-          aria-label="Sitio del centro"
-          className="order-3 -mx-2 flex w-full flex-wrap gap-x-1 text-[14.5px] font-bold md:order-none md:mx-0 md:ml-auto md:w-auto md:gap-[18px]"
-        >
-          {nav.map((n) => (
-            <Link key={n.href} href={n.href} className="flex min-h-10 items-center rounded-full px-2 whitespace-nowrap text-text hover:text-accent-2-700">
-              {n.etiqueta}
-            </Link>
-          ))}
-        </nav>
-        <AccesoCuenta />
-      </header>
-      <main className="flex-1">{children}</main>
-      <footer className="flex flex-wrap items-center gap-x-[22px] gap-y-2 py-[30px] text-[13px] font-semibold text-neutral-700">
-        <span>
-          © {new Date().getFullYear()} {nombre}
-        </span>
-        <Link href="/politicas/POLITICA_DATOS" className="text-neutral-700 hover:text-accent-2-800">
-          Privacidad
-        </Link>
-        {centro?.instagram && (
-          <a
-            href={`https://instagram.com/${centro.instagram.replace(/^@/, '')}`}
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-neutral-700 hover:text-accent-2-800"
-          >
-            Instagram <Icon name="north_east" size={14} />
-          </a>
-        )}
-        <span className="ml-auto flex items-center gap-[7px]">
-          Plataforma <span className="font-black">Vínculos</span>
-        </span>
-      </footer>
+    <div className="trama min-h-screen">
+      <div className="mx-auto flex min-h-screen max-w-[1228px] flex-col px-[clamp(16px,3vw,24px)]">
+        <MarcaZona zona="publico" principal={centro?.color_marca} fondo={centro?.color_fondo_publico} />
+        {/* Barra flotante del diseño "Moderno": pildora translucida y fija arriba al hacer scroll. */}
+        <header className="barra-publica translucida sticky top-3 z-20 mt-[18px] flex flex-wrap items-center gap-2 rounded-[28px] border border-borde py-2 pr-2 pl-5 shadow-suave md:rounded-full">
+          <Marca nombre={nombre} />
+          <NavPublica enlaces={nav} />
+          {/* useSearchParams (alternar perfil en el login) exige Suspense en paginas estaticas. */}
+          <Suspense>
+            <AccesoCuenta />
+          </Suspense>
+        </header>
+        <RefrescoPublico />
+        <main id="contenido" tabIndex={-1} className="flex-1 pt-[clamp(12px,2vw,28px)] outline-none">
+          {children}
+        </main>
+        <footer className="mt-10 flex flex-wrap items-center gap-x-[22px] gap-y-2 border-t border-borde pt-4 pb-[30px] text-[13px] font-semibold text-neutral-700">
+          <span>
+            © {new Date().getFullYear()} {nombre}
+          </span>
+          <Link href="/politicas/POLITICA_DATOS" className="text-neutral-700 hover:text-accent-2-800">
+            Privacidad
+          </Link>
+          <Link href="/derechos" className="text-neutral-700 hover:text-accent-2-800">
+            Derechos sobre tus datos
+          </Link>
+          {centro?.instagram && (
+            <a
+              href={`https://instagram.com/${centro.instagram.replace(/^@/, '')}`}
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-neutral-700 hover:text-accent-2-800"
+            >
+              Instagram <Icon name="north_east" size={14} />
+            </a>
+          )}
+          <span className="ml-auto flex items-center gap-[7px]">
+            Plataforma <span className="font-black">Vínculos</span>
+          </span>
+        </footer>
+      </div>
     </div>
   );
 }

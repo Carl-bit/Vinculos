@@ -36,6 +36,7 @@ describe('03b agenda publica', () => {
           .send({ ...perfil, perfilPublico: true })
       ).status,
     ).toBe(200);
+    await t.datos.validar(u.id);
     await t
       .http()
       .put(`/api/profesionales/${u.id}/tipos-atencion`)
@@ -45,7 +46,7 @@ describe('03b agenda publica', () => {
 
   beforeAll(async () => {
     t = await crearApp();
-    await t.dueno.horarioCentro.deleteMany({});
+    await t.datos.centroAbierto();
     admin = await t.datos.usuario('ADMIN');
     prof = await t.datos.usuario('PROFESIONAL');
     tipoId = (await t.datos.tipoAtencion()).id;

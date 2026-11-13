@@ -6,11 +6,12 @@ import {
   EstadoTipoSesion,
   ModoEnvioDocumento,
   MotivoAccesoTemporal,
+  MotivoRevocacionAcceso,
   TipoPolitica,
   NivelRiesgo,
   TipoPlantillaClinica,
 } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -34,6 +35,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import { PaginaDto } from '../../../core/validacion/paginacion';
 import { IsRut, NormalizarRut, Recortar, TELEFONO_CL } from '../../../core/validacion/validadores';
 
 /** Largo maximo del texto clinico libre (notas de una evolucion). */
@@ -50,10 +52,10 @@ export class CrearPacienteDto {
   @Length(1, 120)
   apellido!: string;
 
-  @IsOptional()
+  /** Punto 37: obligatorio. Identifica al paciente via rut_hmac (UNIQUE: un RUT repetido -> 409). */
   @NormalizarRut()
   @IsRut()
-  rut?: string;
+  rut!: string;
 
   @Type(() => Date)
   @IsDate()
@@ -131,7 +133,22 @@ export class EditarPacienteDto {
 
 const booleano = () => Transform(({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value));
 
-export class BuscarPacientesDto {
+/** Mapa id -> nombre del panel (agenda, cobros, avisos): todos los que el rol ve, sin columnas cifradas. */
+export class FiltroResumenPacientesDto {
+  @IsOptional()
+  @IsUUID()
+  profesionalId?: string;
+
+  /** Busqueda por nombre o apellido (contiene). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 120)
+  nombre?: string;
+}
+
+/** AUD-02 (API-01): lista de pacientes paginada por cursor (maximo 100 por pagina). */
+export class BuscarPacientesDto extends PaginaDto {
   /** Busqueda exacta por RUT (indice ciego rut_hmac). */
   @IsOptional()
   @NormalizarRut()
@@ -167,6 +184,12 @@ export class BuscarPacientesDto {
   @IsString()
   @Length(1, 120)
   nombre?: string;
+
+  /** Solo pacientes sin RUT registrado (pestaña "Sin RUT" de administracion). */
+  @IsOptional()
+  @booleano()
+  @IsBoolean()
+  sinRut?: boolean;
 }
 
 export class CrearAdultoResponsableDto {
@@ -367,7 +390,7 @@ export class EnviarDocumentoDto {
   modo?: ModoEnvioDocumento;
 }
 
-/** Invitacion de cuenta (03a): al paciente (desde 14 años) o, si es menor, a su adulto responsable. */
+/** Invitacion de cuenta (03a): al paciente (desde 14 aÃ±os) o, si es menor, a su adulto responsable. */
 export class InvitarPacienteDto {
   /** Por defecto el correo registrado. */
   @IsOptional()
@@ -406,7 +429,12 @@ export class ConsentimientoAtencionDto {
   adultoResponsableId?: string;
 }
 
-/** Acceso clinico temporal (C-4, C-5): se corta solo al vencer. */
+export class RevocarAccesoTemporalDto {
+  @IsEnum(MotivoRevocacionAcceso)
+  motivo!: MotivoRevocacionAcceso;
+}
+
+/** Acceso clinico temporal (C-4, C-5): vence solo o lo revocan ADMIN o el tratante. */
 export class AccesoTemporalDto {
   @IsUUID()
   profesionalId!: string;
@@ -445,6 +473,11 @@ export class BorradorDto {
   @ValidateIf((o: BorradorDto) => o.plantillaId !== undefined)
   @IsObject()
   valores?: Record<string, unknown>;
+
+  /** Opcional aca; al confirmar es obligatorio. Omitirlo en un PUT lo deja sin indicar. */
+  @IsOptional()
+  @IsEnum(NivelRiesgo)
+  nivelRiesgo?: NivelRiesgo;
 }
 
 export class ListarBorradoresDto {
@@ -583,6 +616,12 @@ export class CrearIngresoDto {
 }
 
 /** Resolucion de un posible duplicado (solo administracion). */
+/** 03b-4.2 (C-10): el paciente llego por el centro (sitio publico o alta por administracion). */
+export class OrigenPacienteDto {
+  @IsBoolean()
+  traidoPorCentro!: boolean;
+}
+
 export class ResolverDuplicadoDto {
   @IsIn(['DISTINTO', 'MISMO_PACIENTE'])
   resolucion!: 'DISTINTO' | 'MISMO_PACIENTE';
@@ -624,8 +663,39 @@ export class PacienteVista {
   contactoEmergencia!: string | null;
   creadoPorSolicitud!: boolean;
   posibleDuplicado!: boolean;
+  /** 03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion. */
+  traidoPorCentro!: boolean;
+  /** AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular; impide gestiones nuevas. */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  bloqueoDesde!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  bloqueoMotivo!: string | null;
   createdAt!: Date;
   updatedAt!: Date;
+}
+
+/** Fila de la lista paginada: la vista sin el contacto de emergencia (solo en el detalle, AUD-02 BD-02). */
+export class PacienteFila extends OmitType(PacienteVista, ['contactoEmergencia'] as const) {}
+
+export class PaginaPacientes {
+  items!: PacienteFila[];
+  /** Id de la ultima fila; null si no hay mas paginas. */
+  @ApiProperty({ type: String, nullable: true })
+  siguienteCursor!: string | null;
+}
+
+/** Paciente para el mapa id -> nombre del panel: sin columnas cifradas (AUD-02 BD-02). */
+export class PacienteResumen {
+  id!: string;
+  nombre!: string;
+  apellido!: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Tratante' })
+  profesionalId!: string | null;
+  @ApiProperty({ type: String, format: 'date' })
+  fechaNacimiento!: Date;
+  @ApiProperty({ type: String, nullable: true, description: 'Codigo para la supervision seudonimizada' })
+  codigoSeudonimo!: string | null;
+  createdAt!: Date;
 }
 
 export class PacienteCreado extends PacienteVista {
@@ -785,6 +855,10 @@ export class AccesoTemporalVista {
   hasta!: Date;
   otorgadoPorId!: string;
   creadoEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  revocadoEn!: Date | null;
+  @ApiProperty({ enum: MotivoRevocacionAcceso, enumName: 'MotivoRevocacionAcceso', nullable: true })
+  motivoRevocacion!: MotivoRevocacionAcceso | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -813,6 +887,8 @@ export class BorradorVista {
   plantillaId!: string | null;
   @ApiProperty({ type: 'object', additionalProperties: true, nullable: true })
   valores!: Record<string, unknown> | null;
+  @ApiProperty({ enum: NivelRiesgo, enumName: 'NivelRiesgo', nullable: true })
+  nivelRiesgo!: NivelRiesgo | null;
   creadoEn!: Date;
   actualizadoEn!: Date;
 }
@@ -878,7 +954,7 @@ export class CatalogoClinicoVista {
   updatedAt!: Date;
 }
 
-/** Ficha que supero los 15 años desde la ultima atencion (la consulta queda registrada). */
+/** Ficha que supero los 15 aÃ±os desde la ultima atencion (la consulta queda registrada). */
 export class FichaSobreRetencion {
   ficha_id!: string;
   paciente_id!: string;
@@ -947,4 +1023,47 @@ export class AdjuntoFichaVista {
   tipoMime!: string;
   tamanoBytes!: number;
   subidoEn!: Date;
+}
+
+/** 03b-4.2: rango de la agenda para saber que sesiones ya tienen evolucion. */
+export class RangoCitasEvolucionDto {
+  @Type(() => Date)
+  @IsDate()
+  desde!: Date;
+
+  @Type(() => Date)
+  @IsDate()
+  hasta!: Date;
+}
+
+/** Seguimiento del equipo y "Por hacer": un profesional (ADMIN/GESTION; vacio = todos). */
+export class PendientesFichasDto {
+  @IsOptional()
+  @IsUUID()
+  profesionalId?: string;
+}
+
+/**
+ * Pendiente administrativo de una ficha (pendientes_fichas): solo metadata y
+ * codigo seudonimo, nunca contenido clinico ni nombre.
+ */
+export class PendienteFicha {
+  @ApiProperty({ format: 'uuid' })
+  profesional_id!: string;
+  @ApiProperty({ format: 'uuid' })
+  paciente_id!: string;
+  /** Codigo seudonimo de la ficha (C-XXXXXXXXXX). */
+  codigo!: string;
+  @ApiProperty({ enum: ['SIN_EVOLUCION', 'CONSENTIMIENTO', 'SIN_RUT', 'SIN_RESPONSABLE'] })
+  tipo!: 'SIN_EVOLUCION' | 'CONSENTIMIENTO' | 'SIN_RUT' | 'SIN_RESPONSABLE';
+  /** SIN_EVOLUCION: la sesion. */
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  cita_id!: string | null;
+  /** SIN_EVOLUCION: inicio de la sesion; el resto: proxima hora. */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  fecha!: Date | null;
+  /** SIN_EVOLUCION: plazo para registrar la evolucion (dias de Configuracion > Agenda y plazos). */
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  vence!: Date | null;
+  menor!: boolean;
 }

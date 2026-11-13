@@ -26,6 +26,7 @@ import {
   DerivacionRespondida,
   OfertaDerivacion,
   PracticantePropuesto,
+  RetornoDisponible,
 } from './dto/derivaciones.dto';
 import { EnlaceEnviado } from '../fichas/dto/fichas.dto';
 
@@ -48,6 +49,24 @@ export class DerivacionesController {
   @Roles('ADMIN', 'PROFESIONAL')
   listar(@Query('estado', new ParseEnumPipe(EstadoDerivacion, { optional: true })) estado?: EstadoDerivacion): Promise<DerivacionVista[]> {
     return this.derivaciones.listar(estado);
+  }
+
+  /**
+   * Punto 9: pacientes en atencion temporal cuyo profesional principal ya esta
+   * disponible (primero los que pidieron volver). La vuelta es una derivacion
+   * al principal; "Se queda" cierra la atencion temporal.
+   */
+  @Get('retornos')
+  @Roles('ADMIN')
+  retornos(): Promise<RetornoDisponible[]> {
+    return this.derivaciones.retornos();
+  }
+
+  @Post('retornos/:pacienteId/mantener')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  mantener(@Param('pacienteId', Uuid) pacienteId: string): Promise<void> {
+    return this.derivaciones.mantenerAtencionTemporal(pacienteId);
   }
 
   /** Bandeja de ofertas: ADMIN y supervisores vigentes. */

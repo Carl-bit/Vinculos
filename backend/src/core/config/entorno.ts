@@ -88,6 +88,16 @@ export class Entorno {
   @IsBoolean()
   JOBS_HABILITADOS: boolean = true;
 
+  /**
+   * Solo desarrollo y tests (AUD-02): habilita POST /api/pruebas/jobs/:nombre
+   * para correr un job al instante (p. ej. el recordatorio por correo en
+   * Playwright). Con NODE_ENV=production la API no arranca si esta encendida.
+   */
+  @IsOptional()
+  @Transform(aBooleano)
+  @IsBoolean()
+  JOBS_MANUALES: boolean = false;
+
   @IsOptional()
   @IsString()
   LOG_LEVEL: string = 'info';
@@ -124,6 +134,14 @@ export class Entorno {
   @IsString()
   CORREO_REMITENTE: string = 'no-responder@vinculos.cl';
 
+  /**
+   * AUD-01 (LEG-02): configuration set de Amazon SES del silo (metricas,
+   * rebotes y quejas separados por centro). Vacio = sin cabecera.
+   */
+  @IsOptional()
+  @IsString()
+  SES_CONFIGURATION_SET: string = '';
+
   /** true = videollamada simulada (tests); false = modo de cada profesional. */
   @IsOptional()
   @Transform(aBooleano)
@@ -154,6 +172,15 @@ export class Entorno {
   ADJUNTO_MAX_MB: number = 10;
 
   /**
+   * AUD-02: carpeta del archivo cifrado de la exportacion del centro mientras
+   * espera su descarga (volumen del silo; maximo 24 h). Vacio: carpeta
+   * temporal del sistema (desarrollo y tests).
+   */
+  @IsOptional()
+  @IsString()
+  EXPORTACIONES_DIR: string = '';
+
+  /**
    * 03b-3.1: pasarela de pago (integraciones.md). 'simulada' = modo
    * demostracion, no cobra; vacio = sin pasarela (el centro no puede habilitar
    * el medio PASARELA). Sin valor: 'simulada' fuera de produccion. En
@@ -169,6 +196,19 @@ export class Entorno {
   @IsString()
   @MinLength(32)
   PASARELA_SECRETO_WEBHOOK?: string;
+
+  /**
+   * 03b-4.2: apikey de la API de prestadores de la Superintendencia de Salud
+   * (convenio con la Intendencia de Prestadores). Sin valor: verificacion
+   * SIMULADA y la API arranca igual (aviso en el log); el ADMIN verifica a mano.
+   */
+  @IsOptional()
+  @IsString()
+  SUPERSALUD_APIKEY?: string;
+
+  @IsOptional()
+  @IsString()
+  SUPERSALUD_URL: string = 'https://apis.superdesalud.gob.cl';
 }
 
 export function validarEntorno(config: Record<string, unknown>): Entorno {
@@ -180,6 +220,9 @@ export function validarEntorno(config: Record<string, unknown>): Entorno {
   }
   const produccion = config.NODE_ENV === 'production';
   entorno.PASARELA_PROVEEDOR ??= produccion ? '' : 'simulada';
+  if (produccion && entorno.JOBS_MANUALES) {
+    throw new Error('Variables de entorno invalidas: JOBS_MANUALES no se permite en produccion (es solo para desarrollo y tests)');
+  }
   if (produccion && entorno.PASARELA_PROVEEDOR === 'simulada') {
     throw new Error('Variables de entorno invalidas: PASARELA_PROVEEDOR=simulada no se permite en produccion (falta un adaptador real con credenciales)');
   }

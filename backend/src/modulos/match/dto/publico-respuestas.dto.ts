@@ -37,6 +37,17 @@ export class CentroPublico {
   vision!: string | null;
   @ApiProperty({ type: String, nullable: true })
   color_marca!: string | null;
+  /** 03c: marca por zona (ver contenido_publico_colores). */
+  @ApiProperty({ type: String, nullable: true })
+  color_fondo_publico!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  color_portal!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  color_fondo_portal!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  color_panel!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  color_fondo_panel!: string | null;
   @ApiProperty({ type: String, nullable: true, description: 'GET publico/imagenes/{id}' })
   logo_imagen_id!: string | null;
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
@@ -100,6 +111,22 @@ export class PerfilPublico {
   @ApiProperty({ type: String, nullable: true, description: 'Promedio de reseñas publicadas (decimal como texto)' })
   calificacion!: string | null;
   resenas!: number;
+  /** 03b-4.2: registro en la Superintendencia de Salud, solo si esta verificado (sin registro: null). */
+  @ApiProperty({ type: () => RegistroSisPublico, nullable: true })
+  registro_sis!: RegistroSisPublico | null;
+  /** Punto 9: false si la cuenta madre indico que no atendera mas (bloqueo sin fin): sin botones para agendar. */
+  recibe_pacientes!: boolean;
+  /** Punto 9: ausente con fecha de regreso (vacaciones, licencia); sin motivo. */
+  @ApiProperty({ type: Date, nullable: true })
+  vuelve_en!: Date | null;
+}
+
+export class RegistroSisPublico {
+  numero!: string;
+  /** VERIFICADO_AUTOMATICO: contra el RNPI (con fecha); VERIFICADO_MANUAL: por el centro. */
+  @ApiProperty({ enum: ['VERIFICADO_AUTOMATICO', 'VERIFICADO_MANUAL'] })
+  estado!: 'VERIFICADO_AUTOMATICO' | 'VERIFICADO_MANUAL';
+  verificado_en!: Date;
 }
 
 export class Hueco {
@@ -202,7 +229,7 @@ export class SolicitudCreada {
 }
 
 export class SolicitudVerificada {
-  /** CONFIRMADA (03b-3.2: el enlace del correo solo concreta reservas con pago en el centro). */
+  /** MVP sin COBROS: SOLICITADA (la aprueba el profesional). Con COBROS: CONFIRMADA (03b-3.2: el enlace solo concreta reservas con pago en el centro). */
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
   estado!: EstadoCita;
   citaId!: string;

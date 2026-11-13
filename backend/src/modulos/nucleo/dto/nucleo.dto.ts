@@ -1,5 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AccionAcceso, MedioConfirmacion, ModeloCobro, ModuloCentro, Rol, TipoAlerta, TipoPolitica } from '@prisma/client';
+import {
+  AccionAcceso,
+  AlcanceSoporte,
+  CanalSolicitudDerecho,
+  EstadoSolicitudDerecho,
+  TipoDerecho,
+  MedioConfirmacion,
+  ModeloCobro,
+  ModuloCentro,
+  Rol,
+  TipoAlerta,
+  TipoComisionDerivacion,
+  TipoPolitica,
+} from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -13,6 +26,7 @@ import {
   IsEmail,
   IsEnum,
   IsInt,
+  IsISO8601,
   IsNumber,
   IsOptional,
   IsString,
@@ -25,6 +39,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
+import { LIMITE_MAXIMO } from '../../../core/validacion/paginacion';
 
 import { IsRut, NormalizarRut, Recortar, TELEFONO_CL } from '../../../core/validacion/validadores';
 
@@ -131,6 +146,13 @@ export class EditarConfiguracionDto {
   @IsBoolean()
   rolGestionHabilitado?: boolean;
 
+  /** Maximo de cuentas madre activas (principal o adicional). Bajarlo exige quitar el rol antes (BD). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  maxCuentasMadre?: number;
+
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -202,6 +224,21 @@ export class EditarConfiguracionDto {
   @Max(100)
   comisionCentroPorcentaje?: number;
 
+  /**
+   * 03b-4.2 (C-10): comision de las sesiones de pacientes traidos por el
+   * centro. GENERAL = el porcentaje general; PORCENTAJE (0 a 100) o
+   * MONTO_FIJO en CLP por sesion (entero, tope: lo cobrado de la sesion).
+   */
+  @IsOptional()
+  @IsEnum(TipoComisionDerivacion)
+  comisionDerivacionTipo?: TipoComisionDerivacion;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(1_000_000)
+  comisionDerivacionValor?: number;
+
   /** Recordatorio de citas (02i): horas antes del inicio; 0 = desactivado. */
   @IsOptional()
   @IsInt()
@@ -213,6 +250,11 @@ export class EditarConfiguracionDto {
   @IsOptional()
   @IsBoolean()
   liquidarExigeEvolucion?: boolean;
+
+  /** C-11: los cargos por inasistencia y cancelacion tardia se liquidan al profesional. */
+  @IsOptional()
+  @IsBoolean()
+  liquidarCargosAProfesional?: boolean;
 
   /** 03a: el match ofrece "prefiero filtrar yo mismo". */
   @IsOptional()
@@ -232,6 +274,13 @@ export class EditarConfiguracionDto {
   @Min(5)
   @Max(120)
   minutosRetencionSolicitud?: number;
+
+  /** MVP sin cobros: horas que tiene el profesional para aprobar una hora pedida (CHECK 1 a 168; nunca despues del inicio). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(168)
+  horasAprobacionSolicitud?: number;
 
   /** 03a-2 (D-4): edad minima para la cuenta propia del paciente (14 a 18; antes opera el adulto responsable). */
   @IsOptional()
@@ -317,9 +366,16 @@ export class IniciarBajaDto {
 }
 
 /** 03a (C-1): segundo rol de una cuenta ADMIN o GESTION. */
+/** Correcciones 2026-11-11 (punto 4): una cuenta del equipo suma cuenta madre, gestion o profesional. */
 export class OtorgarRolDto {
-  @IsIn([Rol.PROFESIONAL])
-  rol!: 'PROFESIONAL';
+  @IsIn([Rol.ADMIN, Rol.GESTION, Rol.PROFESIONAL])
+  rol!: 'ADMIN' | 'GESTION' | 'PROFESIONAL';
+}
+
+/** Rol adicional que se quita al instante (sin agenda): cuenta madre o gestion. */
+export class RolRetirableDto {
+  @IsIn([Rol.ADMIN, Rol.GESTION])
+  rol!: 'ADMIN' | 'GESTION';
 }
 
 export class BajaRolDto {
@@ -367,6 +423,12 @@ export class ContenidoPublicoDto {
   @IsOptional() @Recortar() @IsString() @Length(1, 2000) mision?: string | null;
   @IsOptional() @Recortar() @IsString() @Length(1, 2000) vision?: string | null;
   @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorMarca?: string | null;
+  // 03c: marca por zona. El contraste lo exige la BD (contenido_publico_colores -> 422).
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorFondoPublico?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorPortal?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorFondoPortal?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorPanel?: string | null;
+  @IsOptional() @ValidateIf((_o, v) => v !== null) @IsHexColor() @Length(7, 7) colorFondoPanel?: string | null;
 }
 
 export class PoliticaDto {
@@ -435,6 +497,9 @@ export class FiltroDirectorioDto {
 export class ModulosActivos {
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
   activos!: ModuloCentro[];
+  /** Punto 36: los que el perfil de la cuenta le restringe en el rol activo (el front los oculta). */
+  @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
+  restringidos!: ModuloCentro[];
 }
 
 export class RolAdicionalVista {
@@ -532,6 +597,9 @@ export class ReporteDashboard {
   por_confirmar?: number;
   @ApiProperty({ required: false, description: 'ADMIN/GESTION: % de horas apartadas sobre el horario de boxes (muestra)' })
   ocupacion_boxes_hoy?: number;
+  /** Punto 23: horas libres de hoy en los boxes (apartadas y sin cita). */
+  @ApiProperty({ required: false })
+  horas_libres_boxes_hoy?: number;
   @ApiProperty({ required: false })
   boxes_activos?: number;
   @ApiProperty({ required: false, description: 'ADMIN/GESTION: sesiones realizadas sin evolucion (7 dias)' })
@@ -563,6 +631,8 @@ export class ReporteDashboard {
 /** configuracion_centro (fila unica). Los porcentajes son Decimal: llegan como texto. */
 export class ConfiguracionCentroVista {
   rolGestionHabilitado!: boolean;
+  @ApiProperty({ type: Number, nullable: true, description: 'Maximo de cuentas madre activas; null = sin limite' })
+  maxCuentasMadre!: number | null;
   plazoRespuestaDerivacionHoras!: number;
   @ApiProperty({ enum: ModeloCobro, enumName: 'ModeloCobro' })
   modeloCobro!: ModeloCobro;
@@ -580,13 +650,19 @@ export class ConfiguracionCentroVista {
   cobroInasistenciaPorcentaje!: unknown;
   @ApiProperty({ type: String, description: 'Decimal (0 a 100): comision del centro sobre lo cobrado en la liquidacion' })
   comisionCentroPorcentaje!: unknown;
+  @ApiProperty({ enum: TipoComisionDerivacion, enumName: 'TipoComisionDerivacion' })
+  comisionDerivacionTipo!: TipoComisionDerivacion;
+  @ApiProperty({ type: String, description: 'Decimal: porcentaje (PORCENTAJE) o CLP por sesion (MONTO_FIJO); sin uso con GENERAL' })
+  comisionDerivacionValor!: unknown;
   recordatorioHorasAntes!: number;
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
   modulosActivos!: ModuloCentro[];
   liquidarExigeEvolucion!: boolean;
+  liquidarCargosAProfesional!: boolean;
   matchFiltroDirecto!: boolean;
   diasRetencionRespuestasMatch!: number;
   minutosRetencionSolicitud!: number;
+  horasAprobacionSolicitud!: number;
   retencionMensajesDias!: number;
   edadMinimaCuenta!: number;
   @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', isArray: true })
@@ -630,8 +706,18 @@ export class ContenidoPublicoVista {
   mision!: string | null;
   @ApiProperty({ type: String, nullable: true })
   vision!: string | null;
-  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB, principal del sitio publico' })
   colorMarca!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorFondoPublico!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorPortal!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorFondoPortal!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorPanel!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: '#RRGGBB' })
+  colorFondoPanel!: string | null;
   @ApiProperty({ type: String, nullable: true })
   logoImagenId!: string | null;
   updatedAt!: Date;
@@ -652,6 +738,34 @@ export class PoliticaVista {
   vigenteDesde!: Date;
   @ApiProperty({ type: String, nullable: true })
   creadaPorId!: string | null;
+}
+
+/** 03b-4.2: version vigente de una politica (sin quien la publico). */
+export class PoliticaVigenteVista {
+  id!: string;
+  version!: number;
+  texto!: string;
+  vigenteDesde!: Date;
+}
+
+/** 03b-4.2: protocolo interno del equipo y si la cuenta ya leyo la version vigente. */
+export class ProtocoloEquipoVista {
+  @ApiProperty({ type: PoliticaVigenteVista, nullable: true })
+  vigente!: PoliticaVigenteVista | null;
+  @ApiProperty({ type: Date, nullable: true })
+  leidoEn!: Date | null;
+}
+
+export class ProtocoloLeido {
+  leidoEn!: Date;
+}
+
+/** Lectura de la version vigente (ADMIN/GESTION). El nombre lo pone el panel con el directorio. */
+export class LecturaProtocoloVista {
+  usuarioId!: string;
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  leidoEn!: Date;
 }
 
 export class HorarioCentroVista {
@@ -691,6 +805,33 @@ export class EstadoSegundoFactor {
   /** Equipo: siempre activa, no se desactiva. */
   obligatorio!: boolean;
   codigosRespaldoRestantes!: number;
+}
+
+/**
+ * Una conexion de la propia cuenta (2026-11-07, sesion unica): una por
+ * ingreso. Sin IP: solo el resumen del navegador.
+ */
+export class ConexionVista {
+  @ApiProperty({ enum: Rol, enumName: 'Rol' })
+  rol!: Rol;
+  /** "Chrome en Windows"; null si el navegador no se identifico. */
+  @ApiProperty({ type: String, nullable: true })
+  dispositivo!: string | null;
+  inicio!: Date;
+  /** Ultima renovacion del token (aprox. cada JWT_ACCESO_MINUTOS mientras se usa). */
+  ultimaActividad!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  fin!: Date | null;
+  /**
+   * Por que termino: LOGOUT, NUEVA_SESION (otro ingreso), INACTIVIDAD,
+   * CAMBIO_ROL, CAMBIO_CUENTA (contraseña, rol o estado), REUTILIZACION
+   * (token reutilizado: posible robo) o NO_VIGENTE. null si sigue activa.
+   */
+  @ApiProperty({ type: String, nullable: true })
+  motivo!: string | null;
+  activa!: boolean;
+  /** Es la sesion de esta request. */
+  actual!: boolean;
 }
 
 /** Codigos de respaldo nuevos (se muestran una sola vez). */
@@ -789,4 +930,446 @@ export class IntegranteEquipoTratante {
   id!: string;
   @ApiProperty({ type: String, nullable: true })
   nombre!: string | null;
+}
+
+/** AUD-01 (E1.5): acciones que se pueden filtrar en la auditoria de accesos. */
+export const ACCIONES_AUDITORIA = [
+  'LECTURA',
+  'ESCRITURA',
+  'DESCARGA',
+  'EXPORTACION',
+  'ENVIO',
+  'DERIVACION',
+  'SUPERVISION',
+  'RETENCION',
+  'ACCESO_TEMPORAL',
+] as const;
+
+/** Auditoria de accesos (ADMIN). Sin fechas: los ultimos 7 dias. */
+export class FiltroAuditoriaDto {
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  desde?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  hasta?: Date;
+
+  @IsOptional()
+  @IsUUID()
+  pacienteId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  usuarioId?: string;
+
+  @IsOptional()
+  @IsIn(ACCIONES_AUDITORIA)
+  accion?: (typeof ACCIONES_AUDITORIA)[number];
+
+  /** AUD-02 (API-01): `siguienteCursor` de la pagina anterior (opaco). */
+  @IsOptional()
+  @Matches(/^[A-Za-z0-9_-]{1,200}$/, { message: 'cursor invalido' })
+  cursor?: string;
+
+  /** Filas por pagina (1 a 100, por defecto 50). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(LIMITE_MAXIMO)
+  limite?: number;
+}
+
+/** Fila de la auditoria: acceso a datos de un paciente o descarga sin paciente (registro_exportaciones). */
+export class RegistroAuditoria {
+  id!: string;
+  @ApiProperty({ enum: ['ACCESO_FICHA', 'EXPORTACION'] })
+  origen!: 'ACCESO_FICHA' | 'EXPORTACION';
+  ocurridoEn!: Date;
+  usuarioId!: string;
+  @ApiProperty({ type: String, nullable: true })
+  usuarioNombre!: string | null;
+  @ApiProperty({ enum: Rol, enumName: 'Rol', description: 'Rol activo al momento del acceso' })
+  rol!: Rol;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteNombre!: string | null;
+  recurso!: string;
+  accion!: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Campos que cambiaron u otro detalle; nunca valores' })
+  detalle!: string | null;
+}
+
+export class PaginaAuditoria {
+  items!: RegistroAuditoria[];
+  /** Cursor de la pagina siguiente; null si no hay mas. */
+  @ApiProperty({ type: String, nullable: true })
+  siguienteCursor!: string | null;
+}
+
+/** AUD-01 (E2.1): autorizacion del centro al soporte de Vinculos (sin datos personales ni clinicos). */
+export class OtorgarSoporteDto {
+  @Recortar()
+  @IsString()
+  @Length(5, 500)
+  motivo!: string;
+
+  @IsEnum(AlcanceSoporte)
+  alcance!: AlcanceSoporte;
+
+  /** Entre 1 y 72 horas desde ahora. */
+  @IsInt()
+  @Min(1)
+  @Max(72)
+  horas!: number;
+}
+
+export class AutorizacionSoporteVista {
+  id!: string;
+  motivo!: string;
+  @ApiProperty({ enum: AlcanceSoporte, enumName: 'AlcanceSoporte' })
+  alcance!: AlcanceSoporte;
+  desde!: Date;
+  hasta!: Date;
+  vigente!: boolean;
+  @ApiProperty({ type: String, nullable: true })
+  otorgadaPor!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  revocadaEn!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  revocadaPor!: string | null;
+  /** Diagnosticos ejecutados con esta autorizacion. */
+  usos!: number;
+}
+
+export class RegistroSoporteVista {
+  id!: string;
+  autorizacionId!: string;
+  /** Funcion de diagnostico ejecutada (p. ej. soporte_resumen). */
+  funcion!: string;
+  /** Rol de BD con que se conecto el soporte. */
+  rolBd!: string;
+  ocurridoEn!: Date;
+}
+
+/** AUD-01 (E2.2): contrato del centro con Vinculos. */
+export const TIPOS_CONTRATO = ['TERMINOS_SERVICIO', 'DPA'] as const;
+
+export class AceptarContratoDto {
+  @IsIn(TIPOS_CONTRATO)
+  tipo!: (typeof TIPOS_CONTRATO)[number];
+}
+
+export class AceptacionContratoVista {
+  @ApiProperty({ type: String, nullable: true })
+  por!: string | null;
+  aceptadaEn!: Date;
+}
+
+export class ContratoVigenteVista {
+  @ApiProperty({ enum: TIPOS_CONTRATO })
+  tipo!: (typeof TIPOS_CONTRATO)[number];
+  politicaId!: string;
+  version!: number;
+  texto!: string;
+  vigenteDesde!: Date;
+  @ApiProperty({ type: AceptacionContratoVista, isArray: true })
+  aceptaciones!: AceptacionContratoVista[];
+}
+
+export class ContratoCentroVista {
+  /** Tipos cuya version vigente nadie del centro ha aceptado. */
+  @ApiProperty({ enum: TIPOS_CONTRATO, isArray: true })
+  pendientes!: (typeof TIPOS_CONTRATO)[number][];
+  @ApiProperty({ type: ContratoVigenteVista, isArray: true })
+  vigentes!: ContratoVigenteVista[];
+}
+
+/** AUD-01 (E2.3a): solicitud de derechos que registra el centro (no el formulario publico). */
+export class RegistrarSolicitudDerechoDto {
+  @IsEnum(TipoDerecho)
+  tipo!: TipoDerecho;
+
+  /** Titular identificado como paciente (opcional: puede no serlo). */
+  @IsOptional()
+  @IsUUID()
+  pacienteId?: string;
+
+  @IsIn(['PRESENCIAL', 'CORREO', 'PORTAL'])
+  canal!: Exclude<CanalSolicitudDerecho, 'FORMULARIO_PUBLICO'>;
+
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 2000)
+  detalle?: string;
+}
+
+export class AvanzarSolicitudDerechoDto {
+  @IsIn(['EN_CURSO', 'RESUELTA', 'RECHAZADA'])
+  estado!: Exclude<EstadoSolicitudDerecho, 'RECIBIDA'>;
+
+  /** Respuesta al titular: obligatoria al resolver o rechazar (la BD lo exige). */
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 4000)
+  respuesta?: string;
+}
+
+/** AUD-01 Fase 3: estado de la exportacion de un paciente (solo metadatos). */
+export const ESTADOS_EXPORTACION = ['ESPERANDO_TRATANTE', 'LISTA', 'ENVIADA', 'VENCIDA'] as const;
+
+/** A quien se envio la copia (sin correos): el paciente o un adulto responsable. */
+export class DestinatarioExportacionVista {
+  adultoResponsable!: boolean;
+  descargas!: number;
+}
+
+export class ExportacionPacienteVista {
+  id!: string;
+  pacienteId!: string;
+  solicitudId!: string;
+  @ApiProperty({ enum: ESTADOS_EXPORTACION })
+  estado!: (typeof ESTADOS_EXPORTACION)[number];
+  /** El paciente tiene ficha: falta (o ya esta) la parte clinica del tratante. */
+  requiereClinica!: boolean;
+  creadaEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  clinicaEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  enviadaEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  venceEn!: Date | null;
+  descargas!: number;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  purgadaEn!: Date | null;
+  /** Segun la edad: menor de 14 sus adultos responsables; 14 a 17 ambos; mayor, el paciente. */
+  @ApiProperty({ type: [DestinatarioExportacionVista] })
+  destinatarios!: DestinatarioExportacionVista[];
+}
+
+export class SolicitudDerechoVista {
+  id!: string;
+  @ApiProperty({ enum: TipoDerecho, enumName: 'TipoDerecho' })
+  tipo!: TipoDerecho;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteId!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  pacienteNombre!: string | null;
+  /** AUD-01 (E2.3c): el tratamiento del paciente esta bloqueado. */
+  pacienteBloqueado!: boolean;
+  @ApiProperty({ enum: CanalSolicitudDerecho, enumName: 'CanalSolicitudDerecho' })
+  canal!: CanalSolicitudDerecho;
+  @ApiProperty({ enum: EstadoSolicitudDerecho, enumName: 'EstadoSolicitudDerecho' })
+  estado!: EstadoSolicitudDerecho;
+  recibidaEn!: Date;
+  /** AAAA-MM-DD: 30 dias habiles desde la recepcion. */
+  @ApiProperty({ type: String, format: 'date' })
+  venceEl!: string;
+  /** Dias habiles que quedan (solo abiertas). */
+  @ApiProperty({ type: Number, nullable: true })
+  diasHabilesRestantes!: number | null;
+  @ApiProperty({ type: String, nullable: true })
+  detalle!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  respuesta!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  resueltaEn!: Date | null;
+  /** E2.3b: pidio actualizar su correo (verificar identidad antes de cambiarlo). */
+  pideCambioCorreo!: boolean;
+  /** Fase 3: exportacion en curso o enviada de esta solicitud. */
+  @ApiProperty({ type: ExportacionPacienteVista, nullable: true })
+  exportacion!: ExportacionPacienteVista | null;
+}
+
+/** AUD-01 (E2.3c): bloqueo del tratamiento de un paciente mientras se resuelve una solicitud. */
+export class BloquearTratamientoDto {
+  @Recortar()
+  @IsString()
+  @Length(3, 500)
+  motivo!: string;
+
+  @IsOptional()
+  @IsUUID()
+  solicitudId?: string;
+}
+
+export class CancelarPerifericosDto {
+  /** Solicitud de cancelacion abierta del paciente. */
+  @IsUUID()
+  solicitudId!: string;
+}
+
+export class EstadoBloqueoVista {
+  pacienteId!: string;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  bloqueoDesde!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  bloqueoMotivo!: string | null;
+}
+
+export class CancelacionPerifericos {
+  /** Que se borro y que se conserva, con el motivo legal. */
+  mensaje!: string;
+}
+
+/** AUD-01 (E2.3b): solicitud de derechos sin cuenta, por RUT. La respuesta es siempre la misma. */
+export class SolicitudDerechoPublicaDto {
+  @IsRut()
+  @NormalizarRut()
+  rut!: string;
+
+  @IsEnum(TipoDerecho)
+  tipo!: TipoDerecho;
+
+  @IsOptional()
+  @Recortar()
+  @IsString()
+  @Length(1, 2000)
+  detalle?: string;
+
+  /** Quiere actualizar el correo registrado: el centro lo hace tras verificar su identidad. */
+  @IsOptional()
+  @IsBoolean()
+  cambiarCorreo?: boolean;
+
+  /** Trampa para bots: debe venir vacio. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  sitioWeb?: string;
+}
+
+export class SolicitudDerechoPublicaRecibida {
+  /** Siempre el mismo texto, exista o no el RUT. */
+  mensaje!: string;
+}
+
+/** Descarga de la exportacion de un paciente: enlace del correo y, sin cuenta, el codigo del segundo correo. */
+export class DescargaExportacionDto {
+  @IsString()
+  @Length(20, 200)
+  token!: string;
+
+  @IsOptional()
+  @Matches(/^\d{8}$/, { message: 'El codigo son 8 digitos' })
+  codigo?: string;
+
+  @IsIn(['json', 'pdf'])
+  formato!: 'json' | 'pdf';
+}
+
+/** Exportacion del centro: clave del ADMIN (no se guarda ni se registra). */
+export class ExportarCentroDto {
+  @IsString()
+  @Length(16, 200)
+  clave!: string;
+
+  /** AUD-02: true = ahora (p. ej. baja del centro); si no, en la ventana nocturna (dentro de 24 h). */
+  @IsOptional()
+  @IsBoolean()
+  urgente?: boolean;
+}
+
+export const ESTADOS_EXPORTACION_CENTRO = ['PENDIENTE', 'EN_PROCESO', 'LISTA', 'FALLIDA', 'DESCARGADA', 'VENCIDA'] as const;
+
+/** AUD-02: exportacion completa del centro como job (estado y avance, sin datos). */
+export class ExportacionCentroVista {
+  id!: string;
+  @ApiProperty({ enum: ESTADOS_EXPORTACION_CENTRO })
+  estado!: (typeof ESTADOS_EXPORTACION_CENTRO)[number];
+  /** La pidio quien consulta: solo esa persona la descarga (va cifrada con su clave). */
+  propia!: boolean;
+  tablasTotal!: number;
+  tablasHechas!: number;
+  fichasTotal!: number;
+  fichasHechas!: number;
+  @ApiProperty({ type: Number, nullable: true })
+  bytes!: number | null;
+  @ApiProperty({ type: String, nullable: true, description: 'sha256 del archivo cifrado' })
+  huella!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  motivoFallo!: string | null;
+  creadaEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  terminadaEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  venceEn!: Date | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  descargadaEn!: Date | null;
+  /** Cuando corre (o se reintenta) si esta PENDIENTE: ventana nocturna o ya, si es urgente. */
+  programadaPara!: Date;
+  urgente!: boolean;
+  /** Intentos hechos (maximo 3; un reinicio o un error la devuelven a PENDIENTE). */
+  intentos!: number;
+}
+
+/** AUD-01 (E2.3a): feriados de un año (los de la ley y los del centro). */
+export class FiltroFeriadosDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  anio!: number;
+}
+
+/** Feriado puntual o regional que la ley no calcula (o uno quitado que se repone). */
+export class AgregarFeriadoDto {
+  /** AAAA-MM-DD, de hoy en adelante. */
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
+  fecha!: string;
+
+  @Recortar()
+  @IsString()
+  @Length(2, 120)
+  nombre!: string;
+}
+
+export const ORIGENES_FERIADO = ['LEY', 'CENTRO'] as const;
+
+export class FeriadoVista {
+  /** AAAA-MM-DD */
+  fecha!: string;
+  nombre!: string;
+  /** LEY: lo calcula el sistema; CENTRO: lo agrego un ADMIN. */
+  @ApiProperty({ enum: ORIGENES_FERIADO })
+  origen!: (typeof ORIGENES_FERIADO)[number];
+  /** Quitado por un ADMIN: no cuenta como feriado. */
+  quitado!: boolean;
+}
+
+/** 03b-4.2: recordatorio personal (solo su autor). Sin datos clinicos: la pantalla lo advierte. */
+export class RecordatorioPersonalDto {
+  @Recortar()
+  @IsString()
+  @Length(1, 300)
+  texto!: string;
+
+  /** AAAA-MM-DD opcional. */
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
+  venceEl?: string;
+}
+
+export class MarcarRecordatorioDto {
+  @IsBoolean()
+  hecho!: boolean;
+}
+
+export class RecordatorioPersonalVista {
+  id!: string;
+  texto!: string;
+  /** AAAA-MM-DD */
+  @ApiProperty({ nullable: true, type: String })
+  venceEl!: string | null;
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  hechoEn!: Date | null;
+  creadoEn!: Date;
 }

@@ -32,11 +32,12 @@ export class JwtGuard implements CanActivate {
       throw new UnauthorizedException('Falta el token de acceso');
     }
     try {
-      const carga = await this.jwt.verifyAsync<{ sub: string; rol: string; tipo: string }>(token, { algorithms: ['HS256'] });
-      if (carga.tipo !== 'acceso' || !ROLES.has(carga.rol)) {
+      const carga = await this.jwt.verifyAsync<{ sub: string; rol: string; sid?: string; tipo: string }>(token, { algorithms: ['HS256'] });
+      // 2026-11-07: sin sid (familia de la sesion) no hay sesion unica que validar: token anterior al cambio.
+      if (carga.tipo !== 'acceso' || !ROLES.has(carga.rol) || !carga.sid) {
         throw new Error('token no es de acceso');
       }
-      req.user = { id: carga.sub, rol: carga.rol as Rol };
+      req.user = { id: carga.sub, rol: carga.rol as Rol, sesion: carga.sid };
     } catch {
       throw new UnauthorizedException('Token de acceso invalido o vencido');
     }

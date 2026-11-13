@@ -270,7 +270,7 @@ export class ConfirmacionPagoService {
     }
     // Reserva sin cuenta (sin paciente aun): no hay ficha a la que imputar el acceso.
     if (t.cita.pacienteId) {
-      await registrarAcceso(tx, this.bd.usuario(), [{ pacienteId: t.cita.pacienteId, recurso: 'transferencias', accion: 'LECTURA' }]);
+      await registrarAcceso(tx, this.bd.usuario(), [{ pacienteId: t.cita.pacienteId, recurso: 'transferencias', accion: 'DESCARGA' }]);
     }
     return { contenido: Buffer.from(texto(t.comprobante), 'base64'), tipo: t.comprobanteTipo, nombre: t.comprobanteNombre ?? 'comprobante' };
   }

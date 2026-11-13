@@ -12,6 +12,7 @@ import {
 import { AgendaService } from './agenda.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
 import { CitasService } from './citas.service';
+import { JobsPruebaController } from './jobs-prueba.controller';
 import { RecordatoriosService } from './recordatorios.service';
 
 /**
@@ -28,6 +29,7 @@ import { RecordatoriosService } from './recordatorios.service';
     IntegracionesAgendaController,
     CalendarioPublicoController,
     RecordatoriosPublicoController,
+    JobsPruebaController,
   ],
   providers: [AgendaService, CitasService, IntegracionesAgendaService, RecordatoriosService],
 })

@@ -196,4 +196,34 @@ export class DerivacionesService {
     const evento: NotificacionSolicitada = { actor: this.bd.usuario(), tipo, destino, referenciaId };
     this.bd.alConfirmar(() => this.eventos.emitAsync(EVENTOS.NOTIFICACION_SOLICITADA, evento));
   }
+
+  /** Punto 9: atenciones temporales con el principal disponible (solo ADMIN; la funcion lo valida). */
+  async retornos() {
+    const filas = await this.bd.tx().$queryRaw<
+      {
+        paciente_id: string;
+        codigo: string;
+        nombre: string;
+        apellido: string;
+        profesional_principal_id: string;
+        tratante_actual_id: string;
+        pide_volver: boolean;
+        solicitada_en: Date;
+      }[]
+    >`SELECT * FROM retornos_disponibles()`;
+    return filas.map((f) => ({
+      pacienteId: f.paciente_id,
+      codigo: f.codigo,
+      nombre: f.nombre,
+      apellido: f.apellido,
+      profesionalPrincipalId: f.profesional_principal_id,
+      tratanteActualId: f.tratante_actual_id,
+      pideVolver: f.pide_volver,
+      solicitadaEn: f.solicitada_en,
+    }));
+  }
+
+  async mantenerAtencionTemporal(pacienteId: string) {
+    await this.bd.tx().$executeRaw`SELECT mantener_atencion_temporal(${pacienteId}::uuid)`;
+  }
 }

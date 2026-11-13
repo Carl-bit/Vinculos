@@ -2,11 +2,19 @@
 # Descubre cada silo por los labels de su propio compose.
 #
 # Antes de levantar:  docker network create proxy
+#
+# AUD-02: el host no abre puertos. Cloudflare Tunnel (cloudflared, contenedor
+# aparte unido a la red proxy) entra por https://traefik:443. Como Let's Encrypt
+# no puede llegar al host, el certificado se valida por DNS en Cloudflare
+# (token con permiso Zone:DNS:Edit de la zona). Paso a paso:
+# docs/operacion/servidor_pruebas.md.
 
 services:
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.6
     restart: unless-stopped
+    # AUD-02 (INFRA-03): parte del presupuesto de 1 GB del host.
+    mem_limit: 128m
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
@@ -15,15 +23,23 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      # Solo llegan contenedores de la red proxy (sin puertos publicados): se
+      # confia en el X-Forwarded-For que pone cloudflared con la IP real del
+      # cliente (rate limit por IP de la API).
+      - --entrypoints.websecure.forwardedheaders.trustedips=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.resolvers=1.1.1.1:53,1.0.0.1:53
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
-    ports:
-      - '80:80'
-      - '443:443'
+      # TLS 1.2 minimo para todos los silos (dinamico.yml, AUD-01 CENS-S1).
+      - --providers.file.filename=/etc/traefik/dinamico.yml
+    environment:
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt:/letsencrypt
+      - ./dinamico.yml:/etc/traefik/dinamico.yml:ro
     networks:
       - proxy
 

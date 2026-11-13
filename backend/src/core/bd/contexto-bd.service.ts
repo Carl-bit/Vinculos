@@ -19,6 +19,12 @@ export type Tx = Parameters<Parameters<ClienteBd['$transaction']>[0]>[0];
 export interface UsuarioActual {
   id: string;
   rol: Rol;
+  /**
+   * Familia de la sesion (`sid` del JWT). Toda request HTTP la trae (JwtGuard)
+   * y se valida con sesion_vigente(): sesion unica (2026-11-07). Sin ella
+   * (acciones internas posteriores al COMMIT de una request) no se valida.
+   */
+  sesion?: string;
 }
 
 const CLAVE_TX = 'bd.tx';
@@ -31,7 +37,8 @@ const CLAVE_DESPUES = 'bd.despues';
  * El RlsInterceptor llama a enTransaccion por cada request autenticada: abre
  * una transaccion interactiva, ejecuta set_config(app.current_usuario_id) y
  * set_config(app.current_rol) (parametrizados, locales a la transaccion),
- * verifica acceso_vigente() y deja el tx en CLS. Los repositorios/servicios
+ * verifica acceso_vigente() y sesion_vigente(sid) (sesion unica: una sesion
+ * cerrada deja de servir aunque su JWT no haya vencido) y deja el tx en CLS. Los repositorios/servicios
  * llaman a tx(): nunca al PrismaClient global. Sin transaccion activa, tx()
  * lanza (falla cerrado en vez de consultar sin contexto).
  *
@@ -90,9 +97,14 @@ export class ContextoBd {
       async (tx) => {
         await tx.$executeRaw`SELECT set_config('app.current_usuario_id', ${usuario.id}, true),
                                     set_config('app.current_rol', ${usuario.rol}, true)`;
-        const [{ vigente }] = await tx.$queryRaw<[{ vigente: boolean }]>`SELECT acceso_vigente() AS vigente`;
+        const [{ vigente, sesion }] = await tx.$queryRaw<[{ vigente: boolean; sesion: boolean }]>`
+          SELECT acceso_vigente() AS vigente, (${usuario.sesion ?? null}::uuid IS NULL OR sesion_vigente(${usuario.sesion ?? null}::uuid)) AS sesion`;
         if (!vigente) {
           throw new UnauthorizedException('La sesion no tiene acceso vigente');
+        }
+        if (!sesion) {
+          // Otro ingreso, cierre de sesion o cambio de cuenta la cerro: el front intenta renovar y vuelve al login.
+          throw new UnauthorizedException('La sesion se cerro');
         }
         this.cls.set(CLAVE_TX, tx);
         this.cls.set(CLAVE_USUARIO, usuario);

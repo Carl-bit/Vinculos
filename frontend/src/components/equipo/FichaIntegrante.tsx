@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ChoiceGroup } from '@/components/ui/ChoiceGroup';
 import { Estrellas } from '@/components/ui/Estrellas';
-import { Field, Input } from '@/components/ui/Field';
+import { Field, Input, Select } from '@/components/ui/Field';
+import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
@@ -26,14 +27,19 @@ import {
   useTarifas,
   useTiposDeProfesional,
   useTrayectoria,
+  useCuentasEquipo,
+  useSupervisiones,
   type Cuenta,
 } from '@/lib/equipo';
-import { useMiCuenta } from '@/lib/consultas';
+import { useConfiguracionCentro } from '@/lib/centro';
+import { useMiCuenta, useModulos, useProfesionales } from '@/lib/consultas';
 import { formatoClp, formatoFecha, formatoFechaLarga, formatoHora } from '@/lib/formato';
-import { useEstadoFichas, useTiposAtencion } from '@/lib/panel';
+import { inicioDiaChile, sumarDias, useEstadoFichas, useTiposAtencion } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
 
 import { FormularioPerfil } from './FormularioPerfil';
+import { RegistroSisPanel } from './RegistroSis';
+import { RespaldoTitulo } from './RespaldoTitulo';
 
 const hoy = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
 
@@ -42,9 +48,21 @@ const hoy = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sa
  * tipos de atencion y especialidades (ADMIN aprueba), trayectoria (ADMIN
  * verifica), tarifas, datos privados a pedido, agenda y pacientes (solo
  * estado administrativo), reseñas publicadas y la cuenta (ADMIN).
+ * propio: "Mi perfil" de la cuenta madre (2026-10-27): sin aprobar ni
+ * verificar lo propio y sin la cabecera (la pone Mi perfil).
  */
-export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: string; nombre: string; roles: Rol[] }; cuenta?: Cuenta; rol: Rol }) {
-  const admin = rol === 'ADMIN';
+export function FichaIntegrante({
+  miembro,
+  cuenta,
+  rol,
+  propio = false,
+}: {
+  miembro: { id: string; nombre: string; roles: Rol[] };
+  cuenta?: Cuenta;
+  rol: Rol;
+  propio?: boolean;
+}) {
+  const admin = rol === 'ADMIN' && !propio;
   const yo = useMiCuenta();
   const profesional = miembro.roles.includes('PROFESIONAL') || miembro.roles.includes('PRACTICANTE');
   const perfil = usePerfilProfesional(profesional ? miembro.id : undefined);
@@ -56,7 +74,7 @@ export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: strin
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-4 rounded-lg border border-divider bg-bg px-6 py-5 shadow-sm">
+      <div className={`flex flex-wrap items-center gap-4 rounded-lg border border-divider bg-bg px-6 py-5 shadow-sm ${propio ? 'hidden' : ''}`}>
         {perfil.data?.fotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- imagen publica servida por la API
           <img src={perfil.data.fotoUrl} alt="" className="size-16 rounded-full object-cover" />
@@ -80,7 +98,10 @@ export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: strin
       </div>
 
       {profesional && (
-        <Panel titulo="Descripción y datos del perfil" bajada="Se muestran en el perfil público del centro. Publicarlo lo decide cada profesional.">
+        <Panel
+          titulo={propio ? 'Mi perfil profesional' : 'Descripción y datos del perfil'}
+          bajada="Se muestran en el perfil público del centro. Publicarlo lo decide cada profesional."
+        >
           <div className="mt-4">
             <EstadoConsulta consulta={perfil}>
               {(p) =>
@@ -103,17 +124,26 @@ export function FichaIntegrante({ miembro, cuenta, rol }: { miembro: { id: strin
             <Dato etiqueta="Próxima sesión" valor={proxima ? `${formatoFechaLarga(proxima)}, ${formatoHora(proxima)}` : 'Sin horas agendadas'} />
           </div>
           <div className="mt-3 flex flex-wrap gap-3 text-[13px] font-extrabold">
-            <Link href="/admin/agenda" className="text-accent-700 underline underline-offset-2">
-              Ver agenda
+            {/* La agenda y los pacientes de este integrante (selector de equipo por la URL). */}
+            <Link href={`/admin/agenda?equipo=${miembro.id}`} className="text-accent-700 underline underline-offset-2">
+              {propio ? 'Ver mi agenda' : 'Ver su agenda'}
             </Link>
-            <Link href="/admin/fichas" className="text-accent-700 underline underline-offset-2">
-              Ver pacientes
+            <Link href={`/admin/fichas?equipo=${miembro.id}`} className="text-accent-700 underline underline-offset-2">
+              {propio ? 'Ver mis pacientes' : 'Ver sus pacientes'}
             </Link>
           </div>
         </Panel>
       )}
 
       {profesional && <Revisiones profesionalId={miembro.id} admin={admin} />}
+      {profesional && !propio && (
+        <RegistroSisPanel
+          profesionalId={miembro.id}
+          practicante={!miembro.roles.includes('PROFESIONAL')}
+          propio={miembro.id === yo.data?.id && rol === 'PROFESIONAL'}
+          admin={admin}
+        />
+      )}
       {profesional && <TrayectoriaTarifas profesionalId={miembro.id} admin={admin} />}
       {profesional && <DatosPrivados profesionalId={miembro.id} />}
       {miembro.roles.includes('PROFESIONAL') && <ResenasPublicas profesionalId={miembro.id} />}
@@ -250,7 +280,7 @@ function Revisiones({ profesionalId, admin }: { profesionalId: string; admin: bo
 }
 
 /** ADMIN asigna los tipos directamente (quedan aprobados); reemplaza la lista completa. */
-function AsignarTipos({
+export function AsignarTipos({
   profesionalId,
   actuales,
   catalogo,
@@ -303,9 +333,6 @@ function AsignarTipos({
 function TrayectoriaTarifas({ profesionalId, admin }: { profesionalId: string; admin: boolean }) {
   const cliente = useQueryClient();
   const trayectoria = useTrayectoria(profesionalId);
-  const tarifas = useTarifas(profesionalId);
-  const catalogo = useTiposAtencion();
-  const nombreTipo = new Map((catalogo.data ?? []).map((t) => [t.id, t.nombre]));
   const verificar = useMutation({
     mutationFn: ({ id, verificado }: { id: string; verificado: boolean }) =>
       datos(api.POST('/api/trayectoria/{id}/verificacion', { params: { path: { id } }, body: { verificado } })),
@@ -313,8 +340,16 @@ function TrayectoriaTarifas({ profesionalId, admin }: { profesionalId: string; a
   });
   return (
     <div className="flex flex-col gap-5">
-      <Panel titulo="Trayectoria" bajada={admin ? 'Verifica cada título con su respaldo.' : 'Títulos y formación declarados.'}>
+      <Panel
+        titulo="Trayectoria"
+        bajada={admin ? 'Descarga el respaldo y verifica cada título. Sin respaldo no se puede verificar.' : 'Títulos y formación declarados.'}
+      >
         <div className="mt-4">
+          {verificar.error && (
+            <p role="alert" className="m-0 mb-3 text-[13px] font-bold text-accent-700">
+              {verificar.error instanceof ApiError ? verificar.error.message : 'No pudimos guardar la verificación.'}
+            </p>
+          )}
           <EstadoConsulta consulta={trayectoria} vacio={(l) => l.length === 0} textoVacio="Sin trayectoria declarada">
             {(l) => (
               <ul className="m-0 flex list-none flex-col gap-2 p-0">
@@ -326,11 +361,15 @@ function TrayectoriaTarifas({ profesionalId, admin }: { profesionalId: string; a
                         {TIPO_TRAYECTORIA[t.tipo]} · {t.institucion} · {t.anio}
                         {t.registroSuperintendencia && ` · Registro ${t.registroSuperintendencia}`}
                       </p>
+                      <div className="mt-2 max-w-md">
+                        <RespaldoTitulo t={t} />
+                      </div>
                     </div>
                     <Badge tono={t.verificado ? 'positivo' : 'neutro'}>{t.verificado ? 'Verificado' : 'Sin verificar'}</Badge>
                     {admin && (
                       <Button
                         variant="ghost"
+                        disabled={!t.verificado && t.respaldos.length === 0}
                         onClick={() => verificar.mutate({ id: t.id, verificado: !t.verificado })}
                         className="!px-3 !py-1.5 !text-[12.5px]"
                       >
@@ -344,38 +383,55 @@ function TrayectoriaTarifas({ profesionalId, admin }: { profesionalId: string; a
           </EstadoConsulta>
         </div>
       </Panel>
-      <Panel titulo="Tarifas" bajada="Historial: la vigente es la más reciente. El monto de cada cita se fija al confirmarla.">
-        <div className="mt-4">
-          <EstadoConsulta consulta={tarifas} vacio={(l) => l.length === 0} textoVacio="Sin tarifas registradas">
-            {(l) => (
-              <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                {l.slice(0, 8).map((t) => (
-                  <li key={t.id} className="flex items-center gap-3 rounded-[14px] border border-divider bg-bg px-3.5 py-2 text-[13.5px] font-bold">
-                    <span className="min-w-0 flex-1">
-                      {t.tipoAtencionId ? (nombreTipo.get(t.tipoAtencionId) ?? 'Tipo de atención') : 'General'}
-                      {t.modalidad && ` · ${t.modalidad === 'ONLINE' ? 'Online' : 'Presencial'}`}
-                    </span>
-                    <span className="tabular-nums">{formatoClp(t.monto)}</span>
-                    <span className="text-[12px] font-semibold text-neutral-700">desde {formatoFecha(t.vigenteDesde)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </EstadoConsulta>
-        </div>
-      </Panel>
+      <HistorialTarifas profesionalId={profesionalId} />
     </div>
   );
 }
 
-/** RUT y cuenta bancaria (cifrados): se descifran solo al pedirlos y no se guardan en cache. */
+/** Historial de tarifas: la vigente es la mas reciente (2026-11-08: tambien en la ficha de Equipo). */
+export function HistorialTarifas({ profesionalId }: { profesionalId: string }) {
+  const tarifas = useTarifas(profesionalId);
+  const catalogo = useTiposAtencion();
+  const nombreTipo = new Map((catalogo.data ?? []).map((t) => [t.id, t.nombre]));
+  return (
+    <Panel titulo="Tarifas" bajada="Historial: la vigente es la más reciente. El monto de cada cita se fija al confirmarla.">
+      <div className="mt-4">
+        <EstadoConsulta consulta={tarifas} vacio={(l) => l.length === 0} textoVacio="Sin tarifas registradas">
+          {(l) => (
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {l.slice(0, 8).map((t) => (
+                <li
+                  key={t.id}
+                  className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-[14px] border border-divider bg-bg px-3.5 py-2 text-[13.5px] font-bold"
+                >
+                  <span className="min-w-0 flex-1">
+                    {t.tipoAtencionId ? (nombreTipo.get(t.tipoAtencionId) ?? 'Tipo de atención') : 'General'}
+                    {t.modalidad && ` · ${t.modalidad === 'ONLINE' ? 'Online' : 'Presencial'}`}
+                  </span>
+                  <span className="tabular-nums">{formatoClp(t.monto)}</span>
+                  <span className="w-full text-[12px] font-semibold text-neutral-700">desde {formatoFecha(t.vigenteDesde)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </EstadoConsulta>
+      </div>
+    </Panel>
+  );
+}
+
+/**
+ * RUT y cuenta bancaria (cifrados): se descifran solo al pedirlos y no se guardan en cache.
+ * MVP sin COBROS (2026-11-11): solo el RUT; la cuenta bancaria no se muestra.
+ */
 function DatosPrivados({ profesionalId }: { profesionalId: string }) {
   const [ver, setVer] = useState(false);
   const privados = useDatosPrivados(profesionalId, ver);
+  const cobros = useModulos().data?.activos.includes('COBROS') ?? false;
   return (
     <Panel
-      titulo="Datos para pagos"
-      bajada="RUT y cuenta bancaria del profesional, para liquidaciones. Se guardan cifrados."
+      titulo={cobros ? 'Datos para pagos' : 'RUT'}
+      bajada={cobros ? 'RUT y cuenta bancaria del profesional, para liquidaciones. Se guardan cifrados.' : 'RUT del profesional. Se guarda cifrado.'}
       accion={
         <Button variant="secondary" icon={ver ? 'visibility_off' : 'visibility'} onClick={() => setVer((v) => !v)} className="!py-2.5">
           {ver ? 'Ocultar' : 'Ver datos'}
@@ -394,15 +450,19 @@ function DatosPrivados({ profesionalId }: { profesionalId: string }) {
                     ['Banco', d.banco],
                     ['Tipo de cuenta', d.tipoCuenta],
                     ['Número de cuenta', d.numeroCuenta],
-                  ].map(([k, v]) => (
-                    <div key={k}>
-                      <dt className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{k}</dt>
-                      <dd className="m-0 text-[14px] font-bold">{v ?? '—'}</dd>
-                    </div>
-                  ))}
+                  ]
+                    .filter(([k]) => cobros || k === 'RUT')
+                    .map(([k, v]) => (
+                      <div key={k}>
+                        <dt className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{k}</dt>
+                        <dd className="m-0 text-[14px] font-bold">{v ?? '—'}</dd>
+                      </div>
+                    ))}
                 </dl>
               ) : (
-                <p className="m-0 text-[13.5px] font-semibold text-neutral-800">Todavía no registra sus datos para pagos.</p>
+                <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
+                  {cobros ? 'Todavía no registra sus datos para pagos.' : 'Todavía no registra su RUT.'}
+                </p>
               )
             }
           </EstadoConsulta>
@@ -412,7 +472,7 @@ function DatosPrivados({ profesionalId }: { profesionalId: string }) {
   );
 }
 
-function ResenasPublicas({ profesionalId }: { profesionalId: string }) {
+export function ResenasPublicas({ profesionalId }: { profesionalId: string }) {
   const resenas = useQuery({
     queryKey: ['equipo', 'resenas-publicas', profesionalId],
     queryFn: () => datos(api.GET('/api/publico/profesionales/{id}/resenas', { params: { path: { id: profesionalId } } })),
@@ -455,7 +515,103 @@ function ResenasPublicas({ profesionalId }: { profesionalId: string }) {
 }
 
 /** Cuenta (solo ADMIN): activar, invitacion, segundo factor, rol PROFESIONAL adicional y baja. */
-function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean }) {
+const PASTILLAS_ROL = [
+  { rol: 'ADMIN', etiqueta: 'Cuenta madre', icono: 'shield_person' },
+  { rol: 'GESTION', etiqueta: 'Gestión', icono: 'admin_panel_settings' },
+  { rol: 'PROFESIONAL', etiqueta: 'Profesional', icono: 'person' },
+  { rol: 'PRACTICANTE', etiqueta: 'Practicante', icono: 'school' },
+] as const;
+
+/** Roles que una cuenta del equipo combina (BD: roles_adicionales_equipo). PRACTICANTE es exclusivo. */
+const ROLES_COMBINABLES: readonly Rol[] = ['ADMIN', 'GESTION', 'PROFESIONAL'];
+
+/**
+ * "Rol dentro del centro" (diseño "Perfil Profesional", 03b-4.1 pendiente 2).
+ * Correcciones 2026-11-11 (punto 4): la cuenta madre agrega o quita roles
+ * adicionales con las mismas pastillas (roles fijos, asignacion flexible). El
+ * principal no se cambia (regla de la BD) y el practicante no combina roles.
+ * Cuenta madre y gestion se quitan al instante; el profesional, con fecha de
+ * baja (su agenda y citas). Gestion solo si el centro la tiene habilitada.
+ */
+function RolesCentro({
+  cuenta,
+  editable,
+  gestionHabilitada,
+  cupo,
+  ocupado,
+  onAgregar,
+  onQuitar,
+}: {
+  cuenta: Cuenta;
+  editable: boolean;
+  gestionHabilitada: boolean;
+  /** Cuentas madre activas y maximo del centro (null = sin limite). */
+  cupo: { usadas: number; max: number | null };
+  ocupado: boolean;
+  onAgregar: (rol: Rol) => void;
+  onQuitar: (rol: Rol) => void;
+}) {
+  const adicionales = cuenta.rolesAdicionales.filter((r) => r.activo).map((r) => r.rol);
+  const combinable = ROLES_COMBINABLES.includes(cuenta.rol);
+  const visibles = PASTILLAS_ROL.filter((p) => p.rol !== 'GESTION' || gestionHabilitada || cuenta.rol === 'GESTION' || adicionales.includes('GESTION'));
+  return (
+    <div className="flex flex-col gap-2">
+      <span id={`roles-${cuenta.id}`} className="text-[12px] font-extrabold text-neutral-800">
+        Rol dentro del centro
+      </span>
+      <ul aria-labelledby={`roles-${cuenta.id}`} className="m-0 flex list-none flex-wrap gap-2 p-0">
+        {visibles.map((p) => {
+          const principal = cuenta.rol === p.rol;
+          const tiene = principal || adicionales.includes(p.rol);
+          const baja = cuenta.rolesAdicionales.find((r) => r.rol === p.rol && r.activo)?.fechaBaja;
+          // Con el cupo lleno no se suma otra cuenta madre (regla del centro; la BD tambien lo exige).
+          const sinCupo = p.rol === 'ADMIN' && !tiene && cupo.max !== null && cupo.usadas >= cupo.max;
+          const cambia = editable && combinable && !principal && ROLES_COMBINABLES.includes(p.rol) && !baja && !sinCupo;
+          const clases = `flex items-center gap-[7px] rounded-full border-[1.5px] px-4 py-[9px] text-[12.5px] font-extrabold ${
+            tiene ? 'border-accent-2-600 bg-accent-2-200 text-accent-2-900' : 'border-neutral-400 bg-neutral-100 text-neutral-800'
+          }`;
+          const contenido = (
+            <>
+              <Icon name={cambia ? (tiene ? 'check' : 'add') : p.icono} size={16} />
+              {p.etiqueta}
+              {principal && <span className="font-bold">· principal</span>}
+              {!principal && tiene && <span className="font-bold">{baja ? `· baja el ${formatoFecha(baja)}` : '· adicional'}</span>}
+              {!tiene && <span className="sr-only">(no tiene este rol)</span>}
+            </>
+          );
+          return (
+            <li key={p.rol}>
+              {cambia ? (
+                <button
+                  type="button"
+                  aria-pressed={tiene}
+                  disabled={ocupado}
+                  title={tiene ? `Quitar el rol ${p.etiqueta.toLowerCase()}` : `Agregar el rol ${p.etiqueta.toLowerCase()}`}
+                  onClick={() => (tiene ? onQuitar(p.rol) : onAgregar(p.rol))}
+                  className={`${clases} cursor-pointer transition-colors duration-200 hover:border-accent-2-700 disabled:cursor-wait disabled:opacity-60`}
+                >
+                  {contenido}
+                </button>
+              ) : (
+                <span aria-current={tiene ? 'true' : undefined} className={clases}>
+                  {contenido}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {editable && combinable && (
+        <p className="m-0 text-[12px] font-semibold text-neutral-700">
+          Toca un rol para agregarlo o quitarlo. Cada rol es una sesión distinta: la persona elige con cuál entrar.
+          {cupo.max !== null && ` Cuentas madre: ${cupo.usadas} de ${cupo.max}${cupo.usadas >= cupo.max ? ' (cupo lleno: se cambia en Configuración)' : ''}.`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean }) {
   const cliente = useQueryClient();
   const [aviso, setAviso] = useState<{ error?: string; ok?: string }>({});
   const [baja, setBaja] = useState<'rol' | 'cuenta' | null>(null);
@@ -482,25 +638,77 @@ function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean 
     onSuccess: listo('Segundo factor reiniciado: lo configura de nuevo al ingresar.'),
     onError: fallo,
   });
+  const nombreRol = (r: Rol) => PASTILLAS_ROL.find((p) => p.rol === r)?.etiqueta.toLowerCase() ?? r;
   const otorgar = useMutation({
-    mutationFn: () => datos(api.POST('/api/usuarios/{id}/roles', { params: { path: { id: cuenta.id } }, body: { rol: 'PROFESIONAL' } })),
-    onSuccess: listo('Rol profesional agregado.'),
+    mutationFn: (rol: 'ADMIN' | 'GESTION' | 'PROFESIONAL') =>
+      datos(api.POST('/api/usuarios/{id}/roles', { params: { path: { id: cuenta.id } }, body: { rol } })),
+    onSuccess: (_d, rol) => listo(`Rol ${nombreRol(rol)} agregado. Lo usa desde su próximo ingreso.`)(),
     onError: fallo,
   });
+  const quitar = useMutation({
+    mutationFn: (rol: 'ADMIN' | 'GESTION') => datos(api.POST('/api/usuarios/{id}/roles/retiro', { params: { path: { id: cuenta.id } }, body: { rol } })),
+    onSuccess: (_d, rol) => listo(`Rol ${nombreRol(rol)} quitado: sus sesiones con ese rol se cerraron.`)(),
+    onError: fallo,
+  });
+  const configuracion = useConfiguracionCentro().data;
+  const gestionHabilitada = configuracion?.rolGestionHabilitado ?? false;
+  const cuentas = useCuentasEquipo(true);
+  const cupo = {
+    usadas: (cuentas.data ?? []).filter((c) => c.activo && !c.cerradaEn && (c.rol === 'ADMIN' || c.rolesAdicionales.some((r) => r.rol === 'ADMIN' && r.activo)))
+      .length,
+    max: configuracion?.maxCuentasMadre ?? null,
+  };
+  // La BD no da de baja a quien supervisa practicantes activos: se elige el nuevo supervisor en el mismo paso.
+  const supervisiones = useSupervisiones();
+  const profesionales = useProfesionales(true);
+  const activa = new Set((cuentas.data ?? []).filter((c) => c.activo).map((c) => c.id));
+  const supervisados = (supervisiones.data ?? [])
+    .filter((s) => s.supervisorId === cuenta.id && !s.hasta && activa.has(s.practicanteId))
+    .map((s) => s.practicanteId);
+  const [supervisorNuevo, setSupervisorNuevo] = useState('');
+  const sinSupervisor = supervisados.length > 0 && !supervisorNuevo;
+  // Baja ahora (desde este instante) o al final del dia elegido (medianoche de Chile siguiente: ese dia se atiende completo).
   const darBaja = useMutation({
-    mutationFn: () =>
-      baja === 'rol'
-        ? datos(api.POST('/api/usuarios/{id}/roles/PROFESIONAL/baja', { params: { path: { id: cuenta.id } }, body: { fechaEfectiva: fecha } }))
-        : datos(api.POST('/api/bajas', { body: { usuarioId: cuenta.id, fechaEfectiva: fecha } })),
-    onSuccess: (r) => listo(`Baja programada. Citas por reprogramar: ${r.citasPorReprogramar}.`)(),
+    mutationFn: async ({ ahora }: { ahora: boolean }) => {
+      const fechaEfectiva = (ahora ? new Date() : inicioDiaChile(sumarDias(fecha, 1))).toISOString();
+      for (const practicante of supervisados) {
+        await datos(api.POST('/api/practicantes/{id}/supervisor', { params: { path: { id: practicante } }, body: { supervisorId: supervisorNuevo } }));
+      }
+      return baja === 'rol'
+        ? datos(api.POST('/api/usuarios/{id}/roles/PROFESIONAL/baja', { params: { path: { id: cuenta.id } }, body: { fechaEfectiva } }))
+        : datos(api.POST('/api/bajas', { body: { usuarioId: cuenta.id, fechaEfectiva } }));
+    },
+    onSuccess: (r, { ahora }) => {
+      void cliente.invalidateQueries({ queryKey: ['equipo', 'supervisiones'] });
+      listo(
+        ahora
+          ? `Baja aplicada: su agenda quedó bloqueada desde ahora y su acceso se cierra en los próximos minutos. Citas por reprogramar: ${r.citasPorReprogramar}.`
+          : `Baja programada para el final del ${formatoFechaLarga(inicioDiaChile(fecha).toISOString())}. Citas por reprogramar: ${r.citasPorReprogramar}.`,
+      )();
+    },
     onError: fallo,
   });
-  const profesionalAdicional = cuenta.rolesAdicionales.find((r) => r.rol === 'PROFESIONAL' && r.activo);
-  const puedeSumarProfesional = (cuenta.rol === 'ADMIN' || cuenta.rol === 'GESTION') && !profesionalAdicional;
   const cerrada = !!cuenta.cerradaEn;
   return (
     <Panel titulo="Cuenta" bajada={`${cuenta.email ?? 'Sin correo'}${cuenta.totpActivo ? ' · segundo factor activo' : ''}`}>
       <div className="mt-4 flex flex-col gap-4">
+        <RolesCentro
+          cuenta={cuenta}
+          editable={!propia && !cerrada}
+          gestionHabilitada={gestionHabilitada}
+          cupo={cupo}
+          ocupado={otorgar.isPending || quitar.isPending}
+          onAgregar={(rol) => {
+            setAviso({});
+            if (rol === 'ADMIN' || rol === 'GESTION' || rol === 'PROFESIONAL') otorgar.mutate(rol);
+          }}
+          onQuitar={(rol) => {
+            setAviso({});
+            // El profesional tiene agenda: su baja lleva fecha y reprograma citas.
+            if (rol === 'PROFESIONAL') setBaja('rol');
+            else if (rol === 'ADMIN' || rol === 'GESTION') quitar.mutate(rol);
+          }}
+        />
         {propia ? (
           <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
             Es tu propia cuenta: tus datos y tu contraseña se cambian en «Mi perfil». Otra cuenta madre administra tu acceso.
@@ -524,16 +732,6 @@ function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean 
                 Reiniciar segundo factor
               </Button>
             )}
-            {puedeSumarProfesional && (
-              <Button variant="secondary" icon="add" loading={otorgar.isPending} onClick={() => otorgar.mutate()} className="!py-2.5">
-                Agregar rol profesional
-              </Button>
-            )}
-            {profesionalAdicional && (
-              <Button variant="ghost" onClick={() => setBaja('rol')} className="!py-2.5">
-                Dar de baja el rol profesional
-              </Button>
-            )}
             {cuenta.rol === 'PROFESIONAL' && (
               <Button variant="ghost" onClick={() => setBaja('cuenta')} className="!py-2.5">
                 Dar de baja al profesional
@@ -544,18 +742,68 @@ function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: boolean 
         {baja && (
           <div className="flex flex-col gap-3 rounded-[18px] border border-accent-500 bg-accent-100 p-4">
             <p className="m-0 text-[13.5px] font-semibold text-accent-900">
-              Desde esa fecha su agenda queda bloqueada y sus citas pasan a «por reprogramar». Sus pacientes quedan en la cola de reasignación; su historial
-              clínico no se borra.
+              Desde la baja su agenda queda bloqueada y sus citas pendientes pasan a «por reprogramar»; sus pacientes quedan en la cola de reasignación. Su
+              historial clínico no se borra.
             </p>
-            <Field label="Fecha efectiva" required>
-              {(x) => <Input {...x} type="date" min={hoy()} value={fecha} onChange={(e) => setFecha(e.target.value)} className="!w-[200px]" />}
-            </Field>
-            <div className="flex justify-end gap-2">
+            {supervisados.length > 0 && (
+              <Field
+                label={`Nuevo supervisor de sus ${supervisados.length === 1 ? 'practicante' : `${supervisados.length} practicantes`}`}
+                hint="Supervisa practicantes activos: pasan al profesional que elijas antes de la baja. Sus pacientes reciben el aviso del cambio."
+                required
+              >
+                {(x) => (
+                  <Select {...x} value={supervisorNuevo} onChange={(e) => setSupervisorNuevo(e.target.value)}>
+                    <option value="">Elige un profesional</option>
+                    {(profesionales.data ?? [])
+                      .filter((p) => p.id !== cuenta.id)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre ?? 'Profesional'}
+                        </option>
+                      ))}
+                  </Select>
+                )}
+              </Field>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col justify-between gap-3 rounded-lg border border-divider bg-bg p-3.5">
+                <div>
+                  <h4 className="m-0 text-[14px] font-black">Ahora</h4>
+                  <p className="m-0 text-[12.5px] font-semibold text-neutral-800">
+                    Desde este momento. Las citas de hoy que aún no empiezan también pasan a reprogramar.
+                  </p>
+                </div>
+                <Button
+                  variant="team"
+                  icon="event_busy"
+                  disabled={sinSupervisor || darBaja.isPending}
+                  loading={darBaja.isPending && darBaja.variables?.ahora}
+                  onClick={() => darBaja.mutate({ ahora: true })}
+                >
+                  Dar de baja ahora
+                </Button>
+              </div>
+              <div className="flex flex-col justify-between gap-3 rounded-lg border border-divider bg-bg p-3.5">
+                <div className="flex flex-col gap-2">
+                  <h4 className="m-0 text-[14px] font-black">Al final de un día</h4>
+                  <Field label="Último día de atención" hint="Atiende ese día completo; la baja corre a la medianoche.">
+                    {(x) => <Input {...x} type="date" min={hoy()} value={fecha} onChange={(e) => setFecha(e.target.value)} className="!w-[200px]" />}
+                  </Field>
+                </div>
+                <Button
+                  variant="secondary"
+                  icon="event"
+                  disabled={!fecha || sinSupervisor || darBaja.isPending}
+                  loading={darBaja.isPending && !darBaja.variables?.ahora}
+                  onClick={() => darBaja.mutate({ ahora: false })}
+                >
+                  Programar para el {fecha ? formatoFecha(inicioDiaChile(fecha).toISOString()) : '…'}
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-end">
               <Button variant="ghost" onClick={() => setBaja(null)}>
                 Cancelar
-              </Button>
-              <Button variant="team" loading={darBaja.isPending} onClick={() => darBaja.mutate()}>
-                Programar baja
               </Button>
             </div>
           </div>

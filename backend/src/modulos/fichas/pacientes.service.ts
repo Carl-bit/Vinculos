@@ -10,7 +10,15 @@ import { LlaveroService } from '../../core/crypto/llavero.service';
 import { HORA, nuevoTokenCorreo } from '../../core/auth/tokens-correo';
 import { conflicto, esSqlstate } from '../../core/errores/sqlstate';
 import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
-import type { BuscarPacientesDto, CrearAdultoResponsableDto, CrearPacienteDto, EditarPacienteDto, InvitarPacienteDto } from './dto/fichas.dto';
+import { argumentosPagina, pagina } from '../../core/validacion/paginacion';
+import type {
+  BuscarPacientesDto,
+  CrearAdultoResponsableDto,
+  FiltroResumenPacientesDto,
+  CrearPacienteDto,
+  EditarPacienteDto,
+  InvitarPacienteDto,
+} from './dto/fichas.dto';
 
 const MAYORIA_EDAD_MS = 18 * 365.25 * 86_400_000;
 
@@ -28,9 +36,33 @@ const VISTA_PACIENTE = {
   contactoEmergencia: true,
   creadoPorSolicitud: true,
   posibleDuplicado: true,
+  traidoPorCentro: true,
+  bloqueoDesde: true,
+  bloqueoMotivo: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.PacienteSelect;
+
+/** Lista paginada: sin contacto de emergencia (solo el detalle lo descifra, AUD-02 BD-02). */
+const VISTA_FILA = (({ contactoEmergencia: _, ...resto }) => resto)(VISTA_PACIENTE);
+
+/** Mapa id -> nombre del panel: ninguna columna cifrada, nada que descifrar por fila. */
+const VISTA_RESUMEN = {
+  id: true,
+  nombre: true,
+  apellido: true,
+  profesionalId: true,
+  fechaNacimiento: true,
+  codigoSeudonimo: true,
+  createdAt: true,
+} satisfies Prisma.PacienteSelect;
+
+const ORDEN_PACIENTES: Prisma.PacienteOrderByWithRelationInput[] = [{ apellido: 'asc' }, { nombre: 'asc' }, { id: 'asc' }];
+
+const porNombre = (nombre: string): Prisma.PacienteWhereInput['OR'] => [
+  { nombre: { contains: nombre, mode: 'insensitive' } },
+  { apellido: { contains: nombre, mode: 'insensitive' } },
+];
 
 const VISTA_ADULTO = {
   id: true,
@@ -107,8 +139,9 @@ export class PacientesService {
   }
 
   /**
-   * Lista segun la RLS del rol; con rut, busqueda exacta por el indice ciego.
-   * Filtros (03a): tratante, menores, posibles duplicados, derivados y nombre.
+   * Lista segun la RLS del rol, paginada por cursor (AUD-02 API-01); con rut,
+   * busqueda exacta por el indice ciego. Filtros (03a): tratante, menores,
+   * posibles duplicados, derivados, sin RUT y nombre.
    */
   async listar(filtro: BuscarPacientesDto = {}) {
     const where: Prisma.PacienteWhereInput = { deletedAt: null };
@@ -117,15 +150,23 @@ export class PacientesService {
     if (filtro.menores) where.fechaNacimiento = { gt: new Date(Date.now() - MAYORIA_EDAD_MS) };
     if (filtro.duplicados) where.posibleDuplicado = true;
     if (filtro.derivados) where.fichaClinica = { derivaciones: { some: { estado: 'ACEPTADA' } } };
-    if (filtro.nombre) {
-      where.OR = [{ nombre: { contains: filtro.nombre, mode: 'insensitive' } }, { apellido: { contains: filtro.nombre, mode: 'insensitive' } }];
-    }
-    const filas = await this.bd.tx().paciente.findMany({
-      where,
-      select: VISTA_PACIENTE,
-      orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
-    });
-    return filas.map(vistaPaciente);
+    if (filtro.sinRut) where.rutHmac = null;
+    if (filtro.nombre) where.OR = porNombre(filtro.nombre);
+    const filas = await this.bd.tx().paciente.findMany({ where, select: VISTA_FILA, orderBy: ORDEN_PACIENTES, ...argumentosPagina(filtro) });
+    const p = pagina(filas, filtro);
+    return { ...p, items: p.items.map((f) => ({ ...f, rut: texto(f.rut), telefono: texto(f.telefono) })) };
+  }
+
+  /**
+   * Todos los que el rol ve (RLS), sin columnas cifradas: para armar nombres en
+   * agenda, cobros y avisos. ponytail: sin paginar; con miles de pacientes por
+   * centro, que cada vista reciba el nombre en su propia respuesta.
+   */
+  resumen(filtro: FiltroResumenPacientesDto = {}) {
+    const where: Prisma.PacienteWhereInput = { deletedAt: null };
+    if (filtro.profesionalId) where.profesionalId = filtro.profesionalId;
+    if (filtro.nombre) where.OR = porNombre(filtro.nombre);
+    return this.bd.tx().paciente.findMany({ where, select: VISTA_RESUMEN, orderBy: ORDEN_PACIENTES });
   }
 
   async obtener(id: string) {
@@ -162,6 +203,13 @@ export class PacientesService {
   async duplicadoRevisado(id: string, resolucion: 'DISTINTO' | 'MISMO_PACIENTE') {
     await this.obtener(id);
     await this.bd.tx().$executeRaw`SELECT resolver_posible_duplicado(${id}::uuid, ${resolucion})`;
+    return this.obtener(id);
+  }
+
+  /** 03b-4.2 (C-10): ADMIN/GESTION marcan si el paciente llego por el centro (define la comision de sus sesiones). */
+  async marcarOrigen(id: string, traidoPorCentro: boolean) {
+    await this.obtener(id);
+    await this.bd.tx().$executeRaw`SELECT marcar_origen_paciente(${id}::uuid, ${traidoPorCentro})`;
     return this.obtener(id);
   }
 

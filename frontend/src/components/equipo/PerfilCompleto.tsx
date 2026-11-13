@@ -7,6 +7,7 @@ import type { Icono } from '@/lib/iconos';
 import { NOMBRE_MODALIDAD, NOMBRE_TRAYECTORIA, previsionTexto, textoCalificacion } from '@/lib/perfiles';
 
 import { ReportarResena } from './ReportarResena';
+import { InsigniaRegistroSis } from './RegistroSis';
 
 /*
  * Perfil publico completo (no esta en el diseño: se arma con las secciones del
@@ -52,11 +53,14 @@ export function SeccionesPerfil({ perfil }: { perfil: PerfilPublico }) {
           <p className="m-0 text-[15px] leading-[1.7] font-medium text-pretty whitespace-pre-line text-neutral-800">{perfil.bio}</p>
         </Seccion>
       )}
-      {perfil.trayectoria.length > 0 && (
+      {(perfil.trayectoria.length > 0 || perfil.registro_sis) && (
         <Seccion icono="school" titulo="Formación verificada">
+          <div className="mb-2.5 empty:hidden">
+            <InsigniaRegistroSis registro={perfil.registro_sis} />
+          </div>
           <ul className="m-0 flex list-none flex-col gap-[9px] p-0">
             {perfil.trayectoria.map((t) => (
-              <li key={`${t.titulo}-${t.anio}`} className="flex gap-[11px] rounded-[16px] border border-divider bg-neutral-100 px-4 py-[13px]">
+              <li key={`${t.titulo}-${t.anio}`} className="flex gap-[11px] rounded-[16px] border border-divider bg-bg px-4 py-[13px]">
                 <Icon name={t.tipo === 'OTRO' ? 'badge' : 'workspace_premium'} size={17} className="text-accent-2-700" />
                 <span className="min-w-0">
                   <span className="block text-sm font-extrabold tracking-[-0.015em]">{t.titulo}</span>
@@ -120,7 +124,7 @@ const estrellas = (n: number) => (
 export function Resenas({ perfil, resenas }: { perfil: PerfilPublico; resenas: ResenaPublica[] }) {
   const nota = textoCalificacion(perfil);
   return (
-    <section aria-labelledby="titulo-resenas" className="revelar rounded-lg border border-divider bg-neutral-100 p-6 shadow-sm">
+    <section aria-labelledby="titulo-resenas" className="revelar rounded-lg border border-divider bg-bg p-6 shadow-suave">
       <div className="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <h2 id="titulo-resenas" className="m-0 flex items-center gap-2 text-lg font-black tracking-[-0.02em]">
           <Icon name="reviews" className="text-accent-2-700" />

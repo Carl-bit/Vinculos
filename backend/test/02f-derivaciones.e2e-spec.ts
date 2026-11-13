@@ -480,16 +480,18 @@ describe('02f derivaciones y consentimientos', () => {
     const deB = await t
       .http()
       .get('/api/notificaciones')
+      .query({ limite: 100 })
       .set(await tk(candidatoB));
-    expect(deB.body.length).toBeGreaterThan(0);
-    expect(deB.body.every((n: { usuarioId: string }) => n.usuarioId === candidatoB.id)).toBe(true);
+    expect(deB.body.items.length).toBeGreaterThan(0);
+    expect(deB.body.items.every((n: { usuarioId: string }) => n.usuarioId === candidatoB.id)).toBe(true);
     expect(
       (
         await t
           .http()
           .get('/api/notificaciones')
+          .query({ limite: 100 })
           .set(await tk(gestion))
-      ).body.length,
-    ).toBeGreaterThan(deB.body.length);
+      ).body.items.length,
+    ).toBeGreaterThan(deB.body.items.length);
   });
 });

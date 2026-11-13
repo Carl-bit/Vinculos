@@ -20,13 +20,18 @@ test('Match publico: "Prefiero filtrar yo mismo" busca sin cuestionario y ofrece
 
 test('Perfil publico: una valoracion se puede reportar (el formulario exige el motivo; no se envia)', async ({ page }) => {
   // Seed: la valoracion publicada es de Profesional Uno.
-  await page.goto('/equipo');
-  await page
-    .getByRole('article')
-    .filter({ hasText: 'Profesional Uno' })
-    .getByRole('link', { name: /Ver perfil/ })
-    .first()
-    .click();
+  // El sitio publico es ISR (60 s, sirve la version en cache mientras regenera): justo despues de
+  // `npm run demo:reset` la primera visita puede traer los ids del seed anterior (perfil 404).
+  await expect(async () => {
+    await page.goto('/equipo');
+    await page
+      .getByRole('article')
+      .filter({ hasText: 'Profesional Uno' })
+      .getByRole('link', { name: /Ver perfil/ })
+      .first()
+      .click();
+    await expect(page.getByRole('button', { name: 'Reportar valoración' }).first()).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
   await page.getByRole('button', { name: 'Reportar valoración' }).first().click();
   await expect(page.getByRole('button', { name: 'Enviar reporte' })).toBeDisabled();
   await page.getByLabel('¿Qué problema tiene?').fill('Prueba');
@@ -36,12 +41,12 @@ test('Perfil publico: una valoracion se puede reportar (el formulario exige el m
 test('Ficha: el tratante ve las solicitudes de copia de la ficha en Documentos', async ({ page }) => {
   await ingresarEquipo(page, 'profesional1');
   await page.goto('/admin/fichas');
-  await page
-    .getByRole('link', { name: /Prueba, Paciente|Paciente Prueba/ })
-    .first()
-    .click();
-  await page.getByRole('link', { name: 'Abrir ficha clínica' }).click();
-  await page.getByRole('tab', { name: 'Documentos' }).click();
+  // Riel "Mis pacientes" > Todos; la ficha es una sola pagina con indice.
+  const riel = page.getByRole('region', { name: 'Mis pacientes' });
+  await riel.getByRole('tab', { name: 'Todos' }).click();
+  await riel.getByRole('searchbox', { name: 'Buscar paciente' }).fill('Prueba');
+  await riel.getByRole('button', { name: /Paciente Prueba/ }).click();
+  await page.getByRole('navigation', { name: 'Índice de la ficha' }).getByRole('link', { name: 'Documentos' }).click();
   await expect(page.getByRole('heading', { name: 'Solicitudes de copia de la ficha' })).toBeVisible();
 });
 

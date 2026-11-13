@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CanalMensaje, EstadoNotificacion, TipoNotificacion } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, Length } from 'class-validator';
+
+import { PaginaDto } from '../validacion/paginacion';
 
 const recortar = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -34,6 +36,37 @@ export class PreferenciasDto {
   @IsOptional()
   @IsBoolean()
   avisosOperativos?: boolean;
+
+  /** AUD-01 (E2.3c): consentimiento propio del canal WhatsApp (la fecha la fija la BD). */
+  @IsOptional()
+  @IsBoolean()
+  whatsapp?: boolean;
+}
+
+/** Grupos de avisos que el equipo puede apagar por correo; lo demas llega siempre (grupo_aviso_equipo()). */
+export class PreferenciasEquipoDto {
+  @IsOptional()
+  @IsBoolean()
+  agenda?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  cobros?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  derivaciones?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  mensajes?: boolean;
+}
+
+export class PreferenciasEquipo {
+  agenda!: boolean;
+  cobros!: boolean;
+  derivaciones!: boolean;
+  mensajes!: boolean;
 }
 
 /** Mensaje de la bandeja propia (registro oficial, ya armado con la plantilla). */
@@ -54,6 +87,10 @@ export class MensajeBandeja {
 export class Preferencias {
   recordatorios!: boolean;
   avisosOperativos!: boolean;
+  /** AUD-01: avisos por WhatsApp (el envio llega despues; hoy solo el consentimiento). */
+  whatsapp!: boolean;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  whatsappConsentidoEn!: Date | null;
 }
 
 /** Plantilla de mensaje por evento, destinatario y canal; *Ejemplo es el texto original para restaurar. */
@@ -71,6 +108,14 @@ export class PlantillaMensajeVista {
   asuntoEjemplo!: string;
   cuerpoEjemplo!: string;
   updatedAt!: Date;
+}
+
+/** AUD-02 (API-01): registro paginado por cursor (maximo 100), opcionalmente de un tipo. */
+export class FiltroNotificacionesDto extends PaginaDto {
+  @IsOptional()
+  @IsEnum(TipoNotificacion)
+  @ApiProperty({ enum: TipoNotificacion, enumName: 'TipoNotificacion', required: false })
+  tipo?: TipoNotificacion;
 }
 
 /** Registro de una notificacion (metadatos, sin contenido ni quien la origino). */
@@ -93,4 +138,11 @@ export class NotificacionRegistro {
   creadaEn!: Date;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   procesadaEn!: Date | null;
+}
+
+export class PaginaNotificaciones {
+  items!: NotificacionRegistro[];
+  /** Id de la ultima fila; null si no hay mas paginas. */
+  @ApiProperty({ type: String, nullable: true })
+  siguienteCursor!: string | null;
 }

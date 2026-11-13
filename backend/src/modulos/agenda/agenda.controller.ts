@@ -10,6 +10,7 @@ import { CitasService } from './citas.service';
 import { IntegracionesAgendaService } from './integraciones-agenda.service';
 import { RecordatoriosService } from './recordatorios.service';
 import {
+  AvisoPorReprogramar,
   BloqueAtencionVista,
   BloqueoAgendaVista,
   BloquesLiberados,
@@ -26,6 +27,7 @@ import {
   OcupacionBox,
   RecordatorioConsulta,
   RecordatorioRespuesta,
+  RetencionEnCurso,
   VerificacionHorario,
   FeedCalendario,
   SalaVideollamadaVista,
@@ -33,8 +35,11 @@ import {
 } from './dto/agenda-respuestas.dto';
 import {
   ApartarBloquesDto,
+  AvisoPorReprogramarDto,
   CrearBloqueoAgendaDto,
   CubrirCitaDto,
+  DecidirSolicitudDto,
+  ResponderPropuestaDto,
   HorarioEspacioDto,
   CrearCitaDto,
   CrearDisponibilidadDto,
@@ -44,6 +49,7 @@ import {
   HorarioDto,
   LiberarHoraDto,
   RangoDto,
+  RangoRetencionesDto,
   ReprogramarCitaDto,
   SalaDto,
 } from './dto/agenda.dto';
@@ -94,6 +100,20 @@ export class EspaciosController {
   @Roles(...EQUIPO_AGENDA)
   ocupacion(@Query() rango: RangoDto): Promise<OcupacionBox[]> {
     return this.agenda.ocupacion(rango.desde, rango.hasta);
+  }
+
+  /** Cada sesion presencial de los boxes, sin pacientes ni profesionales (vista "Por box"). Max. 62 dias. */
+  @Get('sesiones')
+  @Roles(...EQUIPO_AGENDA)
+  sesiones(@Query() rango: RangoDto): Promise<OcupacionBox[]> {
+    return this.agenda.sesionesEspacios(rango.desde, rango.hasta);
+  }
+
+  /** Bloques apartados de todo el centro, con quien los aparto (solo administracion: ver matriz). */
+  @Get('bloques')
+  @Roles('ADMIN', 'GESTION')
+  bloquesCentro(@Query() rango: RangoDto): Promise<BloqueAtencionVista[]> {
+    return this.agenda.bloquesCentro(rango.desde, rango.hasta);
   }
 
   /** 03b: horas libres de cada box para apartar (horario vigente del box menos bloques). Max. 62 dias. */
@@ -205,6 +225,13 @@ export class HorariosTomadosController {
     return this.agenda.misHorariosTomados();
   }
 
+  /** 03b-4.1: "Reservando..." de otras personas en el calendario (box y rango; sin quien). Max. 62 dias. */
+  @Get('ajenos')
+  @Roles(...EQUIPO_AGENDA)
+  ajenos(@Query() rango: RangoRetencionesDto): Promise<RetencionEnCurso[]> {
+    return this.agenda.retencionesEnCurso(rango.desde, rango.hasta, rango.profesionalId);
+  }
+
   @Delete(':id')
   @Roles(...EQUIPO_AGENDA)
   soltar(@Param('id', Uuid) id: string): Promise<Eliminados> {
@@ -229,6 +256,14 @@ export class CitasController {
   @Roles(...EQUIPO_AGENDA)
   porReprogramar(): Promise<CitaVista[]> {
     return this.citas.porReprogramar();
+  }
+
+  /** Punto 24: avisa a los pacientes de varias horas por reprogramar para que elijan (el profesional, solo las suyas). */
+  @Post('por-reprogramar/aviso')
+  @HttpCode(200)
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
+  avisarPorReprogramar(@Body() dto: AvisoPorReprogramarDto): Promise<AvisoPorReprogramar> {
+    return this.citas.avisarPorReprogramar(dto.citas);
   }
 
   /** Verificacion previa (opcion C): disponibilidad, margen y box, con alternativas. */
@@ -256,6 +291,20 @@ export class CitasController {
   @Roles(...EQUIPO_AGENDA)
   cancelar(@Param('id', Uuid) id: string): Promise<CitaVista> {
     return this.citas.cancelar(id);
+  }
+
+  /** MVP sin COBROS: el profesional de la cita aprueba o rechaza la hora SOLICITADA; al rechazar puede proponer otras horas (punto 7). Vencida o ya decidida: 409; hora propuesta tomada: 409. */
+  @Patch(':id/aprobacion')
+  @Roles('PROFESIONAL')
+  decidirSolicitud(@Param('id', Uuid) id: string, @Body() dto: DecidirSolicitudDto): Promise<CitaVista> {
+    return this.citas.decidirSolicitud(id, dto);
+  }
+
+  /** Punto 7: el paciente (o su adulto responsable) acepta una hora PROPUESTA o rechaza todas las del grupo. Vencida: 409. */
+  @Patch(':id/propuesta')
+  @Roles('PACIENTE', 'RESPONSABLE')
+  responderPropuesta(@Param('id', Uuid) id: string, @Body() dto: ResponderPropuestaDto): Promise<CitaVista> {
+    return this.citas.responderPropuesta(id, dto);
   }
 
   /** 03b-3.3: libera a mano una hora retenida (reserva sin cuenta). Con comprobante por validar: 409. */

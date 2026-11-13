@@ -37,11 +37,11 @@ export function useMensajesHilo(id: string | null) {
 }
 
 export function useMensajesPacientes(habilitado: boolean) {
-  return useQuery({ queryKey: ['mensajes-pacientes'], queryFn: () => datos(api.GET('/api/mensajes')), enabled: habilitado, refetchInterval: 60 * SEGUNDO });
+  return useQuery({ queryKey: ['mensajes-pacientes'], queryFn: () => datos(api.GET('/api/mensajes')), enabled: habilitado, refetchInterval: 30 * SEGUNDO });
 }
 
 export function useBandejaAvisos() {
-  return useQuery({ queryKey: ['notificaciones', 'bandeja'], queryFn: () => datos(api.GET('/api/notificaciones/bandeja')), refetchInterval: 2 * 60 * SEGUNDO });
+  return useQuery({ queryKey: ['notificaciones', 'bandeja'], queryFn: () => datos(api.GET('/api/notificaciones/bandeja')), refetchInterval: 30 * SEGUNDO });
 }
 
 /** El autor retira un mensaje dentro de 5 minutos (la BD lo exige; esto solo decide si se ofrece). */

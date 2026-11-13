@@ -11,6 +11,14 @@ import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { NOMBRE_MODALIDAD, type PerfilProfesional } from '@/lib/equipo';
 import { subirArchivo } from '@/lib/subidas';
+import { reglaCorreo, reglaObligatorio, reglaTelefono, useValidacionCampos } from '@/lib/validacion';
+
+/** Datos de la cuenta que "Mi perfil" edita junto con el perfil (diseño "Admin - Mi Perfil"). */
+export interface CuentaPerfil {
+  nombre: string;
+  email: string;
+  telefono: string;
+}
 
 const lista = (s: string) =>
   s
@@ -23,20 +31,32 @@ const lista = (s: string) =>
  * salen en el perfil publico. `propio`: el profesional lo crea o edita y es
  * el unico que puede publicarlo (consentimiento; la BD exige tarifa general).
  * `equipo`: ADMIN/GESTION corrigen un perfil existente, sin publicarlo.
+ *
+ * Con `cuenta` (Mi perfil, 03b-4.1 pendiente 7): nombre, correo y telefono
+ * van en el mismo formulario. "Guardar mi perfil" guarda en orden la cuenta
+ * (PATCH usuarios/yo) y despues el perfil (PUT); cada error se muestra en su
+ * parte. Una barra fija abajo se activa al haber cambios y permite
+ * descartarlos.
  */
 export function FormularioPerfil({
   modo,
   profesionalId,
   perfil,
   puedeFoto,
+  cuenta,
 }: {
   modo: 'propio' | 'equipo';
   profesionalId: string;
   perfil: PerfilProfesional | null;
   puedeFoto: boolean;
+  cuenta?: CuentaPerfil;
 }) {
   const cliente = useQueryClient();
-  const [f, setF] = useState({
+  const cuentaInicial = useRef(cuenta ?? { nombre: '', email: '', telefono: '' });
+  const [c, setC] = useState<CuentaPerfil>(cuentaInicial.current);
+  const v = useValidacionCampos({ nombre: reglaObligatorio('Escribe tu nombre.'), email: reglaCorreo(true), telefono: reglaTelefono });
+  const [errorCuenta, setErrorCuenta] = useState<string>();
+  const inicial = useRef({
     especialidad: perfil?.especialidad ?? '',
     modalidad: perfil?.modalidad ?? ('PRESENCIAL' as PerfilProfesional['modalidad']),
     nombrePublico: perfil?.nombrePublico ?? '',
@@ -46,11 +66,17 @@ export function FormularioPerfil({
     idiomas: (perfil?.idiomas ?? []).join(', '),
     convenios: (perfil?.convenios ?? []).join(', '),
   });
-  const [opciones, setOpciones] = useState({
+  const [f, setF] = useState(inicial.current);
+  const opcionesIniciales = useRef({
     perfilPublico: perfil?.perfilPublico ?? false,
     cobroDirecto: perfil?.cobroDirecto ?? false,
     boletaReembolsable: perfil?.boletaReembolsable ?? false,
   });
+  const [opciones, setOpciones] = useState(opcionesIniciales.current);
+  const igual = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
+  const cambioCuenta = !!cuenta && !igual(c, cuentaInicial.current);
+  const cambioPerfil = !igual(f, inicial.current) || !igual(opciones, opcionesIniciales.current);
+  const hayCambios = cambioCuenta || cambioPerfil;
   const [foto, setFoto] = useState(perfil?.fotoUrl ?? null);
   const [estado, setEstado] = useState<{ error?: string; ok?: boolean }>({});
   const archivo = useRef<HTMLInputElement>(null);
@@ -59,6 +85,32 @@ export function FormularioPerfil({
     setF((x) => ({ ...x, [k]: e.target.value }));
   };
 
+  const cambiarCuenta = (k: keyof CuentaPerfil) => (e: { target: { value: string } }) => {
+    setEstado({});
+    setErrorCuenta(undefined);
+    v.limpiar(k);
+    setC((x) => ({ ...x, [k]: e.target.value }));
+  };
+  const descartar = () => {
+    setC(cuentaInicial.current);
+    setF(inicial.current);
+    setOpciones(opcionesIniciales.current);
+    setEstado({});
+    setErrorCuenta(undefined);
+  };
+
+  const guardarCuenta = useMutation({
+    mutationFn: () =>
+      datos(
+        api.PATCH('/api/usuarios/yo', {
+          body: { nombre: c.nombre.trim(), email: c.email.trim().toLowerCase(), telefono: c.telefono.replace(/[\s()-]/g, '') || null },
+        }),
+      ),
+    onSuccess: () => {
+      cuentaInicial.current = c;
+      void cliente.invalidateQueries({ queryKey: ['usuarios', 'yo'] });
+    },
+  });
   const guardar = useMutation({
     mutationFn: () => {
       const cuerpo = {
@@ -78,10 +130,32 @@ export function FormularioPerfil({
         : datos(api.PATCH('/api/profesionales/{id}/perfil', { params: { path: { id: profesionalId } }, body: cuerpo }));
     },
     onSuccess: () => {
-      setEstado({ ok: true });
+      inicial.current = f;
+      opcionesIniciales.current = opciones;
       void cliente.invalidateQueries({ queryKey: ['equipo', 'perfil', profesionalId] });
     },
-    onError: (e) => setEstado({ error: e instanceof ApiError ? e.message : 'No pudimos guardar el perfil.' }),
+  });
+  /** Cuenta primero y despues perfil; si la cuenta falla, el perfil no se envia. */
+  const guardarTodo = useMutation({
+    mutationFn: async () => {
+      if (cambioCuenta) {
+        try {
+          await guardarCuenta.mutateAsync();
+        } catch (e) {
+          setErrorCuenta(e instanceof ApiError ? e.message : 'No pudimos guardar tus datos de contacto.');
+          throw e;
+        }
+      }
+      if (cambioPerfil || !perfil) {
+        try {
+          await guardar.mutateAsync();
+        } catch (e) {
+          setEstado({ error: e instanceof ApiError ? e.message : 'No pudimos guardar el perfil.' });
+          throw e;
+        }
+      }
+    },
+    onSuccess: () => setEstado({ ok: true }),
   });
   const subir = useMutation({
     mutationFn: (a: File) =>
@@ -96,8 +170,9 @@ export function FormularioPerfil({
 
   const enviar = (e: FormEvent) => {
     e.preventDefault();
+    if (cuenta && !v.validarTodo(c)) return;
     if (!f.especialidad.trim()) return setEstado({ error: 'La especialidad es obligatoria (por ejemplo, Psicología clínica).' });
-    guardar.mutate();
+    guardarTodo.mutate();
   };
 
   return (
@@ -129,6 +204,38 @@ export function FormularioPerfil({
             {foto ? 'Cambiar foto' : 'Subir foto'}
           </Button>
         </div>
+      )}
+      {cuenta && (
+        <fieldset className="m-0 flex flex-col gap-4 border-0 p-0">
+          <legend className="mb-3 text-[12.5px] font-extrabold">Mis datos de contacto (no se publican)</legend>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Nombre" required error={v.errores.nombre}>
+              {(x) => <Input {...x} value={c.nombre} maxLength={120} onChange={cambiarCuenta('nombre')} onBlur={() => v.alSalir('nombre', c.nombre)} />}
+            </Field>
+            <Field label="Correo" required error={v.errores.email} hint="Con él ingresas y te llega el código.">
+              {(x) => (
+                <Input {...x} type="email" autoComplete="email" value={c.email} onChange={cambiarCuenta('email')} onBlur={() => v.alSalir('email', c.email)} />
+              )}
+            </Field>
+            <Field label="Teléfono" error={v.errores.telefono} hint="+56 9 1234 5678">
+              {(x) => (
+                <Input
+                  {...x}
+                  type="tel"
+                  autoComplete="tel"
+                  value={c.telefono}
+                  onChange={cambiarCuenta('telefono')}
+                  onBlur={() => v.alSalir('telefono', c.telefono)}
+                />
+              )}
+            </Field>
+          </div>
+          {errorCuenta && (
+            <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+              {errorCuenta}
+            </p>
+          )}
+        </fieldset>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Especialidad" required hint="Como aparece bajo el nombre.">
@@ -192,20 +299,39 @@ export function FormularioPerfil({
           {estado.error}
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
-          {perfil ? (modo === 'propio' ? 'Guardar mi perfil' : 'Guardar perfil') : 'Crear perfil'}
-        </Button>
-        {estado.ok ? (
-          <p role="status" className="m-0 text-[13px] font-bold text-accent-2-800">
-            Perfil guardado. Los cambios se ven en la página pública si está publicado.
+      {cuenta ? (
+        // Barra fija (diseño): activa solo con cambios; descartar vuelve a lo guardado.
+        <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-[18px] border border-divider bg-bg px-4 py-3 shadow-md">
+          <p role="status" className="m-0 min-w-0 flex-1 text-[13px] font-bold text-neutral-800">
+            {estado.ok && !hayCambios
+              ? 'Perfil guardado. Los cambios se ven en la página pública si está publicado.'
+              : hayCambios
+                ? 'Tienes cambios sin guardar.'
+                : 'Sin cambios.'}
           </p>
-        ) : (
-          modo === 'propio' && (
-            <p className="m-0 text-[12.5px] font-semibold text-neutral-700">Los cambios se reflejan también en mi perfil público del centro.</p>
-          )
-        )}
-      </div>
+          <Button variant="ghost" icon="restart_alt" disabled={!hayCambios || guardarTodo.isPending} onClick={descartar}>
+            Descartar cambios
+          </Button>
+          <Button type="submit" variant="team" icon="save" disabled={!hayCambios && !!perfil} loading={guardarTodo.isPending}>
+            {perfil ? 'Guardar mi perfil' : 'Crear perfil'}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="team" icon="save" loading={guardarTodo.isPending}>
+            {perfil ? (modo === 'propio' ? 'Guardar mi perfil' : 'Guardar perfil') : 'Crear perfil'}
+          </Button>
+          {estado.ok ? (
+            <p role="status" className="m-0 text-[13px] font-bold text-accent-2-800">
+              Perfil guardado. Los cambios se ven en la página pública si está publicado.
+            </p>
+          ) : (
+            modo === 'propio' && (
+              <p className="m-0 text-[12.5px] font-semibold text-neutral-700">Los cambios se reflejan también en mi perfil público del centro.</p>
+            )
+          )}
+        </div>
+      )}
     </form>
   );
 }

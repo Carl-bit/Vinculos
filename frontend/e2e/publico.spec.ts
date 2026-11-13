@@ -1,4 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from './prueba';
+
+import { elegirMedio, enlaceDelCorreo, ingresar, pacienteNuevo, pedirHora, sqlPrueba } from './apoyo';
 
 /**
  * Sitio publico (03b-2) contra la API local, el seed demo y Mailpit
@@ -7,55 +9,6 @@ import { expect, test, type Page } from '@playwright/test';
  * centro, transferencia y pasarela simulada: la hora se confirma con el pago
  * (o con el enlace del correo si se paga en el centro).
  */
-const MAILPIT = 'http://127.0.0.1:8025/api/v1';
-const correoNuevo = (etiqueta: string) => `e2e.${etiqueta}.${Date.now()}@ejemplo.cl`;
-
-/** Enlace (ruta con ?token=) del ultimo correo enviado a `para` que lleve `ruta` (espera hasta 15 s). */
-async function enlaceDelCorreo(para: string, ruta = '/pedir-hora/verificar'): Promise<string> {
-  for (let i = 0; i < 30; i++) {
-    const r = (await (await fetch(`${MAILPIT}/search?query=${encodeURIComponent(`to:"${para}"`)}`)).json()) as { messages: { ID: string }[] };
-    if (r.messages.length) {
-      const m = (await (await fetch(`${MAILPIT}/message/${r.messages[0]!.ID}`)).json()) as { Text: string };
-      const url = new RegExp(`https?://\\S+${ruta}\\?token=[\\w-]+`).exec(m.Text)?.[0];
-      if (url) return new URL(url).pathname + new URL(url).search;
-    }
-    await new Promise((ok) => setTimeout(ok, 500));
-  }
-  throw new Error(`Sin correo con ${ruta} para ${para}`);
-}
-
-/** Desde /pedir-hora/<id>: primera hora libre, datos y envio; queda la hora retenida en el paso de pago. Devuelve el correo usado. */
-async function pedirHora(page: Page, etiqueta: string, menor = false): Promise<string> {
-  const email = correoNuevo(etiqueta);
-  await page
-    .getByRole('button', { name: /^\d{2}:\d{2}$/ })
-    .first()
-    .click();
-  await page.getByRole('button', { name: 'Continuar' }).click();
-  await expect(page.getByRole('heading', { name: 'Datos del paciente' })).toBeFocused();
-  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Prueba');
-  await page.getByLabel('Apellido').fill('E2E');
-  // 03b-4.1: tres desplegables (dia, mes, año).
-  await page.getByLabel('Día').selectOption('10');
-  await page.getByLabel('Mes').selectOption('5');
-  await page.getByLabel('Año').selectOption(menor ? '2012' : '1990');
-  await page.getByLabel(/^Correo/).fill(email);
-  if (menor) {
-    await expect(page.getByText('Por la fecha de nacimiento, el paciente es menor de 18.', { exact: false })).toBeVisible();
-    await page.getByLabel('Nombre completo').fill('Adulta Responsable');
-    await page.getByLabel('Relación con el paciente').fill('Madre');
-  }
-  await page.getByRole('button', { name: 'Reservar mi hora' }).click();
-  // Sin aceptar la politica no se envia.
-  await expect(page.getByText('Para pedir hora debes aceptar la política de datos.')).toBeVisible();
-  await page.getByLabel(/política de datos personales/).check();
-  await page.getByLabel(/términos de agendamiento/).check();
-  await page.getByRole('button', { name: 'Reservar mi hora' }).click();
-  await expect(page.getByRole('heading', { name: 'Paga para confirmar tu hora' })).toBeVisible();
-  await expect(page.getByText('Te guardamos la hora')).toBeVisible();
-  await expect(page.getByText(/^(29|30):\d{2}$/)).toBeVisible();
-  return email;
-}
 
 test('landing y equipo: contenido del ADMIN, filtro por atención, perfil con reseñas y sin practicantes', async ({ page }) => {
   await page.goto('/');
@@ -124,12 +77,6 @@ test('match: paso a paso, aviso de riesgo, resultado explicado y lleva a pedir h
   await expect(page.getByRole('heading', { name: 'Elige el horario de tu sesión' })).toBeVisible();
 });
 
-/** En el paso de pago: elige un medio y continua. */
-async function elegirMedio(page: Page, medio: RegExp) {
-  await page.getByLabel(medio).check();
-  await page.getByRole('button', { name: 'Continuar' }).click();
-}
-
 test('pedir hora sin cuenta con pago en el centro: retiene, correo y confirmación al verificar', async ({ page }) => {
   await page.goto('/equipo');
   await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
@@ -144,6 +91,37 @@ test('pedir hora sin cuenta con pago en el centro: retiene, correo y confirmaci�
   await page.reload();
   await page.getByRole('button', { name: 'Confirmar mi hora' }).click();
   await expect(page.getByRole('heading', { name: 'Este enlace ya no sirve' })).toBeVisible();
+});
+
+test('03b-6: verificar en otra pestaña hace avanzar sola a la original', async ({ page, context }) => {
+  await page.goto('/equipo');
+  await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
+  await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
+  const email = await pedirHora(page, 'otra-pestana');
+  await elegirMedio(page, /^Pago en el centro/);
+  await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
+  const otra = await context.newPage();
+  await otra.goto(await enlaceDelCorreo(email));
+  await otra.getByRole('button', { name: 'Confirmar mi hora' }).click();
+  await expect(otra.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible();
+  // La pestaña original consulta el estado cada pocos segundos y avanza sin recargar.
+  await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible({ timeout: 20_000 });
+});
+
+test('03b-6: reserva sin verificar vence, la hora se libera y se ofrece otra conservando los datos', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.goto('/equipo');
+  await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
+  await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
+  const email = await pedirHora(page, 'vence');
+  await elegirMedio(page, /^Pago en el centro/);
+  await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
+  // Simula los 30 minutos: el plazo queda vencido y el job (cada minuto) libera la hora.
+  sqlPrueba(`UPDATE citas SET pago_vence_en = now() - interval '1 second' WHERE id = (SELECT cita_id FROM solicitudes_hora WHERE email = '${email}')`);
+  await expect(page.getByRole('heading', { name: 'La hora se liberó' })).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText('Venció el plazo y la hora quedó disponible para otras personas.')).toBeVisible();
+  // La pantalla puede adelantarse al job (el estado ya ve el plazo vencido); la solicitud expira con el job.
+  await expect.poll(() => sqlPrueba(`SELECT estado FROM solicitudes_hora WHERE email = '${email}'`), { timeout: 90_000, intervals: [5_000] }).toBe('EXPIRADA');
 });
 
 test('pago en línea (pasarela simulada): el pago confirma la hora y llega la invitación a la cuenta; menor exige adulto responsable', async ({ page }) => {
@@ -168,4 +146,58 @@ test('ya soy paciente: solo pide el correo y responde siempre igual', async ({ p
     await expect(page.getByRole('status')).toContainText(`Si existe una cuenta con ${email}, te enviamos un enlace`);
     await expect(page.getByText(/Profesional (Uno|Dos|Tres)/)).toHaveCount(0);
   }
+});
+
+test('03b-6: consentimiento por token: recepción lo envía, el paciente responde desde el correo y el enlace es de un uso', async ({ page, browser }) => {
+  // Paciente nuevo: nace al verificar una reserva con pago en el centro.
+  const { email, pacienteId } = await pacienteNuevo(page, 'consentimiento');
+
+  const equipo = await (await browser.newContext()).newPage();
+  await ingresar(equipo, 'gestion');
+  await equipo.goto(`/admin/fichas/${pacienteId}`);
+  await equipo.getByRole('button', { name: 'Enviar enlace por correo' }).click();
+  await expect(equipo.getByText(/Enviamos el enlace por correo/)).toBeVisible();
+
+  await page.goto(await enlaceDelCorreo(email, '/consentimiento'));
+  await expect(page.getByText('Si aceptas', { exact: true })).toBeVisible();
+  await expect(page.getByText('Si no aceptas', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Acepto el consentimiento' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Sí, acepto' }).click();
+  await expect(page.getByRole('heading', { name: 'Registramos tu respuesta' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Este enlace ya no sirve' })).toBeVisible();
+
+  await equipo.reload();
+  await expect(equipo.getByRole('region', { name: 'Consentimientos' }).getByText(/Firmado/)).toBeVisible();
+});
+
+test.describe('recordatorio por correo (AUD-02, modo de prueba JOBS_MANUALES)', () => {
+  let horasAntes = '';
+  test.afterAll(() => {
+    if (horasAntes) sqlPrueba(`UPDATE configuracion_centro SET recordatorio_horas_antes = ${horasAntes}`);
+  });
+
+  test('el job envia el enlace; muestra la politica que aplica, confirma la asistencia y el enlace sirve una vez', async ({ page }) => {
+    const { email } = await pacienteNuevo(page, 'recordatorio', 'Cinco');
+    const horas = Number(
+      sqlPrueba(`SELECT extract(epoch FROM c.inicio - now()) / 3600 FROM solicitudes_hora s JOIN citas c ON c.id = s.cita_id WHERE s.email = '${email}'`),
+    );
+    test.skip(horas > 167, 'La primera hora libre esta a mas de una semana (maximo del recordatorio)');
+    // La ventana del recordatorio cubre la cita (configuracion del centro: hasta 168 h).
+    horasAntes = sqlPrueba('SELECT recordatorio_horas_antes FROM configuracion_centro');
+    sqlPrueba(`UPDATE configuracion_centro SET recordatorio_horas_antes = greatest(${Math.ceil(horas) + 1}, ${horasAntes})`);
+
+    // Modo de prueba: corre el job ahora en vez de esperar su cron de 10 minutos.
+    const r = await page.request.post('/api/pruebas/jobs/enviar_recordatorios');
+    expect(r.status()).toBe(200);
+
+    await page.goto(await enlaceDelCorreo(email, '/recordatorio'));
+    await expect(page.getByRole('heading', { name: 'Recordatorio de tu hora' })).toBeVisible();
+    await expect(page.getByText(/Si cancelas ahora/)).toBeVisible();
+    await page.getByRole('button', { name: 'Confirmo que asistiré' }).click();
+    await expect(page.getByRole('heading', { name: '¡Te esperamos!' })).toBeVisible();
+    await expect(page.getByText('Confirmaste tu asistencia.', { exact: false })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText('Ya respondiste este recordatorio')).toBeVisible();
+  });
 });

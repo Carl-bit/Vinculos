@@ -21,7 +21,7 @@ import { inicioDiaChile, instanteChile, semanaChile, sumarDias, useEquipoAgenda,
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
-import { NOMBRE_MODALIDAD_CITA } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA } from '@/components/shared/SelectorHorario';
 import { DIAS_SEMANA, hhmm, minutos } from './tonosAgenda';
 import { MargenTraslado, useConflictosMargen } from './MargenTraslado';
 
@@ -80,13 +80,13 @@ export function HorariosEquipo({ rol }: { rol: Rol }) {
         </button>
       </div>
       <EstadoConsulta consulta={equipo} vacio={() => visibles.length === 0} textoVacio="No hay profesionales con agenda">
-        {() => visibles.map((m) => <TarjetaHorario key={m.id} miembro={m} rango={rango} />)}
+        {() => visibles.map((m) => <TarjetaHorario key={m.id} miembro={m} rango={rango} madre={rol === 'ADMIN'} />)}
       </EstadoConsulta>
     </div>
   );
 }
 
-function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango: ReturnType<typeof semanaChile> }) {
+function TarjetaHorario({ miembro, rango, madre }: { miembro: MiembroDirectorio; rango: ReturnType<typeof semanaChile>; madre: boolean }) {
   const cliente = useQueryClient();
   const espacios = useEspacios();
   const nombreBox = new Map((espacios.data ?? []).map((e) => [e.id, e.nombre]));
@@ -141,7 +141,7 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
   const nombre = miembro.nombre ?? 'Profesional';
 
   return (
-    <article className="rounded-lg border border-divider bg-bg px-6 py-[22px] shadow-sm">
+    <article className="rounded-lg border border-divider bg-bg px-6 py-[22px] shadow-suave">
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <Avatar name={nombre} size={38} />
         <div className="min-w-0">
@@ -177,10 +177,7 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
         {diasConHabitual.map((d, i) => {
           const del = (habitual.data ?? []).filter((h) => h.diaSemana === i + 1);
           return (
-            <div
-              key={d}
-              className={`rounded-[14px] border px-[13px] py-[11px] ${del.length ? 'border-accent-500 bg-accent-100' : 'border-divider bg-neutral-100'}`}
-            >
+            <div key={d} className={`rounded-[14px] border px-[13px] py-[11px] ${del.length ? 'border-accent-500 bg-accent-100' : 'border-divider bg-bg'}`}>
               <div className="mb-1 text-[11px] font-extrabold tracking-[0.08em] text-neutral-700 uppercase">{d}</div>
               <div className="text-[13.5px] font-extrabold tabular-nums">
                 {del.length ? (
@@ -235,7 +232,7 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
                 className="inline-flex items-center gap-1 rounded-full border border-accent-500 bg-accent-100 py-1 pr-1 pl-3 text-[12.5px] font-bold"
               >
                 {NOMBRE_MOTIVO[b.motivo]}: {formatoFecha(b.inicio)}
-                {b.fin ? ` al ${formatoFecha(new Date(new Date(b.fin).getTime() - 1))}` : ' en adelante'}
+                {b.fin ? ` al ${formatoFecha(new Date(new Date(b.fin).getTime() - 1))}` : ' en adelante (no atiende)'}
                 {b.motivo !== 'BAJA' && (
                   <button
                     type="button"
@@ -266,7 +263,7 @@ function TarjetaHorario({ miembro, rango }: { miembro: MiembroDirectorio; rango:
         habitual={habitual.data ?? []}
         rangoInicial={rango}
       />
-      <BloquearAgenda abierto={modal === 'bloquear'} onCerrar={() => setModal(null)} profesionalId={miembro.id} nombre={nombre} />
+      <BloquearAgenda abierto={modal === 'bloquear'} onCerrar={() => setModal(null)} profesionalId={miembro.id} nombre={nombre} madre={madre} />
       {esProfesional && <MargenTraslado abierto={modal === 'margen'} onCerrar={() => setModal(null)} profesionalId={miembro.id} nombre={nombre} />}
     </article>
   );
@@ -345,7 +342,7 @@ function HorarioHabitual({
         ) : (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {ordenadas.map((h) => (
-              <li key={h.id} className="flex items-center gap-3 rounded-[14px] border border-divider bg-neutral-100 px-3.5 py-2 text-[13.5px] font-bold">
+              <li key={h.id} className="flex items-center gap-3 rounded-[14px] border border-divider bg-bg px-3.5 py-2 text-[13.5px] font-bold">
                 <span className="w-[100px] font-extrabold">{DIAS_SEMANA[h.diaSemana - 1]}</span>
                 <span className="flex-1 tabular-nums">
                   {h.horaInicio} – {h.horaFin} · {NOMBRE_MODALIDAD_CITA[h.modalidad]}
@@ -678,19 +675,43 @@ function ApartarHoras({
 }
 
 /** Bloqueo de agenda (vacaciones, licencia, personal): resta horas sin liberar el box. La baja la registra administracion aparte. */
-function BloquearAgenda({ abierto, onCerrar, profesionalId, nombre }: { abierto: boolean; onCerrar: () => void; profesionalId: string; nombre: string }) {
+/**
+ * Punto 9: el bloqueo reprograma las citas que caen dentro y avisa a cada
+ * paciente (elige otra hora, cancelar o atencion temporal con otro
+ * profesional). La causa es administrativa, nunca un diagnostico. La cuenta
+ * madre puede indicar que no atendera mas (sin fecha de termino): el sitio
+ * publico deja de ofrecer horas con el y sus pacientes pasan a por reasignar.
+ */
+function BloquearAgenda({
+  abierto,
+  onCerrar,
+  profesionalId,
+  nombre,
+  madre,
+}: {
+  abierto: boolean;
+  onCerrar: () => void;
+  profesionalId: string;
+  nombre: string;
+  madre: boolean;
+}) {
   const cliente = useQueryClient();
   const hoy = dia(new Date());
   const [motivo, setMotivo] = useState<'VACACIONES' | 'LICENCIA' | 'PERSONAL'>('VACACIONES');
   const [desde, setDesde] = useState(hoy);
   const [hasta, setHasta] = useState(sumarDias(hoy, 6));
+  const [indefinido, setIndefinido] = useState(false);
   const [error, setError] = useState<string>();
   const crear = useMutation({
     mutationFn: () =>
       datos(
         api.POST('/api/profesionales/{profesionalId}/bloqueos', {
           params: { path: { profesionalId } },
-          body: { motivo, inicio: inicioDiaChile(desde).toISOString(), fin: inicioDiaChile(sumarDias(hasta, 1)).toISOString() },
+          body: {
+            motivo,
+            inicio: indefinido && desde === hoy ? new Date().toISOString() : inicioDiaChile(desde).toISOString(),
+            fin: indefinido ? undefined : inicioDiaChile(sumarDias(hasta, 1)).toISOString(),
+          },
         }),
       ),
     onSuccess: () => {
@@ -706,18 +727,18 @@ function BloquearAgenda({ abierto, onCerrar, profesionalId, nombre }: { abierto:
       abierto={abierto}
       onCerrar={onCerrar}
       titulo={`Bloquear agenda de ${nombre}`}
-      descripcion="En esos días no se ofrecen horas. Las citas ya agendadas no se mueven solas: reprográmalas."
+      descripcion="En esos días no se ofrecen horas. Las citas que caen dentro pasan a «por reprogramar» y cada paciente recibe un aviso para elegir otra hora, cancelar o atenderse con otro profesional mientras tanto."
     >
       <form
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          if (hasta < desde) return setError('La fecha de término debe ser igual o posterior a la de inicio.');
+          if (!indefinido && hasta < desde) return setError('La fecha de término debe ser igual o posterior a la de inicio.');
           crear.mutate();
         }}
         className="flex flex-col gap-4"
       >
-        <Field label="Motivo" required>
+        <Field label="Causa" required hint="Administrativa: no escribas diagnósticos.">
           {(p) => (
             <Select {...p} value={motivo} onChange={(e) => setMotivo(e.target.value as typeof motivo)}>
               <option value="VACACIONES">Vacaciones</option>
@@ -730,10 +751,26 @@ function BloquearAgenda({ abierto, onCerrar, profesionalId, nombre }: { abierto:
           <Field label="Desde" required>
             {(p) => <Input {...p} type="date" min={hoy} value={desde} onChange={(e) => setDesde(e.target.value)} />}
           </Field>
-          <Field label="Hasta (inclusive)" required>
-            {(p) => <Input {...p} type="date" min={desde} value={hasta} onChange={(e) => setHasta(e.target.value)} />}
-          </Field>
+          {!indefinido && (
+            <Field label="Hasta (inclusive)" required>
+              {(p) => <Input {...p} type="date" min={desde} value={hasta} onChange={(e) => setHasta(e.target.value)} />}
+            </Field>
+          )}
         </div>
+        {madre && (
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-divider bg-bg px-4 py-3 text-[13.5px] font-semibold">
+            <input
+              type="checkbox"
+              checked={indefinido}
+              onChange={(e) => setIndefinido(e.target.checked)}
+              className="mt-0.5 size-[18px] flex-none cursor-pointer accent-accent-700"
+            />
+            <span>
+              <strong>No atenderá más (sin fecha de término).</strong> El sitio del centro deja de ofrecer horas con {nombre} y sus pacientes quedan en
+              «Pacientes por reasignar». Se revierte quitando el bloqueo.
+            </span>
+          </label>
+        )}
         {error && (
           <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
             {error}
@@ -744,7 +781,7 @@ function BloquearAgenda({ abierto, onCerrar, profesionalId, nombre }: { abierto:
             Cancelar
           </Button>
           <Button type="submit" variant="team" loading={crear.isPending}>
-            Bloquear
+            {indefinido ? 'Indicar que no atenderá más' : 'Bloquear'}
           </Button>
         </div>
       </form>

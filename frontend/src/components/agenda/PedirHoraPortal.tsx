@@ -1,10 +1,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
+import { clavePolitica, EnlacePolitica, esVersionNueva, MENSAJE_VERSION_NUEVA } from '@/components/shared/EnlacePolitica';
 import { usePortal } from '@/components/shared/ContextoPortal';
 import { EstadoVista } from '@/components/shared/EstadoVista';
 import { PagoCitaPortal } from '@/components/shared/PagoCitaPortal';
@@ -21,7 +21,7 @@ import { formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Bloque } from '@/lib/horarios';
 import { clavesPortal, nombresDe, useEquipoPortal } from '@/lib/portal';
 
-import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA, SelectorHorario } from '@/components/shared/SelectorHorario';
 
 /**
  * "Pedir una hora" desde la cuenta: solo con el tratante actual (un tratante
@@ -34,18 +34,23 @@ export function PedirHoraPortal() {
   const portal = usePortal();
   const cliente = useQueryClient();
   const equipo = useEquipoPortal();
-  const perfiles = useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 10 * 60_000 });
+  const perfiles = useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 60_000 });
   const centro = useQuery({ queryKey: ['publico', 'centro'], queryFn: () => datos(api.GET('/api/publico/centro')), staleTime: 10 * 60_000 });
   const politica = useQuery({
-    queryKey: ['publico', 'politica', 'POLITICA_DATOS'],
+    queryKey: clavePolitica('POLITICA_DATOS'),
     queryFn: () => datos(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo: 'POLITICA_DATOS' } } })),
   });
   const terminos = useQuery({
-    queryKey: ['publico', 'politica', 'TERMINOS_AGENDAMIENTO'],
+    queryKey: clavePolitica('TERMINOS_AGENDAMIENTO'),
     queryFn: () => datos(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo: 'TERMINOS_AGENDAMIENTO' } } })),
   });
   const [hora, setHora] = useState<Bloque | null>(null);
-  const [acepta, setAcepta] = useState(false);
+  // Se guardan los ids aceptados: si el modal o la API traen otra version, la
+  // casilla queda sin marcar sola y se envia siempre el id vigente.
+  const [aceptadas, setAceptadas] = useState<string | null>(null);
+  const idsVigentes = politica.data && terminos.data ? `${politica.data.id}|${terminos.data.id}` : null;
+  const acepta = aceptadas !== null && aceptadas === idsVigentes;
+  const setAcepta = (v: boolean) => setAceptadas(v ? idsVigentes : null);
   const [errorAcepta, setErrorAcepta] = useState<string>();
   const [aviso, setAviso] = useState<string>();
   const alerta = useRef<HTMLDivElement>(null);
@@ -75,6 +80,11 @@ export function PedirHoraPortal() {
         setHora(null);
         setAviso('Otra persona tomó esa hora mientras elegías. Te mostramos las horas libres actualizadas.');
         void cliente.invalidateQueries({ queryKey: ['disponibilidad-portal'] });
+      } else if (esVersionNueva(e)) {
+        // Se trae la version vigente y se pide aceptarla otra vez.
+        setAceptadas(null);
+        setAviso(MENSAJE_VERSION_NUEVA);
+        void cliente.invalidateQueries({ queryKey: ['publico', 'politica'] });
       } else setAviso(e instanceof ApiError ? e.message : 'No pudimos reservar la hora. Intenta de nuevo.');
     },
   });
@@ -99,15 +109,14 @@ export function PedirHoraPortal() {
   }
   if (!tratante) {
     return (
-      <Panel titulo="Tu primera hora" bajada="Todavía no tienes un profesional asignado en el centro.">
-        <div className="flex flex-wrap gap-2.5">
-          <ButtonLink href="/match" variant="team" icon="join">
-            Hacer el match terapéutico
-          </ButtonLink>
-          <ButtonLink href="/equipo" variant="secondary" icon="groups">
-            Ver al equipo
-          </ButtonLink>
-        </div>
+      // Punto 43: sin "Ver al equipo" en el portal; el match propone profesional (o lo asigna el centro).
+      <Panel
+        titulo="Tu primera hora"
+        bajada="Todavía no tienes un profesional asignado. El match te propone con quién atenderte; si prefieres, pídelo en recepción."
+      >
+        <ButtonLink href="/match" variant="team" icon="join">
+          Hacer el match terapéutico
+        </ButtonLink>
       </Panel>
     );
   }
@@ -118,7 +127,7 @@ export function PedirHoraPortal() {
       <div className="entrada flex max-w-[680px] flex-col gap-5">
         <h2 className="m-0 text-[clamp(26px,3.4vw,36px)] leading-[1.05] font-black tracking-[-0.03em]">Falta el pago para confirmar tu hora</h2>
         {reservar.variables && (
-          <p className="m-0 rounded-lg border border-divider bg-neutral-100 px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-sm first-letter:uppercase">
+          <p className="m-0 rounded-lg border border-divider bg-bg px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-suave first-letter:uppercase">
             {formatoFechaLarga(reservar.variables.inicio)} a las {formatoHora(reservar.variables.inicio)} ·{' '}
             {NOMBRE_MODALIDAD_CITA[reservar.variables.modalidad]}
           </p>
@@ -146,10 +155,10 @@ export function PedirHoraPortal() {
         <p className="m-0 mb-5 text-[16px] leading-relaxed text-pretty text-neutral-700">
           {confirmada
             ? `Te enviamos la confirmación por correo${reservar.variables?.modalidad === 'ONLINE' ? ' con el enlace de la videollamada' : ''}.`
-            : `${nombre} revisa las horas de pacientes nuevos y te avisará por correo cuando la apruebe.`}
+            : `${nombre} revisará tu solicitud. Te avisaremos por correo cuando la confirme; mientras tanto la hora queda reservada para ti.`}
         </p>
         {reservar.variables && (
-          <p className="m-0 mb-6 rounded-lg border border-divider bg-neutral-100 px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-sm first-letter:uppercase">
+          <p className="m-0 mb-6 rounded-lg border border-divider bg-bg px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-suave first-letter:uppercase">
             {formatoFechaLarga(reservar.variables.inicio)} a las {formatoHora(reservar.variables.inicio)} ·{' '}
             {NOMBRE_MODALIDAD_CITA[reservar.variables.modalidad]}
           </p>
@@ -160,6 +169,12 @@ export function PedirHoraPortal() {
       </div>
     );
   }
+
+  // Una sola casilla para ambos documentos. "Leí y acepto" en el modal la marca.
+  const aceptarDesdeModal = () => {
+    setAcepta(true);
+    setErrorAcepta(undefined);
+  };
 
   const confirmar = () => {
     setAviso(undefined);
@@ -176,6 +191,7 @@ export function PedirHoraPortal() {
         titulo={`Con ${nombre}`}
         bajada={portal.responsable ? `Elige una hora para ${portal.paciente?.nombre ?? 'tu menor'}.` : 'Elige una de sus horas libres.'}
       >
+        <RetornoPrincipal actual={nombre} />
         <div className="mb-4 flex items-center gap-3">
           <AvatarProfesional nombre={perfil?.nombre_publico ?? nombre} foto={perfil?.foto_url ?? null} size={52} />
           {perfil && <span className="text-[13.5px] font-bold text-neutral-700">{perfil.especialidad}</span>}
@@ -231,13 +247,13 @@ export function PedirHoraPortal() {
               error={errorAcepta}
             >
               Acepto la{' '}
-              <Link href="/politicas/POLITICA_DATOS" target="_blank" className="font-extrabold underline underline-offset-2">
+              <EnlacePolitica tipo="POLITICA_DATOS" onAceptar={aceptarDesdeModal}>
                 política de datos
-              </Link>{' '}
+              </EnlacePolitica>{' '}
               (v{politica.data.version}) y los{' '}
-              <Link href="/politicas/TERMINOS_AGENDAMIENTO" target="_blank" className="font-extrabold underline underline-offset-2">
+              <EnlacePolitica tipo="TERMINOS_AGENDAMIENTO" onAceptar={aceptarDesdeModal}>
                 términos de agendamiento
-              </Link>{' '}
+              </EnlacePolitica>{' '}
               (v{terminos.data.version}).
             </Casilla>
           ) : (
@@ -261,5 +277,45 @@ export function PedirHoraPortal() {
         </Aviso>
       </div>
     </div>
+  );
+}
+
+/**
+ * Punto 9: en atencion temporal, la siguiente hora pregunta si el profesional
+ * principal ya volvio. Si esta disponible, el paciente puede pedir volver (lo
+ * coordina la cuenta madre con una derivacion); si no, sigue con su
+ * profesional actual (flujo normal). Nunca se cambia solo.
+ */
+function RetornoPrincipal({ actual }: { actual: string }) {
+  const portal = usePortal();
+  const equipo = useEquipoPortal();
+  const cliente = useQueryClient();
+  const retorno = useQuery({
+    queryKey: ['portal', 'retorno', portal.pacienteParam ?? 'propio'],
+    queryFn: () => datos(api.GET('/api/portal/retorno', { params: { query: { pacienteId: portal.pacienteParam } } })),
+    enabled: !portal.cargando && !!portal.pacienteId,
+  });
+  const pedir = useMutation({
+    mutationFn: () => datos(api.POST('/api/portal/retorno', { body: { pacienteId: portal.pacienteParam } })),
+    onSuccess: () => void cliente.invalidateQueries({ queryKey: ['portal', 'retorno'] }),
+  });
+  const r = retorno.data;
+  if (!r || !r.principalDisponible) return null;
+  const principal = nombresDe(equipo.data).get(r.profesionalPrincipalId) ?? 'tu profesional principal';
+  return (
+    <Aviso tono={r.pideVolver ? 'exito' : 'info'} icono="swap_horiz" className="mb-4">
+      {r.pideVolver ? (
+        `Le avisamos al centro: coordinarán tu vuelta con ${principal}. Mientras tanto puedes seguir con ${actual}.`
+      ) : (
+        <span className="flex flex-col gap-2.5">
+          <span>
+            {principal} ya volvió a atender. ¿Quieres volver con {principal}? Si prefieres, sigues con {actual}.
+          </span>
+          <Button variant="secondary" icon="swap_horiz" loading={pedir.isPending} onClick={() => pedir.mutate()} className="self-start !py-2 !text-[13px]">
+            Quiero volver con {principal}
+          </Button>
+        </span>
+      )}
+    </Aviso>
   );
 }

@@ -18,7 +18,8 @@ export class CentroService {
   ) {}
 
   async modulos() {
-    return { activos: await this.modulosGuard.activos() };
+    const u = this.bd.usuario();
+    return { activos: await this.modulosGuard.activos(), restringidos: await this.modulosGuard.restringidos(u.id, u.rol) };
   }
 
   contenido() {
@@ -59,6 +60,80 @@ export class CentroService {
   /** Version nueva (la BD fija la version y la fecha; nunca se edita una anterior). */
   publicarPolitica(tipo: TipoPolitica, texto: string) {
     return this.bd.tx().politica.create({ data: { tipo, version: 0, texto } });
+  }
+
+  /**
+   * AUD-01 (E2.2): terminos de servicio y DPA vigentes con Vinculos, y quien
+   * los acepto. Solo ADMIN (RLS). Los publica el operador, no el centro.
+   */
+  async contrato() {
+    const tx = this.bd.tx();
+    const [pendientes, vigentes, nombres] = await Promise.all([
+      tx.$queryRaw<{ tipo: 'TERMINOS_SERVICIO' | 'DPA' }[]>`SELECT tipo FROM contratos_pendientes()`,
+      tx.politica.findMany({
+        where: { tipo: { in: ['TERMINOS_SERVICIO', 'DPA'] } },
+        orderBy: { version: 'desc' },
+        distinct: ['tipo'],
+        include: { aceptacionesContrato: { orderBy: { aceptadaEn: 'asc' }, select: { usuarioId: true, aceptadaEn: true } } },
+      }),
+      tx.$queryRaw<{ id: string; nombre: string | null }[]>`SELECT id, nombre FROM directorio_interno()`,
+    ]);
+    const nombre = new Map(nombres.map((n) => [n.id, n.nombre]));
+    return {
+      pendientes: pendientes.map((p) => p.tipo),
+      vigentes: vigentes.map((v) => ({
+        tipo: v.tipo as 'TERMINOS_SERVICIO' | 'DPA',
+        politicaId: v.id,
+        version: v.version,
+        texto: v.texto,
+        vigenteDesde: v.vigenteDesde,
+        aceptaciones: v.aceptacionesContrato.map((a) => ({ por: nombre.get(a.usuarioId) ?? null, aceptadaEn: a.aceptadaEn })),
+      })),
+    };
+  }
+
+  /** Acepta la version vigente (idempotente por ADMIN y version). */
+  async aceptarContrato(tipo: 'TERMINOS_SERVICIO' | 'DPA') {
+    await this.bd.tx().$queryRaw`SELECT aceptar_contrato(${tipo}::tipo_politica)`;
+    return this.contrato();
+  }
+
+  /** 03b-4.2: protocolo interno vigente y la lectura de la cuenta (equipo). */
+  async protocoloEquipo() {
+    const tx = this.bd.tx();
+    const vigente = await this.protocoloVigente();
+    const lectura = vigente
+      ? await tx.lecturaProtocolo.findUnique({
+          where: { politicaId_usuarioId: { politicaId: vigente.id, usuarioId: this.bd.usuario().id } },
+          select: { leidoEn: true },
+        })
+      : null;
+    return { vigente, leidoEn: lectura?.leidoEn ?? null };
+  }
+
+  /** "Lo lei" de la version vigente (idempotente: devuelve la primera lectura). */
+  async marcarProtocoloLeido() {
+    const [{ leido }] = await this.bd.tx().$queryRaw<[{ leido: Date }]>`SELECT marcar_protocolo_leido() AS leido`;
+    return { leidoEn: leido };
+  }
+
+  /** ADMIN/GESTION: quien leyo la version vigente (los que faltan los cruza el panel con el directorio). */
+  async lecturasProtocolo() {
+    const vigente = await this.protocoloVigente();
+    if (!vigente) {
+      return [];
+    }
+    return this.bd.tx().lecturaProtocolo.findMany({
+      where: { politicaId: vigente.id },
+      orderBy: { leidoEn: 'asc' },
+      select: { usuarioId: true, rol: true, leidoEn: true },
+    });
+  }
+
+  private async protocoloVigente() {
+    const [v] = await this.bd.tx().$queryRaw<{ id: string; version: number; texto: string; vigente_desde: Date }[]>`
+      SELECT * FROM politica_vigente('PROTOCOLO_EQUIPO'::tipo_politica)`;
+    return v ? { id: v.id, version: v.version, texto: v.texto, vigenteDesde: v.vigente_desde } : null;
   }
 
   horario() {

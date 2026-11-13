@@ -82,7 +82,7 @@ export function LiquidacionesCobros({ periodo, rol }: { periodo: Periodo; rol: R
                     <Th>Período</Th>
                     <Th className="text-right">Cobrado</Th>
                     <Th className="text-right">Comisión</Th>
-                    <Th className="text-right">Arriendos</Th>
+                    <Th className="text-right">Cargos fijos</Th>
                     <Th className="text-right">Total</Th>
                     <Th>Estado</Th>
                     <Th>
@@ -97,12 +97,47 @@ export function LiquidacionesCobros({ periodo, rol }: { periodo: Periodo; rol: R
                       <tr key={q.id}>
                         <Td className="font-extrabold">{nombre.get(q.profesionalId) ?? 'Profesional'}</Td>
                         <Td className="font-semibold text-neutral-800">{rango(String(q.periodoDesde), String(q.periodoHasta))}</Td>
-                        <Td className="text-right font-bold tabular-nums">{formatoClp(q.totalCobrado)}</Td>
                         <Td className="text-right font-bold tabular-nums">
-                          {formatoClp(q.comision)} <span className="text-[12px] text-neutral-700">({String(q.comisionPorcentaje)}%)</span>
+                          {formatoClp(q.totalCobrado)}
+                          {q.cargosLiquidados > 0 && (
+                            <span className="block text-[12px] font-semibold text-neutral-700">incluye {formatoClp(q.cargosLiquidados)} en cargos</span>
+                          )}
                         </Td>
-                        <Td className="text-right font-bold tabular-nums">{formatoClp(q.arriendos)}</Td>
-                        <Td className="text-right font-black tabular-nums">{formatoClp(q.total)}</Td>
+                        <Td className="text-right font-bold tabular-nums">
+                          {formatoClp(q.comision)}
+                          <span className="text-[12px] text-neutral-700">({String(q.comisionPorcentaje)}%)</span>
+                          {q.comisionDerivacion > 0 && (
+                            <span className="block text-[12px] font-semibold text-neutral-700">
+                              incluye {formatoClp(q.comisionDerivacion)} por {q.sesionesDerivadas} {q.sesionesDerivadas === 1 ? 'sesión' : 'sesiones'} de
+                              pacientes del centro
+                            </span>
+                          )}
+                        </Td>
+                        <Td className="text-right font-bold tabular-nums">
+                          {formatoClp(q.arriendos + q.cuotaFija + q.usoBox + q.comisionCobroPropio)}
+                          {[
+                            q.arriendos > 0 && `arriendos ${formatoClp(q.arriendos)}`,
+                            q.cuotaFija > 0 && `cuota ${formatoClp(q.cuotaFija)}`,
+                            q.usoBox > 0 && `box ${String(q.horasBox)} h ${formatoClp(q.usoBox)}`,
+                            q.comisionCobroPropio > 0 && `captados cobrados por el profesional ${formatoClp(q.comisionCobroPropio)}`,
+                          ]
+                            .filter(Boolean)
+                            .map((t) => (
+                              <span key={String(t)} className="block text-[12px] font-semibold text-neutral-700">
+                                {t}
+                              </span>
+                            ))}
+                        </Td>
+                        <Td className="text-right font-black tabular-nums">
+                          {q.total >= 0 ? (
+                            formatoClp(q.total)
+                          ) : (
+                            <>
+                              {formatoClp(-q.total)}
+                              <span className="block text-[12px] font-bold text-accent-700">Paga al centro</span>
+                            </>
+                          )}
+                        </Td>
                         <Td>
                           <Badge tono={e.tono}>{e.texto}</Badge>
                         </Td>

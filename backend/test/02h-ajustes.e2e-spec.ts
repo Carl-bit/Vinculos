@@ -63,6 +63,7 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
             .send({ ...perfil, perfilPublico: true })
         ).status,
       ).toBe(200);
+      await t.datos.validar(p.id);
       await t.datos.disponibleSiempre(p.id);
 
       const propuesta = await t
@@ -470,7 +471,8 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
         .post('/api/documentos-clinicos')
         .set(await tk(prof))
         .send({ ...cuerpo, contenido: CONTENIDO });
-      const lecturas = () => t.dueno.accesoFicha.count({ where: { usuarioId: prof.id, recurso: 'documentos_clinicos', accion: 'LECTURA' } });
+      // AUD-01 (E1.5): la copia queda como DESCARGA.
+      const lecturas = () => t.dueno.accesoFicha.count({ where: { usuarioId: prof.id, recurso: 'documentos_clinicos', accion: 'DESCARGA' } });
       const previas = await lecturas();
       const copia = await t
         .http()
@@ -527,8 +529,9 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
             await t
               .http()
               .get('/api/notificaciones')
+              .query({ limite: 100 })
               .set(await tk(u))
-          ).body as Record<string, unknown>[]
+          ).body.items as Record<string, unknown>[]
         ).filter((n) => n.canal === 'BANDEJA');
 
       const deC1 = await avisos(c1);

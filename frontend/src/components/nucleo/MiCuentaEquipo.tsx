@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
+import { DialogoDescartar, useGuardaCambios } from '@/components/shared/EdicionSegura';
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +13,7 @@ import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { useMiCuenta } from '@/lib/consultas';
 import { formatoFecha } from '@/lib/formato';
+import { reglaCorreo, reglaObligatorio, reglaTelefono, useValidacionCampos } from '@/lib/validacion';
 
 const ROL = {
   ADMIN: 'Cuenta madre',
@@ -35,11 +37,21 @@ export function MiCuentaEquipo({ enPanel = true }: { enPanel?: boolean }) {
 
 function Formulario({ c, enPanel }: { c: NonNullable<ReturnType<typeof useMiCuenta>['data']>; enPanel: boolean }) {
   const cliente = useQueryClient();
-  const [f, setF] = useState({ nombre: c.nombre ?? '', email: c.email ?? '', telefono: c.telefono ?? '' });
+  const base = { nombre: c.nombre ?? '', email: c.email ?? '', telefono: c.telefono ?? '' };
+  const [f, setF] = useState(base);
+  const cambio = (k: keyof typeof base) => f[k].trim() !== base[k];
+  const sucio = cambio('nombre') || cambio('email') || cambio('telefono');
+  // Con cambios: confirmar antes de cambiar de seccion, salir por un enlace o cerrar la pestaña.
+  const guarda = useGuardaCambios(sucio);
   const [estado, setEstado] = useState<{ error?: string; ok?: boolean }>({});
+  const v = useValidacionCampos({ nombre: reglaObligatorio('Escribe tu nombre.'), email: reglaCorreo(true), telefono: reglaTelefono });
   const guardar = useMutation({
     mutationFn: () =>
-      datos(api.PATCH('/api/usuarios/yo', { body: { nombre: f.nombre.trim(), email: f.email.trim().toLowerCase(), telefono: f.telefono.trim() || null } })),
+      datos(
+        api.PATCH('/api/usuarios/yo', {
+          body: { nombre: f.nombre.trim(), email: f.email.trim().toLowerCase(), telefono: f.telefono.replace(/[\s()-]/g, '') || null },
+        }),
+      ),
     onSuccess: () => {
       setEstado({ ok: true });
       void cliente.invalidateQueries({ queryKey: ['usuarios', 'yo'] });
@@ -48,24 +60,27 @@ function Formulario({ c, enPanel }: { c: NonNullable<ReturnType<typeof useMiCuen
   });
   const enviar = (e: FormEvent) => {
     e.preventDefault();
-    if (!f.nombre.trim() || !/^\S+@\S+\.\S+$/.test(f.email.trim())) return setEstado({ error: 'Escribe tu nombre y un correo válido.' });
+    if (!v.validarTodo(f)) return;
     guardar.mutate();
   };
   const cambiar = (k: keyof typeof f) => (e: { target: { value: string } }) => {
     setEstado({});
+    v.limpiar(k);
     setF((x) => ({ ...x, [k]: e.target.value }));
   };
   const formulario = (
     <form onSubmit={enviar} noValidate className="mt-4 flex flex-col gap-4">
       <div className={`grid gap-4 ${enPanel ? 'sm:grid-cols-3' : ''}`}>
-        <Field label="Nombre" required>
-          {(x) => <Input {...x} value={f.nombre} maxLength={120} onChange={cambiar('nombre')} />}
+        <Field label="Nombre" required error={v.errores.nombre} cambiado={cambio('nombre')}>
+          {(x) => <Input {...x} value={f.nombre} maxLength={120} onChange={cambiar('nombre')} onBlur={() => v.alSalir('nombre', f.nombre)} />}
         </Field>
-        <Field label="Correo" required hint="Con él ingresas al panel y te llega el código de verificación.">
-          {(x) => <Input {...x} type="email" autoComplete="email" value={f.email} onChange={cambiar('email')} />}
+        <Field label="Correo" required error={v.errores.email} cambiado={cambio('email')} hint="Con él ingresas al panel y te llega el código de verificación.">
+          {(x) => <Input {...x} type="email" autoComplete="email" value={f.email} onChange={cambiar('email')} onBlur={() => v.alSalir('email', f.email)} />}
         </Field>
-        <Field label="Teléfono" hint="+56XXXXXXXXX">
-          {(x) => <Input {...x} type="tel" autoComplete="tel" value={f.telefono} onChange={cambiar('telefono')} />}
+        <Field label="Teléfono" error={v.errores.telefono} cambiado={cambio('telefono')} hint="Con código de país, por ejemplo +56 9 1234 5678.">
+          {(x) => (
+            <Input {...x} type="tel" autoComplete="tel" value={f.telefono} onChange={cambiar('telefono')} onBlur={() => v.alSalir('telefono', f.telefono)} />
+          )}
         </Field>
       </div>
       {c.fechaExpiracionAcceso && (
@@ -82,17 +97,30 @@ function Formulario({ c, enPanel }: { c: NonNullable<ReturnType<typeof useMiCuen
             Datos guardados.
           </p>
         )}
+        {sucio && (
+          <Button
+            variant="secondary"
+            disabled={guardar.isPending}
+            onClick={() => {
+              setF(base);
+              setEstado({});
+            }}
+          >
+            Descartar
+          </Button>
+        )}
         <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
           Guardar mis datos
         </Button>
       </div>
+      <DialogoDescartar seccion="Datos de contacto" {...guarda.dialogo} />
     </form>
   );
   if (!enPanel) return formulario;
   return (
     <Panel
-      titulo="Mi cuenta"
-      bajada="Datos de contacto dentro del equipo. El rol y el acceso los administra la cuenta madre."
+      titulo="Contacto privado"
+      bajada="Con tu correo ingresas y recibes el código de verificación. El rol y el acceso los administra la cuenta madre."
       accion={
         <div className="flex flex-wrap gap-1.5">
           {[c.rol, ...c.rolesAdicionales.filter((r) => r.activo).map((r) => r.rol)].map((r) => (

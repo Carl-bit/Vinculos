@@ -536,6 +536,8 @@ describe('02b nucleo', () => {
       } finally {
         await t.dueno.usuario.updateMany({ where: { id: { in: otros.map((o) => o.id) } }, data: { activo: true } });
         await t.dueno.baja.delete({ where: { id: baja.id } });
+        // Desactivar cierra las sesiones (trigger usuarios_revoca_sesiones; sesion unica 2026-11-07): admin vuelve a entrar.
+        await t.login(admin);
       }
     });
   });

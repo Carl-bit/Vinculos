@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Equipo del centro, versión 1</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8A4B1F}a:hover{color:#6B3714}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1400px; box-sizing: border-box; background: #E6DED1; color: #2B2420; font-family: 'Figtree', system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-wrap: wrap">
+
+<nav aria-label="Menú principal" style="flex: 1 1 200px; max-width: 210px; box-sizing: border-box; background: #F4ECE0; padding: 24px 14px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #DCCFBB">
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 17px; padding: 0 10px 24px"><span style="width: 8px; height: 8px; border-radius: 999px; background: #4F6B2F"></span>Centro de Prueba</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Inicio</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mi perfil</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mensajes</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 20px 12px 6px">MÓDULOS</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Fichas y Pacientes</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Agenda y Espacios</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Match Terapéutico</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Cobros</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 20px 12px 6px">CENTRO</div>
+<a href="#" style="text-decoration: none; color: #2F3B1F; padding: 10px 12px; border-radius: 10px; background: #E1E8CF; font-weight: 600">Equipo</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Configuración</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Página pública</a>
+<div style="margin-top: auto; padding: 12px; font-size: 13px; color: #5E5247">Rol activo: <strong>Cuenta madre</strong></div>
+</nav>
+
+<main style="flex: 999 1 640px; min-width: 0; box-sizing: border-box; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 18px; background-color: #F1EBE2; background-image: radial-gradient(#D6CBBB 1px, transparent 1px); background-size: 18px 18px">
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; max-width: 1240px; width: 100%; align-self: center">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border-radius: 999px; background: #FFFDF9; box-shadow: 0 8px 28px rgba(43,36,32,0.14); border: 1px solid #EBE2D5">
+<strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 15px; padding: 0 6px 0 10px">Equipo del centro</strong>
+<sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5"><button type="button" aria-pressed="{{ t.on }}" onClick="{{ t.pick }}" style="min-height: 38px; padding: 0 14px; border-radius: 999px; border: 0; background: {{ t.fondo }}; color: {{ t.color }}; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px">{{ t.l }}<sc-if value="{{ t.hayN }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #F2C46B; color: #3A2600">{{ t.n }}</span></sc-if></button></sc-for>
+</div>
+<button type="button" style="margin-left: auto; min-height: 56px; padding: 0 26px; border-radius: 18px; border: 0; background: #8A4B1F; color: #FFFFFF; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 16px; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 14px 30px rgba(138,75,31,0.35)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7M19 8v6M16 11h6"></path></svg>Nueva cuenta</button>
+</div>
+
+<sc-if value="{{ tInt }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center">
+<sc-for list="{{ resumen }}" as="r" hint-placeholder-count="4">
+<span style="display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 16px; border-radius: 999px; background: {{ r.f }}; color: {{ r.c }}; font-size: 13px; font-weight: 600"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px">{{ r.n }}</strong>{{ r.l }}</span>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; max-width: 1240px; width: 100%; align-self: center">
+
+<section aria-labelledby="t-lista" style="flex: 1 1 260px; max-width: 300px; position: sticky; top: 20px; background: rgba(255,253,249,0.92); backdrop-filter: blur(10px); border: 1px solid #EBE2D5; border-radius: 24px; box-shadow: 0 20px 50px rgba(43,36,32,0.12); padding: 14px; display: flex; flex-direction: column; gap: 8px">
+<h2 id="t-lista" style="margin: 0; padding: 4px 6px; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Integrantes</h2>
+<input type="search" aria-label="Buscar integrante" placeholder="Buscar por nombre" style="min-height: 42px; padding: 0 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #F7F1E8; font-size: 13px">
+<div style="display: flex; flex-wrap: wrap; gap: 4px">
+<sc-for list="{{ filtros }}" as="f" hint-placeholder-count="3"><button type="button" aria-pressed="{{ f.on }}" onClick="{{ f.pick }}" style="min-height: 32px; padding: 0 12px; border-radius: 999px; border: 0; background: {{ f.fondo }}; color: {{ f.color }}; font-weight: 700; font-size: 12px">{{ f.l }}</button></sc-for>
+</div>
+<sc-for list="{{ grupos }}" as="g" hint-placeholder-count="4">
+<span style="font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: #8A6E55; padding: 8px 8px 0">{{ g.t }}</span>
+<sc-for list="{{ g.items }}" as="m" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{ m.on }}" onClick="{{ m.pick }}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 54px; padding: 6px 10px; border-radius: 16px; border: 0; background: {{ m.fondo }}; box-shadow: {{ m.sombra }}; color: #2B2420; text-align: left">
+<span aria-hidden="true" style="flex: none; width: 36px; height: 36px; border-radius: 12px; background: {{ m.avF }}; color: {{ m.avC }}; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center">{{ m.ini }}</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><strong style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ m.n }}</strong><span style="font-size: 11px; color: #5E5247">{{ m.sub }}</span></span>
+<span style="flex: none; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; background: {{ m.cf }}; color: {{ m.cc }}">{{ m.chip }}</span>
+</button>
+</sc-for>
+</sc-for>
+</section>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<section style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 22px; display: flex; flex-wrap: wrap; align-items: center; gap: 18px">
+<span aria-hidden="true" style="flex: none; width: 76px; height: 76px; border-radius: 24px; background: {{ sel.avF }}; color: {{ sel.avC }}; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center">{{ sel.ini }}</span>
+<div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 30px; font-weight: 800; line-height: 1.1">{{ sel.n }}</h1>
+<span style="font-size: 14px; color: #4A3F36">{{ sel.esp }}</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{ sel.roles }}" as="r" hint-placeholder-count="2"><span style="font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #EFE5D6; color: #4A3F36">{{ r }}</span></sc-for></span>
+</div>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px">
+<span style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 14px; background: {{ sel.estF }}; color: {{ sel.estC }}; font-weight: 800"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 999px; background: {{ sel.estC }}"></span>{{ sel.estT }}</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<button type="button" style="min-height: 38px; padding: 0 12px; border-radius: 14px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #2B2420; font-weight: 700; font-size: 13px">Ver perfil público</button>
+<button type="button" style="min-height: 38px; padding: 0 12px; border-radius: 14px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #2B2420; font-weight: 700; font-size: 13px">Escribirle</button>
+<a href="#" style="min-height: 38px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 14px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #2B2420; font-weight: 700; font-size: 13px; text-decoration: none">Ver su agenda</a>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="t-val" style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 22px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px"><h2 id="t-val" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Validación</h2><span style="font-size: 13px; color: #5E5247">{{ sel.valSub }}</span><span style="margin-left: auto; font-size: 13px; font-weight: 700">{{ sel.progreso }}</span></div>
+<span style="height: 8px; border-radius: 999px; background: #EFE5D6; overflow: hidden"><span style="display: block; height: 100%; width: {{ sel.pct }}; background: #4F6B2F"></span></span>
+<sc-if value="{{ sel.sinVal }}" hint-placeholder-val="{{ false }}"><div style="padding: 14px; border-radius: 16px; background: #EFE5D6; color: #4A3F36">Este rol no atiende pacientes, así que no requiere validación profesional.</div></sc-if>
+<sc-for list="{{ sel.checks }}" as="c" hint-placeholder-count="3">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 18px; background: #FFFDF9; border: {{ c.borde }}">
+<span aria-hidden="true" style="flex: none; width: 32px; height: 32px; border-radius: 10px; background: {{ c.iF }}; color: {{ c.iC }}; font-weight: 800; display: inline-flex; align-items: center; justify-content: center">{{ c.icono }}</span>
+<span style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px"><strong>{{ c.t }}</strong><span style="font-size: 13px; color: #4A3F36">{{ c.d }}</span><sc-if value="{{ c.hayDoc }}" hint-placeholder-val="{{ false }}"><span style="align-self: flex-start; margin-top: 4px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 10px; background: #F4ECE0; color: #4A3F36">{{ c.doc }}</span></sc-if></span>
+<span style="font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: {{ c.cf }}; color: {{ c.cc }}">{{ c.estado }}</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ c.acciones }}" as="a" hint-placeholder-count="2"><button type="button" onClick="{{ a.pick }}" style="min-height: 38px; padding: 0 12px; border-radius: 12px; border: {{ a.borde }}; background: {{ a.fondo }}; color: {{ a.color }}; font-weight: 700; font-size: 13px">{{ a.l }}</button></sc-for>
+</div>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+<section aria-labelledby="t-pub" style="flex: 999 1 380px; min-width: 0; background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 22px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px"><h2 id="t-pub" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Perfil público</h2><span style="font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #EFE5D6; color: #4A3F36">Solo lectura</span><span style="font-size: 12px; color: #5E5247">Lo edita el profesional en Mi perfil</span></div>
+<sc-if value="{{ sel.hayPerfil }}" hint-placeholder-val="{{ true }}">
+<div style="padding: 16px; border-radius: 18px; background: #FFFDF9; display: flex; flex-direction: column; gap: 6px">
+<strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px">{{ sel.publico }}</strong>
+<span style="font-size: 13px; color: #4A3F36">{{ sel.esp }} · {{ sel.modalidad }} · Tarifa {{ sel.tarifa }}</span>
+<span style="font-size: 14px; font-style: italic; color: #4A3F36">{{ sel.frase }}</span>
+<span style="font-size: 13px">{{ sel.sobre }}</span>
+</div>
+<sc-for list="{{ sel.alertas }}" as="a" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; background: #FFF4D6; color: #5A3D00; font-size: 13px; font-weight: 600"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 999px; background: #C9962B"></span>{{ a }}</div>
+</sc-for>
+<sc-if value="{{ yaPedida }}" hint-placeholder-val="{{ false }}"><div role="status" style="padding: 10px 12px; border-radius: 14px; background: #E1E8CF; color: #2F3B1F; font-size: 13px; font-weight: 700">Corrección pedida hoy. Le llegó a su bandeja y por correo.</div></sc-if>
+<sc-if value="{{ composerCerrado }}" hint-placeholder-val="{{ true }}"><button type="button" onClick="{{ abrirComposer }}" style="align-self: flex-start; min-height: 42px; padding: 0 16px; border-radius: 14px; border: 1px solid #8A4B1F; background: #FFFDF9; color: #8A4B1F; font-weight: 800">Pedir una corrección</button></sc-if>
+<sc-if value="{{ composerAbierto }}" hint-placeholder-val="{{ false }}">
+<div style="padding: 16px; border-radius: 18px; background: #FFFDF9; border: 2px solid #D98A5B; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 12px; font-weight: 700">¿Qué debe corregir?</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ motivos }}" as="m" hint-placeholder-count="4"><button type="button" aria-pressed="{{ m.on }}" onClick="{{ m.pick }}" style="min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid #E3D7C4; background: {{ m.fondo }}; color: {{ m.color }}; font-weight: 700; font-size: 12px">{{ m.l }}</button></sc-for>
+</div>
+<label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; font-weight: 700">Mensaje (opcional)</span><textarea rows="2" placeholder="Ej.: quita el número de WhatsApp del texto Sobre mí." style="padding: 10px 12px; border-radius: 14px; border: 1px solid #E3D7C4; background: #F7F1E8; font-size: 14px; resize: vertical"></textarea></label>
+<div style="display: flex; gap: 8px"><button type="button" onClick="{{ enviarCorreccion }}" style="min-height: 42px; padding: 0 16px; border-radius: 14px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800">Enviar al profesional</button><button type="button" onClick="{{ cerrarComposer }}" style="min-height: 42px; padding: 0 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #2B2420; font-weight: 600">Cancelar</button></div>
+<span style="font-size: 11px; color: #5E5247">No se modifica su perfil: el profesional decide y corrige desde Mi perfil.</span>
+</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{ sel.sinPerfil }}" hint-placeholder-val="{{ false }}"><div style="padding: 14px; border-radius: 16px; background: #EFE5D6; color: #4A3F36">No tiene perfil público.</div></sc-if>
+</section>
+
+<div style="flex: 1 1 280px; max-width: 360px; display: flex; flex-direction: column; gap: 16px">
+<section aria-labelledby="t-op" style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 id="t-op" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Trabajo con pacientes</h2>
+<sc-for list="{{ sel.op }}" as="o" hint-placeholder-count="3"><div style="display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 14px; background: #FFFDF9"><span style="font-size: 13px; color: #4A3F36">{{ o.l }}</span><strong style="color: {{ o.c }}">{{ o.v }}</strong></div></sc-for>
+<a href="#" style="font-size: 13px; font-weight: 700">Ver su seguimiento en Fichas y Pacientes</a>
+</section>
+<section aria-labelledby="t-adm" style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 id="t-adm" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Administrativo</h2>
+<sc-for list="{{ sel.adm }}" as="a" hint-placeholder-count="3"><div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: #FFFDF9"><span style="flex: 1; display: flex; flex-direction: column"><span style="font-size: 12px; color: #5E5247">{{ a.l }}</span><strong style="font-size: 13px">{{ a.v }}</strong></span><sc-if value="{{ a.hayB }}" hint-placeholder-val="{{ false }}"><button type="button" style="min-height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid #E3D7C4; background: #F4ECE0; color: #2B2420; font-weight: 700; font-size: 12px">{{ a.b }}</button></sc-if></div></sc-for>
+<span style="font-size: 11px; color: #5E5247">Ver los datos para pagos queda en la auditoría.</span>
+</section>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ tPra }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 16px; max-width: 1240px; width: 100%; align-self: center">
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<sc-for list="{{ praResumen }}" as="r" hint-placeholder-count="4"><span style="display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 16px; border-radius: 999px; background: {{ r.f }}; color: {{ r.c }}; font-size: 13px; font-weight: 600"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 18px">{{ r.n }}</strong>{{ r.l }}</span></sc-for>
+</div>
+<sc-for list="{{ practicantes }}" as="p" hint-placeholder-count="2">
+<section style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px">
+<span aria-hidden="true" style="width: 52px; height: 52px; border-radius: 16px; background: #DCE6F2; color: #1F3550; font-weight: 800; display: inline-flex; align-items: center; justify-content: center">{{ p.ini }}</span>
+<div style="flex: 1 1 240px; display: flex; flex-direction: column"><strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">{{ p.n }}</strong><span style="font-size: 13px; color: #4A3F36">{{ p.carrera }}</span></div>
+<span style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 14px; background: {{ p.estF }}; color: {{ p.estC }}; font-weight: 800"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 999px; background: {{ p.estC }}"></span>{{ p.estT }}</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{ p.datos }}" as="d" hint-placeholder-count="5"><div style="padding: 12px; border-radius: 16px; background: #FFFDF9; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: #8A6E55">{{ d.l }}</span><strong style="font-size: 14px; color: {{ d.c }}">{{ d.v }}</strong><span style="font-size: 11px; color: #5E5247">{{ d.s }}</span></div></sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ p.acciones }}" as="a" hint-placeholder-count="4"><button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 14px; border: {{ a.borde }}; background: {{ a.fondo }}; color: {{ a.color }}; font-weight: 700; font-size: 13px">{{ a.l }}</button></sc-for>
+</div>
+</section>
+</sc-for>
+<span style="font-size: 12px; color: #5E5247; padding: 0 6px">Un practicante solo atiende con certificado vigente, supervisor asignado y el consentimiento de cada paciente. Cambiar el supervisor no mueve sus sesiones.</span>
+</div>
+</sc-if>
+
+<sc-if value="{{ tCat }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 16px; max-width: 1240px; width: 100%; align-self: center">
+<section style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 22px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px"><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">Propuestas por revisar</h2><span style="font-size: 13px; color: #5E5247">Solo lo aprobado cuenta en el match y en el perfil público.</span></div>
+<sc-if value="{{ hayPropuestas }}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{ propuestas }}" as="p" hint-placeholder-count="1">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; background: #FFFDF9; border: 2px solid #E8D09A">
+<span style="flex: 1 1 260px; display: flex; flex-direction: column"><strong>{{ p.t }}</strong><span style="font-size: 13px; color: #4A3F36">{{ p.d }}</span></span>
+<button type="button" onClick="{{ p.aprobar }}" style="min-height: 40px; padding: 0 16px; border-radius: 14px; border: 0; background: #4F6B2F; color: #FFFFFF; font-weight: 800">Aprobar</button>
+<button type="button" onClick="{{ p.rechazar }}" style="min-height: 40px; padding: 0 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #7A2E10; font-weight: 700">Rechazar con motivo</button>
+</div>
+</sc-for>
+</sc-if>
+<sc-if value="{{ sinPropuestas }}" hint-placeholder-val="{{ false }}"><div style="padding: 16px; border-radius: 16px; background: #E1E8CF; color: #2F3B1F; font-weight: 700">No hay propuestas pendientes.</div></sc-if>
+</section>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{ catalogos }}" as="c" hint-placeholder-count="2">
+<section style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 22px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column"><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">{{ c.t }}</h2><span style="font-size: 13px; color: #5E5247">{{ c.d }}</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{ c.items }}" as="i" hint-placeholder-count="6"><span style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border-radius: 999px; background: #E1E8CF; color: #2F3B1F; font-weight: 700; font-size: 13px">{{ i.l }}<span style="font-size: 11px; font-weight: 600; color: #4A5A33">{{ i.uso }}</span><button type="button" aria-label="Desactivar {{ i.l }}" style="min-height: 28px; padding: 0 10px; border-radius: 999px; border: 0; background: #FFFDF9; color: #7A2E10; font-weight: 700; font-size: 11px">Desactivar</button></span></sc-for>
+</div>
+<div style="display: flex; gap: 8px"><input aria-label="Agregar al catálogo" placeholder="Agregar al catálogo" style="flex: 1; min-height: 44px; padding: 0 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #F7F1E8; font-size: 14px"><button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 14px; border: 1px solid #8A4B1F; background: #FFFDF9; color: #8A4B1F; font-weight: 800">Agregar</button></div>
+<span style="font-size: 11px; color: #5E5247">Desactivar no borra lo ya registrado: solo deja de ofrecerse.</span>
+</section>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ tRes }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 16px; max-width: 1240px; width: 100%; align-self: center">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<sc-for list="{{ resFiltros }}" as="f" hint-placeholder-count="4"><button type="button" aria-pressed="{{ f.on }}" onClick="{{ f.pick }}" style="min-height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: {{ f.fondo }}; color: {{ f.color }}; font-weight: 700; font-size: 13px; box-shadow: {{ f.sombra }}">{{ f.l }}</button></sc-for>
+<span style="margin-left: auto; font-size: 13px; color: #5E5247">Solo pueden dejar reseña pacientes con al menos una sesión. No se editan: se publican, se ocultan o se responden.</span>
+</div>
+<sc-for list="{{ resenas }}" as="r" hint-placeholder-count="3">
+<section style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 20px; display: flex; flex-direction: column; gap: 10px; opacity: {{ r.op }}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<span aria-label="{{ r.aria }}" style="color: #B5741F; font-size: 16px; letter-spacing: 2px">{{ r.estrellas }}</span>
+<strong>{{ r.prof }}</strong>
+<span style="font-size: 12px; color: #5E5247">{{ r.autor }} · {{ r.fecha }}</span>
+<span style="margin-left: auto; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: {{ r.cf }}; color: {{ r.cc }}">{{ r.estado }}</span>
+</div>
+<span style="font-size: 14px">{{ r.texto }}</span>
+<sc-if value="{{ r.hayMotivo }}" hint-placeholder-val="{{ false }}"><div style="padding: 10px 12px; border-radius: 14px; background: #FFF4D6; color: #5A3D00; font-size: 13px"><strong>Reportada por el profesional:</strong> {{ r.motivo }}</div></sc-if>
+<div style="display: flex; gap: 6px; justify-content: flex-end">
+<button type="button" onClick="{{ r.toggle }}" style="min-height: 38px; padding: 0 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #2B2420; font-weight: 700; font-size: 13px">{{ r.accion }}</button>
+</div>
+</section>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ tAle }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 16px; max-width: 1240px; width: 100%; align-self: center">
+<sc-for list="{{ alertasBloques }}" as="b" hint-placeholder-count="3">
+<section style="background: #FBF6EE; border-radius: 24px; box-shadow: 0 14px 40px rgba(43,36,32,0.10); padding: 22px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px"><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 19px">{{ b.t }}</h2><span style="font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 999px; background: {{ b.cf }}; color: {{ b.cc }}">{{ b.n }}</span><span style="font-size: 13px; color: #5E5247">{{ b.d }}</span></div>
+<sc-for list="{{ b.items }}" as="i" hint-placeholder-count="2">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; background: #FFFDF9">
+<span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 999px; background: {{ i.punto }}"></span>
+<span style="flex: 1 1 280px; display: flex; flex-direction: column"><strong>{{ i.t }}</strong><span style="font-size: 13px; color: #4A3F36">{{ i.d }}</span></span>
+<sc-if value="{{ i.hayChip }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #EFE5D6; color: #4A3F36">{{ i.chip }}</span></sc-if>
+<sc-for list="{{ i.acciones }}" as="a" hint-placeholder-count="1"><button type="button" style="min-height: 38px; padding: 0 14px; border-radius: 14px; border: {{ a.borde }}; background: {{ a.fondo }}; color: {{ a.color }}; font-weight: 700; font-size: 13px">{{ a.l }}</button></sc-for>
+</div>
+</sc-for>
+</section>
+</sc-for>
+</div>
+</sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+var OK = ['#E1E8CF', '#2F3B1F'], AM = ['#FFF4D6', '#7A520A'], RJ = ['#F6D9C7', '#7A2E10'], NE = ['#EFE5D6', '#4A3F36'];
+var M = [
+  { id: 'ac', n: 'Admin Centro Prueba', ini: 'AC', g: 'CUENTA MADRE', roles: ['Cuenta madre · principal', 'Profesional · adicional'], tipo: 'pro', esp: 'Psicología clínica adultos', sis: '100007', sisOk: true, titOk: true, tipos: [['Psicoterapia individual adultos', true]], pac: 12, sc: 6, prox: 'mar 10 nov, 09:00', tarifa: '$45.000', pub: 'Ps. Admin Centro Prueba (Demo)', frase: 'Sin frase destacada', sobre: 'Perfil ficticio de la cuenta madre del centro de demostración: dirige el centro y atiende algunas horas.', alertas: ['Sin especialidades declaradas', 'Sin cita destacada'] },
+  { id: 'dd', n: 'Directora Demo', ini: 'DD', g: 'CUENTA MADRE', roles: ['Cuenta madre', 'Profesional'], tipo: 'pro', esp: 'Psicoterapia individual adultos', sis: '100008', sisOk: true, titOk: true, tipos: [['Psicoterapia individual adultos', true]], pac: 15, sc: 0, prox: 'jue 5 nov, 10:00', tarifa: '$40.000', pub: 'Ps. Directora Demo', frase: '"Acompañar sin apuro."', sobre: 'Directora clínica del centro de demostración.', alertas: [] },
+  { id: 'gd', n: 'Gestion Demo', ini: 'GD', g: 'GESTIÓN', roles: ['Gestión'], tipo: 'ges', esp: 'Recepción y coordinación' },
+  { id: 'p1', n: 'Profesional Uno', ini: 'PU', g: 'PROFESIONALES', roles: ['Profesional'], tipo: 'pro', esp: 'Psicología clínica adultos', sis: '100001', sisOk: true, titOk: true, tipos: [['Psicoterapia individual adultos', true], ['Evaluación psicológica', true]], pac: 46, sc: 10, prox: 'jue 5 nov, 09:00', tarifa: '$30.000', pub: 'Ps. Profesional Uno (Demo)', frase: '"Cada proceso parte por entender qué te trae."', sobre: 'Perfil ficticio del centro de demostración.', alertas: ['"Sobre mí" muy corto: menos de 3 líneas'] },
+  { id: 'p2', n: 'Profesional Dos', ini: 'PD', g: 'PROFESIONALES', roles: ['Profesional', 'Supervisa 2 practicantes'], tipo: 'pro', esp: 'Psicología infanto-juvenil', sis: '100002', sisOk: true, titOk: true, tipos: [['Psicoterapia infanto-juvenil', true], ['Psicoterapia niños', true]], pac: 36, sc: 0, prox: 'jue 5 nov, 12:00', tarifa: '$40.000', pub: 'Ps. Profesional Dos', frase: '"El juego también es terapia."', sobre: 'Trabajo con niños, niñas y sus familias.', alertas: [] },
+  { id: 'p3', n: 'Profesional Tres (Demo)', ini: 'PT', g: 'PROFESIONALES', roles: ['Profesional'], tipo: 'pro', esp: 'Psicología clínica adultos', sis: '100003', sisOk: false, titOk: true, tipos: [['Psicoterapia individual adultos', true], ['Terapia de pareja', false]], pac: 19, sc: 0, prox: 'vie 6 nov, 15:00', tarifa: '$35.000', pub: 'Ps. Profesional Tres (Demo)', frase: 'Sin frase destacada', sobre: 'Perfil ficticio.', alertas: [] },
+  { id: 'p4', n: 'Profesional Cuatro (Demo)', ini: 'PC', g: 'PROFESIONALES', roles: ['Profesional'], tipo: 'pro', esp: 'Terapia de pareja y familia', sis: '100004', sisOk: true, titOk: false, tipos: [['Terapia de pareja', true]], pac: 27, sc: 1, prox: 'mié 11 nov, 18:00', tarifa: '$50.000', pub: 'Ps. Profesional Cuatro (Demo)', frase: '"Dos versiones de una misma historia."', sobre: 'Escríbeme al +56 9 1234 5678 para coordinar.', alertas: ['El texto incluye un teléfono personal'] },
+  { id: 'p5', n: 'Profesional Cinco (Demo)', ini: 'PC', g: 'PROFESIONALES', roles: ['Profesional'], tipo: 'pro', esp: 'Psicología infanto-juvenil', sis: '100005', sisOk: true, titOk: true, tipos: [['Psicoterapia niños', true]], pac: 23, sc: 0, prox: 'jue 5 nov, 16:00', tarifa: '$38.000', pub: 'Ps. Profesional Cinco (Demo)', frase: 'Sin frase destacada', sobre: 'Perfil ficticio.', alertas: [] },
+  { id: 'pi', n: 'Profesional Inactivo (Demo)', ini: 'PI', g: 'PROFESIONALES', roles: ['Profesional'], tipo: 'baja', esp: 'Psicología clínica adultos', sis: '100009', sisOk: true, titOk: true, tipos: [], pac: 0, sc: 0, prox: 'Sin horas', tarifa: '$35.000', pub: 'Ps. Profesional Inactivo', frase: '', sobre: 'Oculto del sitio público.', alertas: [] },
+  { id: 'pr', n: 'Practicante Demo', ini: 'PD', g: 'PRACTICANTES', roles: ['Practicante', 'Supervisa: Profesional Dos'], tipo: 'pra', esp: 'Psicología, quinto año · Universidad Ficticia', cert: 'Vigente hasta el 2 feb 2027', certOk: true, pac: 1, sc: 0, prox: 'lun 9 nov, 17:00' },
+  { id: 'pe', n: 'Practicante Expirado (Demo)', ini: 'PE', g: 'PRACTICANTES', roles: ['Practicante', 'Supervisa: Profesional Dos'], tipo: 'pra', esp: 'Psicología, quinto año · Universidad Ficticia', cert: 'Venció el 30 oct 2026', certOk: false, pac: 0, sc: 0, prox: 'Sin horas' }
+];
+var GRUPOS = ['CUENTA MADRE', 'GESTIÓN', 'PROFESIONALES', 'PRACTICANTES'];
+var MOT = ['Datos de contacto en el texto', 'Especialidad no coincide con el título', 'Foto inadecuada', 'Texto con errores'];
+function ac(l, kind, fn) { var p = kind === 'p' ? ['0', '#8A4B1F', '#FFFFFF'] : ['1px solid #E3D7C4', '#FFFDF9', '#2B2420']; return { l: l, borde: p[0], fondo: p[1], color: p[2], pick: fn }; }
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'int', sel: 'p4', filtro: 'todos', ok: {}, comp: false, mot: {}, pedidas: {}, prop: {}, resF: 'todas', ocultas: { r3: true } }; }
+  renderVals() {
+    var s = this.state, self = this;
+    function aprobado(m, k, base) { return base || !!s.ok[m.id + k]; }
+    function aprobar(m, k) { return function () { var o = Object.assign({}, self.state.ok); o[m.id + k] = true; self.setState({ ok: o }); }; }
+    function checks(m) {
+      var L = [];
+      if (m.tipo === 'pro' || m.tipo === 'baja') {
+        var r = aprobado(m, 'sis', m.sisOk), t = aprobado(m, 'tit', m.titOk);
+        L.push({ k: 'sis', ok: r, t: 'Registro en la Superintendencia (RNPI)', d: 'N.° ' + m.sis + (r ? ' · coincide con el nombre y el título' : ' · aún no se verifica'), doc: '', acc: r ? [ac('Buscador público del RNPI', 's')] : [ac('Verificar ahora', 'p', aprobar(m, 'sis')), ac('Verificar manualmente', 's', aprobar(m, 'sis'))] });
+        L.push({ k: 'tit', ok: t, t: 'Título habilitante', d: t ? 'Psicólogo(a) · Universidad Ficticia · respaldo revisado' : 'Subió el respaldo el 3 nov. Falta revisarlo.', doc: 'titulo-profesional.pdf', acc: t ? [ac('Ver respaldo', 's')] : [ac('Aprobar', 'p', aprobar(m, 'tit')), ac('Ver respaldo', 's'), ac('Observar', 's')] });
+        var pend = (m.tipos || []).filter(function (x, i) { return !aprobado(m, 'tp' + i, x[1]); });
+        L.push({ k: 'tip', ok: pend.length === 0, t: 'Tipos de atención', d: (m.tipos || []).map(function (x) { return x[0]; }).join(' · ') || 'Sin tipos declarados', doc: '', acc: pend.length ? [ac('Aprobar "' + pend[0][0] + '"', 'p', aprobar(m, 'tp' + m.tipos.indexOf(pend[0]))), ac('Rechazar', 's')] : [] });
+      }
+      if (m.tipo === 'pra') {
+        var c = aprobado(m, 'cert', m.certOk);
+        L.push({ k: 'cert', ok: c, t: 'Certificado de alumno regular', d: c ? (s.ok[m.id + 'cert'] ? 'Nuevo certificado aprobado hoy' : m.cert) : m.cert + '. Sin certificado vigente no puede atender.', doc: c ? 'alumno-regular-2026.pdf' : 'alumno-regular-2026-1.pdf', acc: c ? [ac('Ver certificado', 's')] : [ac('Pedir certificado nuevo', 'p', aprobar(m, 'cert')), ac('Ver el anterior', 's')] });
+        L.push({ k: 'conv', ok: true, t: 'Convenio de práctica', d: 'Carta de la universidad · práctica del 7 oct 2026 al 21 abr 2027', doc: 'convenio-practica.pdf', acc: [ac('Ver documento', 's')] });
+        L.push({ k: 'sup', ok: true, t: 'Supervisor asignado', d: 'Profesional Dos · validado', doc: '', acc: [ac('Cambiar supervisor', 's')] });
+        L.push({ k: 'acc', ok: c, t: 'Acceso a la plataforma', d: c ? 'Hasta el 2 feb 2027' : 'Sin acceso desde el 30 oct', doc: '', acc: c ? [ac('Extender', 's'), ac('Revocar', 's')] : [ac('Dar acceso', 's')] });
+      }
+      return L;
+    }
+    function estado(m) {
+      if (m.tipo === 'ges') return ['No requiere', NE, 'Rol administrativo'];
+      if (m.tipo === 'baja') return ['Baja programada', NE, 'Baja programada · no recibe pacientes nuevos'];
+      var L = checks(m), falt = L.filter(function (c) { return !c.ok; }).length;
+      if (m.tipo === 'pra' && !aprobado(m, 'cert', m.certOk)) return ['Vencido', RJ, 'Sin acceso: certificado vencido'];
+      return falt ? ['Por validar', AM, 'No aparece en el sitio hasta validar'] : ['Habilitado', OK, 'Habilitado para atender'];
+    }
+    var cuenta = { hab: 0, pend: 0, venc: 0 };
+    M.forEach(function (m) { var e = estado(m)[0]; if (e === 'Habilitado') cuenta.hab++; if (e === 'Por validar') cuenta.pend++; if (e === 'Vencido') cuenta.venc++; });
+    var F = [['todos', 'Todos'], ['pend', 'Por validar'], ['venc', 'Vencidos']];
+    var filtros = F.map(function (f) { var on = s.filtro === f[0]; return { l: f[1], on: on, fondo: on ? '#2B2420' : '#F4ECE0', color: on ? '#F4ECE0' : '#2B2420', pick: function () { self.setState({ filtro: f[0] }); } }; });
+    var grupos = GRUPOS.map(function (g) {
+      var items = M.filter(function (m) { var e = estado(m)[0]; return m.g === g && (s.filtro === 'todos' || (s.filtro === 'pend' && e === 'Por validar') || (s.filtro === 'venc' && e === 'Vencido')); }).map(function (m) {
+        var e = estado(m), on = s.sel === m.id;
+        return { n: m.n, ini: m.ini, sub: m.esp.split(' · ')[0], chip: e[0], cf: e[1][0], cc: e[1][1], on: on, fondo: on ? '#FFFFFF' : 'transparent', sombra: on ? '0 4px 14px rgba(43,36,32,0.12)' : 'none',
+          avF: m.tipo === 'pra' ? '#DCE6F2' : '#F6D9C7', avC: m.tipo === 'pra' ? '#1F3550' : '#7A2E10', pick: function () { self.setState({ sel: m.id, comp: false, mot: {} }); } };
+      });
+      return { t: g, items: items, n: items.length };
+    }).filter(function (g) { return g.n > 0; });
+    var m = M.filter(function (x) { return x.id === s.sel; })[0];
+    var e = estado(m), L = checks(m), nOk = L.filter(function (c) { return c.ok; }).length;
+    var esPro = m.tipo === 'pro' || m.tipo === 'baja';
+    var sel = { n: m.n, ini: m.ini, esp: m.esp, roles: m.roles, estT: e[2], estF: e[1][0], estC: e[1][1], avF: m.tipo === 'pra' ? '#DCE6F2' : '#F6D9C7', avC: m.tipo === 'pra' ? '#1F3550' : '#7A2E10',
+      sinVal: L.length === 0, progreso: L.length ? nOk + ' de ' + L.length + ' al día' : '', pct: L.length ? Math.round(nOk / L.length * 100) + '%' : '100%',
+      valSub: m.tipo === 'pra' ? 'Documentos de la práctica y supervisión' : (esPro ? 'Lo necesario para atender y aparecer en el sitio' : ''),
+      checks: L.map(function (c, i) { return { t: c.t, d: c.d, doc: c.doc, hayDoc: !!c.doc, estado: c.ok ? 'Validado' : (m.tipo === 'pra' && c.k === 'cert' ? 'Vencido' : 'Pendiente'), cf: c.ok ? OK[0] : (c.k === 'cert' || c.k === 'acc' ? RJ[0] : AM[0]), cc: c.ok ? OK[1] : (c.k === 'cert' || c.k === 'acc' ? RJ[1] : AM[1]),
+        icono: c.ok ? 'v' : String(i + 1), iF: c.ok ? '#E1E8CF' : '#2B2420', iC: c.ok ? '#2F3B1F' : '#F4ECE0', borde: c.ok ? '1px solid #EBE2D5' : '2px solid #E8D09A', acciones: c.acc }; }),
+      hayPerfil: esPro, sinPerfil: !esPro, publico: m.pub || '', modalidad: 'Presencial y online', tarifa: m.tarifa || '', frase: m.frase || '', sobre: m.sobre || '', alertas: m.alertas || [],
+      op: m.tipo === 'ges' ? [{ l: 'Acceso', v: 'Agenda, recepción y cobros', c: '#2B2420' }] : [{ l: 'Pacientes a su cargo', v: String(m.pac), c: '#2B2420' }, { l: 'Sesiones sin cerrar', v: String(m.sc), c: m.sc ? '#7A2E10' : '#2F3B1F' }, { l: 'Próxima sesión', v: m.prox, c: '#2B2420' }],
+      adm: [{ l: 'Correo de la cuenta', v: m.id + '@centro-prueba.cl', hayB: false }].concat(esPro ? [{ l: 'Tarifa vigente (la fija el profesional)', v: m.tarifa + ' desde 4 nov', hayB: false }, { l: 'Acuerdo con el centro', v: 'B · cobra el centro', hayB: true, b: 'Ver' }, { l: 'Datos para pagos', v: 'Cifrados', hayB: true, b: 'Ver datos' }] : []).concat([{ l: 'Cuenta', v: m.tipo === 'baja' ? 'Se cierra el 30 nov' : 'Activa', hayB: true, b: m.tipo === 'baja' ? 'Ver baja' : 'Programar baja' }]) };
+    var motivos = MOT.map(function (x) { var on = !!s.mot[x]; return { l: x, on: on, fondo: on ? '#2B2420' : '#FFFDF9', color: on ? '#F4ECE0' : '#2B2420', pick: function () { var o = Object.assign({}, self.state.mot); o[x] = !o[x]; self.setState({ mot: o }); } }; });
+    var propPend = s.prop.p ? 0 : 1;
+    var TABS = [['int', 'Integrantes', ''], ['pra', 'Practicantes', '1'], ['cat', 'Catálogos y revisiones', propPend ? '1' : ''], ['res', 'Reseñas', '1'], ['ale', 'Alertas y bajas', '3']];
+    function a2(l, k) { var p = k === 'p' ? ['0', '#8A4B1F', '#FFFFFF'] : (k === 'r' ? ['1px solid #E3D7C4', '#FFFDF9', '#7A2E10'] : ['1px solid #E3D7C4', '#FFFDF9', '#2B2420']); return { l: l, borde: p[0], fondo: p[1], color: p[2] }; }
+    var practicantes = [
+      { ini: 'PD', n: 'Practicante Demo', carrera: 'Psicología, quinto año · Universidad Ficticia', estT: 'Habilitado para atender', estF: OK[0], estC: OK[1],
+        datos: [['SUPERVISOR', 'Profesional Dos', 'Revisó 2 casos este mes', '#2B2420'], ['PRÁCTICA', '7 oct 2026 al 21 abr 2027', 'Convenio con la universidad', '#2B2420'], ['CERTIFICADO DE ALUMNO', 'Vigente', 'Hasta el 2 feb 2027', '#2F3B1F'], ['ACCESO', 'Hasta 2 feb 2027', 'Coincide con el certificado', '#2F3B1F'], ['PACIENTES', '1', 'Con consentimiento vigente', '#2B2420']],
+        acciones: [a2('Historial', 's'), a2('Extender acceso', 's'), a2('Cambiar supervisor', 's'), a2('Revocar acceso', 'r')] },
+      { ini: 'PE', n: 'Practicante Expirado (Demo)', carrera: 'Psicología, quinto año · Universidad Ficticia', estT: 'Sin acceso: certificado vencido', estF: RJ[0], estC: RJ[1],
+        datos: [['SUPERVISOR', 'Profesional Dos', '', '#2B2420'], ['PRÁCTICA', '7 oct 2026 al 21 abr 2027', 'Convenio con la universidad', '#2B2420'], ['CERTIFICADO DE ALUMNO', 'Vencido', 'Desde el 30 oct 2026', '#7A2E10'], ['ACCESO', 'Sin acceso', 'Se cortó al vencer el certificado', '#7A2E10'], ['PACIENTES', '0', 'Sin horas pendientes', '#2B2420']],
+        acciones: [a2('Pedir certificado nuevo', 'p'), a2('Historial', 's'), a2('Dar acceso', 's'), a2('Cambiar supervisor', 's')] }
+    ].map(function (p) { p.datos = p.datos.map(function (d) { return { l: d[0], v: d[1], s: d[2], c: d[3] }; }); return p; });
+    var CATS = [['Tipos de atención', 'Ordenan el match y el directorio.', [['Evaluación psicológica', 4], ['Psicoterapia adolescentes', 2], ['Psicoterapia individual adultos', 6], ['Psicoterapia infanto-juvenil', 2], ['Psicoterapia niños', 2], ['Terapia de pareja', 1]]],
+      ['Especialidades', 'Definen qué plantillas clínicas puede usar cada profesional.', [['Psicología', 8], ['Psiquiatría', 0], ['Fonoaudiología', 0], ['Nutrición', 0], ['Terapia ocupacional', 0]]]];
+    var RES = [['r1', 5, 'Profesional Uno', 'Paciente P.', '4 nov 2026', 'Reseña ficticia de demostración: explica con claridad y escucha sin apuro.', ''],
+      ['r2', 4, 'Profesional Dos', 'Anónima', '2 nov 2026', 'Mi hijo va contento a las sesiones. Me gustaría más horarios en la tarde.', ''],
+      ['r3', 1, 'Profesional Cuatro (Demo)', 'Anónima', '1 nov 2026', 'Comentario con datos personales de otra persona (texto ficticio).', 'Incluye datos de un tercero.']];
+    var resFiltrosD = [['todas', 'Todas'], ['pub', 'Publicadas'], ['ocu', 'Ocultas'], ['rep', 'Reportadas']];
+    var resenas = RES.filter(function (r) { var oc = !!s.ocultas[r[0]]; return s.resF === 'todas' || (s.resF === 'pub' && !oc) || (s.resF === 'ocu' && oc) || (s.resF === 'rep' && r[6]); }).map(function (r) {
+      var oc = !!s.ocultas[r[0]]; var st = r[6] && !oc ? ['Reportada', AM] : (oc ? ['Oculta', NE] : ['Publicada', OK]);
+      return { estrellas: '*****'.slice(0, r[1]) + '-----'.slice(0, 5 - r[1]), aria: r[1] + ' de 5 estrellas', prof: r[2], autor: r[3], fecha: r[4], texto: r[5], hayMotivo: !!r[6], motivo: r[6], estado: st[0], cf: st[1][0], cc: st[1][1], op: oc ? '0.75' : '1',
+        accion: oc ? 'Volver a publicar' : 'Ocultar', toggle: function () { var o = Object.assign({}, self.state.ocultas); o[r[0]] = !o[r[0]]; self.setState({ ocultas: o }); } };
+    });
+    var alertasBloques = [
+      { t: 'Alertas internas', d: 'Situaciones que necesitan una decisión de la cuenta madre.', n: '2', cf: AM[0], cc: AM[1], items: [
+        { t: 'Practicante Expirado (Demo) quedó sin acceso', d: 'Su certificado de alumno venció el 30 oct. No tiene pacientes ni horas pendientes.', punto: '#B5532A', chip: '', acciones: [a2('Pedir certificado nuevo', 'p'), a2('Programar baja', 's')] },
+        { t: 'Profesional Cuatro (Demo) atiende con el título sin validar', d: 'Subió el respaldo el 3 nov. Mientras tanto no aparece en el sitio público.', punto: '#C9962B', chip: 'Hace 2 días', acciones: [a2('Revisar título', 'p')] }] },
+      { t: 'Pacientes por reasignar', d: 'Su tratante deja el centro. Se reasignan con una derivación de oficio, sin abrir la ficha.', n: '3', cf: RJ[0], cc: RJ[1], items: [
+        { t: 'Ficha C-7E21A04B9C', d: 'Tratante: Profesional Inactivo (Demo) · última sesión 28 oct', punto: '#B5532A', chip: 'Antes del 30 nov', acciones: [a2('Derivar de oficio', 'p')] },
+        { t: 'Ficha C-3B90D1E2F4', d: 'Tratante: Profesional Inactivo (Demo) · última sesión 21 oct', punto: '#B5532A', chip: 'Antes del 30 nov', acciones: [a2('Derivar de oficio', 'p')] },
+        { t: 'Ficha C-A5C66F0187', d: 'Tratante: Profesional Inactivo (Demo) · sin sesiones desde septiembre', punto: '#C9962B', chip: 'Antes del 30 nov', acciones: [a2('Derivar de oficio', 'p'), a2('Marcar como alta', 's')] }] },
+      { t: 'Bajas programadas', d: 'Desde la fecha efectiva la agenda queda bloqueada y el proceso nocturno cierra la cuenta.', n: '1', cf: NE[0], cc: NE[1], items: [
+        { t: 'Profesional Inactivo (Demo)', d: 'Agenda bloqueada desde el 15 nov · la cuenta se cierra el 30 nov. Sus fichas quedan en el centro.', punto: '#8A6E55', chip: 'Faltan 3 pacientes por reasignar', acciones: [a2('Ver detalle', 's'), a2('Cancelar baja', 'r')] }] }
+    ].map(function (b) { b.items = b.items.map(function (i) { i.hayChip = !!i.chip; return i; }); return b; });
+    return {
+      tInt: s.tab === 'int', tPra: s.tab === 'pra', tCat: s.tab === 'cat', tRes: s.tab === 'res', tAle: s.tab === 'ale',
+      tabs: TABS.map(function (t) { var on = s.tab === t[0]; return { l: t[1], n: t[2], hayN: !!t[2], on: on, fondo: on ? '#2B2420' : 'transparent', color: on ? '#F4ECE0' : '#2B2420', pick: function () { self.setState({ tab: t[0] }); } }; }),
+      praResumen: [['2', 'practicantes', NE], ['1', 'habilitado', OK], ['1', 'sin acceso', RJ], ['1', 'supervisor activo', NE]].map(function (r) { return { n: r[0], l: r[1], f: r[2][0], c: r[2][1] }; }),
+      practicantes: practicantes,
+      hayPropuestas: !!propPend, sinPropuestas: !propPend,
+      propuestas: [{ t: 'Terapia de pareja', d: 'Propuesto por Profesional Tres (Demo) el 3 nov · respaldo: diplomado declarado en su trayectoria', aprobar: function () { self.setState({ prop: { p: 'ok' } }); }, rechazar: function () { self.setState({ prop: { p: 'no' } }); } }],
+      catalogos: CATS.map(function (c) { return { t: c[0], d: c[1], items: c[2].map(function (i) { return { l: i[0], uso: i[1] ? i[1] + ' prof.' : 'sin uso' }; }) }; }),
+      resFiltros: resFiltrosD.map(function (f) { var on = s.resF === f[0]; return { l: f[1], on: on, fondo: on ? '#FFFFFF' : 'transparent', color: '#2B2420', sombra: on ? '0 4px 14px rgba(43,36,32,0.12)' : 'none', pick: function () { self.setState({ resF: f[0] }); } }; }),
+      resenas: resenas, alertasBloques: alertasBloques,
+      resumen: [[String(M.length), 'integrantes', NE], [String(cuenta.hab), 'habilitados', OK], [String(cuenta.pend), 'por validar', AM], [String(cuenta.venc), 'vencido', RJ]].map(function (r) { return { n: r[0], l: r[1], f: r[2][0], c: r[2][1] }; }),
+      filtros: filtros, grupos: grupos, sel: sel, motivos: motivos,
+      composerAbierto: s.comp, composerCerrado: !s.comp, yaPedida: !!s.pedidas[m.id],
+      abrirComposer: function () { self.setState({ comp: true }); }, cerrarComposer: function () { self.setState({ comp: false, mot: {} }); },
+      enviarCorreccion: function () { var p = Object.assign({}, self.state.pedidas); p[m.id] = true; self.setState({ comp: false, mot: {}, pedidas: p }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

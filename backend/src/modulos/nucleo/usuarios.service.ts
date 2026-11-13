@@ -106,6 +106,12 @@ export class UsuariosService {
     return this.obtener(id);
   }
 
+  /** Rol adicional de cuenta madre o gestion: se quita al instante (la BD corta sus sesiones). */
+  async quitarRol(id: string, rol: Rol) {
+    await this.bd.tx().$executeRaw`SELECT quitar_rol_adicional(${id}::uuid, ${rol}::rol)`;
+    return this.obtener(id);
+  }
+
   /** Baja de un rol adicional: agenda bloqueada desde la fecha; procesar_bajas lo desactiva al cumplirse. */
   async bajaRol(id: string, rol: Rol, fechaEfectiva: Date) {
     const [{ n }] = await this.bd.tx().$queryRaw<[{ n: number }]>`
@@ -128,6 +134,36 @@ export class UsuariosService {
       SELECT activo, obligatorio, codigos_respaldo_restantes AS restantes FROM estado_segundo_factor()`;
     const f = encontrado(e, 'Usuario');
     return { activo: f.activo, obligatorio: f.obligatorio, codigosRespaldoRestantes: f.restantes };
+  }
+
+  /**
+   * Registro de conexiones de la propia cuenta (2026-11-07): las ultimas 30,
+   * derivadas de las sesiones (mis_conexiones). `actual` = la sesion de esta request.
+   */
+  async misConexiones() {
+    const filas = await this.bd.tx().$queryRaw<
+      {
+        familia_id: string;
+        rol: Rol;
+        dispositivo: string | null;
+        inicio: Date;
+        ultima_actividad: Date;
+        fin: Date | null;
+        motivo: string | null;
+        activa: boolean;
+      }[]
+    >`SELECT familia_id::text, rol, dispositivo, inicio, ultima_actividad, fin, motivo, activa FROM mis_conexiones(30)`;
+    const sesion = this.bd.usuario().sesion;
+    return filas.map((f) => ({
+      rol: f.rol,
+      dispositivo: f.dispositivo,
+      inicio: f.inicio,
+      ultimaActividad: f.ultima_actividad,
+      fin: f.fin,
+      motivo: f.motivo,
+      activa: f.activa,
+      actual: f.familia_id === sesion,
+    }));
   }
 
   /** Activar entrega codigos de respaldo nuevos; desactivar los anula (solo pacientes y responsables). */

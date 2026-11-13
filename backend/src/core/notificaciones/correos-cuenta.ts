@@ -71,12 +71,12 @@ export class CorreosCuenta {
   /** `previo`: parrafo propio antes del enlace (p. ej. el aviso de horas disponibles). */
   async enviar(tipo: TipoCorreoCuenta, para: string, token: string, vence: Date, previo?: string): Promise<void> {
     const t = TEXTOS[tipo];
-    const centro = await this.nombreCentro();
+    const { centro, responderA } = await this.remitente();
     const vencimiento = vence.toLocaleString('es-CL', { timeZone: 'America/Santiago', dateStyle: 'long', timeStyle: 'short' });
     const asunto = `${t.asunto} - ${centro}`;
     const texto = `${previo ? `${previo}\n\n` : ''}${t.cuerpo}\n\n${this.enlace(tipo, token)}\n\nVence: ${vencimiento}. No comparta este enlace.\n\n${centro}`;
     try {
-      await this.correo.enviar({ para, remitente: centro, asunto, texto });
+      await this.correo.enviar({ para, remitente: centro, responderA, asunto, texto });
     } catch {
       this.logger.warn(`No se pudo enviar el correo ${tipo}: queda para reintento`);
       await this.encolarReintento(para, asunto, texto, vence).catch(() => this.logger.error(`No se pudo encolar el reintento del correo ${tipo}`));
@@ -88,10 +88,11 @@ export class CorreosCuenta {
    * (vence en 10 minutos; si falla, la persona pide otro).
    */
   async enviarCodigo(para: string, codigo: string): Promise<void> {
-    const centro = await this.nombreCentro();
+    const { centro, responderA } = await this.remitente();
     await this.correo.enviar({
       para,
       remitente: centro,
+      responderA,
       asunto: `Tu código de verificación: ${codigo} - ${centro}`,
       texto: `Tu código para ingresar es:
 
@@ -125,8 +126,24 @@ ${centro}`,
     return { referenciaId, venceEn: vence };
   }
 
-  private async nombreCentro(): Promise<string> {
-    const [f] = await this.bd.sinContexto('publico').$queryRaw<[{ c: { nombre_centro: string } }]>`SELECT contenido_publico_centro() AS c`;
-    return f?.c.nombre_centro ?? 'Centro';
+  /**
+   * AUD-01 (E2.3b): aviso simple al correo ya registrado (sin enlace ni
+   * reintento). Nunca loguea el destinatario.
+   */
+  async enviarAviso(para: string, asunto: string, texto: string): Promise<void> {
+    const { centro, responderA } = await this.remitente();
+    try {
+      await this.correo.enviar({ para, remitente: centro, responderA, asunto: `${asunto} - ${centro}`, texto: `${texto}\n\n${centro}` });
+    } catch {
+      this.logger.warn('No se pudo enviar un aviso simple');
+    }
+  }
+
+  /** Nombre visible y Reply-To (correo de contacto publico del centro). */
+  private async remitente(): Promise<{ centro: string; responderA: string | null }> {
+    const [f] = await this.bd.sinContexto('publico').$queryRaw<
+      [{ c: { nombre_centro: string; contacto_correo: string | null } }]
+    >`SELECT contenido_publico_centro() AS c`;
+    return { centro: f?.c.nombre_centro ?? 'Centro', responderA: f?.c.contacto_correo ?? null };
   }
 }

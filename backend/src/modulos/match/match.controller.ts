@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   HttpCode,
@@ -43,6 +44,8 @@ import {
   ReporteResenaDto,
   ResenaDto,
   ReservaPortalDto,
+  RespuestaAusenciaDto,
+  RespuestaMensajeDto,
   ResolverEpicrisisDto,
   ResponderConsentimientoTokenDto,
   SolicitarEpicrisisDto,
@@ -81,6 +84,10 @@ import {
   ResenaPortal,
   ReservaPortal,
   RespuestaConsentimientoToken,
+  EstadoTratantePortal,
+  HorasCanceladas,
+  RespuestaAusencia,
+  RetornoPortal,
   SolicitudEpicrisisPortal,
 } from './dto/portal-respuestas.dto';
 import { MatchConfigService } from './match-config.service';
@@ -259,6 +266,52 @@ export class PortalController {
     return this.portal.reservar(dto);
   }
 
+  /** Si su profesional puede atenderlo (desactivado, de baja o con bloqueo: no) y si lo atiende un reemplazo. */
+  @Get('estado-tratante')
+  @Roles(...PORTAL)
+  estadoTratante(@Query() filtro: PacienteDelPortalDto): Promise<EstadoTratantePortal> {
+    return this.portal.estadoTratante(filtro.pacienteId);
+  }
+
+  /** Pedir otro profesional del equipo (su tratante no esta o prefiere otro mientras tanto); lo deriva la cuenta madre. */
+  @Post('otro-profesional')
+  @HttpCode(204)
+  @Roles(...PORTAL)
+  otroProfesional(@Body() dto: PacienteDelPortalDto): Promise<void> {
+    return this.portal.solicitarOtroProfesional(dto.pacienteId);
+  }
+
+  /** Cancelar las proximas horas con su tratante, solo si no esta disponible. */
+  @Post('horas-tratante/cancelacion')
+  @HttpCode(200)
+  @Roles(...PORTAL)
+  cancelarHorasTratante(@Body() dto: PacienteDelPortalDto): Promise<HorasCanceladas> {
+    return this.portal.cancelarHorasTratante(dto.pacienteId);
+  }
+
+  /** Punto 9: en la siguiente asignacion, si su profesional principal ya esta disponible (sin atencion temporal: null). */
+  @Get('retorno')
+  @Roles(...PORTAL)
+  retorno(@Query() filtro: PacienteDelPortalDto): Promise<RetornoPortal | null> {
+    return this.portal.retorno(filtro.pacienteId);
+  }
+
+  /** Punto 9: el paciente pide volver con su principal (solo si esta disponible); lo coordina la cuenta madre. */
+  @Post('retorno')
+  @HttpCode(204)
+  @Roles(...PORTAL)
+  pedirVolver(@Body() dto: PacienteDelPortalDto): Promise<void> {
+    return this.portal.pedirVolver(dto.pacienteId);
+  }
+
+  /** Punto 9: hora por reprogramar por ausencia del profesional: cancelarla o pedir atencion con otro mientras tanto. */
+  @Post('citas/:id/ausencia')
+  @HttpCode(200)
+  @Roles(...PORTAL)
+  responderAusencia(@Param('id', Uuid) id: string, @Body() dto: RespuestaAusenciaDto): Promise<RespuestaAusencia> {
+    return this.portal.responderAusencia(id, dto.opcion);
+  }
+
   @Get('citas/:id/datos-pago')
   @Roles(...PORTAL)
   datosPago(@Param('id', Uuid) id: string): Promise<DatosPagoPortal> {
@@ -301,6 +354,20 @@ export class PortalController {
   @Roles(...PORTAL)
   consentimientoAtencion(@Body() dto: PacienteDelPortalDto): Promise<AceptacionPortal> {
     return this.portal.aceptarConsentimientoAtencion(dto.pacienteId);
+  }
+
+  /** 03b-4.2: protocolo del centro para pacientes (vigente y ultimo acuse). */
+  @Get('protocolo')
+  @Roles(...PORTAL)
+  estadoProtocolo(@Query() filtro: PacienteDelPortalDto): Promise<EstadoConsentimientoAtencion> {
+    return this.portal.estadoProtocolo(filtro.pacienteId);
+  }
+
+  /** "Lo lei" del paciente adulto o del adulto responsable (no del adolescente con cuenta restringida). */
+  @Post('protocolo')
+  @Roles(...PORTAL)
+  aceptarProtocolo(@Body() dto: PacienteDelPortalDto): Promise<AceptacionPortal> {
+    return this.portal.aceptarProtocolo(dto.pacienteId);
   }
 
   /** Reseñas escritas por la cuenta (con su estado de moderacion). */
@@ -379,6 +446,22 @@ export class MatchConfigController {
     return this.config.editarPregunta(id, dto);
   }
 
+  /** Punto 27: solo las propias del centro; las del sistema se apagan (422). */
+  @Delete('preguntas/:id')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  eliminarPregunta(@Param('id', Uuid) id: string): Promise<void> {
+    return this.config.eliminarPregunta(id);
+  }
+
+  /** Punto 28: cualquier opcion, salvo la ultima de una pregunta de seleccion (422). */
+  @Delete('opciones/:id')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  eliminarOpcion(@Param('id', Uuid) id: string): Promise<void> {
+    return this.config.eliminarOpcion(id);
+  }
+
   @Post('preguntas/:id/opciones')
   @Roles('ADMIN')
   crearOpcion(@Param('id', Uuid) id: string, @Body() dto: OpcionMatchDto): Promise<MatchOpcionVista> {
@@ -410,9 +493,17 @@ export class MensajesController {
     return this.portal.mensajes();
   }
 
+  /** Puntos 40/44: respuesta del tratante en la plataforma (antes iba por un canal externo). */
+  @Post('respuesta')
+  @Roles('PROFESIONAL', 'PRACTICANTE')
+  responder(@Body() dto: RespuestaMensajeDto): Promise<MensajePortal> {
+    return this.portal.responder(dto.mensajeId, dto.contenido);
+  }
+
+  /** El destinatario: el tratante los del portal; la cuenta del portal, las respuestas. */
   @Post(':id/leido')
   @HttpCode(200)
-  @Roles('PROFESIONAL', 'PRACTICANTE')
+  @Roles('PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE')
   leido(@Param('id', Uuid) id: string): Promise<MensajeLeido> {
     return this.portal.marcarLeido(id);
   }

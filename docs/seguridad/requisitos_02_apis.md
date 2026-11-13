@@ -18,6 +18,11 @@ Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.m
 - El rol del JWT debe coincidir con `usuarios.rol`; si no, `acceso_vigente()`
   da false y todo devuelve 0 filas. Tras cambiar rol/activo/expiracion de un
   usuario, invalidar sus sesiones.
+- Sesion unica (2026-11-07, `docs/api/sesion_unica_conexiones.md`): una
+  sesion abierta por usuario (`crear_sesion` cierra la anterior). El JWT
+  lleva `sid` (familia de la sesion) y la misma consulta que verifica
+  `acceso_vigente()` exige `sesion_vigente(sid)`: una sesion cerrada da 401
+  aunque el JWT no haya vencido; un JWT sin `sid` tambien.
 - Sin contexto solo se llaman: `credenciales_login(email)`, `perfiles_publicos()`,
   `disponibilidad_publica(...)` (portal publico), `feed_calendario(token_hash)`
   (feed iCal, 02h: el token de la URL autoriza), `consultar_recordatorio` y
@@ -49,6 +54,8 @@ Consentimiento y supervision: `consentimiento.md`. Retencion: `retencion_datos.m
 | 23514 | regla de negocio (CHECK / trigger con `CONSTRAINT`) | 422 |
 | 42501 | sin privilegio o politica RLS | 403, o 404 si revelaria existencia |
 | P0002 | no existe | 404 |
+| 40P01 | deadlock entre transacciones concurrentes (una gana) | 409 (reintentar) |
+| Prisma P2028 | sin conexion libre en el pool dentro de `maxWait` (5 s) | 503 + `Retry-After: 2` (04_pruebas, 2026-11-07) |
 
 Usar el nombre de constraint para el mensaje (`citas_dentro_de_disponibilidad`,
 `citas_fuera_de_bloqueos`, `profesionales_publicar_requiere_tarifa`,
@@ -110,7 +117,7 @@ que se inicializa antes que cualquier otro que toque datos:
 
 Filas con columnas cifradas no tienen DEFAULT de id (el id es parte del AAD):
 `usuarios`, `pacientes`, `adultos_responsables`, `evoluciones`,
-`supervision_comentarios`, `derivaciones`, `boletas`, `documentos_clinicos`,
+`supervision_comentarios`, `derivaciones`, `comprobantes_pago`, `documentos_clinicos`,
 `envios_documento` (02h). La API genera
 `randomUUID()` antes de cifrar y lo pasa en el `create`. Prisma lo exige por
 tipo (el campo `id` no es opcional).
@@ -218,7 +225,7 @@ DTOs (`class-validator`), antes de cifrar:
     PENDIENTE, PARCIAL, PAGADO. "Pago pendiente" = saldo > 0, tambien en
     `datos_pago_profesional`.
   - Boleta: una por cita, emitida en la misma transaccion en que queda PAGADA
-    (`emitir_boleta`), con copia cifrada del emisor (el profesional si cobro
+    (`emitir_comprobante_pago`; AUD-01: comprobante de pago, no tributario), con copia cifrada del emisor (el profesional si cobro
     directo, si no el centro; sin RUT se cifra "sin RUT"). No se anula un pago
     de una cita con boleta.
   - Politica de cancelacion (`configuracion_centro`): `plazo_aviso_cancelacion_horas`
@@ -435,10 +442,12 @@ Decisiones: `docs/front/brechas.md` (seccion 6). Migraciones
   recibiendo un unico `app.current_rol` y `acceso_vigente()` exige que el
   usuario tenga ese rol (`tiene_rol`). `auth/cambio-rol` emite un token
   nuevo; la auditoria guarda el rol de la sesion.
-- **Login en dos pasos**: contraseña -> desafio; TOTP obligatorio para
-  cuentas con acceso clinico (PROFESIONAL, PRACTICANTE, o PROFESIONAL como rol
-  adicional; secreto cifrado en `usuarios.totp_secreto`), opcional para el
-  resto. Solo ADMIN reinicia un TOTP.
+- **Login en dos pasos**: contraseña -> desafio. Desde 03b-4.1 el segundo
+  factor es un codigo por correo para todo el equipo (ADMIN, GESTION,
+  PROFESIONAL, PRACTICANTE); TOTP queda apagado (ver "TOTP (03a)" mas abajo y
+  AUD-01, D10). Texto original de 03a: TOTP obligatorio para cuentas con
+  acceso clinico, secreto cifrado en `usuarios.totp_secreto`; solo ADMIN
+  reinicia un TOTP.
 - **Tokens por correo** (`tokens_correo`): invitacion, verificacion,
   recuperacion, acceso del paciente (C-6), cambio de correo (C-9) y
   consentimiento; solo el SHA-256, un solo uso, vencimiento. Solo funciones
@@ -839,3 +848,66 @@ Migraciones `20261029000000_03b41_enums` y
   por tramo y, dentro de cada uno, el de siempre (necesidad y
   disponibilidad). Con presupuesto se devuelve el equipo completo en `otros`.
 
+### 03b-4.1, pendientes aprobados (2026-10-27)
+
+Migracion `20261030000000_03b41_reservando_purga_codigos`.
+
+- **"Reservando..." de otras personas** (pendiente 4, opcion A):
+  `GET agenda/horarios-tomados/ajenos?desde&hasta[&profesionalId]`
+  (ADMIN, GESTION, PROFESIONAL, PRACTICANTE) llama a
+  `retenciones_en_curso()`, categoria C: devuelve solo `espacioId` (nulo si
+  es online), `inicio` y `fin` de los soft-locks activos de otras personas.
+  ADMIN/GESTION ven todos o los del profesional pedido; PROFESIONAL y
+  PRACTICANTE, solo los que alguien tiene abiertos sobre su agenda (el
+  filtro lo hace la BD; `profesionalId` lo ignora para ellos). Rango mayor a
+  62 dias: 422; PACIENTE/RESPONSABLE: 403 (guard) y 42501 (BD). El soft-lock
+  sigue siendo solo UX: el EXCLUDE de `citas` es la fuente de verdad.
+- **Limpieza de codigos** (pendiente 18): job `purgar_codigos_verificacion`
+  (diario 03:45 de Chile, `pg_try_advisory_xact_lock`, idempotente).
+- **Calendario con sondeo** (pendiente 10): `GET citas` y el endpoint
+  anterior se consultan cada 2 minutos con la pestaña visible
+  (`docs/front/estandar_polling.md`).
+
+### 03b-4.2, protocolo del centro y comision por derivacion (2026-10-28)
+
+Migraciones `20261031000000_03b42_enums` (valores `PROTOCOLO_EQUIPO` y
+`PROTOCOLO_PACIENTE` de `tipo_politica`) y
+`20261031000100_03b42_protocolos_comision`.
+
+- **Protocolo interno del equipo** (pendiente 5): `GET protocolo` (equipo:
+  version vigente y `leidoEn` de la cuenta), `POST protocolo/lectura`
+  (`marcar_protocolo_leido()`, idempotente) y `GET protocolo/lecturas`
+  (ADMIN/GESTION: `usuarioId`, `rol`, `leidoEn` de la version vigente; los
+  nombres y los pendientes los cruza el panel con `directorio_interno`).
+  Publicar una version nueva usa `POST politicas` (solo ADMIN) y deja a todos
+  pendientes. `GET publico/politicas/PROTOCOLO_EQUIPO` responde 404.
+- **Protocolo para pacientes**: `GET portal/protocolo` y `POST
+  portal/protocolo` (paciente adulto o adulto responsable; el adolescente con
+  cuenta restringida recibe 403), sobre `registrar_aceptacion` como el
+  consentimiento de atencion (canal PORTAL). El tratante y ADMIN/GESTION lo
+  ven en `GET pacientes/:id/aceptaciones`.
+- **Comision por derivacion** (pendiente 6, C-10): `PATCH configuracion`
+  acepta `comisionDerivacionTipo` (`GENERAL`, `PORCENTAJE`, `MONTO_FIJO`) y
+  `comisionDerivacionValor` (DTO 0 a 1.000.000; la BD exige 0-100 para
+  porcentaje y entero para monto fijo: 422). `PacienteVista` trae
+  `traidoPorCentro`; `PUT pacientes/:id/origen` (ADMIN/GESTION) lo corrige.
+  `LiquidacionVista` trae `comisionDerivacion` y `sesionesDerivadas`; el PDF
+  separa la comision general de la de derivacion. `reporte_cobros` estima la
+  comision con la misma regla (mismas columnas de salida).
+
+### Cierre hacia el MVP (2026-10-30)
+
+- Migraciones `20261103000000_mvp_enums` y
+  `20261103000100_mvp_revocacion_cargos_avisos`.
+- `POST accesos-temporales/:id/revocacion` (`TERMINO_ANTICIPADO`, `ERROR`,
+  `SOLICITUD_PACIENTE`). `AccesoTemporalVista` trae `revocadoEn` y
+  `motivoRevocacion`. Sin vigencia: 409; con sesiones por cubrir: 422.
+- `GET/PUT notificaciones/preferencias-equipo` (equipo; solo las propias).
+- `GET espacios/bloques` (ADMIN/GESTION).
+- `liquidarCargosAProfesional` en configuracion; `LiquidacionVista.cargosLiquidados`
+  (parte de `totalCobrado`; el PDF lo separa).
+- `cita_liquidable` excluye la inasistencia justificada: lo pagado se traslado o
+  se devolvio, asi que no es una sesion realizada para liquidar.
+- `GET cobros/transferencias/:id/comprobante` registra `DESCARGA` (antes `LECTURA`).
+- OpenAPI: `GET cobros/cuenta-centro` declara `CuentaCentroVista`; el cuerpo
+  sigue vacio si no hay cuenta.

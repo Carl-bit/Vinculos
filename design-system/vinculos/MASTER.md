@@ -19,6 +19,14 @@ oliva, crema: calza con Organic), con el checklist de "Accessible & Ethical".
   (`neutral-700` da 4.4:1). Por eso la bajada de `Encabezado`,
   `EnlaceVolver`, la ayuda de `Field` y las opciones de `ChoiceGroup` van en
   `neutral-800` (03b-5.1).
+- 03b-4.1 (2026-10-28): `impeccable detect` sobre el panel con sesion iniciada
+  seguia encontrando `neutral-700` y `accent-2-700` directo sobre
+  `neutral-300` (4.4:1 y 4.35:1). Se oscurecen los dos tokens un tono:
+  `neutral-700` #645c50 -> #5f574b (4.8:1) y `accent-2-700` #56633f ->
+  #515e3b (4.7:1). La regla de arriba sigue (preferir `neutral-800` sobre el
+  fondo del panel); el token mas oscuro es la red para lo que se escape.
+- Texto minimo: 12 px para texto de lectura y 11 px para etiquetas en
+  mayusculas (impeccable `tiny-text` / `undersized-ui-text`).
 - Verde (`accent-2`) = paciente y público. Terracota (`accent`) = equipo.
 - Textura: grano de papel (SVG fractalNoise, opacidad 0.06, multiply) fijo
   sobre todo el sitio. Le quita la planitud de plantilla generada.
@@ -59,6 +67,19 @@ oliva, crema: calza con Organic), con el checklist de "Accessible & Ethical".
   Error: `error` + "Reintentar" (botón secundario). Sin permiso: `lock`.
 - Error de API: el texto sale de `mensajeError` (409/422 con el mensaje de
   la regla; el resto con un texto fijo por estado).
+- Entrada de un modulo (panel y portal, `shared/CargaModulo` en
+  `LayoutAdmin` y `LayoutPortal`): el modulo se monta oculto bajo un
+  esqueleto de pagina completa y aparece de una vez cuando ninguna consulta
+  sin datos sigue en vuelo (150 ms de asentado, tope de 10 s). Nunca pagina
+  en blanco ni paneles que llegan cada uno a su tiempo. Volver a un modulo
+  en cache no muestra esqueleto. El `EstadoVista` de carga de cada panel
+  queda para recargas dentro del modulo (filtros, paginas).
+- Cambio de rol (selector y "Trabajar como Profesional", `lib/cambioRol`):
+  el esqueleto cubre desde el clic hasta que el modulo del rol nuevo esta
+  completo (el `<main>` del panel lleva key con ruta y rol).
+- El esqueleto son tarjetas con las clases de `Card` (`crema`): cada tema
+  le da su fondo, borde, radio y sombra; las barras van en neutral-300, un
+  tono mas oscuro que la tarjeta y el lienzo.
 
 ## Login, segundo paso TOTP
 
@@ -234,3 +255,90 @@ de baja friccion.
 - Filtro directo del match: dentro de la tarjeta del asistente, resultados
   separados por divisores (no tarjetas anidadas); el panel lateral cambia el
   progreso por un texto que explica el modo.
+
+## Moderno A (03c, 2026-11-05)
+
+Referencia: `design-reference/Perfil/` y `design-reference/Equipo/`. Se
+reimplementa con las piezas del repo; solo cambia el estilo (no flujos,
+endpoints, permisos ni textos legales). Muestrario: `/dev/estilo` (solo en
+desarrollo).
+
+Tokens (`globals.css`):
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `tinta` | #2B2420 | texto (13:1 sobre crema) |
+| `arcilla` | #8A4B1F | acción del equipo, anillo de selección, campo modificado (6.6:1) |
+| `oliva` | #4F6B2F | público y paciente (5.9:1) |
+| `papel` | #FFFDF9 | realce: sección enfocada y campo modificado. Las tarjetas van en crema (`bg`, decisión 2026-11-05) |
+| `lienzo` + `punto` | #F1EBE2 + #D6CBBB | fondo de todos los módulos del panel: trama de puntos de 18 px (utilidad `trama` en el `<main>` de `LayoutAdmin`; la barra lateral no) |
+| `borde` | #E3D7C4 | borde de tarjetas y barras |
+| `rounded-campo` / `-tarjeta` / `-panel` / `-full` | 14 / 16 / 24 / 999 px | campos / secciones / paneles / píldoras |
+| `shadow-suave` / `shadow-flotante` | 0 14 40 .10 / 0 24 60 .18 | tarjeta / barra o inspector flotante |
+| utilidad `translucida` | crema 92 % + blur 10 px | inspector y barras; sólida con `prefers-reduced-transparency` |
+
+Piezas (nombre del pedido = nombre en el repo):
+
+- Surface = `ui/Card` con `variante="crema"` o `"translucida"` (`organic` sigue siendo el valor por defecto).
+- FloatingToolbar = `ui/BarraFlotante` con `variante="moderno"`.
+- PillNav = `ui/Pestanas` con `tono="moderno"` (activa en tinta, 44 px).
+- Field = `ui/Field` con `cambiado`: borde arcilla y marca «Modificado» (no solo color).
+- Switch = `ui/Interruptor`. Chip de estado = `ui/Badge` con `tono` (nuevo `pendiente`).
+- `shared/EdicionSegura`: `useGuardaCambios` (useDirtyGuard), `DialogoDescartar`
+  (ConfirmDiscardDialog), `BarraSinGuardar` (UnsavedBar), `EditorEnfocado` +
+  `SeccionEnfocable` (FocusEditor). El botón Atrás del navegador no se intercepta
+  (App Router no bloquea rutas); recargar o cerrar sí (beforeunload).
+
+Tipografía: se mantiene Figtree en todo (el diseño usa Bricolage Grotesque en títulos; decisión 2026-11-05).
+
+Reglas: objetivos de 44 px en lo nuevo; sección enfocada con anillo arcilla
+de 3 px y el resto a opacidad 0.32 con blur de 1.5 px; transiciones de 200 ms
+ease-out, apagadas con `prefers-reduced-motion`.
+
+### Marca del centro por zona (03c)
+
+La cuenta madre elige en Configuración > Marca y apariencia el color principal
+y el de fondo del sitio público, del portal y del panel. `shared/MarcaZona`
+reemplaza los tokens: principal = escala `accent` + `arcilla` (sitio público y
+panel) o `accent-2` + `oliva` (portal), derivada con `color-mix` (700 = el
+color); fondo = `body` (sitio público) o `lienzo` + `punto` (portal y panel, ambos con trama de puntos). Las
+tarjetas siguen en crema. Por eso toda pantalla usa tokens, nunca hex sueltos.
+
+En el campo de color se puede escribir un nombre ("rojo", "azul", "café"):
+`lib/coloresNombrados.ts` despliega los tonos de esa familia como `#RRGGBB (Nombre)`,
+con primarios, secundarios y nombres clásicos de objetos (frutilla, oliva, ladrillo, marfil, vainilla...). Un tono que no se lee bien en ese campo se ofrece ajustado ("más oscuro" para el principal, "más claro" para el fondo, `tonoLegible`); un tono muy claro no se oscurece más de 60 % (queda gris): ese se ofrece solo como fondo.
+
+### Sitio público y login, estilo Moderno (2026-11-06)
+
+Referencia: `design-reference/Landing/` (Main = sitio, Login = inicio de sesión).
+
+- Fondo: trama de puntos (`trama`) en todo el sitio público, igual que portal y panel. El color de fondo del sitio público de la marca por zona ahora reemplaza `lienzo` + `punto` (antes pintaba `body`).
+- Barra: píldora translúcida fija arriba (`translucida`, `rounded-full`, `shadow-suave`), navegación en píldoras con `aria-current` (`shared/NavPublica`), "Iniciar sesión" en tinta; en `/ingreso` no se repite.
+- Landing: portada con bloque oliva y hasta 3 profesionales publicados flotando + tarjeta tinta "Equipo · desde $X"; servicios en tarjetas crema (icono del centro sin tile, por la regla del proyecto); equipo en 4 tarjetas con `AvatarProfesional cuadrado`; llamado final `LlamadoAccion tono="oscuro"` con botones `sobreOscuro` / `contornoOscuro`.
+- Login: presentación del perfil a la izquierda (rótulo, h1, bajada, puntos según módulos activos) y `TarjetaIngreso` translúcida a la derecha (radio 32 px). Las páginas de cuenta (recuperar, acceso, activar, correo, derechos, exportación) heredan la misma tarjeta; se retiraron las manchas difusas.
+- Se mantiene Figtree (no Bricolage) y los botones píldora del sistema (el diseño usa radio 18 px).
+
+## Temas por silo (2026-11-07)
+
+Cada silo elige su estilo con `TEMA` en su `.env` (build arg
+`NEXT_PUBLIC_TEMA`, `<html data-tema>`). `moderno` es el de siempre (este
+archivo). `cuaderno` sale de `design-reference/Segundo Silo` y vive entero en
+`frontend/src/app/temas/cuaderno.css`.
+
+- Un tema nuevo es un archivo en `app/temas/` con `:root[data-tema='<nombre>']`:
+  redefine los tokens (colores, radios, `--font-cuerpo`) y, fuera de `@layer`,
+  las clases que Tailwind no lee por variable (las sombras se copian dentro de
+  cada utilidad).
+- Ganchos estables para los temas (no borrar): `boton boton-<variante>`
+  (`ui/Button`), `control` (`ui/Field`), `pestana` y `barra-publica` (sitio
+  publico), `marca-centro`, `acceso-cuenta`, `nota` (post-it), `con-cinta`
+  (login), `llamado-oscuro`, `filtro-chip`.
+- Solo cuando el tema cambia el marcado, el componente consulta `esCuaderno`
+  (`lib/tema.ts`): tapas de profesional (`shared/TapaCuaderno`, color por orden
+  en el equipo publico) y la nota del inicio (`nucleo/Landing`).
+- Cuaderno, reglas del diseño: Caveat solo en h1/h2 y anotaciones; destacador
+  solo en el h1; post-its y tapas solo en el sitio publico; inclinacion de 2°
+  como maximo y nunca sobre campos (por eso la tarjeta del login no se inclina,
+  aunque el mockup lo hace); agenda, tablas y ficha sin adornos.
+- `impeccable` marca la hoja rayada (advisory) y el borde inferior de la barra
+  publica: son el diseño.

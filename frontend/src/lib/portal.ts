@@ -33,6 +33,7 @@ export const clavesPortal = {
   citas: (pacienteId?: string, todas?: boolean) => ['portal', 'citas', pacienteId ?? 'propio', todas ? 'todas' : 'proximas'] as const,
   misDatos: (pacienteId?: string) => ['portal', 'mis-datos', pacienteId ?? 'propio'] as const,
   preferencias: (pacienteId?: string) => ['portal', 'preferencias', pacienteId ?? 'propio'] as const,
+  contactos: (pacienteId?: string) => ['portal', 'contactos-emergencia', pacienteId ?? 'propio'] as const,
 };
 
 export function usePacientesPortal() {
@@ -75,8 +76,19 @@ export function useMisDatos(pacienteId: string | undefined, habilitado = true) {
   });
 }
 
+/** Punto 38: contactos de emergencia del paciente (los ve y los administra el portal). */
+export type ContactoEmergencia = components['schemas']['ContactoEmergenciaVista'];
+export function useContactosEmergencia(pacienteId: string | undefined, habilitado = true) {
+  return useQuery({
+    queryKey: clavesPortal.contactos(pacienteId),
+    queryFn: () => datos(api.GET('/api/portal/contactos-emergencia', { params: { query: { pacienteId } } })),
+    enabled: habilitado,
+  });
+}
+
 export function useMensajesPortal() {
-  return useQuery({ queryKey: ['portal', 'mensajes'], queryFn: () => datos(api.GET('/api/mensajes')) });
+  // Puntos 40/44: chat con el profesional; polling (sin websockets, CLAUDE.md).
+  return useQuery({ queryKey: ['portal', 'mensajes'], queryFn: () => datos(api.GET('/api/mensajes')), refetchInterval: 30_000 });
 }
 
 export function useResenasPortal() {
@@ -123,11 +135,13 @@ export function useCobrosPortal(habilitado = true) {
   return useQuery({ queryKey: ['portal', 'cobros'], queryFn: () => datos(api.GET('/api/cobros/citas')), enabled: habilitado });
 }
 
-/** Estado de una cita para el paciente (diseño "Mi Cuenta"). 03b-3.2: se confirma con el pago (sin aprobacion aparte). */
+/** Estado de una cita para el paciente (diseño "Mi Cuenta"). MVP sin cobros: la confirma su profesional (SOLICITADA). */
 export function estadoCitaPortal(c: Pick<CitaPortal, 'estado' | 'realizada' | 'fin'>): { texto: string; tono: 'positivo' | 'atencion' | 'neutro' } {
   if (c.estado === 'CANCELADA') return { texto: 'Cancelada', tono: 'atencion' };
   if (c.estado === 'POR_REPROGRAMAR') return { texto: 'Por reprogramar', tono: 'atencion' };
   if (c.estado === 'PENDIENTE_PAGO') return { texto: 'Pago pendiente', tono: 'atencion' };
+  if (c.estado === 'SOLICITADA') return { texto: 'Por confirmar', tono: 'atencion' };
+  if (c.estado === 'PROPUESTA') return { texto: 'Propuesta, por elegir', tono: 'atencion' };
   if (c.estado === 'LIBERADA') return { texto: 'Liberada (pago vencido)', tono: 'neutro' };
   if (c.realizada) return { texto: 'Completada', tono: 'neutro' };
   return { texto: 'Confirmada', tono: 'positivo' };

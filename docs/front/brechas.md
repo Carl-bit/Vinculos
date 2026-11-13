@@ -520,8 +520,7 @@ Reportado, no implementado:
 
 Reportado, no implementado:
 
-- Revocar un acceso temporal antes de su fecha: la BD no lo permite (se corta
-  solo al vencer, append-only). Si el centro lo necesita, es una funcion nueva.
+- ~~Revocar un acceso temporal antes de su fecha~~: resuelto en la seccion 23.
 - "Mensajes de pacientes" muestra telefono y correo para responder fuera de la
   app: la respuesta in-app esta fuera de alcance (CLAUDE.md).
 
@@ -766,6 +765,171 @@ decidir.
 | Fase | Estado | Pendientes |
 |---|---|---|
 | 03b-2 (sitio publico) | Completa | — |
-| 03b-3 (cuentas y portal, con 3.1 a 3.4) | Completa | Lista de espera retirada (implementacion futura, seccion 16); pantalla de transferencias por validar dentro de Cobros ya existe como pendiente del inicio |
-| 03b-4 (backoffice segun diseño) | Con pendientes | Equipo: tira de avatares del diseño (lista vertical hoy); "Reservando..." ajeno y protocolo del centro fuera de la API; `impeccable detect` marca `border-l-4` en las sesiones de la vista semanal (de 03b-4, no de este correctivo) |
+| 03b-3 (cuentas y portal, con 3.1 a 3.4) | Completa | Lista de espera retirada (implementacion futura, seccion 16); transferencias por validar y medios de pago: resueltos en la seccion 23 |
+| 03b-4 (backoffice segun diseño) | Completa (2026-10-28: ver seccion 22) | 8 (avisos del equipo) pasa a la auditoria de flujos; 15 sin decidir |
 | 03b-5 | En pausa | No se avanza hasta cerrar 03b-4 |
+
+## 22. Pendientes de 03b-4.1 aprobados (2026-10-27)
+
+Lista y decisiones en `prompts/correcciones`. Hechos:
+
+| N° | Pendiente | Resolución |
+|---|---|---|
+| 3 | `border-l-4` en la semana | Punto de color junto al nombre, como la vista mensual (`impeccable detect` ya no lo marca) |
+| 4A | "Reservando…" de otras personas | `retenciones_en_curso()` (C: solo box y rango) y `GET agenda/horarios-tomados/ajenos`; en gris con borde punteado en semana y mes, y en la leyenda |
+| 10 | Calendario sin actualización | Sondeo cada 2 min con la pestaña visible (`estandar_polling.md`) |
+| 11 | Playwright con fallas intermitentes | Causa probable: el límite de login (30/min) cuenta login, segundo paso y refresh. Desarrollo sube a 120 (`.env.example`). `storageState` descartado: el refresh rota y su reuso revoca la familia. Dos corridas completas seguidas sin fallas de límite |
+| 13 | portal.spec | "Falta el pago para confirmar tu hora" es lo esperado: el test sigue con pago en el centro hasta "Tu hora quedó confirmada" |
+| 14 | Validar al salir del campo | `lib/validacion.ts` (`useValidacionCampos`) en Mi cuenta del equipo, Mis datos del portal, Editar paciente y Datos del centro |
+| 17 | Semana actual casi vacía | Seed: horas hoy y el próximo día hábil (las de hoy ya empezadas, sin evolución) |
+| 18 | Códigos vencidos se acumulan | Job `purgar_codigos_verificacion` (03:45) |
+| 19 | Selector de equipo se pierde al recargar | Va en la URL (`?equipo=<id>`) y se conserva al navegar |
+| 21 | impeccable con sesión | `e2e/zz-instantaneas.spec.ts` guarda el HTML renderizado; con los estilos en línea, el detector corrió contraste y texto chico. Corregido: `neutral-700` y `accent-2-700` un tono más oscuros (AA sobre el fondo del panel), texto de 10,5 y 11,5 px a 11 y 12 px en las vistas revisadas |
+| 22 | Mi perfil de la cuenta madre | Su perfil profesional (lecturas de ADMIN, sin aprobar ni verificar lo propio) y "Trabajar como Profesional" para indicadores, agenda, tarifas y trayectoria |
+| 23 | Sección Centro | Solo ADMIN (Página pública oculta para el resto) |
+
+### Cierre de lo hecho y pendientes medianos (2026-10-28)
+
+Decisiones: 12 (TOTP) pasa a 03b-5, el segundo factor sigue solo por correo;
+16 no: ninguna captura al repo hasta una versión final (por eso tampoco el
+20, capturas a 390 px; las capturas solo se usan para verificar, fuera del
+repo).
+
+| N° | Resolución |
+|---|---|
+| 3 | Además del punto, la sesión confirmada toma un fondo suave del tono del profesional o box |
+| 11 | 3 corridas completas seguidas sin fallas y 1 más tras reseed (54/54). Dos fallas intermitentes resueltas: el menú del portal mostraba por un instante las secciones vedadas al adolescente mientras cargaba la cuenta (ahora se ocultan hasta saberlo), y el test de reseñas fallaba en la primera corrida tras `demo:reset` porque el sitio público (ISR, 60 s) servía la lista con los ids del seed anterior (el test reintenta). Una vez falló el test de inactividad y no se repitió en 5 corridas; no se encontró la causa |
+| 10 | Regla 3 del estándar: 429, 5xx o sin red duplican el intervalo hasta 5 min; 401/403/404 lo detienen (`intervaloSondeo`) |
+| 14 | También en Agregar adulto responsable, Nueva cuenta del equipo, correo de "ya soy paciente" y enlace de acceso; Pedir hora y Nuevo paciente usan las reglas compartidas |
+| 17 | Horas hoy y mañana también para profesional3 a profesional6 (paciente nuevo para profesional3) |
+| 19 | El selector escribe la URL al elegir y la URL manda al navegar: "Ver su agenda" / "Ver sus pacientes" de un perfil abren con ese integrante |
+| 21 | `e2e/zz-instantaneas.spec.ts` deja el HTML autónomo (estilos en línea); impeccable sobre 50 vistas (público, panel y portal, 1280 y 390 px): 0 contraste, 0 texto chico. Tokens documentados en `MASTER.md` e `inventario_ui.md` |
+| 22 | El `admin` del seed tiene perfil profesional (sin publicar); "Ver mi agenda" abre su agenda |
+| 1 | Equipo: tira horizontal agrupada por rol principal (avatar, nombre, roles, punto de estado), búsqueda con más de 8 integrantes y "Ver lista" (preferencia en localStorage, sin datos sensibles) |
+| 2 | "Rol dentro del centro": pastillas de solo lectura (principal y adicionales); el rol profesional adicional se agrega o se da de baja con los botones existentes |
+| 7 | Mi perfil del profesional: nombre, correo y teléfono en "Mis datos y descripción"; "Guardar mi perfil" guarda la cuenta y después el perfil (si la cuenta falla, el perfil no se envía y el error queda en su parte); barra fija con "Descartar cambios", activa solo con cambios. "Mis datos de contacto" sale de Mi cuenta en esa vista |
+| 9 | Mis pacientes: "Con deuda · $saldo" (sesión realizada impaga) y "Pago pendiente" (hora futura esperando el pago), con Cobros activo. "Por confirmar" ya no existe (03b-3.2). El seed trae un moroso (03b-4.2, abajo) |
+
+### 03b-4.2: moroso del demo, protocolo y comisión (2026-10-28)
+
+| N° | Resolución |
+|---|---|
+| Moroso | Seed: Rodrigo (`moroso@`, llegó por el centro) con una sesión realizada impaga; figura en Deudas, "Con deuda" en Mis pacientes de profesional1 y el portal le ofrece pagarla. Su próxima hora la autorizó GESTION con motivo (queda en `excepciones_morosidad`) y el job envió el aviso de deuda |
+| 5 | Protocolo del centro, equipo y paciente. Interno: versionado (Configuración > Políticas, solo ADMIN publica), "Marcar como leído" en Mi perfil y registro de quién lo leyó y quién falta para la dirección; no es público. Pacientes: "Lo leí" en Consentimientos del portal (adulto o adulto responsable); el tratante y administración lo ven en la ficha. Seed: textos de ejemplo, profesional1 leído, Paciente Prueba con acuse |
+| 6 | Comisión por paciente traído por el centro (no la derivación clínica entre profesionales). El paciente "llegó por el centro" si viene del sitio público (Match o Pedir hora) o lo dio de alta administración; administración lo corrige en la ficha. El centro elige: misma comisión general, otro porcentaje o monto fijo por sesión (tope: lo cobrado). Va en la liquidación (línea aparte en el PDF) y en el panel de Cobros. Con la regla general, la liquidación da lo mismo que antes |
+| 8 | Avisos y recordatorios del equipo: se mantienen por correo; la proyección queda para la auditoría de flujos (siguiente avance) |
+
+15 último rol activo: se deja como está (sin recordar el rol entre sesiones; se entra con el rol por defecto y el selector cambia en un clic).
+
+Seed demo: las horas de hoy y del próximo día hábil quedan todas pagadas en el centro (también las que terminan después del seed), así que ya no hace falta `demo:reset` cada día para que no aparezcan morosos; solo Rodrigo debe. La siguiente hora impaga del seed es a 2 días hábiles. Verificado tras `demo:reset`: `deudas_vencidas()` solo devuelve a Rodrigo y Playwright 59/59 (4 omitidos: instantáneas sin `INSTANTANEAS`).
+
+impeccable sigue marcando
+`nested-cards`, `cramped-padding`, `cream-palette` (paleta Organic) y
+`kicker-above-heading` (eyebrow del diseño): reglas de composición del
+diseño, no de accesibilidad; no se tocaron. En 03b-4.2 aparecen además
+`repeated-container-text` ("Profesional" en el menú lateral de
+profesional1) y `em-dash-overuse` (celdas vacías de Cobros): no son de esta
+fase.
+
+### 03b-4.2: correctivo de interfaz para 1920x1080 (2026-10-29)
+
+| Punto | Resolución |
+|---|---|
+| 1.1 Encabezado de agenda | "Mi agenda" (PROFESIONAL) / "Coordinación del centro" (ADMIN/GESTION) con una línea de subtítulo; una barra: Día \| Semana \| Mes, Anterior, Hoy, Siguiente, rango, filtro de profesional (ADMIN/GESTION, el mismo filtro que el selector de equipo) y "Agendar sesión" |
+| 1.2 Vistas | Pestañas "Mi horario"/"Por profesional", "Por box", "Espacios", "Pendientes". "Horarios del equipo" sale de las pestañas y queda como acción "Horarios y boxes" del encabezado (`?vista=horarios`): es donde se apartan horas de box, y sin eso la agenda no ofrece horas. Vista Día: por box (una columna por box + Online) y, para ADMIN/GESTION sin filtro, una columna por profesional |
+| 1.2 Por box del PROFESIONAL | **Contradicción con la BD:** el prompt pide "Ocupado · nombre del profesional", pero `ocupacion_espacios()` (categoría C; el caso 34 fija sus columnas) y la matriz ("box ocupado (sin profesional)") no entregan quién. Manda la BD: se muestra "Ocupado · Box", sin nombre ni paciente. **Decidido (2026-10-29):** queda "Ocupado" entre profesionales; ADMIN/GESTION ven el nombre del profesional en cada sesión (su listado de citas ya lo trae). Sin cambio en la matriz ni en el caso 34 |
+| 1.3 Grilla | Grilla de tiempo real (líneas por hora; posición y alto por inicio y duración; carriles si se solapan; lo ocupado por otros va de fondo), sin "Libre"; alto de la ventana con scroll interno y encabezado fijo; abre a las 08:00 con la línea de la hora actual; tarjeta compacta (paciente, hora, profesional en vistas multi, ícono presencial/online y box); color por profesional o box con leyenda; estado con símbolo y texto (confirmada, pendiente de pago, atendida, sin evolución, no asistió, por reprogramar, retenida) y leyenda; contador de citas por columna. "Atendida/Sin evolución" solo para el equipo tratante (`GET citas-con-evolucion`); ADMIN/GESTION ven "Realizada". "No asistió" sale de Cobros (`inasistencia`) si el módulo está activo |
+| 2 Inicio | Sin "Módulos del centro" ni calificación (queda en Mi perfil). PROFESIONAL: sesión en curso o próxima (hora, paciente, modalidad, box o enlace, "Abrir ficha", "Registrar evolución" y aviso si el paciente escribió desde el portal antes), línea del día, indicadores chicos (pacientes activos, sesiones de la semana, sin sesión hace +1 mes -> filtro nuevo "Sin sesión +1 mes" en Pacientes), "Esta semana", "Pendientes" y "Mis recordatorios". ADMIN/GESTION: "Hoy en el centro", línea del día por profesional, indicadores del centro, semana del centro, pendientes administrativos y recordatorios; sin datos clínicos |
+| 2 Recordatorios | Tabla `recordatorios_personales` (A, cifrada, solo el autor); advertencia de no escribir datos clínicos |
+| 3 Vista de paciente | Página y ficha unificadas (`/admin/fichas/:id`; `/ficha` redirige con sus parámetros). Encabezado fijo con nombre, edad, RUT, sesiones, estado (activo/alta) y tratante; datos rápidos (correo y teléfono con copiar si la API los entrega al rol, modalidad habitual, tarifa vigente, adulto responsable si es menor, contacto de emergencia); avisos (consentimiento pendiente, sesiones sin evolución, pagos pendientes, borradores) que llevan a su pestaña; acciones siempre visibles. Tratante: Sesiones, Evoluciones, Ingreso, Documentos y adjuntos, Cobros, Consentimientos y Datos + panel lateral (motivo de consulta, última evolución, contacto de emergencia, conversaciones). ADMIN/GESTION: Sesiones, Cobros, Consentimientos, Datos. "Ingreso" y "Datos" (accesos temporales, alta) se suman a las pestañas del prompt para no perder funciones de la ficha anterior |
+| 3 "Nueva sesión" | Para ADMIN/GESTION la acción principal es "Agendar" (no existe registrar una sesión sin hora) |
+| 4 Registro SIS | Insignia "Registro SIS N.º" con "Verificado el …" o "Verificado por el centro" y enlace al RNPI en la tarjeta y el perfil completo (solo verificados). Mi perfil: informar y verificar. Ficha del integrante: estado, "Verificar ahora" y "Verificar manualmente" (ADMIN). Practicantes: "Practicante supervisado por X" |
+
+Capturas 1920x1080 en `docs/front/capturas/03b-4.2/` (agenda profesional y admin: semana, por box y box elegido; inicio profesional y admin; paciente del tratante, evoluciones y admin; Mi perfil con registro; tarjeta y perfil público con registro). Se regeneran con `CAPTURAS=<carpeta> npx playwright test e2e/zz-capturas-03b42.spec.ts`.
+
+impeccable en las vistas nuevas: solo `cramped-padding` estructural (líneas de la grilla, divisores de lista) y los ya conocidos (`kicker-above-heading` del saludo, `cream-palette` Organic, `repeated-container-text` del menú).
+
+### 03b-4.2: ajustes tras la revisión (2026-10-29)
+
+| Punto | Qué se hizo |
+|---|---|
+| Insignia SIS para todos | El seed demo informa un número ficticio (100001-100007) para los seis profesionales y la cuenta madre, y ADMIN lo verifica a mano: la insignia sale en todas las tarjetas. Practicantes: "supervisado por". Requiere `npm run demo:reset` en la BD local |
+| Motivo de la sesión sin match | Recuadro opcional "¿Qué te gustaría trabajar en la sesión?" en "Pedir hora" (sitio público) cuando no viene del match. Viaja como `respuestas.motivo_sesion` (mismo camino cifrado que el match, D-6). El tratante lo ve en "Indicaciones del paciente" y, sin ficha de ingreso, en el resumen clínico. La reserva desde el portal (paciente con tratante) no lo pide |
+| Línea del día (inicio) | Un bloque a todo el ancho; se actualiza solo (citas cada 2 min, reloj cada minuto) y termina en "Agenda y Espacios" |
+| Calendario | Sin vista Día (Semana y Mes; desde el mes, un día abre su semana). Grilla de la apertura del centro (horario del centro, configurable; 08:00 sin horario) a las 24:00, estirada al alto de la ventana (mínimo 30 px por hora; bajo eso, scroll interno). Encabezado en una línea (título, pestañas y acción) con los botones del mismo tamaño |
+| Por box | Filtro "Todos los boxes" o un box. Todos: sesiones con el color de su box y las del profesional destacadas. Un box: de fondo su horario libre (`GET espacios/disponibilidad`) y lo ocupado (`ocupacion_espacios()`, sin quién; lo propio como "Tu horario apartado"), y encima las sesiones del profesional para ver choques (también las de otro box u online). "Mis sesiones encima" se puede apagar (preferencia local, sin datos sensibles) |
+| Equipo | Menú y página solo para ADMIN/GESTION (otro rol se redirige a "Mi perfil"). La pestaña "Supervisión" del supervisor pasa a "Fichas y Pacientes" |
+
+Pendiente: en "Por box" con un box elegido, lo apartado por otro profesional se ve como "Ocupado" también para ADMIN (la ocupación no trae quién); el nombre lo ve en las sesiones. Si ADMIN necesita el nombre en los bloques apartados, hay que leer los bloques por profesional.
+
+## 23. Cierre hacia el MVP (decisiones del usuario, 2026-10-30)
+
+| Pendiente | Resolución |
+|---|---|
+| Transferencias por validar (secciones 17 y 18) | Cobros › Transferencias: por validar, validadas y rechazadas; comprobante, validar y rechazar con motivo. Quien valida sigue el modelo de cobro (la BD lo impone). El inicio enlaza a la pestaña. Nombres con la lista de pacientes del rol: no hizo falta cambiar la API |
+| Medios de pago y cuenta del centro | Configuración › Medios de pago (solo ADMIN): pago en el centro, transferencia, plazo, porcentaje y cuenta. La pasarela no se ofrece; si estaba habilitada se conserva |
+| Revocar acceso temporal | Botón "Revocar" para ADMIN y el tratante, con motivo de catálogo. Con sesiones por cubrir no se permite. Aviso al paciente y al profesional |
+| C-11 | Interruptor en Reglas y plazos, apagado por defecto. Encendido: lo cobrado como cargo entra a la liquidación, línea aparte, con comisión normal. Corrige además un error: la inasistencia justificada con devolución se liquidaba como sesión realizada |
+| 8, avisos del equipo | Mi perfil › Avisos y recordatorios: correo sí/no para agenda, cobros, derivaciones y mensajes |
+| Por box para ADMIN | Lo apartado muestra quién lo apartó (`GET espacios/bloques`). Entre profesionales sigue "Ocupado". Sin función nueva ni cambio en el caso 34 |
+| TOTP (12) | Post-MVP. Sigue apagado |
+| impeccable `nested-cards` | Excepción aceptada: esas vistas copian el diseño del handoff (`inventario_ui.md`) |
+| Fusión de duplicados | Fuera del MVP: se mantiene `MISMO_PACIENTE` y conciliación manual |
+| Menores D-4 | Sin código: pendiente la revisión legal antes de pacientes reales |
+
+## 24. 03b-6 Pulido (2026-11-06)
+
+El usuario dio por valido el flujo del MVP y pidio aplicar 03b-6 (version
+ampliada: rendimiento, Playwright movil y red 3G lenta).
+
+| Punto | Resolucion |
+|---|---|
+| Animaciones | Sin cambios de sistema: `entrada`/`revelar` (ease-out, sin rebote), apagadas con `prefers-reduced-motion` |
+| Carga y vacio | `shared/EstadoVista`: carga = skeleton (`esqueleto`, aparece pasados 300 ms); vacio, error y sin permiso con ilustracion (icono en circulo suave, sin tile) |
+| Responsive | `e2e/responsive.spec.ts`: sin desborde horizontal a 390 px (publico y portal) ni a 768 px (panel) |
+| Accesibilidad | `e2e/accesibilidad.spec.ts`: axe-core WCAG 2.0/2.1 A y AA en 21 vistas (publico, portal, panel) sin violaciones; "Saltar al contenido" como primer foco; corregido el contraste de la sesion "Ahora" del inicio del panel (2.4:1, tinta sobre arcilla) |
+| SSR | Publico ya era SSR (server components); backoffice en cliente |
+| Imagenes | Fotos publicas del equipo con `next/image` (AVIF/WebP, lazy, `sizes`); solo `/api/publico/imagenes/**` pasa por el optimizador. Las privadas (respaldos, documentos) no |
+| Fuentes | Figtree con next/font (6 grosores, todos en uso) y Material Symbols Rounded alojada en el repo (`app/fuentes/material-symbols-rounded.woff2`, 140 KB, 180 glifos, `next/font/local`; `npm run iconos` la regenera). Verificado en Chromium: los iconos se dibujan y hay 0 pedidos a Google (2026-11-07) |
+| Division del JS | `CalendarioAgenda` y `EditorEvolucion` con `next/dynamic` y skeleton |
+| Scripts de terceros | Ninguno (sin analitica, sin fuentes de Google) |
+| Debounce | `lib/useRetardado` (300 ms) en la busqueda de pacientes (consulta la API); el resto de los buscadores filtra datos ya cargados |
+| Duplicados y paralelo | React Query deduplica por clave; SSR con `Promise.all`; politicas sin Data Cache (version vigente) |
+| Listas largas | La API las acota (auditoria 300). Listas del portal con `content-visibility: auto` (utilidad `fila-diferida`). ponytail: tablas sin windowing; si superan miles de filas, paginar en la API o windowing |
+| Optimista | Solo "marcar leido" de mensajes de pacientes (con vuelta atras). Ninguna en reservas, pagos, confirmaciones ni expediente |
+| Estaticos | `/_next/static/*` con `public, max-age=31536000, immutable` (verificado con `next start`); Traefik sin middleware de encabezados |
+| Tamaño del JS | JS inicial por ruta (gzip, con lo compartido, build de produccion): landing 110 KB, login 134, portal 144, agenda 149, ficha 170, fichas 202 (la mayor) |
+| Dependencias | Ninguna sin uso (`@testing-library/dom` es peer de `@testing-library/react`). Nueva de desarrollo: `@axe-core/playwright` |
+| Profiler React | No ejecutado (manual, con React DevTools); queda para la revision de agenda y ficha |
+
+Playwright (flujos de 02j y nuevos; enlaces leidos desde Mailpit):
+
+| Flujo | Prueba |
+|---|---|
+| Reserva sin cuenta: retencion y verificacion | `publico.spec`: pago en el centro y pasarela simulada (ya existian) |
+| Verificacion en otra pestaña | `publico.spec` 03b-6: la original avanza sola |
+| Vencimiento | `publico.spec` 03b-6: `sqlPrueba` adelanta `pago_vence_en` (simula 30 min) y el job libera; solicitud EXPIRADA |
+| "Ya soy paciente" | `publico.spec` (ya existia) |
+| Cambio de rol activo | `sesion.spec` (ya existia) |
+| Consentimiento por token | `publico.spec` 03b-6: recepcion envia, el paciente acepta desde el correo, enlace de un uso |
+| Reseña con moderacion | `portal.spec` 03b-6: editar la deja por moderar; ADMIN publica; se ve en el perfil |
+| Adolescente y adulto responsable | `portal.spec` (ya existian) |
+| Borrador confirmado al expediente | `ficha.spec` 03b-6: paciente nuevo (no toca el seed) |
+| Cubrir sesion con acceso temporal | `panel.spec` 03b-6: la cita cambia de profesional, el tratante no; acceso registrado |
+| Hilo CASO | `equipo-clinico.spec` 03b-6: lo ve quien tiene acceso y desaparece al revocarlo |
+| Lista de espera | **Omitido:** retirada (seccion 16, migracion `quitar_lista_espera`) |
+| Recordatorio por token | `publico.spec` "recordatorio por correo": cita confirmada, el job corre por el modo de prueba `JOBS_MANUALES` (`POST /api/pruebas/jobs/enviar_recordatorios`, solo desarrollo y tests), el enlace llega a Mailpit, la pagina muestra la politica que aplica, "Confirmo que asistire" y el enlace sirve una vez (2026-11-07). Probado tambien a mano con el job real (correo a los ~7 min) |
+| Movil + 3G lenta | `playwright.movil.config.ts` (Pixel 7, 400 ms / 400 kbit/s) sobre build de produccion: `publico.spec` y `portal.spec` |
+
+Notas: los pacientes de prueba nuevos (`pacienteNuevo`) llevan RUT al azar
+valido porque la BD exige RUT antes de la primera evolucion.
+
+## AUD-02 paginacion (2026-11-07)
+
+- Fichas > pacientes llega de a 50 con "Cargar mas". "Sin RUT" filtra en la
+  API; "Sin cerrar" y "Sin sesion +1 mes" dependen del estado de fichas y
+  filtran solo lo ya cargado (cargar mas para ver el resto).
+- El resumen de la auditoria (lecturas, ediciones, exportaciones de 7 dias)
+  cuenta lo cargado y avisa "primeros N registros" si hay mas paginas.
+- Mensajes de pacientes pide telefono y correo al detalle de cada paciente con
+  mensajes, no a la lista completa.

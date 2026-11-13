@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mi perfil, moderno A: inspector flotante</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#8A4B1F}a:hover{color:#6B3714}
+button,select,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1300px; box-sizing: border-box; background: #E6DED1; color: #2B2420; font-family: 'Figtree', system-ui, sans-serif; font-size: 14px; line-height: 1.45; display: flex; flex-wrap: wrap">
+
+<nav aria-label="Menú principal" style="flex: 1 1 200px; max-width: 210px; box-sizing: border-box; background: #F4ECE0; padding: 24px 14px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #DCCFBB">
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 17px; padding: 0 10px 24px"><span style="width: 8px; height: 8px; border-radius: 999px; background: #4F6B2F"></span>Centro de Prueba</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Inicio</a>
+<a href="#" style="text-decoration: none; color: #2F3B1F; padding: 10px 12px; border-radius: 10px; background: #E1E8CF; font-weight: 600">Mi perfil</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Mensajes</a>
+<div style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #5E5247; padding: 20px 12px 6px">MÓDULOS</div>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Fichas y Pacientes</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Agenda y Espacios</a>
+<a href="#" style="text-decoration: none; color: #2B2420; padding: 10px 12px; border-radius: 10px">Cobros</a>
+<div style="margin-top: auto; padding: 12px; font-size: 13px; color: #5E5247">Rol activo: <strong>Profesional</strong></div>
+</nav>
+
+<main style="position: relative; flex: 999 1 640px; min-width: 0; box-sizing: border-box; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 18px; background-color: #F1EBE2; background-image: radial-gradient(#D6CBBB 1px, transparent 1px); background-size: 18px 18px">
+
+<button type="button" aria-label="Quitar la selección" onClick="{{ fuera }}" style="position: absolute; inset: 0; z-index: 0; border: 0; background: transparent; cursor: default"></button>
+<div style="position: relative; z-index: 2; align-self: center; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 8px 8px 18px; border-radius: 999px; background: #FFFDF9; box-shadow: 0 8px 28px rgba(43,36,32,0.14); border: 1px solid #EBE2D5">
+<strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 15px">Mi perfil</strong>
+<span style="font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: {{ estado.f }}; color: {{ estado.c }}">{{ estado.t }}</span>
+<span aria-hidden="true" style="width: 1px; height: 24px; background: #E3D7C4; margin: 0 4px"></span>
+<div role="group" aria-label="Tamaño" style="display: flex; gap: 2px; background: #F4ECE0; border-radius: 999px; padding: 3px">
+<sc-for list="{{ tamanos }}" as="t" hint-placeholder-count="2"><button type="button" aria-pressed="{{ t.on }}" onClick="{{ t.pick }}" style="min-height: 34px; padding: 0 12px; border-radius: 999px; border: 0; background: {{ t.fondo }}; color: {{ t.color }}; font-weight: 700; font-size: 12px; box-shadow: {{ t.sombra }}">{{ t.l }}</button></sc-for>
+</div>
+<button type="button" aria-pressed="{{ modoPaciente }}" onClick="{{ togglePaciente }}" style="min-height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: {{ botonPac.f }}; color: {{ botonPac.c }}; font-weight: 700">{{ botonPac.t }}</button>
+<a href="#" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 999px; color: #2B2420; font-weight: 700; text-decoration: none">Ver mi agenda</a>
+<a href="#" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 999px; color: #2B2420; font-weight: 700; text-decoration: none">Ver el equipo</a>
+<a href="MiCuenta.dc.html" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 999px; background: #F4ECE0; color: #2B2420; font-weight: 700; text-decoration: none">Mi cuenta</a>
+</div>
+
+<div style="position: relative; z-index: 1; pointer-events: none; display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; justify-content: center">
+
+<article style="flex: 999 1 560px; min-width: 0; max-width: {{ ancho }}; background: #FBF6EE; border-radius: 28px; box-shadow: 0 20px 50px rgba(43,36,32,0.12); padding: 34px; display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-start">
+<div style="flex: 999 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 18px">
+
+<button type="button" onClick="{{ s.cab.pick }}" aria-pressed="{{ s.cab.on }}" style="position: relative; display: flex; gap: 18px; align-items: center; width: 100%; text-align: left; padding: 14px; border-radius: 20px; border: 0; background: {{ s.cab.fondo }}; color: #2B2420; outline: {{ s.cab.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.cab.op }}; filter: {{ s.cab.filtro }}; transition: opacity 200ms, filter 200ms">
+<sc-if value="{{ s.cab.on }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -16px; left: 16px; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF">Editando · Nombre y foto</span></sc-if>
+<span aria-hidden="true" style="flex: none; width: 92px; height: 92px; border-radius: 28px; background: #E1E8CF; color: #2F3B1F; font-family: 'Bricolage Grotesque', sans-serif; font-size: 30px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center">PU</span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 4px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 36px; font-weight: 800; line-height: 1.05">{{ v.nombre }}</span><span style="font-weight: 600; color: #4A3F36">{{ v.esp }}</span><span style="font-size: 13px; color: #4A3F36">{{ v.titulo }}</span></span>
+<sc-if value="{{ lapiz }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 999px; background: #FFFDF9; border: 1px solid #E3D7C4; display: inline-flex; align-items: center; justify-content: center; color: #8A4B1F"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg></span></sc-if>
+</button>
+
+<button type="button" onClick="{{ s.reg.pick }}" aria-pressed="{{ s.reg.on }}" style="position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 14px; border-radius: 16px; border: 0; background: {{ s.reg.fondo }}; color: #2B2420; outline: {{ s.reg.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.reg.op }}; filter: {{ s.reg.filtro }}; transition: opacity 200ms, filter 200ms">
+<sc-if value="{{ s.reg.on }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -16px; left: 16px; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF">Editando · Registro profesional</span></sc-if>
+<span style="padding: 5px 12px; border-radius: 999px; border: 1px solid #A9B98A; background: #F1F4E6; color: #2F3B1F; font-weight: 700; font-size: 13px">Registro SIS N.° {{ v.sis }}</span>
+<span style="font-size: 13px; color: #4A3F36">{{ regEstado }}</span>
+<span style="font-size: 13px; color: #4A3F36"><strong style="color: #8A4B1F">5,0</strong> (1 valoración)</span>
+<sc-if value="{{ lapiz }}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="margin-left: auto; width: 30px; height: 30px; border-radius: 999px; background: #FFFDF9; border: 1px solid #E3D7C4; display: inline-flex; align-items: center; justify-content: center; color: #8A4B1F"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg></span></sc-if>
+</button>
+
+<button type="button" onClick="{{ s.dat.pick }}" aria-pressed="{{ s.dat.on }}" style="position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 12px 14px; border-radius: 16px; border: 0; background: {{ s.dat.fondo }}; color: #2B2420; outline: {{ s.dat.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.dat.op }}; filter: {{ s.dat.filtro }}; transition: opacity 200ms, filter 200ms">
+<sc-if value="{{ s.dat.on }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -16px; left: 16px; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF">Editando · Tarifa y modalidad</span></sc-if>
+<span style="padding: 8px 14px; border-radius: 999px; background: #FFFDF9; border: 1px solid #E3D7C4; font-weight: 700; font-size: 13px">Desde {{ v.tarifa }}</span>
+<span style="padding: 8px 14px; border-radius: 999px; background: #FFFDF9; border: 1px solid #E3D7C4; font-weight: 700; font-size: 13px">{{ v.modalidad }}</span>
+<span style="padding: 8px 14px; border-radius: 999px; background: #FFFDF9; border: 1px solid #E3D7C4; font-weight: 700; font-size: 13px">{{ v.exp }} años de experiencia</span>
+</button>
+
+<button type="button" onClick="{{ s.fra.pick }}" aria-pressed="{{ s.fra.on }}" style="position: relative; display: flex; gap: 10px; width: 100%; text-align: left; padding: 22px 24px; border-radius: 22px; border: 0; background: #F6E2D3; color: #2B2420; outline: {{ s.fra.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.fra.op }}; filter: {{ s.fra.filtro }}; transition: opacity 200ms, filter 200ms">
+<sc-if value="{{ s.fra.on }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -16px; left: 16px; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF">Editando · Frase destacada</span></sc-if>
+<span aria-hidden="true" style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 40px; line-height: 0.8; color: #8A4B1F">"</span>
+<span style="flex: 1; font-family: 'Bricolage Grotesque', sans-serif; font-size: 21px; font-weight: 700; line-height: 1.3">{{ v.frase }}</span>
+</button>
+
+<button type="button" onClick="{{ s.sob.pick }}" aria-pressed="{{ s.sob.on }}" style="position: relative; display: flex; flex-direction: column; gap: 6px; width: 100%; text-align: left; padding: 14px; border-radius: 16px; border: 0; background: {{ s.sob.fondo }}; color: #2B2420; outline: {{ s.sob.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.sob.op }}; filter: {{ s.sob.filtro }}; transition: opacity 200ms, filter 200ms">
+<sc-if value="{{ s.sob.on }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -16px; left: 16px; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF">Editando · Sobre mí</span></sc-if>
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: #5E5247">SOBRE MÍ</span>
+<span style="font-size: 15px; white-space: pre-line">{{ v.sobre }}</span>
+</button>
+
+<button type="button" onClick="{{ s.for.pick }}" aria-pressed="{{ s.for.on }}" style="position: relative; display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left; padding: 14px; border-radius: 16px; border: 0; background: {{ s.for.fondo }}; color: #2B2420; outline: {{ s.for.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.for.op }}; filter: {{ s.for.filtro }}; transition: opacity 200ms, filter 200ms">
+<sc-if value="{{ s.for.on }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -16px; left: 16px; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF">Editando · Formación</span></sc-if>
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: #5E5247">FORMACIÓN VERIFICADA</span>
+<span style="display: flex; flex-direction: column; padding: 12px 14px; border-radius: 14px; background: #FFFDF9; width: 100%; box-sizing: border-box"><strong>Magíster en Psicología Clínica (Demo)</strong><span style="font-size: 12px; color: #5E5247">Magíster · Universidad Ficticia · 2019</span></span>
+<span style="display: flex; flex-direction: column; padding: 12px 14px; border-radius: 14px; background: #FFFDF9; width: 100%; box-sizing: border-box"><strong>Psicólogo (Demo)</strong><span style="font-size: 12px; color: #5E5247">Título · Universidad Ficticia · 2015</span></span>
+</button>
+
+<button type="button" onClick="{{ s.esp.pick }}" aria-pressed="{{ s.esp.on }}" style="position: relative; display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left; padding: 14px; border-radius: 16px; border: 0; background: {{ s.esp.fondo }}; color: #2B2420; outline: {{ s.esp.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.esp.op }}; filter: {{ s.esp.filtro }}; transition: opacity 200ms, filter 200ms">
+<sc-if value="{{ s.esp.on }}" hint-placeholder-val="{{ false }}"><span style="position: absolute; top: -16px; left: 16px; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: #8A4B1F; color: #FFFFFF">Editando · Especialidades</span></sc-if>
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: #5E5247">ESPECIALIDADES Y ATENCIÓN</span>
+<span style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{ chips }}" as="c" hint-placeholder-count="6"><span style="padding: 7px 14px; border-radius: 999px; background: #E1E8CF; color: #2F3B1F; font-weight: 700; font-size: 13px">{{ c }}</span></sc-for>
+</span>
+</button>
+</div>
+
+<div style="flex: 1 1 210px; max-width: 250px; display: flex; flex-direction: column; gap: 14px">
+<button type="button" onClick="{{ s.age.pick }}" aria-pressed="{{ s.age.on }}" style="position: relative; display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left; padding: 18px; border-radius: 22px; border: 0; background: #2F3B1F; color: #F1F4E6; outline: {{ s.age.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.age.op }}; filter: {{ s.age.filtro }}">
+<strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Agenda con Profesional</strong>
+<span style="font-size: 12px; color: #D5DEC2">Mira sus horas libres y reserva sin crear una cuenta.</span>
+<span style="min-height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #F1F4E6; color: #2F3B1F; font-weight: 800; font-size: 13px">Ver horas disponibles</span>
+</button>
+<button type="button" onClick="{{ s.val.pick }}" aria-pressed="{{ s.val.on }}" style="position: relative; display: flex; flex-direction: column; gap: 6px; width: 100%; text-align: left; padding: 18px; border-radius: 22px; border: 0; background: #FFFDF9; color: #2B2420; outline: {{ s.val.ring }}; outline-offset: 4px; pointer-events: auto; opacity: {{ s.val.op }}; filter: {{ s.val.filtro }}">
+<strong style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 17px">Valoraciones · 5,0</strong>
+<span style="font-size: 12px; color: #4A3F36">"Explica con claridad y escucha sin apuro." Paciente P.</span>
+</button>
+</div>
+</article>
+
+<sc-if value="{{ conPanel }}" hint-placeholder-val="{{ true }}">
+<aside aria-label="Inspector" style="pointer-events: auto; flex: 1 1 320px; max-width: 360px; position: sticky; top: 20px; background: rgba(255,253,249,0.92); backdrop-filter: blur(10px); border: 1px solid #EBE2D5; border-radius: 24px; box-shadow: 0 24px 60px rgba(43,36,32,0.18); padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<sc-if value="{{ sinSel }}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: #8A4B1F">EDITOR</span>
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; line-height: 1.2">Toca cualquier parte de tu perfil para editarla</h2>
+<span style="font-size: 13px; color: #5E5247">El diseño es el mismo para todo el centro. Tú cambias el contenido y lo ves en vivo.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{ atajos }}" as="a" hint-placeholder-count="7"><button type="button" onClick="{{ a.pick }}" style="min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid #E3D7C4; background: {{ a.fondo }}; color: {{ a.color }}; font-weight: 700; font-size: 12px">{{ a.l }}</button></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ conSel }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; align-items: center; gap: 10px">
+<span aria-hidden="true" style="width: 36px; height: 36px; border-radius: 12px; background: #8A4B1F; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path></svg></span>
+<div style="flex: 1; display: flex; flex-direction: column"><span style="font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: #8A4B1F">EDITANDO</span><h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px">{{ det.l }}</h2></div>
+<button type="button" aria-label="Cerrar editor" onClick="{{ cerrar }}" style="width: 40px; height: 40px; border-radius: 999px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #2B2420; font-weight: 800">x</button>
+</div>
+<span style="font-size: 13px; color: #5E5247">{{ det.ayuda }}</span>
+<sc-for list="{{ det.campos }}" as="c" hint-placeholder-count="2">
+<label style="display: flex; flex-direction: column; gap: 5px"><span style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700"><span>{{ c.l }}</span><span style="color: #5E5247; font-weight: 600">{{ c.cuenta }}</span></span>
+<sc-if value="{{ c.area }}" hint-placeholder-val="{{ false }}"><textarea rows="4" value="{{ c.v }}" onInput="{{ c.set }}" style="padding: 12px 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #F7F1E8; font-size: 14px; resize: vertical"></textarea></sc-if>
+<sc-if value="{{ c.linea }}" hint-placeholder-val="{{ true }}"><input value="{{ c.v }}" onInput="{{ c.set }}" style="min-height: 46px; padding: 0 14px; border-radius: 14px; border: 1px solid #E3D7C4; background: #F7F1E8; font-size: 14px"></sc-if>
+<span style="font-size: 11px; color: #5E5247">{{ c.a }}</span></label>
+</sc-for>
+<sc-if value="{{ det.hayBloqueo }}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 14px; background: #EFE5D6; font-size: 13px; color: #4A3F36"><span>{{ det.bloqueo }}</span><a href="#" style="font-weight: 700">{{ det.bloqueoLink }}</a></div></sc-if>
+<sc-if value="{{ aviso }}" hint-placeholder-val="{{ false }}"><div role="alert" style="padding: 12px 14px; border-radius: 14px; background: #FFF4D6; border: 1px solid #E8D09A; color: #5A3D00; font-size: 13px; font-weight: 600">Tienes cambios sin guardar aquí. Guárdalos o descártalos antes de pasar a otra sección.</div></sc-if>
+<sc-if value="{{ det.editable }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; gap: 8px; padding-top: 6px">
+<button type="button" onClick="{{ guardar }}" disabled="{{ sinCambios }}" style="flex: 1; min-height: 48px; border-radius: 16px; border: 0; background: {{ btnGuardar.f }}; color: {{ btnGuardar.c }}; font-weight: 800">{{ btnGuardar.t }}</button>
+<button type="button" onClick="{{ cerrar }}" style="min-height: 48px; padding: 0 16px; border-radius: 16px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #2B2420; font-weight: 600">Descartar</button>
+</div>
+</sc-if>
+</sc-if>
+</aside>
+</sc-if>
+</div>
+
+<sc-if value="{{ hayConfirm }}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 50; background: rgba(43,36,32,0.45); backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center; padding-top: 260px">
+<div role="alertdialog" aria-modal="true" aria-labelledby="t-conf" aria-describedby="d-conf" style="width: min(440px, 90%); background: #FFFDF9; border-radius: 24px; box-shadow: 0 30px 70px rgba(0,0,0,0.35); padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 14px; background: #FFF4D6; color: #7A520A; display: inline-flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"></path><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6A2 2 0 0 0 22 18L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg></span>
+<h2 id="t-conf" style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 21px; line-height: 1.2">Estás modificando "{{ confirmNombre }}"</h2>
+<span id="d-conf" style="font-size: 14px; color: #4A3F36">¿Seguro que quieres descartar los cambios? Lo que escribiste no se publicará.</span>
+<div style="display: flex; gap: 8px; padding-top: 4px">
+<button type="button" onClick="{{ confirmNo }}" style="flex: 1; min-height: 48px; border-radius: 16px; border: 0; background: #8A4B1F; color: #FFFFFF; font-weight: 800">No, seguir editando</button>
+<button type="button" onClick="{{ confirmSi }}" style="flex: 1; min-height: 48px; border-radius: 16px; border: 1px solid #E3D7C4; background: #FFFDF9; color: #7A2E10; font-weight: 700">Sí, descartar</button>
+</div>
+</div>
+</div>
+</sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+var V0 = { nombre: 'Ps. Profesional Uno (Demo)', esp: 'Psicología clínica adultos', titulo: 'Psicólogo (Demo), Universidad Ficticia (2015)', sis: '100001', tarifa: '$30.000', modalidad: 'Presencial y online', exp: '11',
+  frase: 'Cada proceso parte por entender qué te trae y qué te gustaría que cambiara.', sobre: 'Perfil ficticio del centro de demostración.', esp2: 'Evaluación psicológica, Psicoterapia individual adultos, Cognitivo-conductual, Ansiedad, Estrés, Duelo' };
+var SECS = [
+  ['cab', 'Nombre y foto', 'Lo primero que ve el paciente. La calificación no se edita.', [['nombre', 'Nombre que se muestra', '', 0], ['esp', 'Especialidad principal', '', 0], ['titulo', 'Título bajo el nombre', '', 0]]],
+  ['reg', 'Registro profesional', 'Número de la Superintendencia de Salud.', [['sis', 'N.° de registro', 'Si lo cambias, el sello se oculta hasta que el centro lo verifique.', 0]]],
+  ['dat', 'Tarifa y modalidad', 'Una tarifa nueva rige solo para horas que se agenden desde ahora.', [['tarifa', 'Tarifa desde', '', 0], ['modalidad', 'Modalidad', 'Presencial y online, solo presencial o solo online', 0], ['exp', 'Años de experiencia', '', 0]]],
+  ['fra', 'Frase destacada', 'Una frase sobre cómo trabajas.', [['frase', 'Frase', '', 140]]],
+  ['sob', 'Sobre mí', 'Tu enfoque en 3 a 5 líneas. Sin datos de contacto.', [['sobre', 'Sobre mí', 'Los pacientes te escriben por el formulario del portal.', 600]]],
+  ['for', 'Formación', 'Un título nuevo queda "En revisión" hasta que el centro revise el respaldo.', [], 'Para agregar un título necesitas subir su respaldo.', 'Agregar título y respaldo'],
+  ['esp', 'Especialidades', 'Del catálogo del centro. También alimentan el Match terapéutico.', [['esp2', 'Especialidades, separadas por coma', '', 0]]],
+  ['age', 'Horas disponibles', 'Esta tarjeta no se edita aquí.', [], 'Se arma con tus horarios y los boxes reservados.', 'Ir a mi agenda'],
+  ['val', 'Valoraciones', 'Esta tarjeta no se edita aquí.', [], 'Las dejan pacientes que tuvieron al menos una sesión contigo. Puedes reportar una si no corresponde.', 'Reportar una valoración']
+];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { sel: 'fra', vals: Object.assign({}, V0), draft: Object.assign({}, V0), sucio: false, aviso: false, pac: false, tam: 'pc' }; }
+  renderVals() {
+    var st = this.state, self = this;
+    function ejecutar(acc) {
+      var limpio = { sucio: false, aviso: false, confirm: null, draft: Object.assign({}, self.state.vals) };
+      if (acc.tipo === 'ir') limpio.sel = acc.id;
+      if (acc.tipo === 'fuera') limpio.sel = null;
+      if (acc.tipo === 'pac') { limpio.sel = null; limpio.pac = !self.state.pac; }
+      self.setState(limpio); }
+    function pedir(acc) { if (self.state.sucio) { self.setState({ confirm: acc }); return; } ejecutar(acc); }
+    function elegir(id) { return function () {
+      if (self.state.pac) return;
+      if (self.state.sel === id) return;
+      pedir({ tipo: 'ir', id: id }); }; }
+    var s = {};
+    SECS.forEach(function (x) { var on = st.sel === x[0] && !st.pac, otro = st.sel && !on && !st.pac;
+      s[x[0]] = { on: on, pick: elegir(x[0]), op: otro ? '0.32' : '1', filtro: otro ? 'blur(1.5px) grayscale(0.4)' : 'none', ring: on ? '3px solid #8A4B1F' : '0 solid transparent', fondo: on ? '#FFFDF9' : 'transparent' }; });
+    var v = st.sel && !st.pac ? st.draft : st.vals;
+    var sec = null; SECS.forEach(function (x) { if (x[0] === st.sel) sec = x; });
+    var det = sec ? { l: sec[1], ayuda: sec[2], editable: sec[3].length > 0, hayBloqueo: !!sec[4], bloqueo: sec[4] || '', bloqueoLink: sec[5] || '',
+      campos: sec[3].map(function (c) { var val = st.draft[c[0]]; return { l: c[1], a: c[2], v: val, area: c[3] > 200, linea: c[3] <= 200, cuenta: c[3] ? val.length + ' / ' + c[3] : '',
+        set: function (e) { var d = Object.assign({}, self.state.draft); d[c[0]] = e.target.value; self.setState({ draft: d, sucio: true, aviso: false }); } }; }) } : { l: '', ayuda: '', editable: false, hayBloqueo: false, bloqueo: '', bloqueoLink: '', campos: [] };
+    if (sec && sec[0] === 'for') det.editable = false;
+    var sisCambio = st.sel === 'reg' && st.draft.sis !== st.vals.sis;
+    return {
+      s: s, v: v, chips: v.esp2.split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; }),
+      regEstado: sisCambio ? 'Pendiente de verificación' : 'Verificado por el centro',
+      lapiz: !st.sel && !st.pac, ancho: st.tam === 'pc' ? '900px' : '420px',
+      conPanel: !st.pac, sinSel: !sec, conSel: !!sec, det: det, aviso: st.aviso, sinCambios: !st.sucio,
+      btnGuardar: st.sucio ? { f: '#8A4B1F', c: '#FFFFFF', t: 'Guardar y publicar' } : { f: '#EFE5D6', c: '#5E5247', t: 'Sin cambios' },
+      estado: st.sucio ? { t: 'Cambios sin publicar', f: '#FFF4D6', c: '#7A520A' } : { t: 'Publicado', f: '#E1E8CF', c: '#2F3B1F' },
+      modoPaciente: st.pac, botonPac: st.pac ? { t: 'Volver a editar', f: '#2B2420', c: '#F4ECE0' } : { t: 'Ver cómo me ven los pacientes', f: '#8A4B1F', c: '#FFFFFF' },
+      togglePaciente: function () { pedir({ tipo: 'pac' }); },
+      fuera: function () { if (!self.state.sel) return; pedir({ tipo: 'fuera' }); },
+      hayConfirm: !!st.confirm, confirmNombre: sec ? sec[1] : '',
+      confirmNo: function () { self.setState({ confirm: null }); },
+      confirmSi: function () { ejecutar(self.state.confirm); },
+      tamanos: [['pc', 'Computador'], ['tel', 'Teléfono']].map(function (t) { var on = st.tam === t[0]; return { l: t[1], on: on, fondo: on ? '#FFFDF9' : 'transparent', color: '#2B2420', sombra: on ? '0 2px 6px rgba(43,36,32,0.15)' : 'none', pick: function () { self.setState({ tam: t[0] }); } }; }),
+      atajos: SECS.map(function (x) { return { l: x[1], pick: elegir(x[0]), fondo: x[3].length ? '#FFFDF9' : '#F4ECE0', color: x[3].length ? '#2B2420' : '#5E5247' }; }),
+      cerrar: function () { self.setState({ sel: null, sucio: false, aviso: false, draft: Object.assign({}, self.state.vals) }); },
+      guardar: function () { self.setState({ vals: Object.assign({}, self.state.draft), sucio: false, aviso: false, sel: null }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

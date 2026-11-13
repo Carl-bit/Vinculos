@@ -65,7 +65,9 @@ export class MensajeriaInternaService {
         const noLeidos = await tx.mensajeInterno.count({
           where: { hiloId: h.id, autorId: { not: yo }, ...(lectura ? { creadoEn: { gt: lectura.leidoEn } } : {}) },
         });
-        return { ...this.vistaHilo(h), noLeidos };
+        // Nombres de los participantes (sin el propio) para buscar la conversacion por persona.
+        const nombres = await tx.$queryRaw<{ usuario_id: string; nombre: string }[]>`SELECT usuario_id, nombre FROM nombres_hilo(${h.id}::uuid)`;
+        return { ...this.vistaHilo(h), noLeidos, personas: nombres.filter((n) => n.usuario_id !== yo).map((n) => n.nombre) };
       }),
     );
   }

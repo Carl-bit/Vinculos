@@ -3,30 +3,34 @@ import type { CitaVista } from '@/lib/panel';
 /** Tonos del diseño para distinguir profesionales o boxes (se repiten en ciclo). */
 export const TONOS = [
   {
-    borde: 'border-l-accent-2-700',
     texto: 'text-accent-2-800',
     muestra: 'border-accent-2-700 bg-accent-2-200',
+    /** Fondo de la sesion confirmada (03b-4.1: reemplaza el borde lateral grueso). */
+    suave: 'bg-accent-2-100',
     barra: 'bg-accent-2-700',
     fondo: 'border-accent-2-500 bg-accent-2-200 text-accent-2-800',
   },
   {
-    borde: 'border-l-accent-700',
     texto: 'text-accent-800',
     muestra: 'border-accent-700 bg-accent-200',
+    /** Fondo de la sesion confirmada (03b-4.1: reemplaza el borde lateral grueso). */
+    suave: 'bg-accent-100',
     barra: 'bg-accent-700',
     fondo: 'border-accent-500 bg-accent-200 text-accent-800',
   },
   {
-    borde: 'border-l-accent-2-800',
     texto: 'text-accent-2-800',
     muestra: 'border-accent-2-800 bg-accent-2-100',
+    /** Fondo de la sesion confirmada (03b-4.1: reemplaza el borde lateral grueso). */
+    suave: 'bg-accent-2-200/60',
     barra: 'bg-accent-2-800',
     fondo: 'border-accent-2-500 bg-accent-2-100 text-accent-2-800',
   },
   {
-    borde: 'border-l-neutral-700',
     texto: 'text-neutral-800',
     muestra: 'border-neutral-700 bg-neutral-200',
+    /** Fondo de la sesion confirmada (03b-4.1: reemplaza el borde lateral grueso). */
+    suave: 'bg-neutral-200',
     barra: 'bg-neutral-700',
     fondo: 'border-neutral-500 bg-neutral-200 text-neutral-800',
   },
@@ -39,13 +43,15 @@ export const tonoDe = (orden: string[], id: string): Tono => TONOS[Math.max(0, o
 
 export const NOMBRE_ESTADO_CITA: Record<CitaVista['estado'], string> = {
   CONFIRMADA: 'Confirmada',
-  // Retirado en 03b-3.2 (la BD ya no lo acepta); queda en el enum.
-  SOLICITADA: 'Por confirmar',
+  // MVP sin cobros: la hora que pidio el paciente espera la aprobacion de su profesional.
+  SOLICITADA: 'Por aprobar',
   POR_REPROGRAMAR: 'Por reprogramar',
   CANCELADA: 'Cancelada',
   PENDIENTE_PAGO: 'Pago pendiente',
   LIBERADA: 'Liberada (pago vencido)',
   RETENIDA: 'Hora retenida (reserva en curso)',
+  // Punto 7 (2026-11-11): hora que propuso el profesional; espera que el paciente la elija.
+  PROPUESTA: 'Propuesta al paciente',
 };
 
 export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as const;

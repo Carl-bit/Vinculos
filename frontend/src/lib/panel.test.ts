@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { mesChile } from './panel';
+import { ApiError } from './api/errores';
+import { intervaloSondeo, mesChile } from './panel';
 
 describe('mesChile (vista mensual, 03b-4.1)', () => {
   it('semanas completas de lunes a domingo que cubren el mes', () => {
@@ -16,5 +17,21 @@ describe('mesChile (vista mensual, 03b-4.1)', () => {
   it('desplaza por meses (incluso cruzando el año)', () => {
     expect(mesChile(1, '2026-12-15').primero).toBe('2027-01-01');
     expect(mesChile(-1, '2026-01-15').primero).toBe('2025-12-01');
+  });
+});
+
+describe('intervaloSondeo (calendario, estandar_polling.md regla 3)', () => {
+  it('sin error: 2 minutos', () => {
+    expect(intervaloSondeo(null, 0)).toBe(120_000);
+  });
+
+  it('429, 5xx o sin red: duplica por error hasta 5 minutos', () => {
+    expect(intervaloSondeo(new ApiError(503), 1)).toBe(240_000);
+    expect(intervaloSondeo(new ApiError(429), 2)).toBe(300_000);
+    expect(intervaloSondeo(new TypeError('Failed to fetch'), 1)).toBe(240_000);
+  });
+
+  it('401, 403 o 404: detiene el sondeo', () => {
+    for (const status of [401, 403, 404]) expect(intervaloSondeo(new ApiError(status), 1)).toBe(false);
   });
 });

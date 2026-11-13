@@ -51,7 +51,7 @@ export class PortalService {
     const filas = await this.bd.tx().cita.findMany({
       where: {
         pacienteId,
-        ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'PENDIENTE_PAGO'] }, fin: { gt: new Date() } }),
+        ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'PENDIENTE_PAGO', 'SOLICITADA', 'PROPUESTA'] }, fin: { gt: new Date() } }),
       },
       select: {
         id: true,
@@ -65,6 +65,8 @@ export class PortalService {
         estado: true,
         medioConfirmacion: true,
         pagoVenceEn: true,
+        aprobacionVenceEn: true,
+        propuestaDeId: true,
         agendadaPorEquipo: true,
       },
       orderBy: { inicio: todas ? 'desc' : 'asc' },
@@ -170,6 +172,27 @@ export class PortalService {
     return filas.map((m) => ({ ...m, contenido: texto(m.contenido) }));
   }
 
+  /** Puntos 40/44: el tratante responde a quien escribio (el paciente o su adulto responsable). La RLS valida el resto. */
+  async responder(mensajeId: string, contenido: string) {
+    const actor = this.bd.usuario();
+    const tx = this.bd.tx();
+    const original = await tx.mensajePaciente.findUnique({ where: { id: mensajeId }, select: { pacienteId: true, autorId: true, deProfesional: true } });
+    if (!original || original.deProfesional) throw new NotFoundException('Mensaje no encontrado');
+    if (!original.autorId) throw new BadRequestException('Mensaje anterior a las cuentas del portal: responde por correo o telefono');
+    const m = await tx.mensajePaciente.create({
+      data: {
+        id: randomUUID(),
+        pacienteId: original.pacienteId,
+        profesionalId: actor.id,
+        autorId: actor.id,
+        destinatarioId: original.autorId,
+        deProfesional: true,
+        contenido: claro(contenido),
+      },
+    });
+    return { ...m, contenido: texto(m.contenido) };
+  }
+
   async marcarLeido(id: string) {
     await this.bd.tx().$executeRaw`SELECT marcar_mensaje_leido(${id}::uuid)`;
     return { id, leido: true };
@@ -257,13 +280,32 @@ export class PortalService {
    * ultima que acepto el paciente (RLS: adulto o adulto responsable; el
    * adolescente no ve aceptaciones y recibe aceptada = null).
    */
-  async estadoConsentimientoAtencion(pacienteDelPortal?: string) {
+  estadoConsentimientoAtencion(pacienteDelPortal?: string) {
+    return this.estadoAceptacion('CONSENTIMIENTO_ATENCION', pacienteDelPortal);
+  }
+
+  /** Consentimiento informado de atencion aceptado en el portal (D-3): el paciente adulto o el adulto responsable. */
+  aceptarConsentimientoAtencion(pacienteDelPortal?: string) {
+    return this.aceptar('CONSENTIMIENTO_ATENCION', pacienteDelPortal);
+  }
+
+  /** 03b-4.2: protocolo del centro para pacientes (version vigente y el ultimo acuse). */
+  estadoProtocolo(pacienteDelPortal?: string) {
+    return this.estadoAceptacion('PROTOCOLO_PACIENTE', pacienteDelPortal);
+  }
+
+  /** 03b-4.2: "Lo lei": acuse del protocolo (queda en aceptaciones_politica, canal PORTAL). */
+  aceptarProtocolo(pacienteDelPortal?: string) {
+    return this.aceptar('PROTOCOLO_PACIENTE', pacienteDelPortal);
+  }
+
+  private async estadoAceptacion(tipo: 'CONSENTIMIENTO_ATENCION' | 'PROTOCOLO_PACIENTE', pacienteDelPortal?: string) {
     const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
     const tx = this.bd.tx();
     const [vigente] = await tx.$queryRaw<{ id: string; version: number; texto: string; vigente_desde: Date }[]>`
-      SELECT * FROM politica_vigente('CONSENTIMIENTO_ATENCION'::tipo_politica)`;
+      SELECT * FROM politica_vigente(${tipo}::tipo_politica)`;
     const ultima = await tx.aceptacionPolitica.findFirst({
-      where: { pacienteId, politica: { tipo: 'CONSENTIMIENTO_ATENCION' } },
+      where: { pacienteId, politica: { tipo } },
       orderBy: { aceptadaEn: 'desc' },
       select: { aceptadaEn: true, canal: true, politica: { select: { version: true } } },
     });
@@ -274,8 +316,7 @@ export class PortalService {
     };
   }
 
-  /** Consentimiento informado de atencion aceptado en el portal (D-3): el paciente adulto o el adulto responsable. */
-  async aceptarConsentimientoAtencion(pacienteDelPortal?: string) {
+  private async aceptar(tipo: 'CONSENTIMIENTO_ATENCION' | 'PROTOCOLO_PACIENTE', pacienteDelPortal?: string) {
     const actor = this.bd.usuario();
     const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
     const adulto =
@@ -283,7 +324,7 @@ export class PortalService {
         ? (await this.bd.tx().adultoResponsable.findFirst({ where: { pacienteId, usuarioId: actor.id }, select: { id: true } }))?.id
         : undefined;
     const [{ id }] = await this.bd.tx().$queryRaw<[{ id: string }]>`
-      SELECT registrar_aceptacion('CONSENTIMIENTO_ATENCION', ${pacienteId}::uuid, ${adulto ?? null}::uuid, NULL) AS id`;
+      SELECT registrar_aceptacion(${tipo}::tipo_politica, ${pacienteId}::uuid, ${adulto ?? null}::uuid, NULL) AS id`;
     return { id, pacienteId };
   }
 
@@ -291,6 +332,59 @@ export class PortalService {
    * Paciente sobre el que actua la cuenta: el propio (PACIENTE) o un menor a
    * cargo del adulto responsable (RESPONSABLE, obligatorio indicarlo).
    */
+  async estadoTratante(pacienteDelPortal?: string) {
+    const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
+    const [e] = await this.bd.tx().$queryRaw<
+      {
+        tratante_id: string;
+        disponible: boolean;
+        vuelve_en: Date | null;
+        principal_id: string | null;
+        principal_disponible: boolean | null;
+        horas_con_tratante: number;
+        solicitud_pendiente: boolean;
+      }[]
+    >`SELECT * FROM estado_tratante_portal(${pacienteId}::uuid)`;
+    return {
+      tratanteId: e.tratante_id,
+      disponible: e.disponible,
+      vuelveEn: e.vuelve_en,
+      principalId: e.principal_id,
+      principalDisponible: e.principal_disponible,
+      horasConTratante: e.horas_con_tratante,
+      solicitudPendiente: e.solicitud_pendiente,
+    };
+  }
+
+  async solicitarOtroProfesional(pacienteDelPortal?: string) {
+    const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
+    await this.bd.tx().$executeRaw`SELECT solicitar_otro_profesional(${pacienteId}::uuid)`;
+  }
+
+  async cancelarHorasTratante(pacienteDelPortal?: string) {
+    const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
+    const [{ n }] = await this.bd.tx().$queryRaw<[{ n: number }]>`SELECT cancelar_horas_tratante_ausente(${pacienteId}::uuid) AS n`;
+    return { canceladas: n };
+  }
+
+  async retorno(pacienteDelPortal?: string) {
+    const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
+    const [r] = await this.bd.tx().$queryRaw<{ profesional_principal_id: string; principal_disponible: boolean; pide_volver: boolean }[]>`
+      SELECT profesional_principal_id, principal_disponible, pide_volver FROM retorno_atencion_temporal(${pacienteId}::uuid)`;
+    if (!r) return null;
+    return { profesionalPrincipalId: r.profesional_principal_id, principalDisponible: r.principal_disponible, pideVolver: r.pide_volver };
+  }
+
+  async pedirVolver(pacienteDelPortal?: string) {
+    const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
+    await this.bd.tx().$executeRaw`SELECT pedir_volver_con_principal(${pacienteId}::uuid)`;
+  }
+
+  async responderAusencia(citaId: string, opcion: 'CANCELAR' | 'ATENCION_TEMPORAL') {
+    await this.bd.tx().$queryRaw`SELECT responder_ausencia(${citaId}::uuid, ${opcion})`;
+    return { citaId, opcion };
+  }
+
   async pacienteDelPortal(pacienteId?: string): Promise<string> {
     const actor = this.bd.usuario();
     if (actor.rol === 'RESPONSABLE') {

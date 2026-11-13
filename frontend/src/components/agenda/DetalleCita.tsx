@@ -9,6 +9,7 @@ import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
+import { AprobarSolicitud } from '@/components/shared/AprobarSolicitud';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { MEDIO_PAGO, type MedioPago } from '@/lib/cobros';
@@ -19,7 +20,7 @@ import { inicioDiaChile, sumarDias, useAccesosTemporales, useEquipoAgenda, useEs
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
-import { NOMBRE_MODALIDAD_CITA } from './SelectorHorario';
+import { NOMBRE_MODALIDAD_CITA } from '@/components/shared/SelectorHorario';
 import { NOMBRE_ESTADO_CITA } from './tonosAgenda';
 
 const diaChile = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
@@ -127,6 +128,13 @@ export function DetalleCita({
             en Cobros. Si vence el plazo sin pago, la hora se mantiene y se paga en el centro.
           </Aviso>
         )}
+        {cita.estado === 'SOLICITADA' && (
+          <Aviso tono="advertencia" titulo="Hora por aprobar">
+            El paciente pidió esta hora. {esTratante ? 'Apruébala o recházala' : 'La aprueba o rechaza su profesional'}
+            {cita.aprobacionVenceEn ? ` antes del ${formatoFechaHora(cita.aprobacionVenceEn)}` : ''}; si nadie responde, se cancela sola y se avisa al paciente.
+          </Aviso>
+        )}
+        {esTratante && cita.estado === 'SOLICITADA' && !pasada && <AprobarSolicitud citaId={cita.id} onListo={listo} />}
         {cita.estado === 'POR_REPROGRAMAR' && (
           <Aviso tono="advertencia" titulo="Por reprogramar">
             El profesional ya no puede atender esta hora (salida, revocación o baja). Reprográmala con el tratante o cúbrela con otro profesional.
@@ -148,7 +156,7 @@ export function DetalleCita({
         )}
 
         {!pasada && cita.pacienteId && cita.estado !== 'CANCELADA' && (
-          <div className="flex flex-col gap-2 rounded-lg border border-divider bg-neutral-100 px-[18px] py-4">
+          <div className="flex flex-col gap-2 rounded-lg border border-divider bg-bg px-[18px] py-4">
             <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Cambio definitivo de profesional</p>
             {esTratante ? (
               <>

@@ -1,10 +1,11 @@
 /**
  * Registro unico de campos cifrados. Toda columna bytea cifrada de la BD esta
  * aqui (y solo aqui): la extension de Prisma (02) cifra/descifra segun esta
- * lista, y el test de "sin texto plano" la recorre. AAD = tabla:columna:id.
+ * lista, y el test de "sin texto plano" la recorre. AAD = tabla:columna:id
+ * (con `aadTabla` si la tabla se renombro despues de cifrar: ver aadDe).
  * Campos `*_hmac` no van aqui: son indices ciegos (Llavero.hmacRut).
  */
-import type { CategoriaLlave } from './cifrado';
+import { aad, type CategoriaLlave } from './cifrado';
 
 export interface CampoCifrado {
   modelo: string;
@@ -14,6 +15,17 @@ export interface CampoCifrado {
   categoria: Exclude<CategoriaLlave, 'HMAC'>;
   /** Columna de la fila usada como id en el AAD. */
   id: string;
+  /**
+   * Nombre de la tabla con que se cifro, si la tabla se renombro despues
+   * (AUD-01: boletas -> comprobantes_pago). El AAD queda fijo: renombrar no
+   * obliga a recifrar.
+   */
+  aadTabla?: string;
+}
+
+/** AAD de una fila: el nombre de cifrado de la tabla (aadTabla) o el actual. */
+export function aadDe(c: CampoCifrado, idFila: string): string {
+  return aad(c.aadTabla ?? c.tabla, c.columna, idFila);
 }
 
 export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
@@ -22,6 +34,9 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Paciente', campo: 'telefono', tabla: 'pacientes', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'AdultoResponsable', campo: 'rut', tabla: 'adultos_responsables', columna: 'rut', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'AdultoResponsable', campo: 'telefono', tabla: 'adultos_responsables', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
+  // Punto 38: los abre la API desde datos_contactos_emergencia() (app_user no tiene SELECT de estas columnas).
+  { modelo: 'ContactoEmergencia', campo: 'nombre', tabla: 'contactos_emergencia', columna: 'nombre', categoria: 'IDENTIFICACION', id: 'id' },
+  { modelo: 'ContactoEmergencia', campo: 'telefono', tabla: 'contactos_emergencia', columna: 'telefono', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'Evolucion', campo: 'notas', tabla: 'evoluciones', columna: 'notas', categoria: 'CLINICO', id: 'id' },
   { modelo: 'Evolucion', campo: 'autorNombre', tabla: 'evoluciones', columna: 'autor_nombre', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'Evolucion', campo: 'autorRut', tabla: 'evoluciones', columna: 'autor_rut', categoria: 'IDENTIFICACION', id: 'id' },
@@ -31,8 +46,24 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Derivacion', campo: 'detalle', tabla: 'derivaciones', columna: 'detalle', categoria: 'CLINICO', id: 'id' },
   // citas conserva DEFAULT de id: el enlace se genera con la cita ya creada (id conocido).
   { modelo: 'Cita', campo: 'enlaceOnline', tabla: 'citas', columna: 'enlace_online', categoria: 'CLINICO', id: 'id' },
-  { modelo: 'Boleta', campo: 'emisorNombre', tabla: 'boletas', columna: 'emisor_nombre', categoria: 'IDENTIFICACION', id: 'id' },
-  { modelo: 'Boleta', campo: 'emisorRut', tabla: 'boletas', columna: 'emisor_rut', categoria: 'IDENTIFICACION', id: 'id' },
+  {
+    modelo: 'ComprobantePago',
+    campo: 'emisorNombre',
+    tabla: 'comprobantes_pago',
+    columna: 'emisor_nombre',
+    categoria: 'IDENTIFICACION',
+    id: 'id',
+    aadTabla: 'boletas',
+  },
+  {
+    modelo: 'ComprobantePago',
+    campo: 'emisorRut',
+    tabla: 'comprobantes_pago',
+    columna: 'emisor_rut',
+    categoria: 'IDENTIFICACION',
+    id: 'id',
+    aadTabla: 'boletas',
+  },
   { modelo: 'ProfesionalDatosPrivados', campo: 'rut', tabla: 'profesional_datos_privados', columna: 'rut', categoria: 'IDENTIFICACION', id: 'usuario_id' },
   { modelo: 'ProfesionalDatosPrivados', campo: 'banco', tabla: 'profesional_datos_privados', columna: 'banco', categoria: 'FINANCIERO', id: 'usuario_id' },
   {
@@ -64,6 +95,10 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Notificacion', campo: 'cuerpo', tabla: 'notificaciones', columna: 'cuerpo', categoria: 'CLINICO', id: 'id' },
   { modelo: 'RecordatorioCita', campo: 'enlace', tabla: 'recordatorios_cita', columna: 'enlace', categoria: 'CLINICO', id: 'id' },
   { modelo: 'AdjuntoFicha', campo: 'contenido', tabla: 'adjuntos_ficha', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
+  // 2026-11-07: respaldo (archivo) de un titulo de la trayectoria, en base64.
+  { modelo: 'TrayectoriaRespaldo', campo: 'contenido', tabla: 'trayectoria_respaldos', columna: 'contenido', categoria: 'IDENTIFICACION', id: 'id' },
+  // 2026-11-08: documentos del practicante (certificado de alumno regular, convenio de practica).
+  { modelo: 'PracticanteDocumento', campo: 'contenido', tabla: 'practicante_documentos', columna: 'contenido', categoria: 'IDENTIFICACION', id: 'id' },
   // 03a: segundo factor, contacto de emergencia, solicitud de hora sin cuenta (contacto y respuestas del match),
   // reseñas (texto y feedback privado), alta y borradores de evolucion.
   { modelo: 'Usuario', campo: 'totpSecreto', tabla: 'usuarios', columna: 'totp_secreto', categoria: 'IDENTIFICACION', id: 'id' },
@@ -105,6 +140,21 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'CuentaBancariaCentro', campo: 'numeroCuenta', tabla: 'cuenta_bancaria_centro', columna: 'numero_cuenta', categoria: 'FINANCIERO', id: 'id' },
   { modelo: 'CuentaBancariaCentro', campo: 'titular', tabla: 'cuenta_bancaria_centro', columna: 'titular', categoria: 'FINANCIERO', id: 'id' },
   { modelo: 'Transferencia', campo: 'comprobante', tabla: 'transferencias', columna: 'comprobante', categoria: 'FINANCIERO', id: 'id' },
+  // AUD-01 (E2.3a): solicitudes de derechos (pueden traer datos de salud).
+  { modelo: 'SolicitudDerecho', campo: 'detalle', tabla: 'solicitudes_derechos', columna: 'detalle', categoria: 'CLINICO', id: 'id' },
+  { modelo: 'SolicitudDerecho', campo: 'respuesta', tabla: 'solicitudes_derechos', columna: 'respuesta', categoria: 'CLINICO', id: 'id' },
+  // AUD-01 Fase 3: exportacion de un paciente (JSON con datos personales y clinicos).
+  {
+    modelo: 'ExportacionPaciente',
+    campo: 'datosAdministrativos',
+    tabla: 'exportaciones_paciente',
+    columna: 'datos_administrativos',
+    categoria: 'CLINICO',
+    id: 'id',
+  },
+  { modelo: 'ExportacionPaciente', campo: 'datosClinicos', tabla: 'exportaciones_paciente', columna: 'datos_clinicos', categoria: 'CLINICO', id: 'id' },
+  // 03b-4.2: recordatorios personales del equipo (texto libre: puede traer un dato de salud aunque se advierte que no).
+  { modelo: 'RecordatorioPersonal', campo: 'texto', tabla: 'recordatorios_personales', columna: 'texto', categoria: 'CLINICO', id: 'id' },
 ];
 
 /**

@@ -3,7 +3,11 @@
  * pasos por correo (obligatoria para el equipo, opcional para pacientes;
  * vencimiento, intentos, reenvio con espera y codigos de respaldo), TOTP
  * apagado (rutas 404) y match con preferencia de pago por tramos.
+ * Pendientes aprobados: "Reservando..." de otras personas en el calendario
+ * (solo box y rango, por rol).
  */
+import { ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
+
 import { auth, CLAVE, crearApp, ultimoCodigo, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 describe('03b-4.1 correctivo', () => {
@@ -77,6 +81,19 @@ describe('03b-4.1 correctivo', () => {
       }
       const paciente = await t.datos.usuarioPaciente(prof.id);
       expect((await login({ email: paciente.email, password: CLAVE })).body.accessToken).toBeDefined();
+    });
+
+    it('AUD-02: si el correo no se puede enviar, el login responde 503 con un texto claro (no 500)', async () => {
+      const correo = t.app.get<ProveedorCorreo, ProveedorCorreoSimulado>(ProveedorCorreo);
+      const u = await t.datos.usuario('GESTION');
+      correo.fallar = true;
+      try {
+        const r = await login({ email: u.email, password: CLAVE });
+        expect(r.status).toBe(503);
+        expect(r.body.mensaje ?? r.body.message).toMatch(/No pudimos enviar el código a tu correo/);
+      } finally {
+        correo.fallar = false;
+      }
     });
 
     it('primer ingreso: codigo del correo y 10 codigos de respaldo; un respaldo sirve una sola vez', async () => {
@@ -195,6 +212,7 @@ describe('03b-4.1 correctivo', () => {
           .put('/api/profesionales/yo/perfil')
           .set(await tk(u))
           .send({ ...perfil, perfilPublico: true });
+        await t.datos.validar(u.id);
         await t
           .http()
           .put(`/api/profesionales/${u.id}/tipos-atencion`)
@@ -249,6 +267,55 @@ describe('03b-4.1 correctivo', () => {
       expect((await t.http().patch(`/api/match/opciones/${opcion.id}`).set(h).send({ etiqueta: 'Hasta $65.000', objetivo: '65000' })).status).toBe(200);
       expect((await t.http().patch(`/api/match/opciones/${opcion.id}`).set(h).send({ objetivo: 'mucho' })).status).toBe(422);
       expect((await t.http().patch(`/api/match/opciones/${opcion.id}`).set(h).send({ etiqueta: 'Hasta $60.000', objetivo: '60000' })).status).toBe(200);
+    });
+  });
+
+  describe('"Reservando..." de otras personas (horarios-tomados/ajenos)', () => {
+    it('solo box y rango; ADMIN/GESTION todas o por profesional; el profesional las de su agenda; paciente 403', async () => {
+      const box = await t.datos.disponibleSiempre(prof.id);
+      const otro = await t.datos.usuario('PROFESIONAL');
+      const gestion = await t.datos.usuario('GESTION');
+      const paciente = await t.datos.usuarioPaciente(prof.id);
+      const inicio = new Date(Date.now() + 9 * 86_400_000);
+      inicio.setUTCMinutes(0, 0, 0);
+      const fin = new Date(inicio.getTime() + 3_600_000);
+      const hold = await t
+        .http()
+        .post('/api/agenda/horarios-tomados')
+        .set(await tk(admin))
+        .send({ profesionalId: prof.id, modalidad: 'PRESENCIAL', inicio: inicio.toISOString(), fin: fin.toISOString() });
+      expect(hold.status).toBe(201);
+      const rango = { desde: new Date(inicio.getTime() - 86_400_000).toISOString(), hasta: new Date(fin.getTime() + 86_400_000).toISOString() };
+      const ajenos = async (u: UsuarioPrueba, extra: Record<string, string> = {}) =>
+        t
+          .http()
+          .get('/api/agenda/horarios-tomados/ajenos')
+          .query({ ...rango, ...extra })
+          .set(await tk(u));
+
+      expect((await ajenos(admin)).body).toEqual([]);
+      const delProfesional = await ajenos(prof);
+      expect(delProfesional.status).toBe(200);
+      expect(delProfesional.body).toEqual([{ espacioId: box.id, inicio: inicio.toISOString(), fin: fin.toISOString() }]);
+      expect((await ajenos(otro)).body).toEqual([]);
+      expect((await ajenos(gestion)).body).toHaveLength(1);
+      expect((await ajenos(gestion, { profesionalId: otro.id })).body).toEqual([]);
+      expect((await ajenos(gestion, { profesionalId: prof.id })).body).toHaveLength(1);
+      expect((await ajenos(paciente)).status).toBe(403);
+      const largo = await t
+        .http()
+        .get('/api/agenda/horarios-tomados/ajenos')
+        .query({ desde: rango.desde, hasta: new Date(inicio.getTime() + 70 * 86_400_000).toISOString() })
+        .set(await tk(prof));
+      expect(largo.status).toBe(422);
+      expect(
+        (
+          await t
+            .http()
+            .delete(`/api/agenda/horarios-tomados/${hold.body.id}`)
+            .set(await tk(admin))
+        ).status,
+      ).toBe(200);
     });
   });
 });

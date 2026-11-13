@@ -20,6 +20,7 @@ export function Modal({
   children,
   acciones,
   ancho = 'md',
+  cerrable = true,
 }: {
   abierto: boolean;
   onCerrar: () => void;
@@ -27,7 +28,9 @@ export function Modal({
   descripcion?: ReactNode;
   children?: ReactNode;
   acciones?: ReactNode;
-  ancho?: 'md' | 'lg';
+  ancho?: 'md' | 'lg' | 'xl';
+  /** false = sin boton de cerrar ni Escape (p. ej. una aceptacion obligatoria). */
+  cerrable?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
@@ -49,10 +52,10 @@ export function Modal({
       onClose={onCerrar}
       onCancel={(e) => {
         e.preventDefault();
-        onCerrar();
+        if (cerrable) onCerrar();
       }}
-      className={`m-auto w-[calc(100%-32px)] rounded-lg border border-divider bg-bg p-0 text-text shadow-lg backdrop:bg-neutral-900/40 open:entrada ${
-        ancho === 'lg' ? 'max-w-[680px]' : 'max-w-[480px]'
+      className={`m-auto w-[calc(100%-32px)] rounded-lg border border-divider bg-bg p-0 text-text shadow-flotante backdrop:bg-neutral-900/40 open:entrada ${
+        ancho === 'xl' ? 'max-w-[1120px]' : ancho === 'lg' ? 'max-w-[680px]' : 'max-w-[480px]'
       }`}
     >
       {abierto && (
@@ -61,14 +64,16 @@ export function Modal({
             <h2 id={`${id}-titulo`} className="m-0 flex-1 text-[20px] leading-tight font-black tracking-[-0.025em] text-balance">
               {titulo}
             </h2>
-            <button
-              type="button"
-              onClick={onCerrar}
-              aria-label="Cerrar"
-              className="-mt-1 -mr-2 grid size-10 flex-none cursor-pointer place-items-center rounded-full text-neutral-700 hover:bg-accent-200 hover:text-accent-700"
-            >
-              <Icon name="close" size={20} />
-            </button>
+            {cerrable && (
+              <button
+                type="button"
+                onClick={onCerrar}
+                aria-label="Cerrar"
+                className="-mt-1 -mr-2 grid size-10 flex-none cursor-pointer place-items-center rounded-full text-neutral-700 hover:bg-accent-200 hover:text-accent-700"
+              >
+                <Icon name="close" size={20} />
+              </button>
+            )}
           </div>
           {descripcion && (
             <div id={`${id}-desc`} className="m-0 text-[14px] leading-relaxed font-semibold text-pretty text-neutral-700">

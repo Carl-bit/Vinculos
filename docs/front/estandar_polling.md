@@ -15,6 +15,8 @@ mejora futura y no cambia este estandar (la UI solo cambiaria la fuente).
 | Soft-lock de un horario elegido | `POST /agenda/horarios-tomados` | una vez al elegir | Dura `BLOQUEO_TEMPORAL_TTL_SEGUNDOS` (300 s). Mostrar cuenta regresiva; al vencer, volver a elegir. |
 | Portal: mis citas | `GET /portal/citas` | al abrir + 120 s | |
 | Dashboard | `GET /reportes/dashboard` | 5 min | Agregados; no necesita mas. |
+| Calendario del panel (Agenda y Espacios) | `GET /citas` y `GET /agenda/horarios-tomados/ajenos` | 120 s | Aprobado 2026-10-27 (pendiente 10 de 03b-4.1). Solo con la pestaña visible; un error detiene el sondeo hasta la siguiente consulta correcta. |
+| Exportacion del centro (Configuracion) | `GET /exportacion-centro` | 5 s | Solo mientras una avanza: EN_PROCESO, o PENDIENTE que parte dentro de 1 minuto (urgente o reintento). Programada para la noche: sin polling. Avisa tambien por correo. |
 | Resto de pantallas | — | sin polling | Recargar al entrar o tras una accion propia. |
 
 ## Reglas comunes

@@ -6,13 +6,14 @@ import { ButtonLink } from '@/components/ui/ButtonLink';
 import { EnlaceVolver } from '@/components/ui/EnlaceVolver';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import type { PerfilPublico, ResenaPublica } from '@/lib/api/servidor';
+import { formatoFechaLarga } from '@/lib/formato';
 import { nombreCorto, tiposDeAtencion } from '@/lib/perfiles';
 
 import { Resenas, SeccionesPerfil } from './PerfilCompleto';
 import { CabeceraPerfil, DatosPerfil, TarjetaPerfil } from './TarjetaPerfil';
 
 const chip = (activo: boolean) =>
-  `inline-flex min-h-10 items-center rounded-full border-[1.5px] px-[18px] text-[13.5px] font-extrabold transition-colors duration-200 ${
+  `filtro-chip inline-flex min-h-10 items-center rounded-full border-[1.5px] px-[18px] text-[13.5px] font-extrabold transition-colors duration-200 ${
     activo
       ? 'border-accent-2-600 bg-accent-2-200 text-accent-2-900 hover:text-accent-2-900'
       : 'border-neutral-400 bg-bg text-text hover:border-accent-500 hover:text-text'
@@ -67,7 +68,7 @@ export function EquipoPublico({ perfiles, atencion, agenda, match }: { perfiles:
       ) : (
         <div className="grid items-stretch gap-[18px] [grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr))]">
           {lista.map((p) => (
-            <TarjetaPerfil key={p.id} perfil={p} agenda={agenda} />
+            <TarjetaPerfil key={p.id} perfil={p} agenda={agenda} orden={perfiles.indexOf(p)} />
           ))}
         </div>
       )}
@@ -87,22 +88,54 @@ export function EquipoPublico({ perfiles, atencion, agenda, match }: { perfiles:
   );
 }
 
-/** Perfil publico completo: contenido a la izquierda; agenda y reseñas fijas a la derecha. */
-export function PaginaPerfil({ perfil, resenas, agenda }: { perfil: PerfilPublico; resenas: ResenaPublica[]; agenda: boolean }) {
+/**
+ * Perfil publico completo: contenido a la izquierda; agenda y reseñas fijas a
+ * la derecha. Columnas segun el ancho del contenedor (container query): asi
+ * la vista previa de Mi perfil en "Teléfono" se ve como en un celular.
+ */
+/**
+ * `tarjeta`: en el sitio publico la columna del profesional va en una tarjeta
+ * crema (sobre la trama no se distinguia del fondo). La vista previa del
+ * editor ya esta dentro de una tarjeta y no la repite.
+ */
+export function ContenidoPerfil({
+  perfil,
+  resenas,
+  agenda,
+  tarjeta = false,
+}: {
+  perfil: PerfilPublico;
+  resenas: ResenaPublica[];
+  agenda: boolean;
+  tarjeta?: boolean;
+}) {
   return (
-    <div className="entrada pt-[clamp(10px,2vw,24px)]">
-      <EnlaceVolver href="/equipo">Todo el equipo</EnlaceVolver>
-      <div className="grid items-start gap-[clamp(24px,4vw,48px)] lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-w-0 flex-col gap-7">
+    <div className="@container">
+      <div className="grid items-start gap-[clamp(24px,4vw,48px)] @[880px]:grid-cols-[minmax(0,1fr)_360px]">
+        <div className={`flex min-w-0 flex-col gap-7 ${tarjeta ? 'rounded-lg border border-divider bg-bg p-[clamp(20px,3vw,34px)] shadow-suave' : ''}`}>
           <CabeceraPerfil perfil={perfil} nivel={1} size={112} />
           <DatosPerfil perfil={perfil} />
           <SeccionesPerfil perfil={perfil} />
         </div>
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-          {agenda && (
+        <aside className="flex flex-col gap-4 @[880px]:sticky @[880px]:top-6">
+          {/* Punto 9: sin botones de agenda si no recibe pacientes; si esta ausente con fecha, desde cuando vuelve. */}
+          {agenda && !perfil.recibe_pacientes && (
+            <div className="rounded-lg border border-divider bg-bg p-6 shadow-suave">
+              <p className="m-0 mb-1 text-lg font-black tracking-[-0.02em]">No está recibiendo pacientes</p>
+              <p className="m-0 mb-4 text-[13.5px] font-semibold text-pretty text-neutral-800">Mira al resto del equipo o haz el match terapéutico.</p>
+              <ButtonLink href="/equipo" variant="secondary" icon="groups" className="w-full">
+                Ver el equipo
+              </ButtonLink>
+            </div>
+          )}
+          {agenda && perfil.recibe_pacientes && (
             <div className="rounded-lg border border-accent-2-500 bg-accent-2-200 p-6 shadow-md">
               <p className="m-0 mb-1 text-lg font-black tracking-[-0.02em] text-accent-2-900">Agenda con {nombreCorto(perfil)}</p>
-              <p className="m-0 mb-4 text-[13.5px] font-semibold text-pretty text-accent-2-900">Mira sus horas libres y reserva sin crear una cuenta.</p>
+              <p className="m-0 mb-4 text-[13.5px] font-semibold text-pretty text-accent-2-900">
+                {perfil.vuelve_en
+                  ? `Vuelve a atender el ${formatoFechaLarga(perfil.vuelve_en)}: ya puedes reservar desde esa fecha.`
+                  : 'Mira sus horas libres y reserva sin crear una cuenta.'}
+              </p>
               <ButtonLink href={`/pedir-hora/${perfil.id}`} variant="team" size="lg" icon="calendar_month" className="w-full">
                 Ver horas disponibles
               </ButtonLink>
@@ -111,6 +144,15 @@ export function PaginaPerfil({ perfil, resenas, agenda }: { perfil: PerfilPublic
           <Resenas perfil={perfil} resenas={resenas} />
         </aside>
       </div>
+    </div>
+  );
+}
+
+export function PaginaPerfil({ perfil, resenas, agenda }: { perfil: PerfilPublico; resenas: ResenaPublica[]; agenda: boolean }) {
+  return (
+    <div className="entrada pt-[clamp(10px,2vw,24px)]">
+      <EnlaceVolver href="/equipo">Todo el equipo</EnlaceVolver>
+      <ContenidoPerfil perfil={perfil} resenas={resenas} agenda={agenda} tarjeta />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { ListaPaginada } from '@/components/ui/Paginador';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -30,6 +31,7 @@ import { useSupervisiones } from '@/lib/equipo';
 import { formatoFecha, formatoFechaHora } from '@/lib/formato';
 import { nombresPacientes, useEquipoAgenda, usePacientes, useTiposAtencion } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
+import { PacientesPorReasignar, RetornosDisponibles } from './PacientesPorReasignar';
 
 const ABIERTAS: readonly EstadoDerivacion[] = ['PENDIENTE', 'ESPERANDO_CONSENTIMIENTO', 'SIN_ASIGNAR'];
 const textoError = (e: unknown, base: string) => (e instanceof ApiError ? e.message : base);
@@ -45,10 +47,25 @@ const textoError = (e: unknown, base: string) => (e instanceof ApiError ? e.mess
 export function DerivacionesVista({ rol }: { rol: Rol }) {
   const clinico = rol === 'PROFESIONAL' || rol === 'PRACTICANTE';
   const gestiona = rol === 'ADMIN' || rol === 'PROFESIONAL';
+  // Cuenta madre: dos mitades. Izquierda, pacientes por reasignar (tabla de 10 con seleccion);
+  // derecha, las derivaciones asignadas y su seguimiento.
+  if (rol === 'ADMIN')
+    return (
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-4">
+          <RetornosDisponibles />
+          <PacientesPorReasignar />
+        </div>
+        <div className="flex min-w-0 flex-col gap-4">
+          <BandejaDerivaciones admin />
+          <ListaDerivaciones rol={rol} />
+        </div>
+      </div>
+    );
   return (
     <div className="flex flex-col gap-4">
       {clinico && <OfertasParaMi rol={rol} />}
-      {gestiona && <BandejaDerivaciones admin={rol === 'ADMIN'} />}
+      {gestiona && <BandejaDerivaciones admin={false} />}
       {gestiona && <ListaDerivaciones rol={rol} />}
     </div>
   );
@@ -61,38 +78,44 @@ function OfertasParaMi({ rol }: { rol: Rol }) {
     <Panel titulo="Ofertas de derivación para ti" bajada="Solo ves el motivo, la edad y el tipo de atención. Si aceptas, el paciente pasa a tu cargo.">
       <div className="mt-4">
         <EstadoConsulta consulta={ofertas} vacio={(l) => l.length === 0} textoVacio="No tienes ofertas abiertas">
-          {(lista) => (
-            <ul className="m-0 flex list-none flex-col gap-3 p-0">
-              {lista.map((o) => (
-                <li key={o.derivacionId} className="rounded-lg border border-accent-500 bg-accent-100 px-[clamp(16px,2.6vw,22px)] py-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="m-0 text-[15px] font-black">
-                        {o.tipoAtencion} · {o.edadPaciente} años
-                      </p>
-                      <p className="m-0 text-[12.5px] font-bold text-accent-800">Responde antes del {formatoFechaHora(o.venceEn)}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="ghost" onClick={() => setResponder({ oferta: o, acepta: false })} className="!px-4 !py-2 !text-[13px]">
-                        Rechazar
-                      </Button>
-                      <Button variant="team" icon="check" onClick={() => setResponder({ oferta: o, acepta: true })} className="!px-4 !py-2 !text-[13px]">
-                        Aceptar
-                      </Button>
-                    </div>
-                  </div>
-                  {o.motivo && <p className="m-0 mt-2.5 text-[14px] font-semibold whitespace-pre-line text-pretty">{o.motivo}</p>}
-                  {o.detalle && <p className="m-0 mt-1.5 text-[13px] font-semibold whitespace-pre-line text-neutral-800">{o.detalle}</p>}
-                  {o.citasEnConflicto > 0 && (
-                    <p className="m-0 mt-2 flex items-center gap-1.5 text-[12.5px] font-bold text-accent-800">
-                      <Icon name="event_busy" size={16} />
-                      {o.citasEnConflicto === 1 ? '1 hora del paciente choca con tu agenda' : `${o.citasEnConflicto} horas del paciente chocan con tu agenda`}:
-                      quedan por reprogramar si aceptas.
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
+          {(todos) => (
+            <ListaPaginada items={todos} clave="ofertas-derivacion" etiqueta="ofertas">
+              {(lista) => (
+                <ul className="m-0 flex list-none flex-col gap-3 p-0">
+                  {lista.map((o) => (
+                    <li key={o.derivacionId} className="rounded-lg border border-accent-500 bg-accent-100 px-[clamp(16px,2.6vw,22px)] py-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="m-0 text-[15px] font-black">
+                            {o.tipoAtencion} · {o.edadPaciente} años
+                          </p>
+                          <p className="m-0 text-[12.5px] font-bold text-accent-800">Responde antes del {formatoFechaHora(o.venceEn)}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="ghost" onClick={() => setResponder({ oferta: o, acepta: false })} className="!px-4 !py-2 !text-[13px]">
+                            Rechazar
+                          </Button>
+                          <Button variant="team" icon="check" onClick={() => setResponder({ oferta: o, acepta: true })} className="!px-4 !py-2 !text-[13px]">
+                            Aceptar
+                          </Button>
+                        </div>
+                      </div>
+                      {o.motivo && <p className="m-0 mt-2.5 text-[14px] font-semibold whitespace-pre-line text-pretty">{o.motivo}</p>}
+                      {o.detalle && <p className="m-0 mt-1.5 text-[13px] font-semibold whitespace-pre-line text-neutral-800">{o.detalle}</p>}
+                      {o.citasEnConflicto > 0 && (
+                        <p className="m-0 mt-2 flex items-center gap-1.5 text-[12.5px] font-bold text-accent-800">
+                          <Icon name="event_busy" size={16} />
+                          {o.citasEnConflicto === 1
+                            ? '1 hora del paciente choca con tu agenda'
+                            : `${o.citasEnConflicto} horas del paciente chocan con tu agenda`}
+                          : quedan por reprogramar si aceptas.
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ListaPaginada>
           )}
         </EstadoConsulta>
       </div>
@@ -156,30 +179,34 @@ function BandejaDerivaciones({ admin }: { admin: boolean }) {
     >
       <div className="mt-4">
         <EstadoConsulta consulta={pendientes} vacio={(l) => l.length === 0} textoVacio="La bandeja está vacía">
-          {(lista) => (
-            <ul className="m-0 flex list-none flex-col p-0">
-              {lista.map((d) => (
-                <li key={d.derivacionId} className="flex flex-wrap items-center justify-between gap-3 border-b border-divider py-3 last:border-b-0">
-                  <div className="min-w-0 flex-[1_1_260px]">
-                    <p className="m-0 flex flex-wrap items-center gap-2 text-[14.5px] font-extrabold">
-                      {d.tipoAtencion} · {d.edadPaciente} años
-                      <Badge tono={ESTADO_DERIVACION[d.estado].tono}>{ESTADO_DERIVACION[d.estado].texto}</Badge>
-                    </p>
-                    {d.motivo && <p className="m-0 line-clamp-2 text-[13px] font-semibold text-neutral-800">{d.motivo}</p>}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="secondary" icon="school" onClick={() => setProponer(d)} className="!px-4 !py-2 !text-[13px]">
-                      Proponer practicante
-                    </Button>
-                    {admin && (
-                      <Button variant="team" onClick={() => setGestionar(d.derivacionId)} className="!px-4 !py-2 !text-[13px]">
-                        Gestionar
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+          {(todos) => (
+            <ListaPaginada items={todos} clave="bandeja-derivaciones" etiqueta="derivaciones">
+              {(lista) => (
+                <ul className="m-0 flex list-none flex-col p-0">
+                  {lista.map((d) => (
+                    <li key={d.derivacionId} className="flex flex-wrap items-center justify-between gap-3 border-b border-divider py-3 last:border-b-0">
+                      <div className="min-w-0 flex-[1_1_260px]">
+                        <p className="m-0 flex flex-wrap items-center gap-2 text-[14.5px] font-extrabold">
+                          {d.tipoAtencion} · {d.edadPaciente} años
+                          <Badge tono={ESTADO_DERIVACION[d.estado].tono}>{ESTADO_DERIVACION[d.estado].texto}</Badge>
+                        </p>
+                        {d.motivo && <p className="m-0 line-clamp-2 text-[13px] font-semibold text-neutral-800">{d.motivo}</p>}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="secondary" icon="school" onClick={() => setProponer(d)} className="!px-4 !py-2 !text-[13px]">
+                          Proponer practicante
+                        </Button>
+                        {admin && (
+                          <Button variant="team" onClick={() => setGestionar(d.derivacionId)} className="!px-4 !py-2 !text-[13px]">
+                            Gestionar
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </ListaPaginada>
           )}
         </EstadoConsulta>
       </div>
@@ -491,7 +518,7 @@ function DetalleDerivacion({ id, admin, onListo }: { id: string; admin: boolean;
                   )}
                 </div>
                 <div className="flex gap-2">
-                  {d.pacienteId && (
+                  {d.pacienteId && !admin && (
                     <ButtonLink href={`/admin/fichas/${d.pacienteId}`} variant="ghost">
                       Ver paciente
                     </ButtonLink>

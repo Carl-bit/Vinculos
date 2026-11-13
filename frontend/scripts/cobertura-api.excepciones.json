@@ -1,4 +1,5 @@
 {
+  "POST /api/publico/pasarela/webhook": "Lo llama la pasarela de pago, no una pantalla (firma verificada por el adaptador).",
   "GET /api/salud": "Healthcheck de infraestructura (Docker y Traefik); no es una pantalla.",
   "GET /api/plantillas-clinicas/{id}": "La lista (GET plantillas-clinicas) ya trae cada version completa con su definicion; el detalle por id queda para integraciones.",
   "GET /api/calendario/{token}": "Feed iCal: lo consume la app de calendario del profesional desde la URL que muestra Mi perfil (IntegracionesAgenda), no una pantalla.",

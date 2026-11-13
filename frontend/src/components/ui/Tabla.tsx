@@ -7,7 +7,7 @@ import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
  */
 export function Tabla({ children, etiqueta }: { children: ReactNode; etiqueta: string }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-divider bg-bg shadow-sm">
+    <div className="relative overflow-x-auto rounded-lg border border-divider bg-bg shadow-suave">
       <table aria-label={etiqueta} className="w-full min-w-[640px] border-collapse text-left">
         {children}
       </table>

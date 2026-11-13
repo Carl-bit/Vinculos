@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 
 import { usePortal } from '@/components/shared/ContextoPortal';
@@ -17,6 +17,7 @@ import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { formatoFechaHora, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
+import { PropuestasHora } from './PropuestasHora';
 import { estadoCitaPortal, nombresDe, useCitasPortal, useEquipoPortal, useResenasPortal, type CitaPortal } from '@/lib/portal';
 
 type Filtro = 'futura' | 'pasada' | 'todas';
@@ -48,7 +49,13 @@ export function MisHoras({ limite }: { limite?: number }) {
   const centro = useQuery({ queryKey: ['publico', 'centro'], queryFn: () => datos(api.GET('/api/publico/centro')), staleTime: 10 * 60_000 });
   const nombres = nombresDe(equipo.data);
   const ahora = Date.now();
-  const delPaciente = (citas.data ?? []).filter((c) => !portal.pacienteId || c.pacienteId === portal.pacienteId);
+  const todasDelPaciente = (citas.data ?? []).filter((c) => !portal.pacienteId || c.pacienteId === portal.pacienteId);
+  // Punto 7: las horas que propuso el profesional van aparte, agrupadas por la solicitud que no acepto.
+  const delPaciente = todasDelPaciente.filter((c) => c.estado !== 'PROPUESTA');
+  const propuestas = new Map<string, CitaPortal[]>();
+  for (const c of todasDelPaciente) {
+    if (c.estado === 'PROPUESTA' && c.propuestaDeId) propuestas.set(c.propuestaDeId, [...(propuestas.get(c.propuestaDeId) ?? []), c]);
+  }
   const futuras = delPaciente.filter((c) => new Date(c.fin).getTime() > ahora).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const pasadas = delPaciente.filter((c) => new Date(c.fin).getTime() <= ahora);
   const lista = filtro === 'futura' ? futuras : filtro === 'pasada' ? pasadas : [...futuras, ...pasadas];
@@ -72,6 +79,17 @@ export function MisHoras({ limite }: { limite?: number }) {
       titulo="Mis horas"
       bajada={`Todas tus sesiones, pasadas y futuras. Para cambiar o cancelar una hora, avísale a tu profesional${plazo ? ` con ${plazo} horas de anticipación` : ' con anticipación'}.`}
     >
+      {propuestas.size > 0 && !portal.restringida && (
+        <div className="mb-[18px] flex flex-col gap-3">
+          {[...propuestas.values()].map((grupo) => (
+            <PropuestasHora
+              key={grupo[0].propuestaDeId}
+              propuestas={[...grupo].sort((a, b) => a.inicio.localeCompare(b.inicio))}
+              profesional={nombres.get(grupo[0].profesionalId) ?? 'Tu profesional'}
+            />
+          ))}
+        </div>
+      )}
       <div className="mb-[18px]">
         <Pestanas
           etiqueta="Filtrar horas"
@@ -107,7 +125,7 @@ export function MisHoras({ limite }: { limite?: number }) {
                 const modalidad = c.modalidad === 'ONLINE' ? 'Online' : c.espacioNombre ? `Presencial, ${c.espacioNombre}` : 'Presencial';
                 const invita = puedeResenar && invitar.has(c.id);
                 return (
-                  <li key={c.id} className={`rounded-[18px] border bg-bg px-[18px] py-4 ${invita ? 'border-accent-500' : 'border-divider'}`}>
+                  <li key={c.id} className={`fila-diferida rounded-[18px] border bg-bg px-[18px] py-4 ${invita ? 'border-accent-500' : 'border-divider'}`}>
                     <div className="flex flex-wrap items-center gap-3.5">
                       <span
                         className={`grid size-10 flex-none place-items-center rounded-full border ${
@@ -126,6 +144,7 @@ export function MisHoras({ limite }: { limite?: number }) {
                     </div>
                     {!pasada && c.modalidad === 'ONLINE' && c.estado === 'CONFIRMADA' && <EnlaceVideollamada citaId={c.id} />}
                     {c.estado === 'PENDIENTE_PAGO' && !pasada && !portal.restringida && <PagoPendiente cita={c} />}
+                    {c.estado === 'POR_REPROGRAMAR' && !pasada && !portal.restringida && <HoraAfectada citaId={c.id} profesional={profesional} />}
                     {invita && (
                       <div className="mt-3.5 flex flex-wrap items-center gap-[13px] border-t border-divider pt-3.5">
                         <span className="flex-[1_1_150px] text-[12.5px] font-bold text-pretty text-neutral-700">
@@ -160,6 +179,65 @@ export function MisHoras({ limite }: { limite?: number }) {
         </Aviso>
       </div>
     </Panel>
+  );
+}
+
+/**
+ * Punto 9: su profesional no podra atender esta hora (licencia, vacaciones o
+ * dejo de atender). El paciente decide: otra hora, cancelarla o atenderse con
+ * otro profesional mientras tanto (lo deriva la cuenta madre). Nunca se elige
+ * por el.
+ */
+function HoraAfectada({ citaId, profesional }: { citaId: string; profesional: string }) {
+  const cliente = useQueryClient();
+  const portal = usePortal();
+  const responder = useMutation({
+    mutationFn: (opcion: 'CANCELAR' | 'ATENCION_TEMPORAL') =>
+      datos(api.POST('/api/portal/citas/{id}/ausencia', { params: { path: { id: citaId } }, body: { opcion } })),
+    onSuccess: (r) => {
+      if (r.opcion === 'CANCELAR') void cliente.invalidateQueries({ queryKey: ['portal', 'citas'] });
+    },
+  });
+  if (responder.data?.opcion === 'ATENCION_TEMPORAL')
+    return (
+      <p role="status" className="m-0 mt-3.5 border-t border-divider pt-3.5 text-[13px] font-bold text-accent-2-800">
+        Listo: el centro te contactará para atenderte con otro profesional mientras {profesional} no atiende.
+      </p>
+    );
+  return (
+    <div className="mt-3.5 flex flex-col gap-2.5 border-t border-divider pt-3.5">
+      <p className="m-0 text-[13px] font-bold text-pretty">{profesional} no podrá atenderte en esta hora. ¿Qué prefieres?</p>
+      <div className="flex flex-wrap gap-2">
+        <ButtonLink href="/portal/pedir-hora" variant="team" icon="calendar_month" className="!px-4 !py-2 !text-[13px]">
+          Pedir otra hora
+        </ButtonLink>
+        <Button
+          variant="secondary"
+          icon="swap_horiz"
+          loading={responder.isPending && responder.variables === 'ATENCION_TEMPORAL'}
+          disabled={responder.isPending}
+          onClick={() => responder.mutate('ATENCION_TEMPORAL')}
+          className="!px-4 !py-2 !text-[13px]"
+        >
+          Atenderme con otro profesional mientras tanto
+        </Button>
+        <Button
+          variant="ghost"
+          loading={responder.isPending && responder.variables === 'CANCELAR'}
+          disabled={responder.isPending}
+          onClick={() => responder.mutate('CANCELAR')}
+          className="!px-4 !py-2 !text-[13px]"
+        >
+          Cancelar esta hora
+        </Button>
+      </div>
+      {responder.error && (
+        <p role="alert" className="m-0 text-[12.5px] font-bold text-accent-700">
+          {responder.error instanceof ApiError ? responder.error.message : 'No pudimos guardar tu respuesta.'}
+        </p>
+      )}
+      {portal.responsable && <p className="m-0 text-[12px] font-semibold text-neutral-700">Respondes por tu menor a cargo.</p>}
+    </div>
   );
 }
 

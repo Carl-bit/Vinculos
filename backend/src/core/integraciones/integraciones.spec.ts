@@ -132,7 +132,8 @@ describe('calendario .ics: solo "Sesion", modalidad, horario y enlace o box', ()
 });
 
 describe('arquitectura: ningun modulo importa una implementacion concreta', () => {
-  const CONCRETAS = /ProveedorCorreoSmtp|ProveedorCorreoSimulado|ProveedorVideollamadaSimulado|ProveedorVideollamadaPorProfesional|CalendarioIcs|nodemailer/;
+  const CONCRETAS =
+    /ProveedorCorreoSmtp|ProveedorCorreoSimulado|ProveedorVideollamadaSimulado|ProveedorVideollamadaPorProfesional|CalendarioIcs|VerificadorSimulado|VerificadorSuperSalud|nodemailer/;
 
   const archivos = (dir: string): string[] =>
     readdirSync(dir).flatMap((f) => {
@@ -147,7 +148,9 @@ describe('arquitectura: ningun modulo importa una implementacion concreta', () =
 
   it('en core, solo CoreModule elige la implementacion', () => {
     const usos = archivos(join(__dirname, '..'))
-      .filter((f) => !f.endsWith('.spec.ts') && !/[\\/](integraciones|notificaciones)[\\/](calendario|videollamada|correo)\.ts$/.test(f))
+      .filter(
+        (f) => !f.endsWith('.spec.ts') && !/[\\/](integraciones|notificaciones)[\\/](calendario|videollamada|correo|verificador-prestadores)\.ts$/.test(f),
+      )
       .filter((f) => CONCRETAS.test(readFileSync(f, 'utf8')))
       .map((f) => f.split(/[\\/]/).pop());
     expect(usos).toEqual(['core.module.ts']);

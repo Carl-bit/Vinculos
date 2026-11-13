@@ -12,9 +12,12 @@
 #                        con credenciales de dueño) con infra/secrets/<slug>
 #                        montado en /llaves.
 #   ACTOR         quien opera (queda en eventos_llaves). Por defecto, el usuario.
+#   ENV_SILO      .env del silo para MODO=docker (por defecto infra/.env; el silo
+#                 de estres usa infra/stress/stress.env).
 set -e
 
-RAIZ=$(cd "$(dirname "$0")/../../.." && pwd)
+# pwd -W: ruta de Windows en Git Bash (docker no entiende /c/...); en Linux, pwd.
+RAIZ=$(cd "$(dirname "$0")/../../.." && (pwd -W 2>/dev/null || pwd))
 : "${CLIENTE_SLUG:?CLIENTE_SLUG es obligatoria}"
 SECRETOS="$RAIZ/infra/secrets/$CLIENTE_SLUG"
 ACTOR="${ACTOR:-$(whoami)}"
@@ -27,10 +30,16 @@ else
   D="$SECRETOS"
 fi
 
+# Linux: la CLI escribe en /llaves con el usuario del host. Si corre como root
+# (el usuario de la imagen), la KEK y las partes quedan de root y el operador
+# no puede borrarlas. Docker Desktop (Windows/macOS) no tiene ese problema.
+USUARIO=""
+if [ "$(uname -s)" = Linux ]; then USUARIO="--user $(id -u):$(id -g)"; fi
+
 cli() {
   if [ "${MODO:-local}" = docker ]; then
-    docker compose -f "$RAIZ/infra/docker-compose.yml" --env-file "$RAIZ/infra/.env" \
-      run --rm --no-deps -v "$SECRETOS:/llaves" migrate node dist/common/crypto/cli-llaves.js "$@"
+    docker compose -f "$RAIZ/infra/docker-compose.yml" --env-file "${ENV_SILO:-$RAIZ/infra/.env}" \
+      run --rm --no-deps $USUARIO -v "$SECRETOS:/llaves" migrate node dist/common/crypto/cli-llaves.js "$@"
   else
     (cd "$RAIZ/backend" && node $([ -f .env ] && echo --env-file=.env) -r ts-node/register       src/common/crypto/cli-llaves.ts "$@")
   fi

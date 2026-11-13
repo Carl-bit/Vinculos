@@ -14,9 +14,25 @@ export function ButtonLink({
   className = '',
   children,
   ...props
-}: LinkProps & { variant?: VarianteBoton; size?: TamanoBoton; icon?: Icono; className?: string; children: ReactNode }) {
-  const texto =
-    variant === 'primary' || variant === 'team' ? 'hover:text-neutral-100' : variant === 'outlinePatient' ? 'hover:text-accent-2-900' : 'hover:text-text';
+}: LinkProps & {
+  variant?: VarianteBoton;
+  size?: TamanoBoton;
+  icon?: Icono;
+  className?: string;
+  children: ReactNode;
+  /** Sitio publico desde el panel (punto 30): '_blank'. */
+  target?: string;
+  rel?: string;
+}) {
+  const texto = {
+    primary: 'hover:text-neutral-100',
+    team: 'hover:text-neutral-100',
+    contornoOscuro: 'hover:text-neutral-100',
+    outlinePatient: 'hover:text-accent-2-900',
+    sobreOscuro: 'hover:text-accent-900',
+    secondary: 'hover:text-text',
+    ghost: 'hover:text-text',
+  }[variant];
   return (
     <Link className={`${clasesBoton(variant, size)} ${texto} ${className}`} {...props}>
       {icon && <Icon name={icon} size={size === 'lg' ? 19 : 18} />}

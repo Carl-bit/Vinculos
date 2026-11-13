@@ -81,6 +81,8 @@ export async function crearApp(extra: Record<string, string> = {}, modulosExtra:
     if (r.status !== 200) {
       throw new Error(`login de prueba fallo (${r.status}) para ${u.rol}`);
     }
+    // Sesion unica (2026-11-07): este login cerro la sesion anterior de la cuenta (y su token guardado).
+    tokens.delete(u.id);
     return r.body as { accessToken: string; refreshToken: string; rol: Rol; roles: Rol[] };
   };
   return {
@@ -255,6 +257,21 @@ export class Fixtures {
   }
 
   /**
+   * 2026-11-08: el sitio publico solo muestra profesionales validados por la
+   * cuenta madre (registro SIS y titulo verificados). Dato de prueba como dueño.
+   */
+  async validar(profesionalId: string) {
+    const numero = String(Math.floor(Math.random() * 9_000_000) + 1_000_000);
+    await this.dueno.$executeRaw`
+      INSERT INTO registros_sis (profesional_id, numero, estado, metodo, verificado_en)
+      VALUES (${profesionalId}::uuid, ${numero}, 'VERIFICADO_AUTOMATICO', 'AUTOMATICO', now())
+      ON CONFLICT (profesional_id) DO NOTHING`; // si ya informo y verificaron su registro, se respeta
+    await this.dueno.$executeRaw`
+      INSERT INTO profesional_trayectoria (profesional_id, tipo, titulo, institucion, anio, verificado, verificado_por_id, verificado_en)
+      VALUES (${profesionalId}::uuid, 'TITULO', 'Psicologo (prueba)', 'U. de Prueba', 2015, true, ${profesionalId}::uuid, now())`;
+  }
+
+  /**
    * Agenda abierta 24x7 en ambas modalidades (como en seguridad_bd.sql). 03b:
    * la agenda sale de los bloques de box, asi que el profesional recibe un box
    * propio apartado de 2024 a +3 años; sus citas presenciales usan ese box.
@@ -266,10 +283,21 @@ export class Fixtures {
       ),
     });
     const box = await this.espacio();
-    await this.dueno.bloqueAtencion.create({
-      data: { profesionalId, espacioId: box.id, inicio: new Date('2024-01-01T03:00:00Z'), fin: new Date(Date.now() + 3 * 365 * 86_400_000) },
-    });
+    // Un bloque de años cruza dias y no cabe en el horario de un dia: dato de prueba como dueño, sin el trigger.
+    await this.dueno.$transaction([
+      this.dueno.$executeRaw`ALTER TABLE bloques_atencion DISABLE TRIGGER bloques_atencion_validos`,
+      this.dueno.bloqueAtencion.create({
+        data: { profesionalId, espacioId: box.id, inicio: new Date('2024-01-01T03:00:00Z'), fin: new Date(Date.now() + 3 * 365 * 86_400_000) },
+      }),
+      this.dueno.$executeRaw`ALTER TABLE bloques_atencion ENABLE TRIGGER bloques_atencion_validos`,
+    ]);
     return box;
+  }
+
+  /** Centro abierto los 7 dias de 00:00 a 24:00 (sin dias el centro esta cerrado desde 2026-11-05). */
+  async centroAbierto() {
+    await this.dueno.horarioCentro.deleteMany({});
+    await this.dueno.horarioCentro.createMany({ data: [1, 2, 3, 4, 5, 6, 7].map((diaSemana) => ({ diaSemana, inicioMin: 0, finMin: 1440 })) });
   }
 
   async espacio() {
@@ -289,6 +317,12 @@ export class Fixtures {
 }
 
 export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+/** RUT valido al azar (punto 37: el alta y la reserva lo exigen). */
+export function rutUnico(): string {
+  const cuerpo = String(10_000_000 + Math.floor(Math.random() * 89_999_999));
+  return `${cuerpo}-${dvRut(cuerpo)}`;
+}
 
 /** 03b-4.1: ultimo codigo de verificacion (6 digitos) enviado a un correo por el proveedor simulado. */
 export function ultimoCodigo(app: NestExpressApplication, para: string): string {

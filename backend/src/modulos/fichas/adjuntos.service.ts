@@ -53,7 +53,7 @@ export class AdjuntosService {
   async descargar(id: string) {
     const tx = this.bd.tx();
     const a = encontrado(await tx.adjuntoFicha.findUnique({ where: { id }, select: { ...VISTA, contenido: true } }), 'Adjunto');
-    await registrarAcceso(tx, this.bd.usuario(), [{ pacienteId: a.pacienteId, recurso: 'adjuntos_ficha', accion: 'LECTURA' }]);
+    await registrarAcceso(tx, this.bd.usuario(), [{ pacienteId: a.pacienteId, recurso: 'adjuntos_ficha', accion: 'DESCARGA' }]);
     return { nombreArchivo: a.nombreArchivo, tipoMime: a.tipoMime, contenido: Buffer.from(texto(a.contenido), 'base64') };
   }
 }

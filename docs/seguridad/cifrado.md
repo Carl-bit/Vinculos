@@ -40,6 +40,33 @@ Par de recuperacion (RSA-OAEP-4096, SHA-256)
 - **Huella de la KEK**: HMAC de la KEK, guardada en `huella_kek`. Si la KEK
   montada no coincide, la API no arranca (falla cerrado).
 
+### Indice ciego del RUT: como funciona
+
+El RUT se guarda cifrado (`rut`, AES-GCM con IV al azar). Por eso el mismo
+RUT cifrado dos veces da dos valores distintos: la BD no puede compararlos,
+ni con `UNIQUE` ni con `WHERE rut = ...`. Tampoco puede ser clave primaria.
+
+El indice ciego resuelve la busqueda sin guardar el RUT en claro:
+
+1. La API normaliza el RUT (`12.345.678-k` -> `12345678K`).
+2. Calcula `HMAC-SHA256(DEK HMAC, rut_normalizado)` y lo guarda en `rut_hmac`.
+   El HMAC es determinista: el mismo RUT siempre da el mismo valor.
+3. Para buscar o detectar duplicados, la API calcula el HMAC del RUT ingresado
+   y consulta `WHERE rut_hmac = $1`. `UNIQUE (rut_hmac)` impide dos pacientes
+   con el mismo RUT.
+
+Por que HMAC con llave y no un SHA-256 simple: los RUT son pocos (unos 30
+millones), asi que un hash sin llave se revierte probando todos. Sin la DEK
+HMAC (envuelta por la KEK, fuera de la BD) un respaldo filtrado no permite
+calcular el HMAC de ningun RUT.
+
+Lo que no hace: no permite buscar por parte del RUT ni ordenar por RUT. Solo
+coincidencia exacta.
+
+La clave primaria sigue siendo `id` (uuid). El RUT es el identificador de
+negocio unico via `rut_hmac`: los filtros y el verificador de duplicados usan
+`rut_hmac`, nunca el correo.
+
 `sesiones.token_hash` (02a) es bytea pero no es un cifrado: es el SHA-256 del
 refresh token (los tests de "sin texto plano" y de registro la excluyen).
 
@@ -55,7 +82,7 @@ compara ese registro con las columnas bytea reales de la BD.
 | Datos bancarios del profesional (banco, tipo y numero de cuenta, titular) | Financiero. |
 | `evoluciones.notas`, `supervision_comentarios.texto`, `derivaciones.motivo`/`detalle` | Contenido clinico en texto libre. |
 | `citas.enlace_online` | Da acceso a una sesion clinica en curso. `citas` conserva su DEFAULT de id: el enlace se genera con la cita ya creada. |
-| Copia de autoria (`evoluciones.autor_*`) y emisor de boletas | Identifican al profesional en documentos de retencion legal. |
+| Copia de autoria (`evoluciones.autor_*`) y emisor de comprobantes de pago (`comprobantes_pago`; AAD con el nombre anterior `boletas`, `aadTabla` en `registro.ts`) | Identifican al profesional en documentos de retencion legal. |
 | `mensajes_paciente.contenido`, `solicitudes_epicrisis.motivo` (02g) | Texto libre del paciente: puede traer datos de salud. |
 | `documentos_clinicos.contenido` (02h, CLINICO) | Archivo emitido por el tratante (epicrisis, receta...). Id generado por la API. |
 | `envios_documento.enlace` (02h, CLINICO) | URL con el token de descarga, solo para el job de correo. Para validar la descarga se guarda aparte su SHA-256 (`token_hash`, texto). |
@@ -64,6 +91,8 @@ compara ese registro con las columnas bytea reales de la BD.
 | `recordatorios_cita.enlace` (02i, CLINICO) | URL con el token para confirmar o cancelar, solo para armar el mensaje. Para validar se guarda aparte su SHA-256 (`token_hash`). Id generado por la API. |
 | `adjuntos_ficha.contenido` (02i, CLINICO) | Archivo externo de la ficha (informe, imagen) en base64. Id generado por la API. |
 | `usuarios.totp_secreto` (03a, IDENTIFICACION) | Secreto del segundo factor: con el se generan codigos validos. |
+| `trayectoria_respaldos.contenido` (2026-11-07, IDENTIFICACION) | Archivo del titulo del profesional (base64): trae nombre y a veces RUT. Id generado por la API. Versionado; se borra solo con su titulo. |
+| `practicante_documentos.contenido` (2026-11-08, IDENTIFICACION) | Certificado de alumno regular o convenio de practica (base64): trae nombre y RUT del estudiante. Id generado por la API. Versionado; se borra con `cerrar_cuenta`. |
 | `pacientes.contacto_emergencia` (03a, IDENTIFICACION) | Nombre y telefono de un tercero. Lo leen el tratante y ADMIN/GESTION. |
 | `solicitudes_hora.telefono`, `rut`, `adulto_telefono` (03a, IDENTIFICACION) | Contacto e identidad de quien pide hora sin cuenta. |
 | `solicitudes_hora.respuestas` (03a, CLINICO) | Respuestas del match (motivo de consulta). Se borran a los 30 dias si no se concreta la atencion (configurable) y al alta. |
@@ -116,7 +145,7 @@ La ficha clinica se conserva al menos 15 años desde la ultima atencion
 - **Simulacro trimestral** de recuperacion desde un respaldo con 2 partes
   (runbook): un procedimiento que no se practica no existe a los 15 años.
 - Al cerrar la cuenta de un profesional sus datos personales se vacian, pero
-  las copias de autoria cifradas en evoluciones y boletas se conservan
+  las copias de autoria cifradas en evoluciones y comprobantes de pago se conservan
   (`retencion_datos.md`).
 
 ## Por que estas piezas

@@ -63,59 +63,70 @@ datasource db {
 /// y ADMIN la actualiza. Trigger: no se puede apagar rol_gestion_habilitado con
 /// usuarios GESTION activos.
 model ConfiguracionCentro {
-  id                                Boolean             @id @default(true)
-  rolGestionHabilitado              Boolean             @default(false) @map("rol_gestion_habilitado")
-  plazoRespuestaDerivacionHoras     Int                 @default(24) @map("plazo_respuesta_derivacion_horas")
-  modeloCobro                       ModeloCobro         @default(CENTRO) @map("modelo_cobro")
-  plazoConsentimientoHoras          Int                 @default(48) @map("plazo_consentimiento_horas")
-  plazoOposicionHoras               Int                 @default(48) @map("plazo_oposicion_horas")
-  diasGraciaCierre                  Int                 @default(30) @map("dias_gracia_cierre")
+  id                                Boolean                @id @default(true)
+  rolGestionHabilitado              Boolean                @default(false) @map("rol_gestion_habilitado")
+  /// Correcciones 2026-11-11: maximo de cuentas activas con rol ADMIN (principal o adicional). NULL = sin limite (solo BD de prueba).
+  maxCuentasMadre                   Int?                   @default(2) @map("max_cuentas_madre") @db.SmallInt
+  plazoRespuestaDerivacionHoras     Int                    @default(24) @map("plazo_respuesta_derivacion_horas")
+  modeloCobro                       ModeloCobro            @default(CENTRO) @map("modelo_cobro")
+  plazoConsentimientoHoras          Int                    @default(48) @map("plazo_consentimiento_horas")
+  plazoOposicionHoras               Int                    @default(48) @map("plazo_oposicion_horas")
+  diasGraciaCierre                  Int                    @default(30) @map("dias_gracia_cierre")
   /// Minutos minimos entre citas de distinta modalidad del mismo profesional.
-  margenTrasladoMin                 Int                 @default(30) @map("margen_traslado_min")
-  /// Remitente visible de los correos y emisor de boletas del modelo CENTRO.
-  nombreCentro                      String              @default("Centro") @map("nombre_centro")
-  rutCentro                         String?             @map("rut_centro")
+  margenTrasladoMin                 Int                    @default(30) @map("margen_traslado_min")
+  /// Remitente visible de los correos y emisor de comprobantes del modelo CENTRO.
+  nombreCentro                      String                 @default("Centro") @map("nombre_centro")
+  rutCentro                         String?                @map("rut_centro")
   /// Cobros (02h). Los porcentajes quedan pendientes de definir con el caso de estudio.
-  plazoAvisoCancelacionHoras        Int                 @default(24) @map("plazo_aviso_cancelacion_horas")
-  penalizacionCancelacionPorcentaje Decimal             @default(0) @map("penalizacion_cancelacion_porcentaje") @db.Decimal(5, 2)
-  cobroInasistenciaPorcentaje       Decimal             @default(0) @map("cobro_inasistencia_porcentaje") @db.Decimal(5, 2)
-  comisionCentroPorcentaje          Decimal             @default(0) @map("comision_centro_porcentaje") @db.Decimal(5, 2)
+  plazoAvisoCancelacionHoras        Int                    @default(24) @map("plazo_aviso_cancelacion_horas")
+  penalizacionCancelacionPorcentaje Decimal                @default(0) @map("penalizacion_cancelacion_porcentaje") @db.Decimal(5, 2)
+  cobroInasistenciaPorcentaje       Decimal                @default(0) @map("cobro_inasistencia_porcentaje") @db.Decimal(5, 2)
+  comisionCentroPorcentaje          Decimal                @default(0) @map("comision_centro_porcentaje") @db.Decimal(5, 2)
   /// 02i: horas antes de la cita en que sale el recordatorio (0 = desactivado).
   /// 02j: si esta activo, mayor que plazoAvisoCancelacionHoras (CHECK).
-  recordatorioHorasAntes            Int                 @default(48) @map("recordatorio_horas_antes")
+  recordatorioHorasAntes            Int                    @default(48) @map("recordatorio_horas_antes")
   /// 03a: modulos contratados. Solo el operador los cambia (sin GRANT UPDATE a la API).
-  modulosActivos                    ModuloCentro[]      @default([PAGINA_PUBLICA, FICHAS, AGENDA, EQUIPO, MATCH, COBROS]) @map("modulos_activos")
+  /// MVP (2026-11-11): COBROS apagado por defecto; sin COBROS, la hora del paciente la aprueba su profesional.
+  modulosActivos                    ModuloCentro[]         @default([PAGINA_PUBLICA, FICHAS, AGENDA, EQUIPO, MATCH]) @map("modulos_activos")
   /// 03a (C-11): la liquidacion solo cuenta citas realizadas con evolucion registrada.
-  liquidarExigeEvolucion            Boolean             @default(false) @map("liquidar_exige_evolucion")
+  liquidarExigeEvolucion            Boolean                @default(false) @map("liquidar_exige_evolucion")
+  /// C-11: los cargos por inasistencia y cancelacion tardia entran a la liquidacion del profesional.
+  liquidarCargosAProfesional        Boolean                @default(false) @map("liquidar_cargos_a_profesional")
   /// 03a: el match muestra "prefiero filtrar yo mismo".
-  matchFiltroDirecto                Boolean             @default(true) @map("match_filtro_directo")
+  matchFiltroDirecto                Boolean                @default(true) @map("match_filtro_directo")
   /// 03a (D-6): dias que se guardan las respuestas del match si la solicitud no se concreta.
-  diasRetencionRespuestasMatch      Int                 @default(30) @map("dias_retencion_respuestas_match")
+  diasRetencionRespuestasMatch      Int                    @default(30) @map("dias_retencion_respuestas_match")
   /// 03a (C-15): minutos que se retiene el horario mientras se verifica el correo.
-  minutosRetencionSolicitud         Int                 @default(30) @map("minutos_retencion_solicitud")
+  minutosRetencionSolicitud         Int                    @default(30) @map("minutos_retencion_solicitud")
+  /// MVP: horas que tiene el profesional para aprobar una hora pedida por el paciente (nunca despues del inicio).
+  horasAprobacionSolicitud          Int                    @default(24) @map("horas_aprobacion_solicitud") @db.SmallInt
   /// 03a-2: dias que se conservan los mensajes internos del equipo (job de purga).
-  retencionMensajesDias             Int                 @default(365) @map("retencion_mensajes_dias")
+  retencionMensajesDias             Int                    @default(365) @map("retencion_mensajes_dias")
   /// 03a-2 (D-4): edad minima para la cuenta propia del paciente (antes: el adulto responsable).
-  edadMinimaCuenta                  Int                 @default(14) @map("edad_minima_cuenta")
+  edadMinimaCuenta                  Int                    @default(14) @map("edad_minima_cuenta")
   /// 03b-3.1: medios con que el paciente confirma su hora (CHECK: 1 a 3; sin el
   /// modulo COBROS solo cuenta PAGO_EN_CENTRO). TRANSFERENCIA exige la cuenta del
   /// centro salvo modelo DIRECTO (trigger); PASARELA, un adaptador configurado (API).
-  mediosPagoHabilitados             MedioConfirmacion[] @default([PAGO_EN_CENTRO]) @map("medios_pago_habilitados")
+  mediosPagoHabilitados             MedioConfirmacion[]    @default([PAGO_EN_CENTRO]) @map("medios_pago_habilitados")
   /// 03b-3.1: horas para pagar o validar la transferencia (siempre antes del inicio).
-  plazoValidacionTransferenciaHoras Int                 @default(24) @map("plazo_validacion_transferencia_horas")
+  plazoValidacionTransferenciaHoras Int                    @default(24) @map("plazo_validacion_transferencia_horas")
   /// 03b-3.1: porcentaje del monto que se paga para confirmar.
-  porcentajePagoConfirmacion        Int                 @default(100) @map("porcentaje_pago_confirmacion")
+  porcentajePagoConfirmacion        Int                    @default(100) @map("porcentaje_pago_confirmacion")
   /// 03b-3.3: horas antes de la sesion en que vence el pago previo de la hora que
   /// agenda el equipo (0 a 168). Vencido sin pago: se mantiene con pago en el centro.
-  horasPlazoPagoEquipo              Int                 @default(12) @map("horas_plazo_pago_equipo")
+  horasPlazoPagoEquipo              Int                    @default(12) @map("horas_plazo_pago_equipo")
   /// 03b-3.3: dias tras la sesion antes de contar el saldo como deuda (0 a 90).
-  diasGraciaMorosidad               Int                 @default(0) @map("dias_gracia_morosidad")
+  diasGraciaMorosidad               Int                    @default(0) @map("dias_gracia_morosidad")
   /// 03b-3.3: un paciente con deuda no agenda (ADMIN/GESTION autorizan con motivo).
-  bloquearAgendaMorosos             Boolean             @default(true) @map("bloquear_agenda_morosos")
+  bloquearAgendaMorosos             Boolean                @default(true) @map("bloquear_agenda_morosos")
   /// 03b-3.3: solo cuentan como deuda las sesiones terminadas despues de esta fecha
   /// (la fija la migracion; sin GRANT a la API).
-  morosidadDesde                    DateTime            @default(now()) @map("morosidad_desde") @db.Timestamptz(6)
-  updatedAt                         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  morosidadDesde                    DateTime               @default(now()) @map("morosidad_desde") @db.Timestamptz(6)
+  /// 03b-4.2 (C-10): comision de las sesiones de pacientes traidos por el centro.
+  /// GENERAL = el porcentaje general; PORCENTAJE (0 a 100) o MONTO_FIJO en CLP por sesion.
+  comisionDerivacionTipo            TipoComisionDerivacion @default(GENERAL) @map("comision_derivacion_tipo")
+  comisionDerivacionValor           Decimal                @default(0) @map("comision_derivacion_valor") @db.Decimal(10, 2)
+  updatedAt                         DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("configuracion_centro")
 }
@@ -212,6 +223,8 @@ model Usuario {
   altasRegistradas           AltaPaciente[]
   accesosTemporales          AccesoClinicoTemporal[]      @relation("AccesoTemporalProfesional")
   accesosTemporalesOtorgados AccesoClinicoTemporal[]      @relation("AccesoTemporalOtorgadoPor")
+  accesosTemporalesRevocados RevocacionAccesoTemporal[]
+  preferenciasAvisoEquipo    PreferenciaAvisoEquipo?
   borradoresEvolucion        BorradorEvolucion[]
   mensajesEscritos           MensajePaciente[]            @relation("MensajeAutor")
   perfilProfesional          Profesional?
@@ -225,6 +238,7 @@ model Usuario {
   excepcionesMorosidad       ExcepcionMorosidad[]
   codigosVerificacion        CodigoVerificacion[]
   codigosRespaldo            CodigoRespaldo[]
+  lecturasProtocolo          LecturaProtocolo[]
   bloqueosTemporales         BloqueoTemporal[]
   historialAccesos           HistorialAccesoPracticante[] @relation("HistorialPracticante")
   accionesAccesos            HistorialAccesoPracticante[] @relation("HistorialActor")
@@ -241,6 +255,12 @@ model Usuario {
   candidatosPropuestos       DerivacionCandidato[]        @relation("CandidatoPropuestoPor")
   trayectoria                ProfesionalTrayectoria[]     @relation("TrayectoriaProfesional")
   trayectoriasVerificadas    ProfesionalTrayectoria[]     @relation("TrayectoriaVerificadaPor")
+  respaldosTrayectoria       TrayectoriaRespaldo[]
+  trayectoriasObservadas     ProfesionalTrayectoria[]     @relation("TrayectoriaObservadaPor")
+  documentosPracticante      PracticanteDocumento[]       @relation("DocumentosPracticante")
+  documentosSubidos          PracticanteDocumento[]       @relation("DocumentosPracticanteSubidos")
+  correccionesRecibidas      CorreccionPerfil[]           @relation("CorreccionesRecibidas")
+  correccionesPedidas        CorreccionPerfil[]           @relation("CorreccionesPedidas")
   datosPrivados              ProfesionalDatosPrivados?
   tarifas                    Tarifa[]
   disponibilidad             DisponibilidadProfesional[]
@@ -263,7 +283,6 @@ model Usuario {
   alertasAtendidas           AlertaInterna[]
   notificacionesRecibidas    Notificacion[]               @relation("NotificacionDestino")
   notificacionesCreadas      Notificacion[]               @relation("NotificacionCreadaPor")
-  mensajesRecibidos          MensajePaciente[]
   epicrisisResueltas         SolicitudEpicrisis[]
   tiposAtencionRevisados     ProfesionalTipoAtencion[]    @relation("TipoAtencionRevisadoPor")
   documentosEmitidos         DocumentoClinico[]
@@ -273,10 +292,31 @@ model Usuario {
   feedCalendario             FeedCalendario?
   pagosRegistrados           Pago[]                       @relation("PagoRegistradoPor")
   pagosAnulados              Pago[]                       @relation("PagoAnuladoPor")
+  tributariosEmitidos        DocumentoTributario[]        @relation("DocumentoTributarioEmisor")
+  tributariosRegistrados     DocumentoTributario[]        @relation("DocumentoTributarioRegistradoPor")
+  tributariosAnulados        DocumentoTributario[]        @relation("DocumentoTributarioAnuladoPor")
+  exportaciones              RegistroExportacion[]
+  soportesOtorgados          AutorizacionSoporte[]        @relation("SoporteOtorgadoPor")
+  soportesRevocados          AutorizacionSoporte[]        @relation("SoporteRevocadoPor")
+  contratosAceptados         AceptacionContrato[]
+  exportacionesCreadas       ExportacionPaciente[]        @relation("ExportacionCreadaPor")
+  exportacionesClinicas      ExportacionPaciente[]        @relation("ExportacionClinicaPor")
+  exportacionesCentro        ExportacionCentro[]
+  exportacionesRecibidas     DestinatarioExportacion[]    @relation("DestinatarioExportacionCuenta")
+  feriadosCreados            Feriado[]                    @relation("FeriadoCreadoPor")
+  feriadosQuitados           Feriado[]                    @relation("FeriadoQuitadoPor")
+  recordatoriosPersonales    RecordatorioPersonal[]       @relation("RecordatorioPersonalAutor")
+  registroSis                RegistroSis?                 @relation("RegistroSisProfesional")
+  registrosSisVerificados    RegistroSis[]                @relation("RegistroSisVerificadoPor")
+  derechosRegistrados        SolicitudDerecho[]           @relation("DerechoRegistradoPor")
+  derechosResueltos          SolicitudDerecho[]           @relation("DerechoResueltoPor")
+  pacientesBloqueados        Paciente[]                   @relation("PacienteBloqueadoPor")
   transferenciasResueltas    Transferencia[]
   resolucionesCita           ResolucionCita[]
   liquidaciones              Liquidacion[]                @relation("LiquidacionProfesional")
   liquidacionesCreadas       Liquidacion[]                @relation("LiquidacionCreadaPor")
+  acuerdos                   AcuerdoProfesional[]         @relation("AcuerdoProfesional")
+  acuerdosCreados            AcuerdoProfesional[]         @relation("AcuerdoCreadoPor")
   adjuntosSubidos            AdjuntoFicha[]
   especialidades             ProfesionalEspecialidad[]    @relation("EspecialidadProfesional")
   especialidadesRevisadas    ProfesionalEspecialidad[]    @relation("EspecialidadRevisadaPor")
@@ -287,6 +327,12 @@ model Usuario {
   hilosParticipa             ParticipanteHilo[]
   mensajesInternos           MensajeInterno[]
   lecturasHilo               LecturaHilo[]
+
+  mensajesRecibidos             MensajePaciente[]
+  atencionesTemporalesPrincipal AtencionTemporal[] @relation("AtencionTemporalPrincipal")
+  respuestasRecibidas           MensajePaciente[]  @relation("MensajeDestinatario")
+
+  perfiles UsuarioPerfil[]
 
   @@map("usuarios")
 }
@@ -420,6 +466,8 @@ model Sesion {
   usadaEn          DateTime? @map("usada_en") @db.Timestamptz(6)
   revocadaEn       DateTime? @map("revocada_en") @db.Timestamptz(6)
   motivoRevocacion String?   @map("motivo_revocacion")
+  /// 2026-11-07: resumen del navegador ("Chrome en Windows"), sin IP ni User-Agent completo.
+  dispositivo      String?
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
 
@@ -435,6 +483,13 @@ enum TipoAlerta {
   BAJA_CON_BORRADORES
   /// 03a-2: paciente creado con RUT o correo de otro paciente; lo resuelve administracion.
   POSIBLE_DUPLICADO
+  /// AUD-01: solicitud de derechos a 5 dias habiles o menos de vencer.
+  SOLICITUD_DERECHO_POR_VENCER
+  /// AUD-01 (E2.4): lecturas masivas de fichas por una cuenta.
+  ACCESO_ANOMALO
+  /// AUD-01 (E2.4): ingresos fallidos repetidos con un mismo identificador.
+  LOGIN_FALLIDO_REPETIDO
+  ATENCION_TEMPORAL
 
   @@map("tipo_alerta")
 }
@@ -453,12 +508,13 @@ enum TipoNotificacion {
   RECORDATORIO_CITA
   CONSENTIMIENTO_POR_VENCER
   PAGO_REGISTRADO
-  BOLETA_EMITIDA
+  COMPROBANTE_EMITIDO
   /// 03a: acceso clinico temporal (aviso legal al paciente), solicitud por aprobar
   /// y cierre requerido (al equipo). HORA_LIBERADA: desde 03b-3.1, hora liberada
   /// por vencimiento del plazo de pago (antes, lista de espera, retirada).
   HORA_LIBERADA
   ACCESO_CLINICO_TEMPORAL
+  ACCESO_CLINICO_REVOCADO
   SOLICITUD_HORA
   CIERRE_REQUERIDO
   /// 03a-2: mensaje nuevo en un hilo interno (sin contenido).
@@ -474,6 +530,13 @@ enum TipoNotificacion {
   PAGO_PENDIENTE
   /// 03b-3.3: sesion realizada con saldo pendiente (al paciente y al profesional, una vez por cita).
   DEUDA_PENDIENTE
+  /// Correcciones 2026-11-11 (punto 7): el profesional no acepta la solicitud y propone otras horas.
+  CAMBIO_HORA_PROPUESTO
+  /// Pendiente del punto 7: el paciente eligio una hora propuesta (aviso al profesional).
+  PROPUESTA_ACEPTADA
+  CONTACTO_EMERGENCIA_PENDIENTE
+  CITA_AUSENCIA_PROFESIONAL
+  MENSAJE_PROFESIONAL
 
   @@map("tipo_notificacion")
 }
@@ -566,10 +629,13 @@ model PlantillaMensaje {
 /// legales (consentimientos, cambio de supervisor, documentos emitidos) no
 /// tienen columna: nunca se desactivan.
 model PreferenciaNotificacion {
-  pacienteId       String   @id @map("paciente_id") @db.Uuid
-  recordatorios    Boolean  @default(true)
-  avisosOperativos Boolean  @default(true) @map("avisos_operativos")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pacienteId           String    @id @map("paciente_id") @db.Uuid
+  recordatorios        Boolean   @default(true)
+  avisosOperativos     Boolean   @default(true) @map("avisos_operativos")
+  /// AUD-01 (E2.3c): consentimiento propio del canal WhatsApp (desmarcado por defecto; la fecha la fija la BD).
+  whatsapp             Boolean   @default(false)
+  whatsappConsentidoEn DateTime? @map("whatsapp_consentido_en") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   paciente Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
 
@@ -582,22 +648,27 @@ model PreferenciaNotificacion {
 /// Contenido cifrado (CLINICO): id generado por la API (AAD). Lo leen el
 /// paciente y el destinatario; marcar leido solo via marcar_mensaje_leido().
 model MensajePaciente {
-  id            String    @id @db.Uuid
-  pacienteId    String    @map("paciente_id") @db.Uuid
-  profesionalId String    @map("profesional_id") @db.Uuid
+  id             String    @id @db.Uuid
+  pacienteId     String    @map("paciente_id") @db.Uuid
+  profesionalId  String    @map("profesional_id") @db.Uuid
   /// cifrado (CLINICO)
-  contenido     Bytes
-  creadoEn      DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  leidoEn       DateTime? @map("leido_en") @db.Timestamptz(6)
+  contenido      Bytes
+  creadoEn       DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  leidoEn        DateTime? @map("leido_en") @db.Timestamptz(6)
   /// 03a (D-4): cuenta que escribio (nulo = el propio paciente, antes de 03a).
-  autorId       String?   @map("autor_id") @db.Uuid
+  autorId        String?   @map("autor_id") @db.Uuid
+  /// Puntos 40/44: respuesta del tratante (destinatario = cuenta del portal a la que responde).
+  deProfesional  Boolean   @default(false) @map("de_profesional")
+  destinatarioId String?   @map("destinatario_id") @db.Uuid
 
-  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
-  profesional Usuario  @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
-  autor       Usuario? @relation("MensajeAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  paciente     Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profesional  Usuario  @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+  autor        Usuario? @relation("MensajeAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  destinatario Usuario? @relation("MensajeDestinatario", fields: [destinatarioId], references: [id], onDelete: Restrict)
 
   @@index([profesionalId, creadoEn])
   @@index([pacienteId, creadoEn])
+  @@index([destinatarioId])
   @@map("mensajes_paciente")
 }
 
@@ -678,16 +749,28 @@ model Paciente {
   contactoEmergencia Bytes?    @map("contacto_emergencia")
   /// 03a (D-2): llego por una solicitud de hora del portal (RUT antes de su primera evolucion).
   creadoPorSolicitud Boolean   @default(false) @map("creado_por_solicitud")
+  /// 03b-4.2 (C-10): llego por el centro (sitio publico o alta por ADMIN/GESTION). Lo fija la BD;
+  /// lo cambia ADMIN/GESTION con marcar_origen_paciente(). Define la comision de sus sesiones.
+  traidoPorCentro    Boolean   @default(false) @map("traido_por_centro")
   /// 03a (D-2): coincide por RUT o correo con otro paciente; GESTION lo concilia.
   posibleDuplicado   Boolean   @default(false) @map("posible_duplicado")
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(6)
+  /// AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular (impide gestiones nuevas).
+  bloqueoDesde       DateTime? @map("bloqueo_desde") @db.Timestamptz(6)
+  bloqueoMotivo      String?   @map("bloqueo_motivo")
+  bloqueoSolicitudId String?   @map("bloqueo_solicitud_id") @db.Uuid
+  bloqueadoPorId     String?   @map("bloqueado_por_id") @db.Uuid
 
   profesional          Usuario                  @relation("PacienteProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  bloqueoSolicitud     SolicitudDerecho?        @relation("PacienteBloqueo", fields: [bloqueoSolicitudId], references: [id], onDelete: Restrict)
+  bloqueadoPor         Usuario?                 @relation("PacienteBloqueadoPor", fields: [bloqueadoPorId], references: [id], onDelete: Restrict)
   usuario              Usuario?                 @relation("UsuarioPaciente")
   tipoAtencion         TipoAtencion?            @relation(fields: [tipoAtencionId], references: [id], onDelete: Restrict)
   adultosResponsables  AdultoResponsable[]
+  contactosEmergencia  ContactoEmergencia[]
+  atencionesTemporales AtencionTemporal[]
   consentimientos      Consentimiento[]
   fichaClinica         FichaClinica?
   citas                Cita[]
@@ -705,9 +788,80 @@ model Paciente {
   accesosTemporales    AccesoClinicoTemporal[]
   hilosInternos        HiloInterno[]
   excepcionesMorosidad ExcepcionMorosidad[]
+  solicitudesDerechos  SolicitudDerecho[]
+  exportaciones        ExportacionPaciente[]
 
   @@index([profesionalId])
   @@map("pacientes")
+}
+
+/// Punto 38 (2026-11-11). Categoria A+C. Los agrega el paciente (o su adulto
+/// responsable). El tratante ve existencia y parentesco; nombre y telefono solo
+/// via datos_contactos_emergencia() (emergencia, auditado). app_user no tiene
+/// SELECT de nombre ni telefono. id lo da la API (AAD).
+/// Punto 9 (2026-11-11). Categoria A. Atencion temporal con otro profesional
+/// mientras el principal no atiende. Escritura solo via funciones (responder_ausencia,
+/// pedir_volver_con_principal, mantener_atencion_temporal; cierre VOLVIO por trigger).
+model AtencionTemporal {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pacienteId             String    @map("paciente_id") @db.Uuid
+  profesionalPrincipalId String    @map("profesional_principal_id") @db.Uuid
+  solicitadaEn           DateTime  @default(now()) @map("solicitada_en") @db.Timestamptz(6)
+  pideVolverEn           DateTime? @map("pide_volver_en") @db.Timestamptz(6)
+  cerradaEn              DateTime? @map("cerrada_en") @db.Timestamptz(6)
+  cierre                 String?
+
+  paciente             Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profesionalPrincipal Usuario  @relation("AtencionTemporalPrincipal", fields: [profesionalPrincipalId], references: [id], onDelete: Restrict)
+
+  @@map("atenciones_temporales")
+}
+
+/// Punto 36 (2026-11-11). Categoria B. Perfil sobre un rol base (ADMIN, GESTION o
+/// PROFESIONAL) que solo restringe modulos; la RLS sigue por rol base. ADMIN lo escribe.
+model PerfilRol {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre        String         @unique
+  descripcion   String?
+  rolBase       Rol            @map("rol_base")
+  restricciones ModuloCentro[] @default([])
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  asignaciones UsuarioPerfil[]
+
+  @@map("perfiles_rol")
+}
+
+/// Punto 36. Categoria A. Perfil asignado (uno por rol base, solo a quien tiene ese rol).
+model UsuarioPerfil {
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  perfilId   String   @map("perfil_id") @db.Uuid
+  asignadoEn DateTime @default(now()) @map("asignado_en") @db.Timestamptz(6)
+
+  usuario Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  perfil  PerfilRol @relation(fields: [perfilId], references: [id], onDelete: Restrict)
+
+  @@id([usuarioId, perfilId])
+  @@index([perfilId])
+  @@map("usuario_perfiles")
+}
+
+model ContactoEmergencia {
+  id         String   @id @db.Uuid
+  pacienteId String   @map("paciente_id") @db.Uuid
+  /// cifrado (IDENTIFICACION)
+  nombre     Bytes
+  parentesco String
+  /// cifrado (IDENTIFICACION)
+  telefono   Bytes
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+
+  @@index([pacienteId])
+  @@map("contactos_emergencia")
 }
 
 model AdultoResponsable {
@@ -725,12 +879,13 @@ model AdultoResponsable {
   usuarioId  String?  @map("usuario_id") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  paciente               Paciente              @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
-  usuario                Usuario?              @relation("AdultoResponsableCuenta", fields: [usuarioId], references: [id], onDelete: Restrict)
+  paciente               Paciente                  @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  usuario                Usuario?                  @relation("AdultoResponsableCuenta", fields: [usuarioId], references: [id], onDelete: Restrict)
   aceptaciones           AceptacionPolitica[]
-  consentimientos        Consentimiento[]      @relation("ConsentimientoAdulto")
+  consentimientos        Consentimiento[]          @relation("ConsentimientoAdulto")
   avisosRespondidos      AvisoConsentimiento[]
-  revocacionesComoAdulto Consentimiento[]      @relation("ConsentimientoRevocadoAdulto")
+  revocacionesComoAdulto Consentimiento[]          @relation("ConsentimientoRevocadoAdulto")
+  exportacionesRecibidas DestinatarioExportacion[]
 
   @@index([pacienteId])
   @@index([rutHmac])
@@ -948,6 +1103,8 @@ model AccesoFicha {
   fichaId    String?  @map("ficha_id") @db.Uuid
   recurso    String
   accion     String
+  /// AUD-01: campos que cambiaron u otro detalle corto; nunca valores.
+  detalle    String?
   ocurridoEn DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
 
   usuario  Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
@@ -957,6 +1114,24 @@ model AccesoFicha {
   @@index([pacienteId, ocurridoEn])
   @@index([usuarioId, ocurridoEn])
   @@map("accesos_ficha")
+}
+
+/// AUD-01 (E1.5, A): descargas y exportaciones sin paciente (reportes,
+/// liquidaciones, exportacion del centro). Append-only; solo ADMIN lee.
+model RegistroExportacion {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuarioId    String   @map("usuario_id") @db.Uuid
+  rol          Rol
+  recurso      String
+  referenciaId String?  @map("referencia_id") @db.Uuid
+  detalle      String?
+  ocurridoEn   DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([ocurridoEn])
+  @@index([usuarioId, ocurridoEn])
+  @@map("registro_exportaciones")
 }
 
 enum TipoConsentimiento {
@@ -1177,7 +1352,8 @@ enum EstadoCita {
   CONFIRMADA
   CANCELADA
   POR_REPROGRAMAR
-  /// 03a (C-15), retirado en 03b-3.2 (CHECK citas_sin_solicitada): el pago validado es la aprobacion.
+  /// 03a (C-15), retirado en 03b-3.2 y repuesto en el MVP sin cobros: la hora pedida por el
+  /// paciente espera la aprobacion de su profesional (aprobacion_vence_en). Ocupa la hora (EXCLUDE).
   SOLICITADA
   /// 03b-3.1: correo verificado, esperando el pago (bloquea la hora hasta pago_vence_en).
   PENDIENTE_PAGO
@@ -1186,6 +1362,9 @@ enum EstadoCita {
   /// 03b-3.2: hora retenida de quien pide sin cuenta: SIN paciente hasta el pago
   /// validado (o el correo verificado si paga en el centro). Bloquea la hora (EXCLUDE).
   RETENIDA
+  /// Correcciones 2026-11-11 (punto 7): hora alternativa que propone el profesional al no aceptar la
+  /// solicitud (propuesta_de_id). Ocupa la hora (EXCLUDE) hasta que el paciente elige o vence (aprobacion_vence_en).
+  PROPUESTA
 
   @@map("estado_cita")
 }
@@ -1260,6 +1439,10 @@ model Cita {
   /// lo exige). Solo los fija el flujo de confirmacion (trigger citas_estado_pago_protegido).
   medioConfirmacion MedioConfirmacion? @map("medio_confirmacion")
   pagoVenceEn       DateTime?          @map("pago_vence_en") @db.Timestamptz(6)
+  /// MVP: plazo para que el profesional apruebe (CHECK: SOLICITADA lo exige). Lo fija el flujo; el job vence.
+  aprobacionVenceEn DateTime?          @map("aprobacion_vence_en") @db.Timestamptz(6)
+  /// Punto 7: solicitud original (CANCELADA) de la que sale esta hora PROPUESTA. Lo fija proponer_cambio_hora.
+  propuestaDeId     String?            @map("propuesta_de_id") @db.Uuid
   /// 03b-3.2: la agendo el equipo (plazo de pago hasta 12 h antes, avisos 48 h / 24 h).
   /// Lo fija la BD (trigger citas_pago_previo_equipo).
   agendadaPorEquipo Boolean            @default(false) @map("agendada_por_equipo")
@@ -1277,21 +1460,28 @@ model Cita {
 
   transferencias        Transferencia[]
   cobrosPasarela        CobroPasarela[]
-  espacio               Espacio?            @relation(fields: [espacioId], references: [id], onDelete: Restrict)
-  profesional           Usuario             @relation("CitaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  liberadaPor           Usuario?            @relation("CitaLiberadaPor", fields: [liberadaPorId], references: [id], onDelete: Restrict)
-  paciente              Paciente?           @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  espacio               Espacio?              @relation(fields: [espacioId], references: [id], onDelete: Restrict)
+  profesional           Usuario               @relation("CitaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  liberadaPor           Usuario?              @relation("CitaLiberadaPor", fields: [liberadaPorId], references: [id], onDelete: Restrict)
+  paciente              Paciente?             @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
   pagos                 Pago[]
   excepcionMorosidad    ExcepcionMorosidad?
-  boleta                Boleta?
-  resolucion            ResolucionCita?     @relation("ResolucionCita")
-  resolucionesComoNueva ResolucionCita[]    @relation("ResolucionCitaNueva")
+  comprobantePago       ComprobantePago?
+  documentosTributarios DocumentoTributario[]
+  resolucion            ResolucionCita?       @relation("ResolucionCita")
+  resolucionesComoNueva ResolucionCita[]      @relation("ResolucionCitaNueva")
   recordatorios         RecordatorioCita[]
   evoluciones           Evolucion[]
   borradores            BorradorEvolucion[]
   solicitud             SolicitudHora?
+  propuestaDe           Cita?                 @relation("CitaPropuesta", fields: [propuestaDeId], references: [id], onDelete: Restrict)
+  propuestas            Cita[]                @relation("CitaPropuesta")
 
   @@index([pacienteId])
+  @@index([propuestaDeId])
+  /// AUD-02 BD-03: agenda por box y por profesional en un rango (todas las estados).
+  @@index([espacioId, inicio])
+  @@index([profesionalId, inicio])
   @@map("citas")
 }
 
@@ -1459,18 +1649,48 @@ model ProfesionalTrayectoria {
   institucion              String
   anio                     Int
   registroSuperintendencia String?         @map("registro_superintendencia")
+  /// Historico (2026-11-07): enlace del respaldo anterior al archivo; la API ya no lo recibe ni cuenta para verificar.
   documentoRespaldoUrl     String?         @map("documento_respaldo_url")
   verificado               Boolean         @default(false)
   verificadoPorId          String?         @map("verificado_por_id") @db.Uuid
   verificadoEn             DateTime?       @map("verificado_en") @db.Timestamptz(6)
+  /// 2026-11-08: observacion de la cuenta madre sobre el respaldo (observar_trayectoria); se limpia con un respaldo nuevo o al verificar.
+  observacion              String?
+  observadaEn              DateTime?       @map("observada_en") @db.Timestamptz(6)
+  observadaPorId           String?         @map("observada_por_id") @db.Uuid
   createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profesional   Usuario  @relation("TrayectoriaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  verificadoPor Usuario? @relation("TrayectoriaVerificadaPor", fields: [verificadoPorId], references: [id], onDelete: Restrict)
+  profesional   Usuario               @relation("TrayectoriaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  verificadoPor Usuario?              @relation("TrayectoriaVerificadaPor", fields: [verificadoPorId], references: [id], onDelete: Restrict)
+  observadaPor  Usuario?              @relation("TrayectoriaObservadaPor", fields: [observadaPorId], references: [id], onDelete: Restrict)
+  respaldos     TrayectoriaRespaldo[]
 
   @@index([profesionalId])
   @@map("profesional_trayectoria")
+}
+
+/// Respaldo de un titulo (A, 2026-11-07): archivo PDF, PNG o JPEG cifrado
+/// (IDENTIFICACION, base64) con AAD; id generado por la API. Escritura solo
+/// via subir_respaldo_trayectoria (version nueva, deja el titulo en revision);
+/// leen el propio y ADMIN/GESTION. Verificar un titulo exige un respaldo. Se
+/// borra solo con su titulo (CASCADE: el propio lo elimina o cerrar_cuenta).
+model TrayectoriaRespaldo {
+  id            String   @id @db.Uuid
+  trayectoriaId String   @map("trayectoria_id") @db.Uuid
+  profesionalId String   @map("profesional_id") @db.Uuid
+  nombreArchivo String   @map("nombre_archivo")
+  tipoMime      String   @map("tipo_mime")
+  tamanoBytes   Int      @map("tamano_bytes")
+  /// cifrado (IDENTIFICACION): el archivo en base64
+  contenido     Bytes
+  subidoEn      DateTime @default(now()) @map("subido_en") @db.Timestamptz(6)
+
+  trayectoria ProfesionalTrayectoria @relation(fields: [trayectoriaId], references: [id], onDelete: Cascade)
+  profesional Usuario                @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
+
+  @@index([trayectoriaId])
+  @@map("trayectoria_respaldos")
 }
 
 /// Datos privados (A, todo cifrado FINANCIERO salvo rut IDENTIFICACION).
@@ -1611,6 +1831,42 @@ enum EstadoLiquidacion {
   @@map("estado_liquidacion")
 }
 
+/// Quien cobra al paciente en un acuerdo por profesional.
+enum CobradorAcuerdo {
+  CENTRO
+  PROFESIONAL
+
+  @@map("cobrador_acuerdo")
+}
+
+/// Acuerdo economico por profesional (A, versionado y append-only). modelo:
+/// DIRECTO = A (cobra el profesional), CENTRO = B (cobra el centro), MIXTO = C
+/// (cuota, box y comisiones; `cobra` decide). Rige desde vigente_desde; sin
+/// acuerdo rige el del centro. Escritura solo registrar_acuerdo_profesional
+/// (ADMIN); leen ADMIN/GESTION y el profesional los suyos.
+model AcuerdoProfesional {
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId           String                 @map("profesional_id") @db.Uuid
+  modelo                  ModeloCobro
+  cobra                   CobradorAcuerdo
+  comisionPorcentaje      Decimal                @default(0) @map("comision_porcentaje") @db.Decimal(5, 2)
+  comisionDerivacionTipo  TipoComisionDerivacion @default(GENERAL) @map("comision_derivacion_tipo")
+  comisionDerivacionValor Decimal                @default(0) @map("comision_derivacion_valor") @db.Decimal(10, 2)
+  cuotaMensual            Int                    @default(0) @map("cuota_mensual")
+  cargoBoxHora            Int                    @default(0) @map("cargo_box_hora")
+  ivaBox                  Boolean                @default(false) @map("iva_box")
+  vigenteDesde            DateTime               @map("vigente_desde") @db.Date
+  creadoPorId             String                 @map("creado_por_id") @db.Uuid
+  createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profesional   Usuario       @relation("AcuerdoProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  creadoPor     Usuario       @relation("AcuerdoCreadoPor", fields: [creadoPorId], references: [id], onDelete: Restrict)
+  liquidaciones Liquidacion[]
+
+  @@unique([profesionalId, vigenteDesde])
+  @@map("acuerdos_profesional")
+}
+
 /// Cobro de box al profesional por periodo [periodo_desde, periodo_hasta).
 /// Escriben ADMIN/GESTION; el profesional ve los suyos.
 model Arriendo {
@@ -1749,10 +2005,12 @@ model CobroPasarela {
   @@map("cobros_pasarela")
 }
 
-/// Una boleta por cita, emitida al quedar PAGADA (emitir_boleta). Copia del
-/// emisor (cifrada): documento tributario de retencion, sobrevive al cierre
-/// de cuenta. pdf_url nulo = aun no generada (SII simulado).
-model Boleta {
+/// AUD-01 (E1.4): comprobante de pago interno, NO tributario (antes "boletas").
+/// Uno por cita, emitido al quedar PAGADA (emitir_comprobante_pago), numero
+/// "CP-". Copia del emisor (cifrada; AAD con el nombre anterior "boletas",
+/// registro.ts): respaldo del pago, sobrevive al cierre de cuenta. La boleta
+/// del SII se registra en documentos_tributarios.
+model ComprobantePago {
   id           String   @id @db.Uuid
   citaId       String   @unique @map("cita_id") @db.Uuid
   numero       String   @unique
@@ -1766,7 +2024,52 @@ model Boleta {
 
   cita Cita @relation(fields: [citaId], references: [id], onDelete: Restrict)
 
-  @@map("boletas")
+  @@map("comprobantes_pago")
+}
+
+enum TipoDocumentoTributario {
+  BOLETA_ELECTRONICA
+  /// Solo la emite el profesional (persona natural).
+  BOLETA_HONORARIOS
+  FACTURA_ELECTRONICA
+  OTRO
+
+  @@map("tipo_documento_tributario")
+}
+
+enum EstadoDocumentoTributario {
+  REGISTRADO
+  ANULADO
+
+  @@map("estado_documento_tributario")
+}
+
+/// AUD-01 (E1.4, A): boleta o factura emitida FUERA del sistema por quien
+/// cobro la cita (el centro o el profesional con cobro directo). Solo via
+/// registrar_documento_tributario / anular_documento_tributario; append-only.
+model DocumentoTributario {
+  id                  String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  citaId              String                    @map("cita_id") @db.Uuid
+  tipo                TipoDocumentoTributario
+  folio               String
+  emisor              CobradoPor
+  emisorProfesionalId String?                   @map("emisor_profesional_id") @db.Uuid
+  fechaEmision        DateTime                  @map("fecha_emision") @db.Date
+  monto               Int
+  estado              EstadoDocumentoTributario @default(REGISTRADO)
+  registradoPorId     String                    @map("registrado_por_id") @db.Uuid
+  registradoEn        DateTime                  @default(now()) @map("registrado_en") @db.Timestamptz(6)
+  anuladoEn           DateTime?                 @map("anulado_en") @db.Timestamptz(6)
+  anuladoPorId        String?                   @map("anulado_por_id") @db.Uuid
+  motivoAnulacion     String?                   @map("motivo_anulacion")
+
+  cita              Cita     @relation(fields: [citaId], references: [id], onDelete: Restrict)
+  emisorProfesional Usuario? @relation("DocumentoTributarioEmisor", fields: [emisorProfesionalId], references: [id], onDelete: Restrict)
+  registradoPor     Usuario  @relation("DocumentoTributarioRegistradoPor", fields: [registradoPorId], references: [id], onDelete: Restrict)
+  anuladoPor        Usuario? @relation("DocumentoTributarioAnuladoPor", fields: [anuladoPorId], references: [id], onDelete: Restrict)
+
+  @@index([citaId])
+  @@map("documentos_tributarios")
 }
 
 /// Decision de cobro sobre una cita cancelada o con inasistencia (A,
@@ -1800,23 +2103,38 @@ model ResolucionCita {
 /// comision - arriendos. BORRADOR -> EMITIDA -> PAGADA solo via funciones
 /// (ADMIN/GESTION). EXCLUDE: sin periodos solapados por profesional.
 model Liquidacion {
-  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profesionalId      String            @map("profesional_id") @db.Uuid
-  periodoDesde       DateTime          @map("periodo_desde") @db.Date
-  periodoHasta       DateTime          @map("periodo_hasta") @db.Date
-  totalCobrado       Int               @map("total_cobrado")
-  comisionPorcentaje Decimal           @map("comision_porcentaje") @db.Decimal(5, 2)
-  comision           Int
-  arriendos          Int
-  total              Int
-  estado             EstadoLiquidacion @default(BORRADOR)
-  creadaPorId        String            @map("creada_por_id") @db.Uuid
-  creadaEn           DateTime          @default(now()) @map("creada_en") @db.Timestamptz(6)
-  emitidaEn          DateTime?         @map("emitida_en") @db.Timestamptz(6)
-  pagadaEn           DateTime?         @map("pagada_en") @db.Timestamptz(6)
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId       String            @map("profesional_id") @db.Uuid
+  periodoDesde        DateTime          @map("periodo_desde") @db.Date
+  periodoHasta        DateTime          @map("periodo_hasta") @db.Date
+  totalCobrado        Int               @map("total_cobrado")
+  /// C-11: parte de lo cobrado que viene de cargos (inasistencia, cancelacion tardia).
+  cargosLiquidados    Int               @default(0) @map("cargos_liquidados")
+  comisionPorcentaje  Decimal           @map("comision_porcentaje") @db.Decimal(5, 2)
+  comision            Int
+  /// 03b-4.2: parte de la comision por la regla de derivacion (0 con GENERAL).
+  comisionDerivacion  Int               @default(0) @map("comision_derivacion")
+  sesionesDerivadas   Int               @default(0) @map("sesiones_derivadas")
+  arriendos           Int
+  /// Acuerdo del profesional que rigio (null = reglas del centro).
+  acuerdoId           String?           @map("acuerdo_id") @db.Uuid
+  /// Cuota fija del acuerdo: una por cada dia 1 de mes dentro del periodo.
+  cuotaFija           Int               @default(0) @map("cuota_fija")
+  horasBox            Decimal           @default(0) @map("horas_box") @db.Decimal(8, 2)
+  /// Cargo por hora del acuerdo x horas de bloques apartados en el periodo.
+  usoBox              Int               @default(0) @map("uso_box")
+  /// Comision de captados que cobro el propio profesional (le debe al centro).
+  comisionCobroPropio Int               @default(0) @map("comision_cobro_propio")
+  total               Int
+  estado              EstadoLiquidacion @default(BORRADOR)
+  creadaPorId         String            @map("creada_por_id") @db.Uuid
+  creadaEn            DateTime          @default(now()) @map("creada_en") @db.Timestamptz(6)
+  emitidaEn           DateTime?         @map("emitida_en") @db.Timestamptz(6)
+  pagadaEn            DateTime?         @map("pagada_en") @db.Timestamptz(6)
 
-  profesional Usuario @relation("LiquidacionProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  creadaPor   Usuario @relation("LiquidacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  profesional Usuario             @relation("LiquidacionProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  creadaPor   Usuario             @relation("LiquidacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  acuerdo     AcuerdoProfesional? @relation(fields: [acuerdoId], references: [id], onDelete: Restrict)
 
   @@index([profesionalId])
   @@map("liquidaciones")
@@ -2021,6 +2339,8 @@ enum ModuloCentro {
   EQUIPO
   MATCH
   COBROS
+  /// 2026-11-03: avisos por WhatsApp. Desactivado por defecto (no va en el DEFAULT de modulos_activos).
+  WHATSAPP
 
   @@map("modulo_centro")
 }
@@ -2093,8 +2413,40 @@ enum TipoPolitica {
   TERMINOS_AGENDAMIENTO
   /// 03b-5: consentimiento de atencion con practicante supervisado (versionado).
   CONSENTIMIENTO_PRACTICANTE
+  /// 03b-4.2: protocolo interno del equipo (no publico; lectura en lecturas_protocolo).
+  PROTOCOLO_EQUIPO
+  /// 03b-4.2: protocolo para el paciente (acuse en el portal, aceptaciones_politica).
+  PROTOCOLO_PACIENTE
+  /// AUD-01: contrato del centro con Vinculos (lo publica el operador; acepta ADMIN; solo ADMIN lo lee).
+  TERMINOS_SERVICIO
+  DPA
 
   @@map("tipo_politica")
+}
+
+enum TipoComisionDerivacion {
+  GENERAL
+  PORCENTAJE
+  MONTO_FIJO
+
+  @@map("tipo_comision_derivacion")
+}
+
+/// 03b-4.2 (A): quien del equipo leyo que version del protocolo interno.
+/// Append-only; se escribe solo con marcar_protocolo_leido().
+model LecturaProtocolo {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  politicaId String   @map("politica_id") @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  rol        Rol
+  leidoEn    DateTime @default(now()) @map("leido_en") @db.Timestamptz(6)
+
+  politica Politica @relation(fields: [politicaId], references: [id], onDelete: Restrict)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@unique([politicaId, usuarioId])
+  @@index([usuarioId])
+  @@map("lecturas_protocolo")
 }
 
 /// Textos legales versionados (B, 03a D-3). ADMIN publica una version nueva
@@ -2107,10 +2459,12 @@ model Politica {
   vigenteDesde DateTime     @default(now()) @map("vigente_desde") @db.Timestamptz(6)
   creadaPorId  String?      @map("creada_por_id") @db.Uuid
 
-  creadaPor    Usuario?             @relation(fields: [creadaPorId], references: [id], onDelete: Restrict)
-  aceptaciones AceptacionPolitica[]
-  solicitudes  SolicitudHora[]      @relation("SolicitudPolitica")
-  solicitudesT SolicitudHora[]      @relation("SolicitudTerminos")
+  creadaPor            Usuario?             @relation(fields: [creadaPorId], references: [id], onDelete: Restrict)
+  aceptaciones         AceptacionPolitica[]
+  lecturas             LecturaProtocolo[]
+  aceptacionesContrato AceptacionContrato[]
+  solicitudes          SolicitudHora[]      @relation("SolicitudPolitica")
+  solicitudesT         SolicitudHora[]      @relation("SolicitudTerminos")
 
   @@unique([tipo, version])
   @@map("politicas")
@@ -2194,6 +2548,8 @@ model SolicitudHora {
   expiraEn         DateTime            @map("expira_en") @db.Timestamptz(6)
   pacienteId       String?             @map("paciente_id") @db.Uuid
   citaId           String?             @unique @map("cita_id") @db.Uuid
+  /// AUD-01 (E2.3c): acepto avisos por WhatsApp al reservar (pasa al paciente al concretarse).
+  aceptaWhatsappEn DateTime?           @map("acepta_whatsapp_en") @db.Timestamptz(6)
   creadaEn         DateTime            @default(now()) @map("creada_en") @db.Timestamptz(6)
   concretadaEn     DateTime?           @map("concretada_en") @db.Timestamptz(6)
   /// 03b-3.1: SHA-256 del token opaco de la reserva (estado consultable sin datos personales).
@@ -2236,21 +2592,28 @@ model ImagenPublica {
 
 /// Contenido de la pagina publica del centro (C, 03a). Una fila; edita ADMIN.
 model ContenidoPublico {
-  id               Boolean  @id @default(true)
-  heroTitulo       String?  @map("hero_titulo")
-  heroTexto        String?  @map("hero_texto")
+  id                Boolean  @id @default(true)
+  heroTitulo        String?  @map("hero_titulo")
+  heroTexto         String?  @map("hero_texto")
   /// [{icono, titulo, texto}]
-  servicios        Json     @default("[]")
-  contactoCorreo   String?  @map("contacto_correo")
-  contactoTelefono String?  @map("contacto_telefono")
-  direccion        String?
-  whatsapp         String?
-  instagram        String?
-  mision           String?
-  vision           String?
-  colorMarca       String?  @map("color_marca")
-  logoImagenId     String?  @map("logo_imagen_id") @db.Uuid
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  servicios         Json     @default("[]")
+  contactoCorreo    String?  @map("contacto_correo")
+  contactoTelefono  String?  @map("contacto_telefono")
+  direccion         String?
+  whatsapp          String?
+  instagram         String?
+  mision            String?
+  vision            String?
+  /// 03c: color principal del sitio publico. Los colores (#RRGGBB) los valida
+  /// la BD: principal >= 4.5:1 sobre crema #F5EAD8, fondo >= 10:1 con la tinta.
+  colorMarca        String?  @map("color_marca")
+  colorFondoPublico String?  @map("color_fondo_publico")
+  colorPortal       String?  @map("color_portal")
+  colorFondoPortal  String?  @map("color_fondo_portal")
+  colorPanel        String?  @map("color_panel")
+  colorFondoPanel   String?  @map("color_fondo_panel")
+  logoImagenId      String?  @map("logo_imagen_id") @db.Uuid
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("contenido_publico")
 }
@@ -2488,31 +2851,73 @@ model AccesoClinicoTemporal {
   otorgadoPorId String                @map("otorgado_por_id") @db.Uuid
   creadoEn      DateTime              @default(now()) @map("creado_en") @db.Timestamptz(6)
 
-  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
-  profesional Usuario  @relation("AccesoTemporalProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
-  otorgadoPor Usuario  @relation("AccesoTemporalOtorgadoPor", fields: [otorgadoPorId], references: [id], onDelete: Restrict)
+  paciente    Paciente                  @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profesional Usuario                   @relation("AccesoTemporalProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  otorgadoPor Usuario                   @relation("AccesoTemporalOtorgadoPor", fields: [otorgadoPorId], references: [id], onDelete: Restrict)
+  revocacion  RevocacionAccesoTemporal?
 
   @@index([profesionalId, hasta])
   @@index([pacienteId])
   @@map("accesos_clinicos_temporales")
 }
 
+enum MotivoRevocacionAcceso {
+  TERMINO_ANTICIPADO
+  ERROR
+  SOLICITUD_PACIENTE
+
+  @@map("motivo_revocacion_acceso")
+}
+
+/// Corte anticipado de un acceso clinico temporal (A, append-only). El acceso
+/// no se modifica; escritura solo via revocar_acceso_temporal(). Motivo de
+/// catalogo: sin texto libre clinico.
+model RevocacionAccesoTemporal {
+  accesoId      String                 @id @map("acceso_id") @db.Uuid
+  motivo        MotivoRevocacionAcceso
+  revocadoPorId String                 @map("revocado_por_id") @db.Uuid
+  revocadoEn    DateTime               @default(now()) @map("revocado_en") @db.Timestamptz(6)
+
+  acceso      AccesoClinicoTemporal @relation(fields: [accesoId], references: [id], onDelete: Restrict)
+  revocadoPor Usuario               @relation(fields: [revocadoPorId], references: [id], onDelete: Restrict)
+
+  @@map("revocaciones_acceso_temporal")
+}
+
+/// Avisos que cada integrante recibe por correo (A). Sin fila = todos; la
+/// bandeja registra siempre. Lo que no entra en un grupo no se apaga
+/// (grupo_aviso_equipo()).
+model PreferenciaAvisoEquipo {
+  usuarioId    String   @id @map("usuario_id") @db.Uuid
+  agenda       Boolean  @default(true)
+  cobros       Boolean  @default(true)
+  derivaciones Boolean  @default(true)
+  mensajes     Boolean  @default(true)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@map("preferencias_aviso_equipo")
+}
+
 /// Borrador de evolucion (A, 03a C-8): fuera de la ficha, solo su autor lo
 /// ve, editable (guardado automatico) y descartable. Al confirmarlo pasa a
 /// evolucion y se elimina. Contenido cifrado (CLINICO); id generado por la API.
 model BorradorEvolucion {
-  id             String   @id @db.Uuid
-  autorId        String   @map("autor_id") @db.Uuid
-  fichaClinicaId String   @map("ficha_clinica_id") @db.Uuid
-  citaId         String?  @map("cita_id") @db.Uuid
+  id             String       @id @db.Uuid
+  autorId        String       @map("autor_id") @db.Uuid
+  fichaClinicaId String       @map("ficha_clinica_id") @db.Uuid
+  citaId         String?      @map("cita_id") @db.Uuid
   /// cifrado (CLINICO)
   contenido      Bytes
   /// 03a-2: plantilla de evolucion
-  plantillaId    String?  @map("plantilla_id") @db.Uuid
+  plantillaId    String?      @map("plantilla_id") @db.Uuid
   /// cifrado (CLINICO): valores de la plantilla
   valores        Bytes?
-  creadoEn       DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
-  actualizadoEn  DateTime @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  /// Opcional en el borrador; obligatorio al confirmar.
+  nivelRiesgo    NivelRiesgo? @map("nivel_riesgo")
+  creadoEn       DateTime     @default(now()) @map("creado_en") @db.Timestamptz(6)
+  actualizadoEn  DateTime     @default(now()) @map("actualizado_en") @db.Timestamptz(6)
 
   autor        Usuario           @relation(fields: [autorId], references: [id], onDelete: Restrict)
   fichaClinica FichaClinica      @relation(fields: [fichaClinicaId], references: [id], onDelete: Restrict)
@@ -2787,4 +3192,333 @@ model CodigoRespaldo {
 
   @@index([usuarioId])
   @@map("codigos_respaldo")
+}
+
+enum AlcanceSoporte {
+  DIAGNOSTICO
+  /// Incluye DIAGNOSTICO y la configuracion del centro (sin personas).
+  CONFIGURACION
+
+  @@map("alcance_soporte")
+}
+
+/// AUD-01 (E2.1, A): autorizacion del centro (ADMIN) para el soporte de
+/// Vinculos, maximo 72 horas. Solo via otorgar_soporte / revocar_soporte.
+model AutorizacionSoporte {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  motivo        String
+  alcance       AlcanceSoporte
+  desde         DateTime       @default(now()) @db.Timestamptz(6)
+  hasta         DateTime       @db.Timestamptz(6)
+  otorgadaPorId String         @map("otorgada_por_id") @db.Uuid
+  revocadaEn    DateTime?      @map("revocada_en") @db.Timestamptz(6)
+  revocadaPorId String?        @map("revocada_por_id") @db.Uuid
+
+  otorgadaPor Usuario           @relation("SoporteOtorgadoPor", fields: [otorgadaPorId], references: [id], onDelete: Restrict)
+  revocadaPor Usuario?          @relation("SoporteRevocadoPor", fields: [revocadaPorId], references: [id], onDelete: Restrict)
+  registros   RegistroSoporte[]
+
+  @@map("autorizaciones_soporte")
+}
+
+/// AUD-01 (E2.1, A): cada diagnostico que ejecuto el soporte. Append-only; ADMIN lee.
+model RegistroSoporte {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  autorizacionId String   @map("autorizacion_id") @db.Uuid
+  funcion        String
+  rolBd          String   @map("rol_bd")
+  ocurridoEn     DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  autorizacion AutorizacionSoporte @relation(fields: [autorizacionId], references: [id], onDelete: Restrict)
+
+  @@index([ocurridoEn])
+  @@map("registro_soporte")
+}
+
+/// AUD-01 (E2.2, A): aceptacion de terminos de servicio o DPA (version vigente)
+/// por un ADMIN del centro. Solo via aceptar_contrato(); append-only.
+model AceptacionContrato {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  politicaId String   @map("politica_id") @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  aceptadaEn DateTime @default(now()) @map("aceptada_en") @db.Timestamptz(6)
+
+  politica Politica @relation(fields: [politicaId], references: [id], onDelete: Restrict)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@unique([politicaId, usuarioId])
+  @@map("aceptaciones_contrato")
+}
+
+/// AUD-01 (E2.3a, B): feriados de Chile; los carga el operador por año.
+/// Categoria B. Los de la ley los calcula generar_feriados (origen LEY); el
+/// ADMIN agrega puntuales o regionales (CENTRO) y quita (logico).
+model Feriado {
+  fecha        DateTime  @id @db.Date
+  nombre       String
+  origen       String
+  creadoPorId  String?   @map("creado_por_id") @db.Uuid
+  quitadoEn    DateTime? @map("quitado_en") @db.Timestamptz(6)
+  quitadoPorId String?   @map("quitado_por_id") @db.Uuid
+
+  creadoPor  Usuario? @relation("FeriadoCreadoPor", fields: [creadoPorId], references: [id], onDelete: Restrict)
+  quitadoPor Usuario? @relation("FeriadoQuitadoPor", fields: [quitadoPorId], references: [id], onDelete: Restrict)
+
+  @@map("feriados")
+}
+
+/// 03b-4.2 (A): recordatorios personales del equipo. Solo su autor (RLS);
+/// texto cifrado (CLINICO, texto libre). Sin vinculo con pacientes.
+model RecordatorioPersonal {
+  id       String    @id @db.Uuid
+  autorId  String    @map("autor_id") @db.Uuid
+  /// cifrado (CLINICO)
+  texto    Bytes
+  venceEl  DateTime? @map("vence_el") @db.Date
+  hechoEn  DateTime? @map("hecho_en") @db.Timestamptz(6)
+  creadoEn DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  autor Usuario @relation("RecordatorioPersonalAutor", fields: [autorId], references: [id], onDelete: Restrict)
+
+  @@index([autorId])
+  @@map("recordatorios_personales")
+}
+
+/// 03b-4.2 (A+C): registro de prestador individual en la Superintendencia de
+/// Salud (RNPI). Escritura solo via informar_registro_sis() y
+/// registrar_verificacion_sis(); publico via registros_sis_publicos().
+model RegistroSis {
+  profesionalId     String    @id @map("profesional_id") @db.Uuid
+  numero            String
+  /// PENDIENTE | VERIFICADO_AUTOMATICO | VERIFICADO_MANUAL | NO_COINCIDE (sin fila = NO_INFORMADO)
+  estado            String
+  /// AUTOMATICO | MANUAL
+  metodo            String?
+  tituloHabilitante String?   @map("titulo_habilitante")
+  institucion       String?
+  verificadoEn      DateTime? @map("verificado_en") @db.Timestamptz(6)
+  verificadoPorId   String?   @map("verificado_por_id") @db.Uuid
+  actualizadoEn     DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+
+  profesional   Usuario  @relation("RegistroSisProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
+  verificadoPor Usuario? @relation("RegistroSisVerificadoPor", fields: [verificadoPorId], references: [id], onDelete: Restrict)
+
+  @@map("registros_sis")
+}
+
+enum TipoDerecho {
+  ACCESO
+  RECTIFICACION
+  CANCELACION
+  OPOSICION
+  PORTABILIDAD
+  BLOQUEO
+
+  @@map("tipo_derecho")
+}
+
+enum CanalSolicitudDerecho {
+  PRESENCIAL
+  CORREO
+  PORTAL
+  FORMULARIO_PUBLICO
+
+  @@map("canal_solicitud_derecho")
+}
+
+enum EstadoSolicitudDerecho {
+  RECIBIDA
+  EN_CURSO
+  RESUELTA
+  RECHAZADA
+
+  @@map("estado_solicitud_derecho")
+}
+
+/// AUD-01 (E2.3a, A): solicitud de derechos de un titular (Ley 21.719). Plazo
+/// en dias habiles (vence_el lo fija la BD). Solo ADMIN, solo via funciones.
+model SolicitudDerecho {
+  id               String                 @id @db.Uuid
+  tipo             TipoDerecho
+  pacienteId       String?                @map("paciente_id") @db.Uuid
+  canal            CanalSolicitudDerecho
+  estado           EstadoSolicitudDerecho @default(RECIBIDA)
+  recibidaEn       DateTime               @default(now()) @map("recibida_en") @db.Timestamptz(6)
+  venceEl          DateTime               @map("vence_el") @db.Date
+  /// cifrado (CLINICO)
+  detalle          Bytes?
+  /// cifrado (CLINICO)
+  respuesta        Bytes?
+  registradaPorId  String?                @map("registrada_por_id") @db.Uuid
+  resueltaEn       DateTime?              @map("resuelta_en") @db.Timestamptz(6)
+  resueltaPorId    String?                @map("resuelta_por_id") @db.Uuid
+  /// AUD-01 (E2.3b): el titular pidio actualizar el correo (lo cambia el centro tras verificar identidad).
+  pideCambioCorreo Boolean                @default(false) @map("pide_cambio_correo")
+
+  paciente      Paciente?             @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  registradaPor Usuario?              @relation("DerechoRegistradoPor", fields: [registradaPorId], references: [id], onDelete: Restrict)
+  resueltaPor   Usuario?              @relation("DerechoResueltoPor", fields: [resueltaPorId], references: [id], onDelete: Restrict)
+  bloqueos      Paciente[]            @relation("PacienteBloqueo")
+  exportaciones ExportacionPaciente[]
+
+  @@index([estado, venceEl])
+  @@index([pacienteId])
+  @@map("solicitudes_derechos")
+}
+
+/// AUD-01 (E2.4, A): ingreso fallido; solo el HMAC del correo o RUT. Sin GRANT (funcion del login).
+model IntentoLoginFallido {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identificadorHmac Bytes    @map("identificador_hmac")
+  ocurridoEn        DateTime @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  @@index([ocurridoEn])
+  @@map("intentos_login_fallidos")
+}
+
+/// AUD-02 (Categoria A): exportacion completa del centro como job. Estado y
+/// avance, sin datos ni clave; el archivo cifrado vive en el volumen del silo
+/// hasta descargarse o 24 h. Escritura solo por funciones; lee ADMIN.
+model ExportacionCentro {
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  solicitadaPorId String                  @map("solicitada_por_id") @db.Uuid
+  estado          EstadoExportacionCentro @default(PENDIENTE)
+  tablasTotal     Int                     @map("tablas_total")
+  tablasHechas    Int                     @default(0) @map("tablas_hechas")
+  fichasTotal     Int                     @default(0) @map("fichas_total")
+  fichasHechas    Int                     @default(0) @map("fichas_hechas")
+  bytes           BigInt?
+  huella          String?
+  motivoFallo     String?                 @map("motivo_fallo")
+  creadaEn        DateTime                @default(now()) @map("creada_en") @db.Timestamptz(6)
+  actualizadaEn   DateTime                @default(now()) @map("actualizada_en") @db.Timestamptz(6)
+  terminadaEn     DateTime?               @map("terminada_en") @db.Timestamptz(6)
+  venceEn         DateTime?               @map("vence_en") @db.Timestamptz(6)
+  descargadaEn    DateTime?               @map("descargada_en") @db.Timestamptz(6)
+  /// X25519 publica derivada de la clave del ADMIN (la privada no se guarda) y su sal.
+  clavePublica    Bytes?                  @map("clave_publica")
+  sal             Bytes?
+  urgente         Boolean                 @default(false)
+  programadaPara  DateTime                @default(now()) @map("programada_para") @db.Timestamptz(6)
+  intentos        Int                     @default(0)
+  iniciadaEn      DateTime?               @map("iniciada_en") @db.Timestamptz(6)
+
+  solicitadaPor Usuario @relation(fields: [solicitadaPorId], references: [id], onDelete: Restrict)
+
+  @@index([creadaEn])
+  @@map("exportaciones_centro")
+}
+
+enum EstadoExportacionCentro {
+  PENDIENTE
+  EN_PROCESO
+  LISTA
+  FALLIDA
+  DESCARGADA
+  VENCIDA
+
+  @@map("estado_exportacion_centro")
+}
+
+/// AUD-01 Fase 3 (A): exportacion de los datos de un paciente. Parte
+/// administrativa (ADMIN) y clinica (tratante) cifradas; enlace de un solo uso
+/// (72 h). Solo via funciones; la API lee solo los metadatos (GRANT por columna).
+model ExportacionPaciente {
+  id                   String    @id @db.Uuid
+  pacienteId           String    @map("paciente_id") @db.Uuid
+  solicitudId          String    @map("solicitud_id") @db.Uuid
+  /// cifrado (CLINICO)
+  datosAdministrativos Bytes?    @map("datos_administrativos")
+  /// cifrado (CLINICO)
+  datosClinicos        Bytes?    @map("datos_clinicos")
+  requiereClinica      Boolean   @map("requiere_clinica")
+  creadaPorId          String    @map("creada_por_id") @db.Uuid
+  creadaEn             DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
+  clinicaPorId         String?   @map("clinica_por_id") @db.Uuid
+  clinicaEn            DateTime? @map("clinica_en") @db.Timestamptz(6)
+  enviadaEn            DateTime? @map("enviada_en") @db.Timestamptz(6)
+  venceEn              DateTime? @map("vence_en") @db.Timestamptz(6)
+  descargas            Int       @default(0)
+  ultimaDescargaEn     DateTime? @map("ultima_descarga_en") @db.Timestamptz(6)
+  purgadaEn            DateTime? @map("purgada_en") @db.Timestamptz(6)
+
+  paciente      Paciente                  @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  solicitud     SolicitudDerecho          @relation(fields: [solicitudId], references: [id], onDelete: Restrict)
+  creadaPor     Usuario                   @relation("ExportacionCreadaPor", fields: [creadaPorId], references: [id], onDelete: Restrict)
+  clinicaPor    Usuario?                  @relation("ExportacionClinicaPor", fields: [clinicaPorId], references: [id], onDelete: Restrict)
+  destinatarios DestinatarioExportacion[]
+
+  @@index([pacienteId])
+  @@map("exportaciones_paciente")
+}
+
+/// Categoria A. Un enlace por destinatario (paciente y/o adultos responsables
+/// segun la edad). Con cuenta (usuarioId) exige su sesion; sin cuenta, el codigo.
+model DestinatarioExportacion {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  exportacionId       String    @map("exportacion_id") @db.Uuid
+  adultoResponsableId String?   @map("adulto_responsable_id") @db.Uuid
+  usuarioId           String?   @map("usuario_id") @db.Uuid
+  tokenHash           Bytes     @unique @map("token_hash")
+  codigoHash          Bytes?    @map("codigo_hash")
+  descargas           Int       @default(0)
+  ultimaDescargaEn    DateTime? @map("ultima_descarga_en") @db.Timestamptz(6)
+
+  exportacion       ExportacionPaciente @relation(fields: [exportacionId], references: [id], onDelete: Restrict)
+  adultoResponsable AdultoResponsable?  @relation(fields: [adultoResponsableId], references: [id], onDelete: Restrict)
+  usuario           Usuario?            @relation("DestinatarioExportacionCuenta", fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([exportacionId])
+  @@map("destinatarios_exportacion")
+}
+
+/// Documentos del practicante (A, 2026-11-08): certificado de alumno regular y
+/// convenio de practica, cifrados (IDENTIFICACION) y versionados. Suben el
+/// propio y ADMIN (subir_documento_practicante); leen el propio, ADMIN y
+/// GESTION. No habilitan ni cortan el acceso. cerrar_cuenta los borra.
+model PracticanteDocumento {
+  id            String                   @id @db.Uuid
+  practicanteId String                   @map("practicante_id") @db.Uuid
+  tipo          TipoDocumentoPracticante
+  nombreArchivo String                   @map("nombre_archivo")
+  tipoMime      String                   @map("tipo_mime")
+  tamanoBytes   Int                      @map("tamano_bytes")
+  /// cifrado (IDENTIFICACION): el archivo en base64
+  contenido     Bytes
+  vigenteHasta  DateTime?                @map("vigente_hasta") @db.Date
+  subidoPorId   String                   @map("subido_por_id") @db.Uuid
+  subidoEn      DateTime                 @default(now()) @map("subido_en") @db.Timestamptz(6)
+
+  practicante Usuario @relation("DocumentosPracticante", fields: [practicanteId], references: [id], onDelete: Restrict)
+  subidoPor   Usuario @relation("DocumentosPracticanteSubidos", fields: [subidoPorId], references: [id], onDelete: Restrict)
+
+  @@index([practicanteId])
+  @@map("practicante_documentos")
+}
+
+enum TipoDocumentoPracticante {
+  CERTIFICADO_ALUMNO_REGULAR
+  CONVENIO_PRACTICA
+
+  @@map("tipo_documento_practicante")
+}
+
+/// Correcciones del perfil publico (B, 2026-11-08): PEDIDA (la cuenta madre pide
+/// corregir un campo) y APLICADA (la cuenta madre lo corrige a la segunda
+/// solicitud sin cambios, corregir_campo_perfil). huella = md5 del valor.
+model CorreccionPerfil {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profesionalId String   @map("profesional_id") @db.Uuid
+  campo         String
+  accion        String
+  motivo        String
+  huella        String
+  autorId       String   @map("autor_id") @db.Uuid
+  creadaEn      DateTime @default(now()) @map("creada_en") @db.Timestamptz(6)
+
+  profesional Usuario @relation("CorreccionesRecibidas", fields: [profesionalId], references: [id], onDelete: Restrict)
+  autor       Usuario @relation("CorreccionesPedidas", fields: [autorId], references: [id], onDelete: Restrict)
+
+  @@index([profesionalId, campo])
+  @@map("correcciones_perfil")
 }

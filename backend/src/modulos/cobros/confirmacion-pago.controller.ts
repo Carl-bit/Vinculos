@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
-import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 import { Publico, Roles } from '../../core/auth/decoradores';
 import { hashToken } from '../../core/auth/tokens-correo';
@@ -274,6 +274,7 @@ export class TransferenciasController {
 
   /** null = sin cuenta registrada. */
   @Get('cuenta-centro')
+  @ApiOkResponse({ type: CuentaCentroVista, description: 'Vacio si no hay cuenta registrada' })
   @Roles('ADMIN', 'GESTION')
   cuenta(): Promise<CuentaCentroVista | null> {
     return this.pagos.cuentaCentro();

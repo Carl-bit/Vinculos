@@ -46,9 +46,11 @@ export function porDia(bloques: Bloque[]): Map<string, Bloque[]> {
 
 export const esManana = (b: Bloque) => Number(horaLocal.format(b.inicio)) < 13;
 
-/** mm:ss que faltan hasta `fin` (0 si ya paso). */
+/** mm:ss (o h:mm:ss desde una hora) que faltan hasta `fin` (0 si ya paso). La reserva espera hasta 24 h. */
 export function restante(fin: Date, ahora: Date): { ms: number; texto: string } {
   const ms = Math.max(0, fin.getTime() - ahora.getTime());
   const s = Math.ceil(ms / 1000);
-  return { ms, texto: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` };
+  const dos = (n: number) => String(n).padStart(2, '0');
+  const h = Math.floor(s / 3600);
+  return { ms, texto: h > 0 ? `${h}:${dos(Math.floor(s / 60) % 60)}:${dos(s % 60)}` : `${Math.floor(s / 60)}:${dos(s % 60)}` };
 }

@@ -18,7 +18,7 @@ export default function InicioAdmin() {
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <Bienvenida tone="team" />
         <div className="mb-[30px] flex flex-wrap gap-2.5">
-          {clinico && activos.includes('FICHAS') && <NuevoPaciente rol={rol} />}
+          {clinico && rol !== 'ADMIN' && activos.includes('FICHAS') && <NuevoPaciente rol={rol} />}
           {activos.includes('AGENDA') && (
             <ButtonLink href="/admin/agenda?nueva=1" variant="primary" icon="event">
               Agendar sesión

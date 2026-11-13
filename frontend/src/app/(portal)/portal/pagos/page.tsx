@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Pagos' };
 export default function Pagina() {
   return (
     <>
-      <Encabezado titulo="Pagos" bajada="Lo que corresponde pagar por cada sesión, lo pagado y tus boletas." />
+      <Encabezado titulo="Pagos" bajada="Lo que corresponde pagar por cada sesión, lo pagado, tus comprobantes y las boletas del SII." />
       <SoloCuentaPlena>
         <PagosPortal />
       </SoloCuentaPlena>

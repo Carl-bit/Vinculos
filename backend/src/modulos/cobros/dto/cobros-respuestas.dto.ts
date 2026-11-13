@@ -4,7 +4,19 @@
  * estado_pago_citas (RLS de quien consulta: el paciente ve lo suyo).
  */
 import { ApiProperty } from '@nestjs/swagger';
-import { CobradoPor, DecisionCita, EstadoLiquidacion, EstadoPago, MedioPago, OrigenPago } from '@prisma/client';
+import {
+  CobradorAcuerdo,
+  ModeloCobro,
+  TipoComisionDerivacion,
+  CobradoPor,
+  DecisionCita,
+  EstadoDocumentoTributario,
+  EstadoLiquidacion,
+  EstadoPago,
+  MedioPago,
+  OrigenPago,
+  TipoDocumentoTributario,
+} from '@prisma/client';
 
 export const ESTADOS_PAGO = ['SIN_COBRO', 'PENDIENTE', 'PARCIAL', 'PAGADO'] as const;
 
@@ -25,6 +37,9 @@ export class EstadoPagoCitaVista {
   saldo!: number;
   @ApiProperty({ enum: ESTADOS_PAGO, enumName: 'EstadoPagoCita' })
   estado_pago!: (typeof ESTADOS_PAGO)[number];
+  /** 03b-4.2: la cita tiene resolucion INASISTENCIA (solo en el listado). */
+  @ApiProperty({ required: false })
+  inasistencia?: boolean;
 }
 
 export class PagoVista {
@@ -79,10 +94,11 @@ export class DeudaPaciente {
   citas!: string[];
 }
 
-export class BoletaVista {
+/** AUD-01: comprobante de pago interno, no tributario (numero "CP-"; los antiguos "SIM-"). */
+export class ComprobantePagoVista {
   id!: string;
   citaId!: string;
-  /** Numero simulado (sin SII). */
+  /** Numero interno del comprobante (no es un folio del SII). */
   numero!: string;
   monto!: number;
   @ApiProperty({ type: String, nullable: true })
@@ -92,12 +108,35 @@ export class BoletaVista {
   createdAt!: Date;
 }
 
+/** AUD-01 (E1.4): documento tributario emitido fuera del sistema. */
+export class DocumentoTributarioVista {
+  id!: string;
+  citaId!: string;
+  @ApiProperty({ enum: TipoDocumentoTributario, enumName: 'TipoDocumentoTributario' })
+  tipo!: TipoDocumentoTributario;
+  folio!: string;
+  @ApiProperty({ enum: CobradoPor, enumName: 'CobradoPor', description: 'Quien lo emitio: el centro o el profesional con cobro directo' })
+  emisor!: CobradoPor;
+  @ApiProperty({ type: String, format: 'date', description: 'AAAA-MM-DD' })
+  fechaEmision!: string;
+  monto!: number;
+  @ApiProperty({ enum: EstadoDocumentoTributario, enumName: 'EstadoDocumentoTributario' })
+  estado!: EstadoDocumentoTributario;
+  registradoEn!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  anuladoEn!: Date | null;
+  @ApiProperty({ type: String, nullable: true })
+  motivoAnulacion!: string | null;
+}
+
 export class DetalleCobroCita extends EstadoPagoCitaVista {
   pagos!: PagoVista[];
   @ApiProperty({ type: ResolucionCitaVista, nullable: true })
   resolucion!: ResolucionCitaVista | null;
-  @ApiProperty({ type: BoletaVista, nullable: true })
-  boleta!: BoletaVista | null;
+  @ApiProperty({ type: ComprobantePagoVista, nullable: true })
+  comprobante!: ComprobantePagoVista | null;
+  /** AUD-01: boletas o facturas del SII registradas (vigentes y anuladas). */
+  documentosTributarios!: DocumentoTributarioVista[];
 }
 
 /** Fila de reporte_cobros(): sesiones realizadas del periodo y montos por profesional (sin datos clinicos). */
@@ -141,6 +180,29 @@ export class ArriendoVista {
   updatedAt!: Date;
 }
 
+/** Version de un acuerdo por profesional (append-only; la vigente es la ultima con vigenteDesde <= hoy). */
+export class AcuerdoProfesionalVista {
+  id!: string;
+  profesionalId!: string;
+  @ApiProperty({ enum: ModeloCobro, enumName: 'ModeloCobro' })
+  modelo!: ModeloCobro;
+  @ApiProperty({ enum: CobradorAcuerdo, enumName: 'CobradorAcuerdo' })
+  cobra!: CobradorAcuerdo;
+  @ApiProperty({ type: String, description: 'Decimal (porcentaje sobre lo cobrado)' })
+  comisionPorcentaje!: unknown;
+  @ApiProperty({ enum: TipoComisionDerivacion, enumName: 'TipoComisionDerivacion' })
+  comisionDerivacionTipo!: TipoComisionDerivacion;
+  @ApiProperty({ type: String, description: 'Decimal (porcentaje o pesos segun el tipo)' })
+  comisionDerivacionValor!: unknown;
+  cuotaMensual!: number;
+  cargoBoxHora!: number;
+  ivaBox!: boolean;
+  @ApiProperty({ type: String, format: 'date' })
+  vigenteDesde!: Date;
+  creadoPorId!: string;
+  createdAt!: Date;
+}
+
 /** Liquidacion: total = cobrado - comision del centro - arriendos. BORRADOR se recalcula; EMITIDA y PAGADA no cambian. */
 export class LiquidacionVista {
   id!: string;
@@ -150,10 +212,28 @@ export class LiquidacionVista {
   @ApiProperty({ type: String, format: 'date' })
   periodoHasta!: Date;
   totalCobrado!: number;
+  /** C-11: parte de totalCobrado que viene de cargos por inasistencia y cancelacion tardia. */
+  cargosLiquidados!: number;
   @ApiProperty({ type: String, description: 'Decimal (porcentaje de comision del centro)' })
   comisionPorcentaje!: unknown;
+  /** Comision total del centro (general + derivacion). */
   comision!: number;
+  /** 03b-4.2 (C-10): parte de la comision por sesiones de pacientes traidos por el centro (0 con regla GENERAL). */
+  comisionDerivacion!: number;
+  sesionesDerivadas!: number;
   arriendos!: number;
+  /** Acuerdo del profesional que rigio (null = reglas del centro). */
+  @ApiProperty({ type: String, nullable: true })
+  acuerdoId!: string | null;
+  /** Cuota fija del acuerdo: una por cada dia 1 de mes dentro del periodo. */
+  cuotaFija!: number;
+  @ApiProperty({ type: String, description: 'Decimal (horas de box apartadas en el periodo)' })
+  horasBox!: unknown;
+  /** Cargo por hora de box del acuerdo x horasBox. */
+  usoBox!: number;
+  /** Comision de captados que cobro el propio profesional (se la debe al centro). */
+  comisionCobroPropio!: number;
+  /** total = cobrado - comision - arriendos - cuotaFija - usoBox - comisionCobroPropio; negativo = el profesional le debe al centro. */
   total!: number;
   @ApiProperty({ enum: EstadoLiquidacion, enumName: 'EstadoLiquidacion' })
   estado!: EstadoLiquidacion;

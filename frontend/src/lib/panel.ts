@@ -5,42 +5,111 @@
  * aca solo se arman las llaves y los filtros. Nombres de otros usuarios solo
  * vienen del directorio (`useProfesionales`, `useDirectorio`).
  */
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
 import { api, datos } from './api/cliente';
+import { ApiError } from './api/errores';
 import type { components } from './api/esquema';
 
 export type CitaVista = components['schemas']['CitaVista'];
 export type PacienteVista = components['schemas']['PacienteVista'];
+export type PacienteFila = components['schemas']['PacienteFila'];
+export type PacienteResumen = components['schemas']['PacienteResumen'];
 export type EspacioVista = components['schemas']['EspacioVista'];
 export type ReporteDashboard = components['schemas']['ReporteDashboard'];
 export type TipoAtencion = components['schemas']['TipoAtencionVista'];
 
 const MINUTO = 60_000;
 
-export function useDashboard() {
-  return useQuery({ queryKey: ['panel', 'dashboard'], queryFn: () => datos(api.GET('/api/reportes/dashboard')), refetchInterval: 5 * MINUTO });
+/** Reloj que avanza cada minuto: linea de la hora actual y sesion en curso. */
+export function useAhora() {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), MINUTO);
+    return () => clearInterval(t);
+  }, []);
+  return ahora;
 }
+
+export function useDashboard() {
+  return useQuery({ queryKey: ['panel', 'dashboard'], queryFn: () => datos(api.GET('/api/reportes/dashboard')), refetchInterval: MINUTO });
+}
+
+/**
+ * Calendario del panel (2026-10-27, estandar_polling.md): se refresca cada 2
+ * minutos solo con la pestaña visible y al volver a ella.
+ */
+export const SONDEO_AGENDA_MS = 120_000;
+const SONDEO_MAXIMO_MS = 300_000;
+
+/**
+ * Regla 3 del estandar: 429 o 5xx (o sin red) duplican el intervalo por cada
+ * error hasta 5 minutos; 401/403/404 detienen el sondeo (la sesion o el
+ * permiso cambiaron). Una respuesta correcta vuelve al intervalo base.
+ */
+export function intervaloSondeo(error: unknown, errores: number, base = SONDEO_AGENDA_MS): number | false {
+  if (!error) return base;
+  if (error instanceof ApiError && error.status !== 429 && error.status < 500) return false;
+  return Math.min(base * 2 ** Math.max(1, errores), SONDEO_MAXIMO_MS);
+}
+
+export const sondeoAgenda = {
+  refetchInterval: (q: { state: { error: unknown; errorUpdateCount: number } }) => intervaloSondeo(q.state.error, q.state.errorUpdateCount),
+  refetchIntervalInBackground: false,
+  refetchOnWindowFocus: true,
+} as const;
 
 export function useCitas(
   filtro: { desde?: string; hasta?: string; profesionalId?: string; pacienteId?: string; estado?: CitaVista['estado'] },
   habilitado = true,
+  opciones: { sondeo?: boolean } = {},
 ) {
   return useQuery({
     queryKey: ['panel', 'citas', filtro],
     queryFn: () => datos(api.GET('/api/citas', { params: { query: filtro } })),
     enabled: habilitado,
+    ...(opciones.sondeo ? sondeoAgenda : {}),
   });
 }
 
-export function usePacientes(
-  filtro: { profesionalId?: string; nombre?: string; menores?: boolean; duplicados?: boolean; derivados?: boolean } = {},
-  habilitado = true,
-) {
+/** "Reservando..." de otras personas: solo box y rango (la BD filtra por rol). Max. 62 dias. */
+export function useRetencionesAjenas(filtro: { desde: string; hasta: string; profesionalId?: string }) {
   return useQuery({
-    queryKey: ['panel', 'pacientes', filtro],
-    queryFn: () => datos(api.GET('/api/pacientes', { params: { query: filtro } })),
+    queryKey: ['panel', 'retenciones-ajenas', filtro],
+    queryFn: () => datos(api.GET('/api/agenda/horarios-tomados/ajenos', { params: { query: filtro } })),
+    ...sondeoAgenda,
+  });
+}
+
+/**
+ * Todos los pacientes que el rol ve, sin columnas cifradas (AUD-02 BD-02):
+ * para los nombres de agenda, cobros y avisos. La lista de Fichas usa
+ * `usePaginaPacientes`.
+ */
+export function usePacientes(filtro: { profesionalId?: string; nombre?: string } = {}, habilitado = true) {
+  return useQuery({
+    queryKey: ['panel', 'pacientes', 'resumen', filtro],
+    queryFn: () => datos(api.GET('/api/pacientes/resumen', { params: { query: filtro } })),
     enabled: habilitado,
+    staleTime: MINUTO,
+  });
+}
+
+/** Lista de Fichas paginada por cursor (AUD-02 API-01): 50 por pagina, "Cargar mas" pide la siguiente. */
+export function usePaginaPacientes(filtro: {
+  profesionalId?: string;
+  nombre?: string;
+  menores?: boolean;
+  duplicados?: boolean;
+  derivados?: boolean;
+  sinRut?: boolean;
+}) {
+  return useInfiniteQuery({
+    queryKey: ['panel', 'pacientes', 'pagina', filtro],
+    queryFn: ({ pageParam }) => datos(api.GET('/api/pacientes', { params: { query: { ...filtro, cursor: pageParam } } })),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (ultima) => ultima.siguienteCursor ?? undefined,
     staleTime: MINUTO,
   });
 }
@@ -54,7 +123,8 @@ export function useTiposAtencion() {
 }
 
 /** id -> "Nombre Apellido" de los pacientes que el rol ve. */
-export const nombresPacientes = (lista: PacienteVista[] | undefined) => new Map((lista ?? []).map((p) => [p.id, `${p.nombre} ${p.apellido}`]));
+export const nombresPacientes = (lista: Pick<PacienteResumen, 'id' | 'nombre' | 'apellido'>[] | undefined) =>
+  new Map((lista ?? []).map((p) => [p.id, `${p.nombre} ${p.apellido}`]));
 
 /** Nombre del paciente de una cita; la hora retenida (03b-3.2: reserva sin cuenta en curso) aun no tiene paciente. */
 export const nombreDeCita = (nombres: Map<string, string>, c: Pick<CitaVista, 'pacienteId'>) =>
@@ -120,12 +190,19 @@ export function mesChile(desplazamiento = 0, hoy = diaChile(new Date())): { prim
 }
 
 export type EstadoFicha = components['schemas']['EstadoFichaPaciente'];
+type EstadoFichaPaciente = EstadoFicha;
 export type AceptacionVista = components['schemas']['AceptacionVista'];
 export type AdultoResponsable = components['schemas']['AdultoResponsableVista'];
 export type DerivacionVista = components['schemas']['DerivacionVista'];
 
+/** Detalle de un paciente (misma llave para `usePaciente` y `useQueries`). */
+export const consultaPaciente = (id: string) => ({
+  queryKey: ['panel', 'paciente', id],
+  queryFn: () => datos(api.GET('/api/pacientes/{id}', { params: { path: { id } } })),
+});
+
 export function usePaciente(id: string) {
-  return useQuery({ queryKey: ['panel', 'paciente', id], queryFn: () => datos(api.GET('/api/pacientes/{id}', { params: { path: { id } } })) });
+  return useQuery(consultaPaciente(id));
 }
 
 export function useAdultosResponsables(pacienteId: string) {
@@ -161,6 +238,10 @@ export function useEstadoFichas(profesionalId: string | undefined) {
   });
 }
 
+/** 03b-4.2: paciente sin sesion hace mas de un mes, sin proxima hora ni alta (inicio y lista del profesional). */
+export const sinSesionHaceUnMes = (e: EstadoFichaPaciente | undefined, ahora = Date.now()) =>
+  !!e && !e.alta_en && !e.proxima_sesion && !!e.ultima_sesion && new Date(e.ultima_sesion).getTime() < ahora - 30 * 86_400_000;
+
 /** Evoluciones de la ficha (solo el tratante): aca solo se usa que sesion quedo cerrada. */
 export function useEvoluciones(fichaId: string | undefined, habilitado: boolean) {
   return useQuery({
@@ -183,7 +264,7 @@ export function useDerivaciones(habilitado: boolean) {
 }
 
 export function usePerfilesPublicos() {
-  return useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: 10 * MINUTO });
+  return useQuery({ queryKey: ['publico', 'profesionales'], queryFn: () => datos(api.GET('/api/publico/profesionales')), staleTime: MINUTO });
 }
 
 export type MiembroDirectorio = components['schemas']['MiembroDirectorio'];

@@ -53,8 +53,15 @@ export const ESTADO_CONSENTIMIENTO: Record<ConsentimientoEquipo['estado'], { tex
 export const MOTIVO_ACCESO: Record<AccesoTemporal['motivo'], string> = { REEMPLAZO: 'Reemplazo', INTERCONSULTA: 'Interconsulta' };
 export const ALCANCE_ACCESO: Record<AccesoTemporal['alcance'], string> = { LECTURA: 'Solo lectura', LECTURA_ESCRITURA: 'Lectura y escritura' };
 
-/** Vigente: ya empezo y aun no vence (el acceso se corta solo al vencer). */
-export const accesoVigente = (a: AccesoTemporal, ahora = Date.now()) => new Date(a.desde).getTime() <= ahora && new Date(a.hasta).getTime() > ahora;
+export const MOTIVO_REVOCACION: Record<NonNullable<AccesoTemporal['motivoRevocacion']>, string> = {
+  TERMINO_ANTICIPADO: 'Ya no se necesita',
+  ERROR: 'Se otorgó por error',
+  SOLICITUD_PACIENTE: 'Lo pidió el paciente',
+};
+
+/** Vigente: ya empezo, no vence y nadie lo revoco. */
+export const accesoVigente = (a: AccesoTemporal, ahora = Date.now()) =>
+  !a.revocadoEn && new Date(a.desde).getTime() <= ahora && new Date(a.hasta).getTime() > ahora;
 
 export function useDerivacionesLista(estado?: EstadoDerivacion, habilitado = true) {
   return useQuery({
@@ -82,12 +89,13 @@ export function usePendientesDerivacion(habilitado: boolean) {
  */
 export function useOfertasDerivacion(habilitado: boolean) {
   const avisos = useQuery({
-    queryKey: ['notificaciones', 'registro'],
-    queryFn: () => datos(api.GET('/api/notificaciones')),
+    queryKey: ['notificaciones', 'registro', 'DERIVACION_OFRECIDA'],
+    // AUD-02: solo las ofertas, la pagina mas reciente (100); una oferta vieja ya vencio.
+    queryFn: () => datos(api.GET('/api/notificaciones', { params: { query: { tipo: 'DERIVACION_OFRECIDA', limite: 100 } } })),
     enabled: habilitado,
-    refetchInterval: 2 * 60_000,
+    refetchInterval: 60_000,
   });
-  const ids = [...new Set((avisos.data ?? []).filter((n) => n.tipo === 'DERIVACION_OFRECIDA').map((n) => n.referenciaId))];
+  const ids = [...new Set((avisos.data?.items ?? []).map((n) => n.referenciaId))];
   const ofertas = useQueries({
     queries: ids.map((id) => ({
       queryKey: ['panel', 'oferta', id],

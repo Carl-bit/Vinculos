@@ -170,7 +170,15 @@ export function ResumenCobros({ periodo, rol, onLiquidado }: { periodo: Periodo;
                 <p className="m-0 mt-4 text-[34px] font-black tracking-[-0.03em] tabular-nums">
                   {String(configuracion.data?.comisionCentroPorcentaje ?? '…')}%
                 </p>
-                <p className="m-0 mt-1 text-[13.5px] font-semibold text-neutral-800">sobre lo cobrado en el período, igual para todas las sesiones.</p>
+                <p className="m-0 mt-1 text-[13.5px] font-semibold text-neutral-800">sobre lo cobrado en el período.</p>
+                <p className="m-0 mt-3 border-t border-divider pt-3 text-[13.5px] font-semibold text-neutral-800">
+                  <span className="font-extrabold">Cobro por derivación.</span>{' '}
+                  {configuracion.data?.comisionDerivacionTipo === 'MONTO_FIJO'
+                    ? `${formatoClp(Number(configuracion.data.comisionDerivacionValor))} por sesión de pacientes que llegaron por el centro (nunca más que lo cobrado).`
+                    : configuracion.data?.comisionDerivacionTipo === 'PORCENTAJE'
+                      ? `${String(configuracion.data.comisionDerivacionValor)}% de lo cobrado en las sesiones de pacientes que llegaron por el centro.`
+                      : 'Los pacientes que llegaron por el centro usan la misma comisión general.'}
+                </p>
                 {rol === 'ADMIN' && (
                   <Link
                     href="/admin/configuracion?vista=cobros"

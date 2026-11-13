@@ -1,11 +1,15 @@
 import type { ReactNode } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
+import { TapaCuaderno } from '@/components/shared/TapaCuaderno';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Icon } from '@/components/ui/Icon';
 import type { PerfilPublico } from '@/lib/api/servidor';
 import type { Icono } from '@/lib/iconos';
 import { formacionBase, NOMBRE_MODALIDAD, nombreCorto, nombrePerfil, textoCalificacion, textoTarifa } from '@/lib/perfiles';
+import { esCuaderno } from '@/lib/tema';
+
+import { InsigniaRegistroSis } from './RegistroSis';
 
 /** Pastilla de dato (precio, modalidad, experiencia) del diseño "Equipo Publico". */
 export function Dato({ icono, children }: { icono: Icono; children: ReactNode }) {
@@ -66,6 +70,9 @@ export function CabeceraPerfil({ perfil, nivel = 2, size = 88 }: { perfil: Perfi
             {base}
           </p>
         )}
+        <div className="mb-2 empty:hidden">
+          <InsigniaRegistroSis registro={perfil.registro_sis} />
+        </div>
         <Calificacion perfil={perfil} />
       </div>
     </div>
@@ -73,20 +80,44 @@ export function CabeceraPerfil({ perfil, nivel = 2, size = 88 }: { perfil: Perfi
 }
 
 /** Tarjeta del equipo publico: datos clave, bajada y acciones. */
-export function TarjetaPerfil({ perfil, agenda }: { perfil: PerfilPublico; agenda: boolean }) {
+export function TarjetaPerfil({ perfil, agenda, orden = 0 }: { perfil: PerfilPublico; agenda: boolean; orden?: number }) {
   return (
-    <article className="revelar flex flex-col gap-4 rounded-lg border border-divider bg-neutral-100 p-6 shadow-sm transition-shadow duration-300 ease-out hover:shadow-lg">
-      <CabeceraPerfil perfil={perfil} />
+    <article className="revelar flex flex-col gap-4 rounded-lg border border-divider bg-bg p-6 shadow-suave transition-shadow duration-300 ease-out hover:shadow-lg">
+      {esCuaderno ? (
+        // Tema Cuaderno: el profesional es su cuaderno; el sello repite el registro SIS (el detalle sigue abajo).
+        <>
+          <TapaCuaderno
+            orden={orden}
+            nombre={nombrePerfil(perfil)}
+            especialidad={perfil.especialidad}
+            alto={300}
+            sello={
+              perfil.registro_sis && (
+                <>
+                  SIS {perfil.registro_sis.numero}
+                  <br />
+                  VERIFICADO
+                </>
+              )
+            }
+          />
+          <InsigniaRegistroSis registro={perfil.registro_sis} />
+          <Calificacion perfil={perfil} />
+        </>
+      ) : (
+        <CabeceraPerfil perfil={perfil} />
+      )}
       <DatosPerfil perfil={perfil} />
       {(perfil.cita_destacada ?? perfil.bio) && (
         <p className="m-0 line-clamp-4 text-[14.5px] leading-[1.65] font-medium text-pretty text-neutral-800">{perfil.cita_destacada ?? perfil.bio}</p>
       )}
       <div className="mt-auto flex flex-wrap items-center gap-2.5">
-        {agenda && (
+        {agenda && perfil.recibe_pacientes && (
           <ButtonLink href={`/pedir-hora/${perfil.id}`} variant="team" icon="calendar_month" className="min-h-11 flex-auto">
             Pedir hora con {nombreCorto(perfil)}
           </ButtonLink>
         )}
+        {agenda && !perfil.recibe_pacientes && <span className="flex-auto text-[13px] font-bold text-neutral-700">No está recibiendo pacientes</span>}
         <ButtonLink href={`/equipo/${perfil.id}`} variant="secondary" icon="arrow_forward" className="min-h-11 flex-none whitespace-nowrap">
           Ver perfil completo
           <span className="sr-only"> de {nombrePerfil(perfil)}</span>

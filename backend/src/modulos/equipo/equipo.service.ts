@@ -1,12 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 
+import { registrarExportacion } from '../../core/bd/auditoria';
 import { claro, texto } from '../../core/bd/claro';
 import { ContextoBd, encontrado } from '../../core/bd/contexto-bd.service';
 import { LlaveroService } from '../../core/crypto/llavero.service';
 import { conflicto, esSqlstate } from '../../core/errores/sqlstate';
 import { procesarImagenPublica } from '../../core/imagenes/imagenes';
-import type { DatosPrivadosDto, EditarPerfilDto, EditarTipoAtencionDto, PerfilDto, TarifaDto, TipoAtencionDto, TrayectoriaDto } from './dto/equipo.dto';
+import { nombreArchivo, tipoPorContenido } from '../../core/validacion/archivos';
+import type {
+  CorregirCampoDto,
+  DatosPrivadosDto,
+  DocumentoPracticanteDto,
+  EditarPerfilDto,
+  EditarTipoAtencionDto,
+  PedirCorreccionDto,
+  PerfilDto,
+  TarifaDto,
+  TipoAtencionDto,
+  TrayectoriaDto,
+} from './dto/equipo.dto';
 
 const VISTA_PRIVADOS = {
   usuarioId: true,
@@ -19,6 +34,26 @@ const VISTA_PRIVADOS = {
 } satisfies Prisma.ProfesionalDatosPrivadosSelect;
 
 type Privados = Prisma.ProfesionalDatosPrivadosGetPayload<{ select: typeof VISTA_PRIVADOS }>;
+
+/** Respaldos del titulo (sin el contenido), del mas reciente al mas antiguo. */
+const SIN_CONTENIDO = {
+  id: true,
+  practicanteId: true,
+  tipo: true,
+  nombreArchivo: true,
+  tipoMime: true,
+  tamanoBytes: true,
+  vigenteHasta: true,
+  subidoPorId: true,
+  subidoEn: true,
+} satisfies Prisma.PracticanteDocumentoSelect;
+
+const CON_RESPALDOS = {
+  respaldos: {
+    select: { id: true, nombreArchivo: true, tipoMime: true, tamanoBytes: true, subidoEn: true },
+    orderBy: { subidoEn: 'desc' },
+  },
+} satisfies Prisma.ProfesionalTrayectoriaInclude;
 
 const vistaPrivados = (d: Privados) => ({
   usuarioId: d.usuarioId,
@@ -103,18 +138,127 @@ export class EquipoService {
   }
 
   trayectoria(profesionalId: string) {
-    return this.bd.tx().profesionalTrayectoria.findMany({ where: { profesionalId }, orderBy: [{ anio: 'desc' }, { titulo: 'asc' }] });
+    return this.bd.tx().profesionalTrayectoria.findMany({
+      where: { profesionalId },
+      include: CON_RESPALDOS,
+      orderBy: [{ anio: 'desc' }, { titulo: 'asc' }],
+    });
   }
 
   crearTrayectoria(dto: TrayectoriaDto) {
-    return this.bd.tx().profesionalTrayectoria.create({ data: { profesionalId: this.bd.usuario().id, ...dto } });
+    return this.bd.tx().profesionalTrayectoria.create({ data: { profesionalId: this.bd.usuario().id, ...dto }, include: CON_RESPALDOS });
+  }
+
+  /**
+   * Respaldo del titulo (2026-11-07, docs/api/respaldo_titulos.md): solo el
+   * propio; tipo por contenido (PDF, PNG o JPEG; si no 422); archivo cifrado
+   * (IDENTIFICACION, id generado aqui para el AAD). La funcion de la BD crea
+   * una version nueva y deja el titulo "En revision".
+   */
+  async subirRespaldo(trayectoriaId: string, archivo: Express.Multer.File) {
+    const tipoMime = tipoPorContenido(archivo.buffer);
+    if (!tipoMime) {
+      throw new UnprocessableEntityException({
+        message: 'El respaldo debe ser PDF, PNG o JPEG (validado por contenido)',
+        restriccion: 'trayectoria_respaldos_archivo',
+      });
+    }
+    const id = randomUUID();
+    const contenido = this.llavero.cifrarCampo(archivo.buffer.toString('base64'), 'trayectoria_respaldos', 'contenido', id);
+    const tx = this.bd.tx();
+    await tx.$queryRaw`
+      SELECT subir_respaldo_trayectoria(${id}::uuid, ${trayectoriaId}::uuid, ${nombreArchivo(archivo.originalname, 'respaldo')},
+                                        ${tipoMime}, ${archivo.size}::int, ${contenido})`;
+    return encontrado(await tx.profesionalTrayectoria.findUnique({ where: { id: trayectoriaId }, include: CON_RESPALDOS }), 'Trayectoria');
+  }
+
+  /** Descarga: el propio y ADMIN/GESTION (RLS); queda en registro_exportaciones. */
+  async descargarRespaldo(id: string) {
+    const tx = this.bd.tx();
+    const r = encontrado(
+      await tx.trayectoriaRespaldo.findUnique({ where: { id }, select: { nombreArchivo: true, tipoMime: true, contenido: true } }),
+      'Respaldo',
+    );
+    await registrarExportacion(tx, this.bd.usuario(), { recurso: 'trayectoria_respaldos', referenciaId: id });
+    return { nombreArchivo: r.nombreArchivo, tipoMime: r.tipoMime, contenido: Buffer.from(texto(r.contenido) ?? '', 'base64') };
+  }
+
+  /**
+   * Observacion de la cuenta madre sobre el respaldo (2026-11-08): el titulo
+   * vuelve a revision; la limpia un respaldo nuevo o verificarlo (BD).
+   */
+  async observarTrayectoria(id: string, observacion: string) {
+    const tx = this.bd.tx();
+    await tx.$executeRaw`SELECT observar_trayectoria(${id}::uuid, ${observacion})`;
+    return encontrado(await tx.profesionalTrayectoria.findUnique({ where: { id }, include: CON_RESPALDOS }), 'Trayectoria');
+  }
+
+  /** Documentos del practicante (2026-11-08): el propio, ADMIN y GESTION (RLS); sin el contenido. */
+  documentosPracticante(practicanteId: string) {
+    return this.bd.tx().practicanteDocumento.findMany({ where: { practicanteId }, select: SIN_CONTENIDO, orderBy: { subidoEn: 'desc' } });
+  }
+
+  /**
+   * Certificado de alumno regular o convenio de practica: PDF, PNG o JPEG por
+   * contenido (422), cifrado (IDENTIFICACION). Version nueva, nunca reemplaza.
+   * Suben el propio practicante o ADMIN (la BD decide: 42501 -> 403).
+   */
+  async subirDocumentoPracticante(practicanteId: string, dto: DocumentoPracticanteDto, archivo: Express.Multer.File) {
+    const tipoMime = tipoPorContenido(archivo.buffer);
+    if (!tipoMime) {
+      throw new UnprocessableEntityException({
+        message: 'El documento debe ser PDF, PNG o JPEG (validado por contenido)',
+        restriccion: 'practicante_documentos_archivo',
+      });
+    }
+    const id = randomUUID();
+    const contenido = this.llavero.cifrarCampo(archivo.buffer.toString('base64'), 'practicante_documentos', 'contenido', id);
+    const tx = this.bd.tx();
+    await tx.$queryRaw`
+      SELECT subir_documento_practicante(${id}::uuid, ${practicanteId}::uuid, ${dto.tipo}::tipo_documento_practicante,
+                                         ${nombreArchivo(archivo.originalname, 'documento')}, ${tipoMime}, ${archivo.size}::int,
+                                         ${contenido}, ${dto.vigenteHasta ?? null}::date)`;
+    return encontrado(await tx.practicanteDocumento.findUnique({ where: { id }, select: SIN_CONTENIDO }), 'Documento');
+  }
+
+  /** Descarga: el propio, ADMIN y GESTION; queda en registro_exportaciones. */
+  async descargarDocumentoPracticante(id: string) {
+    const tx = this.bd.tx();
+    const r = encontrado(
+      await tx.practicanteDocumento.findUnique({ where: { id }, select: { nombreArchivo: true, tipoMime: true, contenido: true } }),
+      'Documento',
+    );
+    await registrarExportacion(tx, this.bd.usuario(), { recurso: 'practicante_documentos', referenciaId: id });
+    return { nombreArchivo: r.nombreArchivo, tipoMime: r.tipoMime, contenido: Buffer.from(texto(r.contenido) ?? '', 'base64') };
+  }
+
+  /** Pedidos y correcciones del perfil publico (ADMIN/GESTION todos; el profesional los suyos). */
+  correcciones(profesionalId: string) {
+    return this.bd.tx().correccionPerfil.findMany({
+      where: { profesionalId },
+      select: { id: true, profesionalId: true, campo: true, accion: true, motivo: true, autorId: true, creadaEn: true },
+      orderBy: { creadaEn: 'desc' },
+      take: 50,
+    });
+  }
+
+  /** La cuenta madre pide corregir campos; devuelve cuantas veces se pidio cada uno sin cambios. */
+  pedirCorreccion(profesionalId: string, dto: PedirCorreccionDto) {
+    return this.bd.tx().$queryRaw<{ campo: string; solicitudes: number }[]>`
+      SELECT campo, solicitudes FROM pedir_correccion_perfil(${profesionalId}::uuid, ${dto.campos}::text[], ${dto.motivo})`;
+  }
+
+  /** A la segunda solicitud del mismo campo sin cambios, la cuenta madre lo corrige (422 si no corresponde). */
+  async corregirCampo(profesionalId: string, dto: CorregirCampoDto) {
+    await this.bd.tx().$executeRaw`SELECT corregir_campo_perfil(${profesionalId}::uuid, ${dto.campo}, ${dto.valor}, ${dto.motivo})`;
+    return this.perfil(profesionalId);
   }
 
   /** Cualquier edicion del propio la des-verifica (trigger). */
   async editarTrayectoria(id: string, dto: TrayectoriaDto) {
     const tx = this.bd.tx();
     encontrado(await tx.profesionalTrayectoria.findFirst({ where: { id, profesionalId: this.bd.usuario().id } }), 'Trayectoria');
-    return tx.profesionalTrayectoria.update({ where: { id }, data: dto });
+    return tx.profesionalTrayectoria.update({ where: { id }, data: dto, include: CON_RESPALDOS });
   }
 
   async eliminarTrayectoria(id: string) {
@@ -127,13 +271,16 @@ export class EquipoService {
   async verificarTrayectoria(id: string, verificado: boolean) {
     const tx = this.bd.tx();
     encontrado(await tx.profesionalTrayectoria.findUnique({ where: { id } }), 'Trayectoria');
-    return tx.profesionalTrayectoria.update({ where: { id }, data: { verificado } });
+    return tx.profesionalTrayectoria.update({ where: { id }, data: { verificado }, include: CON_RESPALDOS });
   }
 
+  /** Lectura del propio y ADMIN/GESTION (RLS). Si no es el titular, queda en registro_exportaciones (2026-11-05). */
   async datosPrivados(profesionalId: string) {
-    return vistaPrivados(
-      encontrado(await this.bd.tx().profesionalDatosPrivados.findUnique({ where: { usuarioId: profesionalId }, select: VISTA_PRIVADOS }), 'Datos privados'),
-    );
+    const tx = this.bd.tx();
+    const fila = encontrado(await tx.profesionalDatosPrivados.findUnique({ where: { usuarioId: profesionalId }, select: VISTA_PRIVADOS }), 'Datos privados');
+    const usuario = this.bd.usuario();
+    if (usuario.id !== profesionalId) await registrarExportacion(tx, usuario, { recurso: 'profesional_datos_privados', referenciaId: profesionalId });
+    return vistaPrivados(fila);
   }
 
   /** Solo el propio (PROFESIONAL o PRACTICANTE). RUT con indice ciego unico. */

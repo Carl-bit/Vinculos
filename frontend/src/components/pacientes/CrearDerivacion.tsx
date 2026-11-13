@@ -19,16 +19,40 @@ import { useFicha, useTiposAtencion, type PacienteVista } from '@/lib/panel';
  * elegido; al aceptar, la ficha se traspasa (el origen deja de verla). Motivo
  * y detalle son texto clinico (cifrado). Sin candidatos queda de oficio para
  * ADMIN o el supervisor.
+ * Punto 24: `varios` deriva a un grupo de pacientes por reasignar con el mismo
+ * tipo, motivo y candidatos (una derivacion por paciente; la ficha de cada uno
+ * se busca al enviar).
  */
-export function CrearDerivacion({ paciente, abierto, onCerrar }: { paciente: PacienteVista; abierto: boolean; onCerrar: () => void }) {
+type Derivable = Pick<PacienteVista, 'id' | 'nombre' | 'apellido'> & { tipoAtencionId?: string | null };
+
+export function CrearDerivacion({
+  paciente,
+  varios,
+  abierto,
+  onCerrar,
+  candidatosIniciales = [],
+  motivoInicial = '',
+  nombresIniciales = {},
+}: {
+  paciente?: PacienteVista;
+  varios?: Derivable[];
+  abierto: boolean;
+  onCerrar: () => void;
+  /** Punto 9: la vuelta al profesional principal llega con el candidato y el motivo puestos. */
+  candidatosIniciales?: string[];
+  motivoInicial?: string;
+  nombresIniciales?: Record<string, string>;
+}) {
+  const grupo: Derivable[] = varios ?? (paciente ? [paciente] : []);
+  const uno = grupo.length === 1 ? grupo[0]! : null;
   const cuenta = useMiCuenta();
-  const ficha = useFicha(paciente.id, abierto);
+  const ficha = useFicha(uno?.id ?? '', abierto && !!uno);
   const tipos = useTiposAtencion();
   const cliente = useQueryClient();
-  const [tipoId, setTipoId] = useState(paciente.tipoAtencionId ?? '');
-  const [motivo, setMotivo] = useState('');
+  const [tipoId, setTipoId] = useState(uno?.tipoAtencionId ?? '');
+  const [motivo, setMotivo] = useState(motivoInicial);
   const [detalle, setDetalle] = useState('');
-  const [candidatos, setCandidatos] = useState<string[]>([]);
+  const [candidatos, setCandidatos] = useState<string[]>(candidatosIniciales);
   const [error, setError] = useState<string>();
   const tipo = tipos.data?.find((t) => t.id === tipoId);
   const directorio = useQuery({
@@ -37,17 +61,25 @@ export function CrearDerivacion({ paciente, abierto, onCerrar }: { paciente: Pac
     enabled: abierto && !!tipo,
   });
   const disponibles = (directorio.data ?? []).filter((p) => p.id !== cuenta.data?.id && !candidatos.includes(p.id));
-  const nombre = new Map((directorio.data ?? []).map((p) => [p.id, p.nombre ?? 'Profesional']));
+  const nombre = new Map([...Object.entries(nombresIniciales), ...(directorio.data ?? []).map((p) => [p.id, p.nombre ?? 'Profesional'] as [string, string])]);
 
   const crear = useMutation({
-    mutationFn: () =>
-      datos(
-        api.POST('/api/derivaciones', {
-          body: { fichaId: ficha.data!.id, motivo: motivo.trim(), detalle: detalle.trim() || undefined, tipoAtencionId: tipoId, candidatos },
-        }),
-      ),
+    mutationFn: async () => {
+      for (const p of grupo) {
+        const f = await cliente.fetchQuery({
+          queryKey: ['panel', 'paciente', p.id, 'ficha'],
+          queryFn: () => datos(api.GET('/api/pacientes/{id}/ficha', { params: { path: { id: p.id } } })),
+        });
+        await datos(
+          api.POST('/api/derivaciones', {
+            body: { fichaId: f.id, motivo: motivo.trim(), detalle: detalle.trim() || undefined, tipoAtencionId: tipoId, candidatos },
+          }),
+        );
+      }
+    },
     onSuccess: () => {
       void cliente.invalidateQueries({ queryKey: ['panel', 'derivaciones'] });
+      void cliente.invalidateQueries({ queryKey: ['equipo', 'por-reasignar'] });
       onCerrar();
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos crear la derivación.'),
@@ -57,7 +89,7 @@ export function CrearDerivacion({ paciente, abierto, onCerrar }: { paciente: Pac
     e.preventDefault();
     if (!tipoId) return setError('Elige el tipo de atención que necesita.');
     if (!motivo.trim()) return setError('Escribe el motivo de la derivación.');
-    if (!ficha.data) return setError('El paciente no tiene ficha abierta.');
+    if (uno && !ficha.data) return setError('El paciente no tiene ficha abierta.');
     setError(undefined);
     crear.mutate();
   };
@@ -73,7 +105,7 @@ export function CrearDerivacion({ paciente, abierto, onCerrar }: { paciente: Pac
       abierto={abierto}
       onCerrar={onCerrar}
       ancho="lg"
-      titulo={`Derivar a ${paciente.nombre} ${paciente.apellido}`}
+      titulo={uno ? `Derivar a ${uno.nombre} ${uno.apellido}` : `Derivar a ${grupo.length} pacientes`}
       descripcion="Se ofrece a cada candidato en orden. Cuando uno acepta, pasa a ser el tratante y la ficha se traspasa: tú dejas de verla."
     >
       <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
@@ -112,7 +144,7 @@ export function CrearDerivacion({ paciente, abierto, onCerrar }: { paciente: Pac
           )}
           <ol className="m-0 flex list-none flex-col gap-2 p-0">
             {candidatos.map((id, i) => (
-              <li key={id} className="flex items-center gap-2 rounded-[14px] border border-divider bg-neutral-100 px-3.5 py-2">
+              <li key={id} className="flex items-center gap-2 rounded-[14px] border border-divider bg-bg px-3.5 py-2">
                 <span className="w-5 text-[13px] font-black tabular-nums">{i + 1}.</span>
                 <span className="flex-1 text-[14px] font-bold">{nombre.get(id) ?? 'Profesional'}</span>
                 <button
@@ -160,7 +192,7 @@ export function CrearDerivacion({ paciente, abierto, onCerrar }: { paciente: Pac
           )}
         </div>
 
-        {ficha.error && <Aviso tono="advertencia">El paciente no tiene ficha abierta: ábrela antes de derivar.</Aviso>}
+        {uno && ficha.error && <Aviso tono="advertencia">El paciente no tiene ficha abierta: ábrela antes de derivar.</Aviso>}
         {error && (
           <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
             {error}
@@ -171,7 +203,7 @@ export function CrearDerivacion({ paciente, abierto, onCerrar }: { paciente: Pac
             Cancelar
           </Button>
           <Button type="submit" variant="team" icon="call_split" loading={crear.isPending}>
-            Derivar
+            {uno ? 'Derivar' : `Derivar a los ${grupo.length}`}
           </Button>
         </div>
       </form>

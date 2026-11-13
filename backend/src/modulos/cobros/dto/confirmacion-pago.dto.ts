@@ -89,7 +89,17 @@ export class PagoSimuladoDto {
 }
 
 /** 03b-3.4: SALDO_PENDIENTE = sesion ya realizada con saldo, que se paga en linea con los medios del centro. */
-export const ESTADOS_RESERVA = ['RETENIDA', 'PENDIENTE_PAGO', 'CONFIRMADA', 'LIBERADA', 'CANCELADA', 'POR_REPROGRAMAR', 'SALDO_PENDIENTE'] as const;
+// MVP sin COBROS: SOLICITADA = verificada, esperando la aprobacion del profesional (venceEn = plazo de aprobacion).
+export const ESTADOS_RESERVA = [
+  'RETENIDA',
+  'PENDIENTE_PAGO',
+  'CONFIRMADA',
+  'LIBERADA',
+  'CANCELADA',
+  'POR_REPROGRAMAR',
+  'SALDO_PENDIENTE',
+  'SOLICITADA',
+] as const;
 export const SIGUIENTES_PASOS = [
   'VERIFICAR_CORREO',
   'ELEGIR_MEDIO',
@@ -98,6 +108,8 @@ export const SIGUIENTES_PASOS = [
   'PAGAR_EN_LINEA',
   'NINGUNO',
   'ELEGIR_OTRA_HORA',
+  // Punto 7 (2026-11-11): el profesional no acepto la hora y propuso otras; se eligen en la cuenta del paciente.
+  'REVISAR_PROPUESTAS',
   /** 03b-3.2: el pago llego cuando la hora ya no se podia mantener: el centro lo devuelve. */
   'CONTACTAR_CENTRO',
   /** 03b-3.4: saldo sin medios en linea habilitados: se paga en el centro. */

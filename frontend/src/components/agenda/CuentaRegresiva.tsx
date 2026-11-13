@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react';
 import { restante } from '@/lib/horarios';
 
 /**
- * Anillo con el tiempo que queda de la retencion de la hora. El texto visible
- * cambia cada segundo; al lector de pantalla se le anuncia solo cada minuto
+ * Anillo con el tiempo que queda: verificar el correo (minutos) o la espera
+ * de la aprobacion del profesional (hasta 24 h sin COBROS). El texto visible cambia cada segundo; al
+ * lector de pantalla se le anuncia cada minuto (cada hora si falta mas de una)
  * (WCAG 2.2.1: avisar del limite sin saturar).
  */
 export function CuentaRegresiva({ desde, hasta, onVencida }: { desde: Date; hasta: Date; onVencida: () => void }) {
@@ -14,6 +15,8 @@ export function CuentaRegresiva({ desde, hasta, onVencida }: { desde: Date; hast
   const { ms, texto } = restante(hasta, ahora);
   const total = Math.max(1, hasta.getTime() - desde.getTime());
   const minutos = Math.ceil(ms / 60_000);
+  // Con mas de una hora (reserva de 24 h) se anuncia por hora, no cada minuto.
+  const horas = Math.ceil(ms / 3_600_000);
 
   useEffect(() => {
     const t = setInterval(() => setAhora(new Date()), 1000);
@@ -47,7 +50,11 @@ export function CuentaRegresiva({ desde, hasta, onVencida }: { desde: Date; hast
           {texto}
         </div>
         <p className="sr-only" aria-live="polite">
-          {ms === 0 ? 'Terminó el tiempo para confirmar.' : `Quedan ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'} para confirmar.`}
+          {ms === 0
+            ? 'Terminó el tiempo para confirmar.'
+            : minutos > 60
+              ? `Quedan menos de ${horas} horas para confirmar.`
+              : `Quedan ${minutos} ${minutos === 1 ? 'minuto' : 'minutos'} para confirmar.`}
         </p>
       </div>
     </div>

@@ -9,6 +9,8 @@ const TONOS = {
   positivo: 'border-accent-2-500 bg-accent-2-200 text-accent-2-900',
   atencion: 'border-accent-500 bg-accent-200 text-accent-900',
   neutro: 'border-neutral-500 bg-neutral-200 text-neutral-800',
+  /** Moderno A: "Cambios sin publicar" (texto 7.6:1). */
+  pendiente: 'border-pendiente-700 bg-pendiente-100 text-pendiente-900',
 } as const;
 
 export type TonoBadge = keyof typeof TONOS;

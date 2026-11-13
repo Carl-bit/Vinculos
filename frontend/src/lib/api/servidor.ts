@@ -4,6 +4,7 @@
  * Data Cache de Next: el rate limit publico es por IP y aqui todas las
  * llamadas salen del mismo servidor.
  */
+import { headers } from 'next/headers';
 import { connection } from 'next/server';
 import createClient from 'openapi-fetch';
 import { cache } from 'react';
@@ -49,4 +50,31 @@ export const resenasPublicas = cache(
 
 export const cuestionario = cache(() => leer(api.GET('/api/publico/cuestionario')));
 
-export const politica = cache((tipo: TipoPolitica) => leer(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo } } })));
+/**
+ * IP del visitante segun el proxy de entrada (Traefik la pone en
+ * X-Forwarded-For y descarta la que mande el cliente; detras del tunel de
+ * Cloudflare, Traefik debe confiar en cloudflared para conservarla).
+ */
+async function ipVisitante(): Promise<string | null> {
+  const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim();
+  return ip || null;
+}
+
+/**
+ * Politicas sin Data Cache: la BD exige aceptar la version vigente; con 60 s
+ * de cache el formulario podia enviar el id de una version ya reemplazada.
+ * AUD-02: sin cache, cada lectura cuenta en el rate limit publico de la API.
+ * Se reenvia la IP del visitante para que el limite sea por persona y no por
+ * el servidor Next (que es una sola IP para todo el sitio). Las lecturas con
+ * cache no la llevan: seria partir la cache por visitante.
+ */
+const apiSinCache = createClient<paths>({
+  baseUrl: process.env.API_URL ?? 'http://localhost:3001',
+  fetch: async (request) => {
+    const ip = await ipVisitante();
+    if (ip) request.headers.set('x-forwarded-for', ip);
+    return fetch(request, { cache: 'no-store' });
+  },
+});
+
+export const politica = cache((tipo: TipoPolitica) => leer(apiSinCache.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo } } })));

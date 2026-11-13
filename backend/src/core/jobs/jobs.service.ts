@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 
 import { ContextoBd, type Tx } from '../bd/contexto-bd.service';
 import { LlaveroService } from '../crypto/llavero.service';
+import { VerificadorPrestadores, verificarRegistrosSis } from '../integraciones/verificador-prestadores';
 
 export type ResultadoJob = { corrio: false } | { corrio: true; total: number };
 
@@ -26,6 +27,7 @@ export class JobsService implements OnApplicationBootstrap {
     private readonly bd: ContextoBd,
     private readonly llavero: LlaveroService,
     private readonly config: ConfigService,
+    private readonly verificador: VerificadorPrestadores,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -85,9 +87,10 @@ export class JobsService implements OnApplicationBootstrap {
   /**
    * Bajas, practicantes vencidos y cierre de cuentas fuera de gracia. Despues
    * alerta (log de error + alertas_internas) si una baja quedo pendiente
-   * porque dejaria al centro sin ADMIN.
+   * porque dejaria al centro sin ADMIN. Cada 5 minutos (antes cada hora): la
+   * baja "ahora" de la cuenta madre cierra el acceso en minutos.
    */
-  @Cron(CronExpression.EVERY_HOUR, { name: 'procesar_bajas' })
+  @Cron(CronExpression.EVERY_5_MINUTES, { name: 'procesar_bajas' })
   procesarBajas(): Promise<ResultadoJob> {
     return this.conLock('procesar_bajas', async (tx) => {
       const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT procesar_bajas() AS n`;
@@ -117,11 +120,13 @@ export class JobsService implements OnApplicationBootstrap {
    * retenidas (03b-3.2) con el plazo vencido -> LIBERADA, con aviso al
    * paciente si ya existe (HORA_LIBERADA). 03b-3.3: la que agendo el equipo
    * se mantiene con pago en el centro (si ya no cabe en la agenda, se libera).
+   * MVP sin COBROS: tambien vence las solicitudes que el profesional no aprobo
+   * a tiempo (SOLICITADA -> CANCELADA, aviso al paciente).
    */
   @Cron(CronExpression.EVERY_MINUTE, { name: 'liberar_reservas_vencidas' })
   liberarReservasVencidas(): Promise<ResultadoJob> {
     return this.conLock('liberar_reservas_vencidas', async (tx) => {
-      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT liberar_reservas_vencidas() AS n`;
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT liberar_reservas_vencidas() + vencer_solicitudes() AS n`;
       return n;
     });
   }
@@ -157,6 +162,74 @@ export class JobsService implements OnApplicationBootstrap {
   purgarMensajesInternos(): Promise<ResultadoJob> {
     return this.conLock('purgar_mensajes_internos', async (tx) => {
       const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT purgar_mensajes_internos() AS n`;
+      return n;
+    });
+  }
+
+  /**
+   * 03b-4.1: borra codigos de verificacion por correo vencidos o usados hace
+   * mas de 24 horas y codigos de respaldo usados o anulados hace mas de 90
+   * dias (minimizacion de credenciales). Los vigentes no se tocan.
+   */
+  /** AUD-01 Fase 3: borra los datos de las exportaciones de pacientes vencidas (queda el registro). */
+  @Cron('15 4 * * *', { name: 'purgar_exportaciones_vencidas', timeZone: 'America/Santiago' })
+  purgarExportacionesVencidas(): Promise<ResultadoJob> {
+    return this.conLock('purgar_exportaciones_vencidas', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT purgar_exportaciones_vencidas() AS n`;
+      return n;
+    });
+  }
+
+  /**
+   * AUD-01 (E2.3a): feriados de ley de este año y el siguiente (la BD los
+   * calcula; idempotente, no revive los que el centro quito).
+   */
+  @Cron('30 2 * * *', { name: 'generar_feriados', timeZone: 'America/Santiago' })
+  generarFeriados(): Promise<ResultadoJob> {
+    return this.conLock('generar_feriados', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`
+        SELECT (generar_feriados(a) + generar_feriados(a + 1))::int AS n
+        FROM (SELECT extract(year FROM now() AT TIME ZONE 'America/Santiago')::int AS a) x`;
+      return n;
+    });
+  }
+
+  /**
+   * 03b-4.2: reverificacion mensual de los registros SIS contra el RNPI (los
+   * verificados a mano por el ADMIN no se tocan). Sin apikey no corre.
+   */
+  @Cron('0 5 1 * *', { name: 'reverificar_registros_sis', timeZone: 'America/Santiago' })
+  async reverificarRegistrosSis(): Promise<ResultadoJob> {
+    if (this.verificador.simulado) {
+      this.logger.log('reverificar_registros_sis: omitido (sin SUPERSALUD_APIKEY)');
+      return { corrio: false };
+    }
+    // ponytail: consultas en serie dentro del lock; por lotes si el equipo crece a cientos.
+    return this.conLock('reverificar_registros_sis', async (tx) => (await verificarRegistrosSis(tx, this.llavero, this.verificador, null, this.logger)).total);
+  }
+
+  /** AUD-01 (E2.4): alertas por lecturas masivas de fichas e ingresos fallidos repetidos (sin nombres). */
+  @Cron(CronExpression.EVERY_HOUR, { name: 'detectar_anomalias' })
+  detectarAnomalias(): Promise<ResultadoJob> {
+    return this.conLock('detectar_anomalias', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT detectar_anomalias() AS n`;
+      return n;
+    });
+  }
+
+  /** AUD-01 (E2.3a): alerta interna cuando una solicitud de derechos esta a 5 dias habiles o menos de vencer. */
+  @Cron('0 8 * * *', { name: 'alertar_solicitudes_por_vencer', timeZone: 'America/Santiago' })
+  alertarSolicitudesPorVencer(): Promise<ResultadoJob> {
+    return this.conLock('alertar_solicitudes_por_vencer', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT alertar_solicitudes_por_vencer() AS n`;
+      return n;
+    });
+  }
+
+  @Cron('45 3 * * *', { name: 'purgar_codigos_verificacion', timeZone: 'America/Santiago' })
+  purgarCodigosVerificacion(): Promise<ResultadoJob> {
+    return this.conLock('purgar_codigos_verificacion', async (tx) => {
+      const [{ n }] = await tx.$queryRaw<[{ n: number }]>`SELECT purgar_codigos_verificacion() AS n`;
       return n;
     });
   }

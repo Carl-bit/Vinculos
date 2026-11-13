@@ -18,8 +18,8 @@
  */
 import { Prisma } from '@prisma/client';
 
-import { aad, ErrorCifrado, type Llavero } from '../../common/crypto/cifrado';
-import { CAMPOS_CIFRADOS, type CampoCifrado } from '../../common/crypto/registro';
+import { ErrorCifrado, type Llavero } from '../../common/crypto/cifrado';
+import { aadDe, CAMPOS_CIFRADOS, type CampoCifrado } from '../../common/crypto/registro';
 import { esClaro, valorClaro } from './claro';
 
 interface InfoModelo {
@@ -62,7 +62,7 @@ function cifrarDatos(llavero: Llavero, modelo: string, info: InfoModelo, data: D
     if (typeof id !== 'string' || id === '') {
       throw new ErrorCifrado(`${modelo}.${c.campo}: falta el id de la fila para el AAD`);
     }
-    data[c.campo] = llavero.cifrar(valorClaro(valor), c.categoria, aad(c.tabla, c.columna, id));
+    data[c.campo] = llavero.cifrar(valorClaro(valor), c.categoria, aadDe(c, id));
   }
 }
 
@@ -96,7 +96,7 @@ function descifrar(llavero: Llavero, modelo: string, valor: unknown): unknown {
       if (typeof id !== 'string') {
         throw new ErrorCifrado(`${modelo}.${c.campo}: lectura sin el id de la fila (AAD)`);
       }
-      fila[c.campo] = llavero.descifrar(Buffer.from(v.buffer, v.byteOffset, v.byteLength), aad(c.tabla, c.columna, id));
+      fila[c.campo] = llavero.descifrar(Buffer.from(v.buffer, v.byteOffset, v.byteLength), aadDe(c, id));
     }
   }
   for (const [campo, relacionado] of RELACIONES.get(modelo) ?? []) {

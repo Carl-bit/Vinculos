@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 
 import { EstadoConsulta } from '@/components/shared/EstadoVista';
 import { Badge } from '@/components/ui/Badge';
@@ -19,7 +19,6 @@ import {
   useDatosPrivados,
   useEspecialidades,
   useEspecialidadesDe,
-  usePerfilProfesional,
   useTarifas,
   useTiposDeProfesional,
   useTrayectoria,
@@ -27,9 +26,12 @@ import {
 } from '@/lib/equipo';
 import { formatoClp, formatoFecha, rutValido } from '@/lib/formato';
 import { useTiposAtencion } from '@/lib/panel';
+import { subirArchivo } from '@/lib/subidas';
 
-import { FormularioPerfil } from './FormularioPerfil';
 import { CampoRut, rutNormalizado } from '@/components/shared/CampoRut';
+
+import { ReportarResena } from './ReportarResena';
+import { RespaldoTitulo } from './RespaldoTitulo';
 
 type DatosPrivadosDto = components['schemas']['DatosPrivadosDto'];
 const BANCOS: NonNullable<DatosPrivadosDto['banco']>[] = [
@@ -58,63 +60,8 @@ const CUENTAS: Record<NonNullable<DatosPrivadosDto['tipoCuenta']>, string> = {
 };
 const ESTADO_RESENA = { PENDIENTE: 'Por moderar', PUBLICADA: 'Publicada', OCULTA: 'Oculta', RETIRADA: 'Retirada' } as const;
 
-/**
- * "Mis datos y descripcion" (diseño "Admin - Mi Perfil"): lo que sale en el
- * perfil publico. Años de experiencia y registro profesional salen de la
- * trayectoria verificada (solo lectura: se editan en Trayectoria).
- */
-export function MisDatosDescripcion({ usuarioId }: { usuarioId: string }) {
-  const perfil = usePerfilProfesional(usuarioId);
-  const trayectoria = useTrayectoria(usuarioId).data ?? [];
-  const verificada = trayectoria.filter((t) => t.verificado);
-  const primerAnio = Math.min(...verificada.filter((t) => t.tipo === 'TITULO').map((t) => t.anio));
-  const registro = verificada.find((t) => t.registroSuperintendencia)?.registroSuperintendencia;
-  const soloLectura = (etiqueta: string, valor: string) => (
-    <div className="flex flex-col gap-[7px]">
-      <span className="text-[12.5px] font-extrabold">{etiqueta}</span>
-      <span className="rounded-full border-[1.5px] border-dashed border-neutral-400 px-[18px] py-3 text-[15px] font-semibold text-neutral-800">{valor}</span>
-    </div>
-  );
-  return (
-    <Panel
-      titulo="Mis datos y descripción"
-      bajada={
-        <span className="inline-flex items-center gap-1.5">
-          <Icon name="public" size={16} />
-          Estos datos se muestran en mi perfil público del centro.
-        </span>
-      }
-    >
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        {soloLectura('Años de experiencia', Number.isFinite(primerAnio) ? `${new Date().getFullYear() - primerAnio} años` : 'Según tu título verificado')}
-        {soloLectura('Registro profesional', registro ? `Superintendencia de Salud · ${registro}` : 'Sin registro verificado')}
-      </div>
-      <div className="mt-4">
-        <EstadoConsulta consulta={perfil}>
-          {(p) => <FormularioPerfil key={p?.updatedAt ?? 'nuevo'} modo="propio" profesionalId={usuarioId} perfil={p} puedeFoto={false} />}
-        </EstadoConsulta>
-      </div>
-    </Panel>
-  );
-}
-
-/**
- * Lo demas que el profesional gestiona de si mismo: tipos de atencion y
- * especialidades que declara (ADMIN aprueba), trayectoria, tarifas y datos
- * para pagos. El practicante solo trayectoria y datos para pagos.
- */
-export function MasDeMiPerfil({ usuarioId, practicante }: { usuarioId: string; practicante: boolean }) {
-  return (
-    <div className="flex flex-col gap-6">
-      {!practicante && <MisDeclaraciones usuarioId={usuarioId} />}
-      <MiTrayectoria usuarioId={usuarioId} />
-      {!practicante && <MisTarifas usuarioId={usuarioId} />}
-      <MisDatosPrivados usuarioId={usuarioId} />
-    </div>
-  );
-}
-
-function MisDeclaraciones({ usuarioId }: { usuarioId: string }) {
+/** Tipos de atencion y especialidades que el profesional declara (la cuenta madre los aprueba). */
+export function MisDeclaraciones({ usuarioId }: { usuarioId: string }) {
   const cliente = useQueryClient();
   const tipos = useTiposDeProfesional(usuarioId);
   const catalogo = useTiposAtencion();
@@ -208,21 +155,34 @@ function MisDeclaraciones({ usuarioId }: { usuarioId: string }) {
 }
 
 const TRAYECTORIA_VACIA = { tipo: 'TITULO' as Trayectoria['tipo'], titulo: '', institucion: '', anio: '', registroSuperintendencia: '' };
+const TIPOS_RESPALDO = 'application/pdf,image/png,image/jpeg';
 
-function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
+/**
+ * Formacion: un registro nuevo o editado queda en revision hasta que el
+ * centro revisa su respaldo. Desde 2026-11-07 el respaldo es un archivo (PDF,
+ * PNG o JPEG, cifrado): obligatorio para agregar un titulo; uno nuevo crea una
+ * version (las anteriores se conservan) y deja el titulo en revision.
+ */
+export function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
   const cliente = useQueryClient();
   const lista = useTrayectoria(usuarioId);
   const [f, setF] = useState(TRAYECTORIA_VACIA);
+  const [archivo, setArchivo] = useState<File | null>(null);
   const [editando, setEditando] = useState<string | null>(null);
   const [error, setError] = useState<string>();
+  const entradaFila = useRef<HTMLInputElement>(null);
+  const [filaRespaldo, setFilaRespaldo] = useState<string | null>(null);
+  const invalidar = () => void cliente.invalidateQueries({ queryKey: ['equipo', 'trayectoria', usuarioId] });
   const refrescar = () => {
     setF(TRAYECTORIA_VACIA);
+    setArchivo(null);
     setEditando(null);
     setError(undefined);
-    void cliente.invalidateQueries({ queryKey: ['equipo', 'trayectoria', usuarioId] });
+    invalidar();
   };
+  const subirRespaldo = (id: string, a: File) => subirArchivo<Trayectoria>(`/api/trayectoria/${id}/respaldos`, 'archivo', a);
   const guardar = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const body = {
         tipo: f.tipo,
         titulo: f.titulo.trim(),
@@ -230,10 +190,28 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
         anio: Number(f.anio),
         registroSuperintendencia: f.registroSuperintendencia.trim() || undefined,
       };
-      return editando ? datos(api.PUT('/api/trayectoria/{id}', { params: { path: { id: editando } }, body })) : datos(api.POST('/api/trayectoria', { body }));
+      const t = editando
+        ? await datos(api.PUT('/api/trayectoria/{id}', { params: { path: { id: editando } }, body }))
+        : await datos(api.POST('/api/trayectoria', { body }));
+      if (!archivo) return;
+      try {
+        await subirRespaldo(t.id, archivo);
+      } catch (e) {
+        invalidar();
+        throw new Error(`El título quedó guardado, pero el respaldo no se subió${e instanceof ApiError ? `: ${e.message}` : ''}. Súbelo desde la lista.`);
+      }
     },
     onSuccess: refrescar,
-    onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos guardar la trayectoria.'),
+    onError: (e) => setError(e instanceof Error ? e.message : 'No pudimos guardar la trayectoria.'),
+  });
+  const respaldoFila = useMutation({
+    mutationFn: ({ id, a }: { id: string; a: File }) => subirRespaldo(id, a),
+    onSuccess: () => {
+      setError(undefined);
+      invalidar();
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos subir el respaldo.'),
+    onSettled: () => setFilaRespaldo(null),
   });
   const eliminar = useMutation({
     mutationFn: (id: string) => datos(api.DELETE('/api/trayectoria/{id}', { params: { path: { id } } })),
@@ -245,103 +223,163 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
     const anio = Number(f.anio);
     if (!f.titulo.trim() || !f.institucion.trim() || !Number.isInteger(anio) || anio < 1950 || anio > new Date().getFullYear())
       return setError('Completa título, institución y un año válido.');
+    if (!editando && !archivo) return setError('Para agregar un título necesitas subir su respaldo (PDF o imagen).');
+    setError(undefined);
     guardar.mutate();
   };
+  const elegirFila = (e: ChangeEvent<HTMLInputElement>) => {
+    const a = e.target.files?.[0];
+    e.target.value = '';
+    if (a && filaRespaldo) respaldoFila.mutate({ id: filaRespaldo, a });
+    else setFilaRespaldo(null);
+  };
   return (
-    <Panel titulo="Trayectoria" bajada="Títulos y formación. La cuenta madre los verifica; editar uno lo vuelve a dejar sin verificar.">
+    <Panel titulo="Formación" bajada="Cada título lleva su respaldo. Uno nuevo o editado queda en revisión hasta que el centro lo revise.">
       <div className="mt-4 flex flex-col gap-3">
+        <input ref={entradaFila} type="file" accept={TIPOS_RESPALDO} onChange={elegirFila} className="sr-only" tabIndex={-1} aria-hidden="true" />
         <EstadoConsulta consulta={lista} vacio={(l) => l.length === 0} textoVacio="Todavía no agregas tu formación">
           {(l) => (
             <ul className="m-0 flex list-none flex-col gap-2 p-0">
               {l.map((t) => (
-                <li key={t.id} className="flex flex-wrap items-center gap-2.5 rounded-[14px] border border-divider bg-bg px-3.5 py-2.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="m-0 text-[14px] font-extrabold">{t.titulo}</p>
+                <li key={t.id} className="flex flex-col gap-2.5 rounded-[14px] border border-divider bg-bg p-3.5">
+                  <div className="flex flex-col items-start gap-1.5">
+                    <Badge tono={t.verificado ? 'positivo' : 'atencion'}>{t.verificado ? 'Verificado' : 'En revisión'}</Badge>
+                    <p className="m-0 text-[14.5px] leading-snug font-extrabold text-pretty">{t.titulo}</p>
                     <p className="m-0 text-[12.5px] font-semibold text-neutral-800">
                       {TIPO_TRAYECTORIA[t.tipo]} · {t.institucion} · {t.anio}
                     </p>
                   </div>
-                  <Badge tono={t.verificado ? 'positivo' : 'neutro'}>{t.verificado ? 'Verificado' : 'Sin verificar'}</Badge>
-                  <button
-                    type="button"
-                    aria-label={`Editar ${t.titulo}`}
-                    onClick={() => {
-                      setEditando(t.id);
-                      setF({
-                        tipo: t.tipo,
-                        titulo: t.titulo,
-                        institucion: t.institucion,
-                        anio: String(t.anio),
-                        registroSuperintendencia: t.registroSuperintendencia ?? '',
-                      });
-                    }}
-                    className="grid size-9 cursor-pointer place-items-center rounded-full hover:bg-accent-200"
-                  >
-                    <Icon name="edit" size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Eliminar ${t.titulo}`}
-                    onClick={() => eliminar.mutate(t.id)}
-                    className="grid size-9 cursor-pointer place-items-center rounded-full hover:bg-accent-200"
-                  >
-                    <Icon name="delete" size={18} />
-                  </button>
+                  <RespaldoTitulo t={t} />
+                  <div className="flex items-center gap-1 border-t border-divider pt-2">
+                    <Button
+                      variant="ghost"
+                      icon="upload"
+                      loading={respaldoFila.isPending && filaRespaldo === t.id}
+                      onClick={() => {
+                        setFilaRespaldo(t.id);
+                        entradaFila.current?.click();
+                      }}
+                      className="!px-3 !py-1.5 !text-[12.5px]"
+                    >
+                      {t.respaldos.length ? 'Nueva versión' : 'Subir respaldo'}
+                    </Button>
+                    <span className="flex-1" />
+                    <button
+                      type="button"
+                      aria-label={`Editar ${t.titulo}`}
+                      onClick={() => {
+                        setEditando(t.id);
+                        setArchivo(null);
+                        setF({
+                          tipo: t.tipo,
+                          titulo: t.titulo,
+                          institucion: t.institucion,
+                          anio: String(t.anio),
+                          registroSuperintendencia: t.registroSuperintendencia ?? '',
+                        });
+                      }}
+                      className="grid size-9 cursor-pointer place-items-center rounded-full hover:bg-accent-200"
+                    >
+                      <Icon name="edit" size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Eliminar ${t.titulo}`}
+                      onClick={() => eliminar.mutate(t.id)}
+                      className="grid size-9 cursor-pointer place-items-center rounded-full hover:bg-accent-200"
+                    >
+                      <Icon name="delete" size={18} />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </EstadoConsulta>
-        <form onSubmit={enviar} noValidate className="grid gap-3 rounded-[18px] border-[1.5px] border-dashed border-neutral-400 p-4 sm:grid-cols-2">
-          <Field label="Tipo">
-            {(x) => (
-              <Select {...x} value={f.tipo} onChange={(e) => setF((y) => ({ ...y, tipo: e.target.value as Trayectoria['tipo'] }))}>
-                {(Object.keys(TIPO_TRAYECTORIA) as Trayectoria['tipo'][]).map((k) => (
-                  <option key={k} value={k}>
-                    {TIPO_TRAYECTORIA[k]}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-          <Field label="Título" required>
-            {(x) => <Input {...x} value={f.titulo} maxLength={200} onChange={(e) => setF((y) => ({ ...y, titulo: e.target.value }))} />}
-          </Field>
-          <Field label="Institución" required>
-            {(x) => <Input {...x} value={f.institucion} maxLength={200} onChange={(e) => setF((y) => ({ ...y, institucion: e.target.value }))} />}
-          </Field>
-          <Field label="Año" required>
-            {(x) => (
-              <Input
-                {...x}
-                inputMode="numeric"
-                value={f.anio}
-                maxLength={4}
-                onChange={(e) => setF((y) => ({ ...y, anio: e.target.value.replace(/\D/g, '') }))}
-              />
-            )}
-          </Field>
-          <Field label="Registro Superintendencia de Salud (opcional)">
-            {(x) => (
-              <Input
-                {...x}
-                value={f.registroSuperintendencia}
-                maxLength={40}
-                onChange={(e) => setF((y) => ({ ...y, registroSuperintendencia: e.target.value }))}
-              />
-            )}
-          </Field>
-          <div className="flex items-end justify-end gap-2">
-            {editando && (
-              <Button variant="ghost" onClick={refrescar}>
-                Cancelar
+        <div className="@container">
+          <form
+            onSubmit={enviar}
+            noValidate
+            className="grid grid-cols-1 gap-3 rounded-[18px] border-[1.5px] border-dashed border-neutral-400 p-4 @lg:grid-cols-2"
+          >
+            <p className="m-0 text-[13.5px] font-extrabold @lg:col-span-2">{editando ? 'Editar título' : 'Agregar un título'}</p>
+            <Field label="Tipo">
+              {(x) => (
+                <Select {...x} value={f.tipo} onChange={(e) => setF((y) => ({ ...y, tipo: e.target.value as Trayectoria['tipo'] }))}>
+                  {(Object.keys(TIPO_TRAYECTORIA) as Trayectoria['tipo'][]).map((k) => (
+                    <option key={k} value={k}>
+                      {TIPO_TRAYECTORIA[k]}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="Título" required>
+              {(x) => <Input {...x} value={f.titulo} maxLength={200} onChange={(e) => setF((y) => ({ ...y, titulo: e.target.value }))} />}
+            </Field>
+            <Field label="Institución" required>
+              {(x) => <Input {...x} value={f.institucion} maxLength={200} onChange={(e) => setF((y) => ({ ...y, institucion: e.target.value }))} />}
+            </Field>
+            <Field label="Año" required>
+              {(x) => (
+                <Input
+                  {...x}
+                  inputMode="numeric"
+                  value={f.anio}
+                  maxLength={4}
+                  onChange={(e) => setF((y) => ({ ...y, anio: e.target.value.replace(/\D/g, '') }))}
+                />
+              )}
+            </Field>
+            <Field label="N.° registro Superintendencia (opcional)">
+              {(x) => (
+                <Input
+                  {...x}
+                  value={f.registroSuperintendencia}
+                  maxLength={40}
+                  onChange={(e) => setF((y) => ({ ...y, registroSuperintendencia: e.target.value }))}
+                />
+              )}
+            </Field>
+            <div className="@lg:col-span-2">
+              <Field
+                label={editando ? 'Nuevo respaldo (opcional)' : 'Respaldo del título'}
+                required={!editando}
+                hint="Certificado o diploma en PDF, PNG o JPEG. Se guarda cifrado; solo lo ven tú y la administración del centro."
+              >
+                {(x) => (
+                  <label className="flex cursor-pointer items-center gap-3 rounded-[14px] border-[1.5px] border-neutral-400 bg-bg px-3.5 py-3 hover:border-accent-700 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent-700">
+                    <input
+                      {...x}
+                      type="file"
+                      accept={TIPOS_RESPALDO}
+                      onClick={(e) => (e.currentTarget.value = '')}
+                      onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
+                      className="sr-only"
+                    />
+                    <Icon name={archivo ? 'description' : 'attach_file'} size={22} className="shrink-0 text-accent-800" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-bold">{archivo ? archivo.name : 'Elegir archivo'}</span>
+                      <span className="block text-[12px] font-semibold text-neutral-700">
+                        {archivo ? `${Math.max(1, Math.round(archivo.size / 1024))} KB · toca para cambiarlo` : 'Ningún archivo elegido'}
+                      </span>
+                    </span>
+                  </label>
+                )}
+              </Field>
+            </div>
+            <div className="flex flex-wrap items-end justify-end gap-2 @lg:col-span-2">
+              {editando && (
+                <Button variant="ghost" onClick={refrescar}>
+                  Cancelar
+                </Button>
+              )}
+              <Button type="submit" variant="secondary" icon={editando ? 'save' : 'add'} loading={guardar.isPending}>
+                {editando ? 'Guardar cambios' : 'Agregar título y respaldo'}
               </Button>
-            )}
-            <Button type="submit" variant="secondary" icon={editando ? 'save' : 'add'} loading={guardar.isPending}>
-              {editando ? 'Guardar cambios' : 'Agregar'}
-            </Button>
-          </div>
-        </form>
+            </div>
+          </form>
+        </div>
         {error && (
           <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
             {error}
@@ -352,7 +390,7 @@ function MiTrayectoria({ usuarioId }: { usuarioId: string }) {
   );
 }
 
-function MisTarifas({ usuarioId }: { usuarioId: string }) {
+export function MisTarifas({ usuarioId }: { usuarioId: string }) {
   const cliente = useQueryClient();
   const tarifas = useTarifas(usuarioId);
   const catalogo = useTiposAtencion();
@@ -448,13 +486,18 @@ function MisTarifas({ usuarioId }: { usuarioId: string }) {
   );
 }
 
-function MisDatosPrivados({ usuarioId }: { usuarioId: string }) {
+/** `soloRut`: MVP sin COBROS (2026-11-11), sin datos bancarios a la vista ni en el formulario. */
+export function MisDatosPrivados({ usuarioId, soloRut = false }: { usuarioId: string; soloRut?: boolean }) {
   const [abierto, setAbierto] = useState(false);
   const privados = useDatosPrivados(usuarioId, abierto);
   return (
     <Panel
-      titulo="Datos para pagos"
-      bajada="Tu RUT y cuenta bancaria, para liquidaciones y boletas. Se guardan cifrados y solo los ve administración."
+      titulo={soloRut ? 'Mi RUT' : 'Datos para pagos'}
+      bajada={
+        soloRut
+          ? 'Se guarda cifrado y solo lo ve administración.'
+          : 'Tu RUT y cuenta bancaria, para liquidaciones y comprobantes de pago. Se guardan cifrados y solo los ve administración.'
+      }
       accion={
         <Button variant="secondary" icon={abierto ? 'visibility_off' : 'edit'} onClick={() => setAbierto((v) => !v)} className="!py-2.5">
           {abierto ? 'Cerrar' : 'Ver o editar'}
@@ -463,14 +506,14 @@ function MisDatosPrivados({ usuarioId }: { usuarioId: string }) {
     >
       {abierto && (
         <div className="mt-4">
-          <EstadoConsulta consulta={privados}>{(d) => <FormularioPrivados key={d?.updatedAt ?? 'nuevo'} inicial={d} />}</EstadoConsulta>
+          <EstadoConsulta consulta={privados}>{(d) => <FormularioPrivados key={d?.updatedAt ?? 'nuevo'} inicial={d} soloRut={soloRut} />}</EstadoConsulta>
         </div>
       )}
     </Panel>
   );
 }
 
-function FormularioPrivados({ inicial }: { inicial: components['schemas']['DatosPrivadosVista'] | null }) {
+function FormularioPrivados({ inicial, soloRut }: { inicial: components['schemas']['DatosPrivadosVista'] | null; soloRut: boolean }) {
   const cliente = useQueryClient();
   const [f, setF] = useState({
     rut: inicial?.rut ?? '',
@@ -484,13 +527,16 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
     mutationFn: () =>
       datos(
         api.PUT('/api/profesionales/yo/datos-privados', {
-          body: {
-            rut: rutNormalizado(f.rut) || undefined,
-            banco: (f.banco || undefined) as DatosPrivadosDto['banco'],
-            tipoCuenta: (f.tipoCuenta || undefined) as DatosPrivadosDto['tipoCuenta'],
-            numeroCuenta: f.numeroCuenta.trim() || undefined,
-            titular: f.titular.trim() || undefined,
-          },
+          // Sin COBROS solo viaja el RUT: la API deja intactos los campos que no llegan.
+          body: soloRut
+            ? { rut: rutNormalizado(f.rut) || undefined }
+            : {
+                rut: rutNormalizado(f.rut) || undefined,
+                banco: (f.banco || undefined) as DatosPrivadosDto['banco'],
+                tipoCuenta: (f.tipoCuenta || undefined) as DatosPrivadosDto['tipoCuenta'],
+                numeroCuenta: f.numeroCuenta.trim() || undefined,
+                titular: f.titular.trim() || undefined,
+              },
         }),
       ),
     onSuccess: () => {
@@ -509,34 +555,38 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
     <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <CampoRut label="RUT" hint="También sirve para iniciar sesión." value={f.rut} onChange={(v) => setF((a) => ({ ...a, rut: v }))} />
-        <Field label="Titular de la cuenta">{(x) => <Input {...x} value={f.titular} maxLength={120} onChange={cambiar('titular')} />}</Field>
-        <Field label="Banco">
-          {(x) => (
-            <Select {...x} value={f.banco} onChange={cambiar('banco')}>
-              <option value="">Elige un banco</option>
-              {BANCOS.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-        <Field label="Tipo de cuenta">
-          {(x) => (
-            <Select {...x} value={f.tipoCuenta} onChange={cambiar('tipoCuenta')}>
-              <option value="">Elige un tipo</option>
-              {(Object.keys(CUENTAS) as (keyof typeof CUENTAS)[]).map((k) => (
-                <option key={k} value={k}>
-                  {CUENTAS[k]}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
-        <Field label="Número de cuenta">
-          {(x) => <Input {...x} inputMode="numeric" value={f.numeroCuenta} maxLength={30} onChange={cambiar('numeroCuenta')} />}
-        </Field>
+        {!soloRut && (
+          <>
+            <Field label="Titular de la cuenta">{(x) => <Input {...x} value={f.titular} maxLength={120} onChange={cambiar('titular')} />}</Field>
+            <Field label="Banco">
+              {(x) => (
+                <Select {...x} value={f.banco} onChange={cambiar('banco')}>
+                  <option value="">Elige un banco</option>
+                  {BANCOS.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="Tipo de cuenta">
+              {(x) => (
+                <Select {...x} value={f.tipoCuenta} onChange={cambiar('tipoCuenta')}>
+                  <option value="">Elige un tipo</option>
+                  {(Object.keys(CUENTAS) as (keyof typeof CUENTAS)[]).map((k) => (
+                    <option key={k} value={k}>
+                      {CUENTAS[k]}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label="Número de cuenta">
+              {(x) => <Input {...x} inputMode="numeric" value={f.numeroCuenta} maxLength={30} onChange={cambiar('numeroCuenta')} />}
+            </Field>
+          </>
+        )}
       </div>
       {estado.error && (
         <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
@@ -550,7 +600,7 @@ function FormularioPrivados({ inicial }: { inicial: components['schemas']['Datos
           </p>
         )}
         <Button type="submit" variant="team" icon="save" loading={guardar.isPending}>
-          Guardar datos para pagos
+          {soloRut ? 'Guardar RUT' : 'Guardar datos para pagos'}
         </Button>
       </div>
     </form>
@@ -598,6 +648,7 @@ export function MisResenas() {
                     </Badge>
                   </div>
                   {r.texto && <p className="m-0 mt-1.5 text-[13.5px] leading-relaxed text-neutral-800">{r.texto}</p>}
+                  {r.estado === 'PUBLICADA' && <ReportarResena resenaId={r.id} />}
                   {r.feedbackPrivado && (
                     <p className="m-0 mt-2 rounded-[12px] border-[1.5px] border-dashed border-neutral-400 px-3 py-2 text-[13px] text-neutral-800">
                       <span className="font-extrabold">Comentario privado: </span>

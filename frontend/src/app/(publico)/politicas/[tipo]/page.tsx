@@ -4,14 +4,18 @@ import { notFound } from 'next/navigation';
 import { DocumentoPolitica } from '@/components/shared/DocumentoPolitica';
 import { politica, type TipoPolitica } from '@/lib/api/servidor';
 
-const TITULOS: Record<TipoPolitica, string> = {
+/** El protocolo interno del equipo y el contrato con Vinculos (AUD-01) no son publicos (la API responde 404). */
+type TipoPublico = Exclude<TipoPolitica, 'PROTOCOLO_EQUIPO' | 'TERMINOS_SERVICIO' | 'DPA'>;
+
+const TITULOS: Record<TipoPublico, string> = {
   POLITICA_DATOS: 'Política de datos personales',
   TERMINOS_AGENDAMIENTO: 'Términos de agendamiento y cancelación',
   CONSENTIMIENTO_ATENCION: 'Consentimiento informado de atención',
   CONSENTIMIENTO_PRACTICANTE: 'Consentimiento de atención con practicante supervisado',
+  PROTOCOLO_PACIENTE: 'Protocolo de atención para pacientes',
 };
 
-const esTipo = (t: string): t is TipoPolitica => t in TITULOS;
+const esTipo = (t: string): t is TipoPublico => t in TITULOS;
 
 export async function generateMetadata({ params }: { params: Promise<{ tipo: string }> }): Promise<Metadata> {
   const { tipo } = await params;

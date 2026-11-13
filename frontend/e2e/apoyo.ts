@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+
 import { expect, type Page } from '@playwright/test';
 
 /** Seed demo (docs/pruebas/usuarios_demo.md). */
@@ -29,7 +31,7 @@ export async function codigoCorreo(destino: string, despues: Date): Promise<stri
  */
 export async function ingresar(page: Page, usuario: string, zona: 'admin' | 'portal' = 'admin') {
   await page.goto('/ingreso');
-  if (zona === 'admin') await page.getByRole('button', { name: 'Soy del equipo' }).click();
+  if (zona === 'admin') await page.getByRole('link', { name: 'Ingresar como profesional' }).click();
   await page.getByLabel('Correo o RUT').fill(correo(usuario));
   await page.getByLabel('Contraseña', { exact: true }).fill(PASSWORD);
   const antes = new Date();
@@ -48,3 +50,107 @@ export async function ingresar(page: Page, usuario: string, zona: 'admin' | 'por
 
 /** Ingreso al panel del equipo (codigo por correo). */
 export const ingresarEquipo = (page: Page, usuario: string) => ingresar(page, usuario, 'admin');
+
+/**
+ * 03b-6: SQL de prueba contra la BD local (contenedor de docker compose dev),
+ * para simular el paso del tiempo (p. ej. un plazo vencido) y para ubicar el
+ * id de algo que la prueba creo por la UI. Nunca para preparar datos que la UI
+ * deberia crear.
+ */
+export function sqlPrueba(sql: string): string {
+  const contenedor = process.env.E2E_DB_CONTENEDOR ?? 'erp-centro-prueba-db-1';
+  return execFileSync('docker', ['exec', contenedor, 'psql', '-U', 'vinculos_owner', '-d', 'app', '-tAc', sql], { encoding: 'utf8' }).trim();
+}
+
+const MAILPIT_API = `${MAILPIT}/api/v1`;
+export const correoNuevo = (etiqueta: string) => `e2e.${etiqueta}.${Date.now()}@ejemplo.cl`;
+
+/** Enlace (ruta con ?token=) del ultimo correo enviado a `para` que lleve `ruta` (espera hasta 15 s). */
+export async function enlaceDelCorreo(para: string, ruta = '/pedir-hora/verificar'): Promise<string> {
+  for (let i = 0; i < 30; i++) {
+    const r = (await (await fetch(`${MAILPIT_API}/search?query=${encodeURIComponent(`to:"${para}"`)}`)).json()) as { messages: { ID: string }[] };
+    // Del mas reciente al mas antiguo: el que lleva la ruta puede no ser el ultimo correo
+    // (p. ej. el recordatorio llega antes que el aviso de cita confirmada).
+    for (const { ID } of r.messages) {
+      const m = (await (await fetch(`${MAILPIT_API}/message/${ID}`)).json()) as { Text: string };
+      const url = new RegExp(`https?://\\S+${ruta}\\?token=[\\w-]+`).exec(m.Text)?.[0];
+      if (url) return new URL(url).pathname + new URL(url).search;
+    }
+    await new Promise((ok) => setTimeout(ok, 500));
+  }
+  throw new Error(`Sin correo con ${ruta} para ${para}`);
+}
+
+/** En el paso de pago: elige un medio y continua. */
+export async function elegirMedio(page: Page, medio: RegExp) {
+  await page.getByLabel(medio).check();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+}
+
+/** Desde /pedir-hora/<id>: primera hora libre, datos y envio; queda la hora retenida en el paso de pago. Devuelve el correo usado. */
+/** RUT valido al azar (con digito verificador) para pacientes de prueba. */
+export function rutAlAzar(): string {
+  const cuerpo = String(10_000_000 + Math.floor(Math.random() * 15_000_000));
+  let suma = 0;
+  for (let i = 0; i < cuerpo.length; i++) suma += Number(cuerpo[cuerpo.length - 1 - i]) * ((i % 6) + 2);
+  const r = 11 - (suma % 11);
+  return `${cuerpo}-${r === 11 ? '0' : r === 10 ? 'K' : String(r)}`;
+}
+
+export async function pedirHora(page: Page, etiqueta: string, menor = false, rut?: string): Promise<string> {
+  const email = correoNuevo(etiqueta);
+  await page
+    .getByRole('button', { name: /^\d{2}:\d{2}$/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page.getByRole('heading', { name: 'Datos del paciente' })).toBeFocused();
+  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Prueba');
+  await page.getByLabel('Apellido').fill('E2E');
+  // 03b-4.1: tres desplegables (dia, mes, año).
+  await page.getByLabel('Día').selectOption('10');
+  await page.getByLabel('Mes').selectOption('5');
+  await page.getByLabel('Año').selectOption(menor ? '2012' : '1990');
+  await page.getByLabel(/^Correo/).fill(email);
+  if (rut) await page.getByLabel(/^RUT/).fill(rut);
+  // Sin match: el motivo en sus palabras (opcional; llega cifrado al tratante).
+  await page.getByLabel('¿Qué te gustaría trabajar en la sesión?').fill('Me cuesta dormir hace unos meses.');
+  if (menor) {
+    await expect(page.getByText('Por la fecha de nacimiento, el paciente es menor de 18.', { exact: false })).toBeVisible();
+    await page.getByLabel('Nombre completo').fill('Adulta Responsable');
+    await page.getByLabel('Relación con el paciente').fill('Madre');
+  }
+  await page.getByRole('button', { name: 'Reservar mi hora' }).click();
+  // Sin aceptar la politica no se envia.
+  await expect(page.getByText('Para pedir hora debes aceptar la política de datos.')).toBeVisible();
+  // La politica se lee en un modal, sin salir del formulario, y se acepta desde ahi.
+  await page.getByRole('button', { name: 'política de datos personales' }).click();
+  const documento = page.getByRole('dialog', { name: 'Política de datos personales' });
+  await expect(documento.getByText(/^Versión \d+, vigente desde/)).toBeVisible();
+  await documento.getByRole('button', { name: 'Leí y acepto' }).click();
+  await expect(page).toHaveURL(/\/pedir-hora\//);
+  await expect(page.getByLabel(/política de datos personales/)).toBeChecked();
+  await page.getByLabel(/términos de agendamiento/).check();
+  await page.getByRole('button', { name: 'Reservar mi hora' }).click();
+  await expect(page.getByRole('heading', { name: 'Paga para confirmar tu hora' })).toBeVisible();
+  await expect(page.getByText('Te guardamos la hora')).toBeVisible();
+  await expect(page.getByText(/^(29|30):\d{2}$/)).toBeVisible();
+  return email;
+}
+
+/**
+ * 03b-6: paciente nuevo con ficha, sin tocar los del seed: reserva con pago en
+ * el centro y verificacion del correo (asi nace el paciente). Devuelve su id.
+ */
+export async function pacienteNuevo(page: Page, etiqueta: string, profesional = 'Uno'): Promise<{ email: string; pacienteId: string }> {
+  await page.goto('/equipo');
+  await page.getByRole('link', { name: new RegExp(`Ver perfil completo de Ps\. Profesional ${profesional}`) }).click();
+  await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
+  // Con RUT: la BD lo exige antes de la primera evolucion.
+  const email = await pedirHora(page, etiqueta, false, rutAlAzar());
+  await elegirMedio(page, /^Pago en el centro/);
+  await page.goto(await enlaceDelCorreo(email));
+  await page.getByRole('button', { name: 'Confirmar mi hora' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible();
+  return { email, pacienteId: sqlPrueba(`SELECT paciente_id FROM solicitudes_hora WHERE email = '${email}'`) };
+}

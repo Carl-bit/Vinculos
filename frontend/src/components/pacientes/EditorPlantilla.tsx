@@ -1,5 +1,6 @@
 'use client';
 
+import { DialogoDescartar, useGuardaCambios } from '@/components/shared/EdicionSegura';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -119,6 +120,9 @@ export function EditorPlantilla({ plantilla, especialidades, onListo }: EditorPl
   const [problemas, setProblemas] = useState<string[]>([]);
   const [previa, setPrevia] = useState(false);
   const [valoresPrevia, setValoresPrevia] = useState<ValoresPlantilla>({});
+  const foto = JSON.stringify({ nombre, especialidadId, tipo, campos });
+  const [fotoInicial] = useState(foto);
+  const guarda = useGuardaCambios(foto !== fotoInicial);
 
   const cambiar = (i: number, cambio: Partial<Borrador>) =>
     setCampos((lista) =>
@@ -157,6 +161,7 @@ export function EditorPlantilla({ plantilla, especialidades, onListo }: EditorPl
 
   return (
     <div className="flex flex-col gap-5">
+      <DialogoDescartar seccion={plantilla ? `Plantilla «${plantilla.nombre}»` : 'Nueva plantilla'} {...guarda.dialogo} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nombre de la plantilla" required>
           {(p) => <Input {...p} maxLength={120} value={nombre} onChange={(e) => setNombre(e.target.value)} />}
@@ -201,13 +206,13 @@ export function EditorPlantilla({ plantilla, especialidades, onListo }: EditorPl
       </div>
 
       {previa ? (
-        <div className="rounded-lg border border-divider bg-neutral-100 px-[clamp(16px,2.6vw,22px)] py-5">
+        <div className="rounded-lg border border-divider bg-bg px-[clamp(16px,2.6vw,22px)] py-5">
           <FormularioDinamico campos={definicion(campos)} valores={valoresPrevia} onChange={setValoresPrevia} />
         </div>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
           {campos.map((c, i) => (
-            <li key={i} className="rounded-lg border border-divider bg-neutral-100 px-[clamp(14px,2.4vw,20px)] py-4">
+            <li key={i} className="rounded-lg border border-divider bg-bg px-[clamp(14px,2.4vw,20px)] py-4">
               <fieldset className="m-0 flex min-w-0 flex-col gap-3.5 border-0 p-0">
                 <legend className="sr-only">Campo {i + 1}</legend>
                 <div className="flex flex-wrap items-center justify-between gap-2">

@@ -45,6 +45,9 @@ function resumenHorario(horario: HorarioEspacio[]): string {
  * (horas de box apartadas por profesionales ÷ horas abiertas, como en el
  * dashboard). Crear y editar: ADMIN/GESTION.
  */
+/** Minutos en horas legibles: 90 -> "1,5 h". */
+const horas = (min: number) => `${(Math.round((min / 60) * 10) / 10).toLocaleString('es-CL')} h`;
+
 export function EspaciosAgenda({ puedeEditar, nuevo, onNuevoCerrado }: { puedeEditar: boolean; nuevo: boolean; onNuevoCerrado: () => void }) {
   const espacios = useEspacios();
   const semana = semanaChile(0);
@@ -94,8 +97,11 @@ export function EspaciosAgenda({ puedeEditar, nuevo, onNuevoCerrado }: { puedeEd
                 <Dato etiqueta="Sesión por defecto" valor={e.duracionDefectoMin ? `${e.duracionDefectoMin} min` : '—'} />
                 <div className="min-w-[160px] flex-[1_1_180px]">
                   <div className="mb-1.5 flex items-baseline justify-between gap-2.5">
-                    <span className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Apartado esta semana</span>
-                    <span className="text-[13px] font-black tabular-nums">{abiertoMin ? `${pct}%` : '—'}</span>
+                    {/* Punto 23: horas libres (mas util que un porcentaje); la barra muestra lo apartado. */}
+                    <span className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">Libres esta semana</span>
+                    <span className="text-[13px] font-black tabular-nums">
+                      {abiertoMin ? `${horas(Math.max(abiertoMin - ocupadoMin, 0))} de ${horas(abiertoMin)}` : '—'}
+                    </span>
                   </div>
                   <span
                     className="block h-[7px] overflow-hidden rounded-full bg-neutral-300"
@@ -276,7 +282,7 @@ function EditarEspacio({
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
           <legend className="mb-2 text-[12.5px] font-extrabold">Horario base (rige siempre)</legend>
           {dias.map((d, i) => (
-            <div key={DIAS_SEMANA[i]} className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-neutral-100 px-3.5 py-2">
+            <div key={DIAS_SEMANA[i]} className="flex flex-wrap items-center gap-3 rounded-[14px] border border-divider bg-bg px-3.5 py-2">
               <label className="flex w-[118px] cursor-pointer items-center gap-2 text-[13.5px] font-extrabold">
                 <input type="checkbox" checked={d.abre} onChange={(e) => cambiarDia(i, { abre: e.target.checked })} className="size-4 accent-accent-700" />
                 {DIAS_SEMANA[i]}

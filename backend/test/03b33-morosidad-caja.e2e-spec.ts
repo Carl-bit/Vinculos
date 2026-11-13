@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 
 import { type Correo, ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
 import { JobsService } from '../src/core/jobs/jobs.service';
-import { auth, crearApp, procesarMensajes, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, rutUnico, crearApp, procesarMensajes, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const DIA = 86_400_000;
 const HORA = 3_600_000;
@@ -47,6 +47,7 @@ describe('03b-3.3 morosidad y caja de la hora retenida', () => {
       .put('/api/profesionales/yo/perfil')
       .set(await tk(u))
       .send({ ...perfil, perfilPublico: true });
+    await t.datos.validar(u.id);
     await t
       .http()
       .put('/api/profesionales/yo/videollamada')
@@ -85,6 +86,7 @@ describe('03b-3.3 morosidad y caja de la hora retenida', () => {
         nombre: 'Carla',
         apellido: 'Caja',
         fechaNacimiento: '1990-03-03',
+        rut: rutUnico(),
         email,
         politicaId,
         terminosId,
@@ -96,7 +98,7 @@ describe('03b-3.3 morosidad y caja de la hora retenida', () => {
 
   beforeAll(async () => {
     t = await crearApp();
-    await t.dueno.horarioCentro.deleteMany({});
+    await t.datos.centroAbierto();
     await t.dueno.configuracionCentro.update({
       where: { id: true },
       data: { rolGestionHabilitado: true, morosidadDesde: new Date(Date.now() - 30 * DIA), mediosPagoHabilitados: ['PAGO_EN_CENTRO'] },

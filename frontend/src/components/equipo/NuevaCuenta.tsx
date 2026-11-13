@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { useProfesionales } from '@/lib/consultas';
+import { reglaCorreo, reglaObligatorio, reglaTelefono, useValidacionCampos } from '@/lib/validacion';
 import { NOMBRE_ROL } from '@/lib/equipo';
 
 type RolEquipo = 'PROFESIONAL' | 'PRACTICANTE' | 'GESTION' | 'ADMIN';
@@ -34,6 +35,7 @@ export function NuevaCuenta({ abierto, onCerrar, onCreada }: { abierto: boolean;
     expira: '',
   });
   const [error, setError] = useState<string>();
+  const v = useValidacionCampos({ nombre: reglaObligatorio('Escribe el nombre.'), email: reglaCorreo(true), telefono: reglaTelefono });
   const practicante = f.rol === 'PRACTICANTE';
   const crear = useMutation({
     mutationFn: () =>
@@ -42,7 +44,7 @@ export function NuevaCuenta({ abierto, onCerrar, onCreada }: { abierto: boolean;
           body: {
             nombre: f.nombre.trim(),
             email: f.email.trim().toLowerCase(),
-            telefono: f.telefono.trim() || undefined,
+            telefono: f.telefono.replace(/[\s()-]/g, '') || undefined,
             rol: f.rol,
             ...(practicante
               ? { supervisorId: f.supervisorId, fechaInicioPractica: f.inicio, fechaTerminoPractica: f.termino, fechaExpiracionAcceso: f.expira }
@@ -60,13 +62,17 @@ export function NuevaCuenta({ abierto, onCerrar, onCreada }: { abierto: boolean;
   });
   const enviar = (e: FormEvent) => {
     e.preventDefault();
-    if (!f.nombre.trim() || !/^\S+@\S+\.\S+$/.test(f.email.trim())) return setError('Escribe el nombre y un correo válido.');
+    if (!v.validarTodo({ nombre: f.nombre, email: f.email, telefono: f.telefono })) return;
     if (practicante && (!f.supervisorId || !f.termino || !f.expira))
       return setError('Un practicante necesita supervisor, término de la práctica y fecha de término del acceso.');
     if (practicante && f.termino < f.inicio) return setError('El término de la práctica debe ser posterior al inicio.');
     crear.mutate();
   };
-  const cambiar = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const cambiar = (k: keyof typeof f) => (e: { target: { value: string } }) => {
+    if (k === 'nombre' || k === 'email' || k === 'telefono') v.limpiar(k);
+    setF((x) => ({ ...x, [k]: e.target.value }));
+  };
+  const salir = (k: 'nombre' | 'email' | 'telefono') => () => v.alSalir(k, f[k]);
   return (
     <Modal
       abierto={abierto}
@@ -75,15 +81,15 @@ export function NuevaCuenta({ abierto, onCerrar, onCreada }: { abierto: boolean;
       descripcion="Le llega un correo para fijar su contraseña (enlace de un solo uso)."
     >
       <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
-        <Field label="Nombre completo" required>
-          {(x) => <Input {...x} value={f.nombre} maxLength={120} onChange={cambiar('nombre')} />}
+        <Field label="Nombre completo" required error={v.errores.nombre}>
+          {(x) => <Input {...x} value={f.nombre} maxLength={120} onChange={cambiar('nombre')} onBlur={salir('nombre')} />}
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Correo" required>
-            {(x) => <Input {...x} type="email" value={f.email} onChange={cambiar('email')} />}
+          <Field label="Correo" required error={v.errores.email}>
+            {(x) => <Input {...x} type="email" value={f.email} onChange={cambiar('email')} onBlur={salir('email')} />}
           </Field>
-          <Field label="Teléfono (opcional)" hint="+56XXXXXXXXX">
-            {(x) => <Input {...x} type="tel" value={f.telefono} onChange={cambiar('telefono')} />}
+          <Field label="Teléfono (opcional)" hint="+56 9 1234 5678" error={v.errores.telefono}>
+            {(x) => <Input {...x} type="tel" value={f.telefono} onChange={cambiar('telefono')} onBlur={salir('telefono')} />}
           </Field>
         </div>
         <Field label="Rol" required hint="Una cuenta de gestión o cuenta madre puede sumar después el rol profesional.">

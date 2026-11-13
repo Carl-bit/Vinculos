@@ -1,7 +1,10 @@
+import { createReadStream } from 'node:fs';
+
 import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -10,27 +13,33 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 
-import { TAGS } from '../../core/docs/openapi';
-import { Roles } from '../../core/auth/decoradores';
+import { RespuestaArchivo, TAGS } from '../../core/docs/openapi';
+import { Publico, Roles } from '../../core/auth/decoradores';
+import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { IMAGEN_MAX_BYTES } from '../../core/imagenes/imagenes';
 import { CentroService } from './centro.service';
+import { ExportacionCentroService } from './exportacion-centro.service';
 import {
   BajaRolDto,
   ContenidoPublicoDto,
   FiltroDirectorioDto,
   HorarioCentroDto,
   OtorgarRolDto,
+  RolRetirableDto,
   PoliticaDto,
   CambiarPasswordDto,
   CambiarSegundoFactorDto,
   CodigosRespaldo,
   EstadoSegundoFactor,
+  ConexionVista,
   CrearUsuarioDto,
   EditarConfiguracionDto,
   EditarMiCuentaDto,
@@ -47,6 +56,9 @@ import {
   HorarioCentroVista,
   LogoSubido,
   PoliticaVista,
+  LecturaProtocoloVista,
+  ProtocoloEquipoVista,
+  ProtocoloLeido,
   AccesoPracticanteOtorgado,
   AccesoPracticanteRevocado,
   AlertaAtendida,
@@ -60,7 +72,39 @@ import {
   PracticanteVista,
   TotpReiniciado,
   IntegranteEquipoTratante,
+  FiltroAuditoriaDto,
+  PaginaAuditoria,
+  AutorizacionSoporteVista,
+  OtorgarSoporteDto,
+  RegistroSoporteVista,
+  AceptarContratoDto,
+  ContratoCentroVista,
+  AvanzarSolicitudDerechoDto,
+  RegistrarSolicitudDerechoDto,
+  SolicitudDerechoVista,
+  BloquearTratamientoDto,
+  CancelarPerifericosDto,
+  CancelacionPerifericos,
+  EstadoBloqueoVista,
+  SolicitudDerechoPublicaDto,
+  SolicitudDerechoPublicaRecibida,
+  AgregarFeriadoDto,
+  DescargaExportacionDto,
+  FeriadoVista,
+  FiltroFeriadosDto,
+  MarcarRecordatorioDto,
+  RecordatorioPersonalDto,
+  RecordatorioPersonalVista,
+  ExportacionPacienteVista,
+  ExportacionCentroVista,
+  ExportarCentroDto,
 } from './dto/nucleo.dto';
+import { ExportacionesService } from './exportaciones.service';
+import { DerechosService } from './derechos.service';
+import { FeriadosService } from './feriados.service';
+import { RecordatoriosPersonalesService } from './recordatorios-personales.service';
+import { AuditoriaService } from './auditoria.service';
+import { SoporteService } from './soporte.service';
 import { EquipoAccesoService } from './equipo-acceso.service';
 import { UsuariosService } from './usuarios.service';
 
@@ -103,6 +147,16 @@ export class UsuariosController {
   @Roles(...TODOS)
   cambiarPassword(@Body() dto: CambiarPasswordDto) {
     return this.usuarios.cambiarPassword(dto);
+  }
+
+  /**
+   * Registro de conexiones propias (2026-11-07, sesion unica): equipo, en
+   * Mi cuenta > Seguridad. Solo las propias (mis_conexiones).
+   */
+  @Get('yo/conexiones')
+  @Roles(...EQUIPO)
+  conexiones(): Promise<ConexionVista[]> {
+    return this.usuarios.misConexiones();
   }
 
   /** 03b-4.1: estado de la verificacion en dos pasos por correo. */
@@ -150,14 +204,22 @@ export class UsuariosController {
     return this.usuarios.invitar(id);
   }
 
-  /** C-1: segundo rol (PROFESIONAL) de una cuenta ADMIN o GESTION. */
+  /** C-1 (ampliado 2026-11-11): rol adicional de una cuenta del equipo (cuenta madre, gestion o profesional). */
   @Post(':id/roles')
   @Roles('ADMIN')
   otorgarRol(@Param('id', Uuid) id: string, @Body() dto: OtorgarRolDto): Promise<MiCuenta> {
     return this.usuarios.otorgarRol(id, dto.rol);
   }
 
-  /** Baja de un rol adicional (no de la cuenta). */
+  /** Quita al instante un rol adicional de cuenta madre o gestion (corta sus sesiones). La propia: 422. */
+  @Post(':id/roles/retiro')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  quitarRol(@Param('id', Uuid) id: string, @Body() dto: RolRetirableDto): Promise<MiCuenta> {
+    return this.usuarios.quitarRol(id, dto.rol);
+  }
+
+  /** Baja programada del rol profesional adicional (agenda y citas; no de la cuenta). */
   @Post(':id/roles/PROFESIONAL/baja')
   @Roles('ADMIN')
   bajaRol(@Param('id', Uuid) id: string, @Body() dto: BajaRolDto): Promise<BajaRolResultado> {
@@ -238,6 +300,40 @@ export class CentroController {
   @Roles('ADMIN')
   publicarPolitica(@Body() dto: PoliticaDto): Promise<PoliticaVista> {
     return this.centro.publicarPolitica(dto.tipo, dto.texto);
+  }
+
+  /** AUD-01 (E2.2): contrato del centro con Vinculos (terminos y DPA) y sus aceptaciones. */
+  @Get('contrato-centro')
+  @Roles('ADMIN')
+  contrato(): Promise<ContratoCentroVista> {
+    return this.centro.contrato();
+  }
+
+  @Post('contrato-centro/aceptacion')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  aceptarContrato(@Body() dto: AceptarContratoDto): Promise<ContratoCentroVista> {
+    return this.centro.aceptarContrato(dto.tipo);
+  }
+
+  /** 03b-4.2: protocolo interno del centro (version vigente) y si la cuenta ya lo leyo. */
+  @Get('protocolo')
+  @Roles(...EQUIPO)
+  protocolo(): Promise<ProtocoloEquipoVista> {
+    return this.centro.protocoloEquipo();
+  }
+
+  @Post('protocolo/lectura')
+  @Roles(...EQUIPO)
+  marcarProtocoloLeido(): Promise<ProtocoloLeido> {
+    return this.centro.marcarProtocoloLeido();
+  }
+
+  /** Registro para la direccion: quien leyo la version vigente. */
+  @Get('protocolo/lecturas')
+  @Roles('ADMIN', 'GESTION')
+  lecturasProtocolo(): Promise<LecturaProtocoloVista[]> {
+    return this.centro.lecturasProtocolo();
   }
 
   @Get('configuracion/horario')
@@ -352,5 +448,277 @@ export class DirectorioController {
   @Roles('PACIENTE', 'RESPONSABLE')
   miEquipo(): Promise<IntegranteEquipoTratante[]> {
     return this.equipo.miEquipoTratante();
+  }
+}
+
+/** AUD-01 (E1.5): quien vio, escribio, descargo o exporto, con su rol activo. Solo ADMIN (RLS). */
+@ApiTags(TAGS.nucleo)
+@Controller('auditoria')
+export class AuditoriaController {
+  constructor(private readonly auditoria: AuditoriaService) {}
+
+  @Get('accesos')
+  @Roles('ADMIN')
+  accesos(@Query() filtro: FiltroAuditoriaDto): Promise<PaginaAuditoria> {
+    return this.auditoria.registros(filtro);
+  }
+}
+
+/**
+ * AUD-01 (E2.1): el centro autoriza (plazo y alcance) al soporte de Vinculos,
+ * que nunca ve datos personales ni clinicos, y ve cada diagnostico ejecutado.
+ */
+@ApiTags(TAGS.nucleo)
+@Controller('soporte')
+export class SoporteController {
+  constructor(private readonly soporte: SoporteService) {}
+
+  @Get('autorizaciones')
+  @Roles('ADMIN')
+  autorizaciones(): Promise<AutorizacionSoporteVista[]> {
+    return this.soporte.autorizaciones();
+  }
+
+  @Post('autorizaciones')
+  @Roles('ADMIN')
+  otorgar(@Body() dto: OtorgarSoporteDto): Promise<AutorizacionSoporteVista> {
+    return this.soporte.otorgar(dto);
+  }
+
+  @Post('autorizaciones/:id/revocacion')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  revocar(@Param('id', Uuid) id: string): Promise<AutorizacionSoporteVista> {
+    return this.soporte.revocar(id);
+  }
+
+  @Get('registro')
+  @Roles('ADMIN')
+  registro(): Promise<RegistroSoporteVista[]> {
+    return this.soporte.registro();
+  }
+}
+
+/** Dia AAAA-MM-DD en la ruta. */
+const FECHA_DIA = /^\d{4}-\d{2}-\d{2}$/;
+
+/** AUD-01 (E2.3a): feriados de los plazos en dias habiles. Los de la ley los calcula la BD; ADMIN agrega o quita. */
+@ApiTags(TAGS.nucleo)
+@Controller('feriados')
+export class FeriadosController {
+  constructor(private readonly feriados: FeriadosService) {}
+
+  @Get()
+  @Roles('ADMIN')
+  delAnio(@Query() filtro: FiltroFeriadosDto): Promise<FeriadoVista[]> {
+    return this.feriados.delAnio(filtro.anio);
+  }
+
+  @Post()
+  @Roles('ADMIN')
+  agregar(@Body() dto: AgregarFeriadoDto): Promise<FeriadoVista[]> {
+    return this.feriados.agregar(dto);
+  }
+
+  @Delete(':fecha')
+  @Roles('ADMIN')
+  quitar(@Param('fecha') fecha: string): Promise<FeriadoVista[]> {
+    if (!FECHA_DIA.test(fecha) || Number.isNaN(Date.parse(fecha))) throw new BadRequestException('Fecha AAAA-MM-DD');
+    return this.feriados.quitar(fecha);
+  }
+}
+
+/** 03b-4.2: recordatorios personales del inicio. Cada integrante del equipo ve y escribe solo los suyos (RLS). */
+@ApiTags(TAGS.nucleo)
+@Controller('mis-recordatorios')
+export class RecordatoriosController {
+  constructor(private readonly recordatorios: RecordatoriosPersonalesService) {}
+
+  @Get()
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  listar(): Promise<RecordatorioPersonalVista[]> {
+    return this.recordatorios.listar();
+  }
+
+  @Post()
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  crear(@Body() dto: RecordatorioPersonalDto): Promise<RecordatorioPersonalVista> {
+    return this.recordatorios.crear(dto);
+  }
+
+  @Patch(':id')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  marcar(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: MarcarRecordatorioDto): Promise<RecordatorioPersonalVista> {
+    return this.recordatorios.marcar(id, dto.hecho);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  eliminar(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.recordatorios.eliminar(id);
+  }
+}
+
+/** AUD-01 (E2.3a): solicitudes de derechos de los titulares, con plazo en dias habiles. Solo ADMIN. */
+@ApiTags(TAGS.nucleo)
+@Controller('derechos')
+export class DerechosController {
+  constructor(private readonly derechos: DerechosService) {}
+
+  @Get('solicitudes')
+  @Roles('ADMIN')
+  solicitudes(): Promise<SolicitudDerechoVista[]> {
+    return this.derechos.solicitudes();
+  }
+
+  @Post('solicitudes')
+  @Roles('ADMIN')
+  registrar(@Body() dto: RegistrarSolicitudDerechoDto): Promise<SolicitudDerechoVista> {
+    return this.derechos.registrar(dto);
+  }
+
+  @Post('solicitudes/:id/estado')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  avanzar(@Param('id', Uuid) id: string, @Body() dto: AvanzarSolicitudDerechoDto): Promise<SolicitudDerechoVista> {
+    return this.derechos.avanzar(id, dto);
+  }
+
+  /** AUD-01 (E2.3c): bloqueo visible; impide gestiones nuevas (citas, derivaciones, edicion de datos). */
+  @Post('pacientes/:id/bloqueo')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  bloquear(@Param('id', Uuid) id: string, @Body() dto: BloquearTratamientoDto): Promise<EstadoBloqueoVista> {
+    return this.derechos.bloquear(id, dto);
+  }
+
+  @Post('pacientes/:id/bloqueo/levantamiento')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  levantar(@Param('id', Uuid) id: string): Promise<EstadoBloqueoVista> {
+    return this.derechos.levantar(id);
+  }
+
+  /** Cancelacion: borra lo periferico y conserva la ficha (responde el motivo legal). */
+  @Post('pacientes/:id/cancelacion')
+  @HttpCode(200)
+  @Roles('ADMIN')
+  cancelar(@Param('id', Uuid) id: string, @Body() dto: CancelarPerifericosDto): Promise<CancelacionPerifericos> {
+    return this.derechos.cancelarPerifericos(id, dto.solicitudId);
+  }
+}
+
+/** AUD-01 (E2.3b): formulario publico de derechos por RUT; misma respuesta exista o no (rate limit publico). */
+@ApiTags(TAGS.nucleo)
+@Controller('publico/derechos')
+@Publico()
+@UseGuards(ThrottlerGuard)
+@SkipThrottle({ login: true })
+export class DerechosPublicoController {
+  constructor(private readonly derechos: DerechosService) {}
+
+  @Post()
+  @HttpCode(202)
+  solicitar(@Body() dto: SolicitudDerechoPublicaDto): Promise<SolicitudDerechoPublicaRecibida> {
+    return this.derechos.solicitudPublica(dto);
+  }
+}
+
+/** Respuesta binaria descargable (sin cache: datos personales). */
+const archivo = (contenido: Buffer, tipo: string, nombre: string) =>
+  new StreamableFile(contenido, { type: tipo, disposition: `attachment; filename="${encodeURIComponent(nombre)}"` });
+
+/**
+ * AUD-01 Fase 3: exportaciones. Paciente: ADMIN prepara desde la solicitud,
+ * el tratante agrega la parte clinica, el paciente descarga (sesion o
+ * codigo). Centro: ADMIN, cifrada con su clave.
+ */
+@ApiTags(TAGS.nucleo)
+@Controller()
+export class ExportacionesController {
+  constructor(
+    private readonly exportaciones: ExportacionesService,
+    private readonly centro: ExportacionCentroService,
+  ) {}
+
+  @Post('derechos/solicitudes/:id/exportacion')
+  @Roles('ADMIN')
+  preparar(@Param('id', Uuid) id: string): Promise<ExportacionPacienteVista> {
+    return this.exportaciones.preparar(id);
+  }
+
+  @Get('exportaciones/pendientes')
+  @Roles('PROFESIONAL')
+  pendientes(): Promise<ExportacionPacienteVista[]> {
+    return this.exportaciones.pendientesClinicas();
+  }
+
+  @Post('exportaciones/:id/clinica')
+  @HttpCode(200)
+  @Roles('PROFESIONAL')
+  clinica(@Param('id', Uuid) id: string): Promise<ExportacionPacienteVista> {
+    return this.exportaciones.agregarClinica(id);
+  }
+
+  /** Paciente o adulto responsable con cuenta: descarga con su sesion (la BD exige la cuenta del enlace). */
+  @Post('portal/exportacion/descarga')
+  @HttpCode(200)
+  @Roles('PACIENTE', 'RESPONSABLE')
+  @RespuestaArchivo('application/json', 'application/pdf')
+  async descargarPortal(@Body() dto: DescargaExportacionDto) {
+    const a = await this.exportaciones.descargar(dto.token, null, dto.formato, true);
+    return archivo(a.contenido, a.tipo, a.nombre);
+  }
+
+  /**
+   * AUD-02: exportacion completa del centro como job. Responde 202 al
+   * iniciarla (la clave no se guarda); el avance se consulta con GET y llega
+   * un correo al terminar. 409 si ya hay una en curso.
+   */
+  @Post('exportacion-centro')
+  @HttpCode(202)
+  @Roles('ADMIN')
+  solicitarCentro(@Body() dto: ExportarCentroDto): Promise<ExportacionCentroVista> {
+    return this.centro.solicitar(dto.clave, dto.urgente ?? false);
+  }
+
+  /** Las ultimas 10 exportaciones del centro (estado y avance, sin datos). */
+  @Get('exportacion-centro')
+  @Roles('ADMIN')
+  exportacionesCentro(): Promise<ExportacionCentroVista[]> {
+    return this.centro.listar();
+  }
+
+  /**
+   * Archivo cifrado (solo quien la pidio, dentro de 24 h). Se envia por flujo;
+   * al terminar el envio completo se marca descargada y se borra del servidor.
+   */
+  @Get('exportacion-centro/:id/archivo')
+  @Roles('ADMIN')
+  @RespuestaArchivo('application/octet-stream')
+  async archivoCentro(@Param('id', Uuid) id: string) {
+    const a = await this.centro.archivo(id);
+    const flujo = createReadStream(a.ruta);
+    flujo.on('end', () => void a.alTerminar());
+    return new StreamableFile(flujo, { type: 'application/octet-stream', disposition: `attachment; filename="${encodeURIComponent(a.nombre)}"` });
+  }
+}
+
+/** Paciente sin cuenta: descarga con el codigo del segundo correo (rate limit publico). */
+@ApiTags(TAGS.nucleo)
+@Controller('publico/exportacion')
+@Publico()
+@UseGuards(ThrottlerGuard)
+@SkipThrottle({ login: true })
+export class ExportacionPublicaController {
+  constructor(private readonly exportaciones: ExportacionesService) {}
+
+  @Post('descarga')
+  @HttpCode(200)
+  @RespuestaArchivo('application/json', 'application/pdf')
+  async descargar(@Body() dto: DescargaExportacionDto) {
+    const a = await this.exportaciones.descargar(dto.token, dto.codigo ?? '', dto.formato, false);
+    return archivo(a.contenido, a.tipo, a.nombre);
   }
 }

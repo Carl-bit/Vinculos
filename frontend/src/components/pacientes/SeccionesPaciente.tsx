@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Field, Input, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
+import { Interruptor } from '@/components/ui/Interruptor';
 import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
@@ -30,6 +31,7 @@ import {
   type PacienteVista,
 } from '@/lib/panel';
 import { esAdministracion } from '@/lib/roles';
+import { reglaCorreo, reglaObligatorio, reglaTelefono, useValidacionCampos } from '@/lib/validacion';
 import type { Rol } from '@/lib/sesion';
 
 /**
@@ -83,14 +85,10 @@ export function AccesoFicha({ paciente, rol, tratante }: { paciente: PacienteVis
           </p>
           {clinico ? (
             <div className="flex flex-col gap-2">
+              {/* 03b-4.2: el contenido clinico esta en las pestañas de esta misma vista (sin paso intermedio). */}
               {!tratante && (
                 <p className="m-0 text-[12.5px] font-semibold text-neutral-700">Tienes acceso a esta ficha sin ser su tratante (acceso clínico temporal).</p>
               )}
-              <div>
-                <ButtonLink href={`/admin/fichas/${paciente.id}/ficha`} variant="team" icon="edit_note">
-                  Abrir ficha clínica
-                </ButtonLink>
-              </div>
             </div>
           ) : (
             <Aviso tono="nota" icono="shield_person">
@@ -123,23 +121,25 @@ export function DerivacionRecibida({ pacienteId, habilitado }: { pacienteId: str
   );
 }
 
-/** Lo que respondio en el match al pedir hora (solo el tratante; ADMIN y GESTION nunca). */
+/** Lo que respondio en el match al pedir hora, o sin match su motivo escrito (solo el tratante; ADMIN y GESTION nunca). */
 export function IndicacionesPaciente({ pacienteId }: { pacienteId: string }) {
   const respuestas = useRespuestasMatch(pacienteId, true);
   const cuestionario = useQuery({ queryKey: ['publico', 'cuestionario'], queryFn: () => datos(api.GET('/api/publico/cuestionario')), staleTime: 10 * 60_000 });
   const ultima = respuestas.data?.[0];
   return (
-    <Panel titulo="Indicaciones del paciente" bajada="Lo que respondió en el cuestionario al pedir su primera hora. Solo lo ves tú.">
+    <Panel titulo="Indicaciones del paciente" bajada="Lo que escribió o respondió al pedir su primera hora. Solo lo ves tú.">
       <EstadoConsulta consulta={respuestas}>
         {() => {
-          if (!ultima)
-            return <p className="m-0 text-[13.5px] font-semibold text-neutral-700">No llegó por el cuestionario del sitio: no hay respuestas guardadas.</p>;
+          if (!ultima) return <p className="m-0 text-[13.5px] font-semibold text-neutral-700">No dejó indicaciones al pedir su hora.</p>;
           const r = (ultima.respuestas ?? {}) as Record<string, unknown>;
           const preguntas = cuestionario.data?.preguntas ?? [];
           const texto = (clave: string, valor: unknown) => {
             const p = preguntas.find((q) => q.clave === clave);
             const etiqueta = (v: unknown) => p?.opciones.find((o) => o.valor === v)?.etiqueta ?? String(v);
-            return { pregunta: p?.texto ?? clave, valor: Array.isArray(valor) ? valor.map(etiqueta).join(', ') : etiqueta(valor) };
+            return {
+              pregunta: p?.texto ?? (clave === 'motivo_sesion' ? 'Motivo de la sesión, en sus palabras' : clave),
+              valor: Array.isArray(valor) ? valor.map(etiqueta).join(', ') : etiqueta(valor),
+            };
           };
           return (
             <dl className="m-0 grid gap-3.5">
@@ -172,6 +172,7 @@ const ESTADO_CITA: Record<CitaVista['estado'], { texto: string; tono: TonoBadge 
   LIBERADA: { texto: 'Liberada (pago vencido)', tono: 'neutro' },
   // Sin paciente: nunca aparece en el historial de un paciente.
   RETENIDA: { texto: 'Hora retenida', tono: 'atencion' },
+  PROPUESTA: { texto: 'Propuesta, por elegir', tono: 'atencion' },
 };
 
 /** Historial de sesiones (metadata). El tratante ve que sesiones ya tienen evolucion y registra las pendientes. */
@@ -226,7 +227,12 @@ export function HistorialSesiones({ paciente, rol, tratante }: { paciente: Pacie
                   </div>
                   <Badge tono={estado.tono}>{estado.texto}</Badge>
                   {clinico && realizada && !conEvolucion && (
-                    <ButtonLink href={`/admin/fichas/${paciente.id}/ficha?cita=${c.id}`} variant="team" icon="edit_note" className="!px-4 !py-2 !text-[13px]">
+                    <ButtonLink
+                      href={`/admin/fichas/${paciente.id}?vista=evoluciones&cita=${c.id}`}
+                      variant="team"
+                      icon="edit_note"
+                      className="!px-4 !py-2 !text-[13px]"
+                    >
                       Registrar evolución
                     </ButtonLink>
                   )}
@@ -307,6 +313,11 @@ function FormularioAdulto({ pacienteId, onListo }: { pacienteId: string; onListo
   const cliente = useQueryClient();
   const [d, setD] = useState({ nombre: '', parentesco: '', telefono: '', email: '' });
   const [error, setError] = useState<string>();
+  const v = useValidacionCampos({ nombre: reglaObligatorio('Escribe el nombre.'), telefono: reglaTelefono, email: reglaCorreo() });
+  const cambiar = (k: keyof typeof d, valor: string) => {
+    if (k !== 'parentesco') v.limpiar(k);
+    setD((x) => ({ ...x, [k]: valor }));
+  };
   const crear = useMutation({
     mutationFn: () =>
       datos(
@@ -328,22 +339,25 @@ function FormularioAdulto({ pacienteId, onListo }: { pacienteId: string; onListo
   });
   const enviar = (e: FormEvent) => {
     e.preventDefault();
-    if (!d.nombre.trim()) return setError('Escribe el nombre.');
-    if (d.telefono && !/^\+56\d{9}$/.test(d.telefono.replace(/[\s()-]/g, ''))) return setError('Teléfono con código de país: +56 9 1234 5678.');
+    if (!v.validarTodo(d)) return;
     setError(undefined);
     crear.mutate();
   };
   return (
     <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
-      <Field label="Nombre" required>
-        {(p) => <Input {...p} value={d.nombre} onChange={(e) => setD({ ...d, nombre: e.target.value })} />}
+      <Field label="Nombre" required error={v.errores.nombre}>
+        {(p) => <Input {...p} value={d.nombre} onChange={(e) => cambiar('nombre', e.target.value)} onBlur={() => v.alSalir('nombre', d.nombre)} />}
       </Field>
       <Field label="Relación con el paciente">
-        {(p) => <Input {...p} placeholder="Madre, padre, tutor…" value={d.parentesco} onChange={(e) => setD({ ...d, parentesco: e.target.value })} />}
+        {(p) => <Input {...p} placeholder="Madre, padre, tutor…" value={d.parentesco} onChange={(e) => cambiar('parentesco', e.target.value)} />}
       </Field>
-      <Field label="Teléfono">{(p) => <Input {...p} type="tel" value={d.telefono} onChange={(e) => setD({ ...d, telefono: e.target.value })} />}</Field>
-      <Field label="Correo" hint="Recibe los avisos, consentimientos y la invitación a la cuenta del menor.">
-        {(p) => <Input {...p} type="email" value={d.email} onChange={(e) => setD({ ...d, email: e.target.value })} />}
+      <Field label="Teléfono" error={v.errores.telefono} hint="Con código de país, por ejemplo +56 9 1234 5678.">
+        {(p) => (
+          <Input {...p} type="tel" value={d.telefono} onChange={(e) => cambiar('telefono', e.target.value)} onBlur={() => v.alSalir('telefono', d.telefono)} />
+        )}
+      </Field>
+      <Field label="Correo" error={v.errores.email} hint="Recibe los avisos, consentimientos y la invitación a la cuenta del menor.">
+        {(p) => <Input {...p} type="email" value={d.email} onChange={(e) => cambiar('email', e.target.value)} onBlur={() => v.alSalir('email', d.email)} />}
       </Field>
       {error && (
         <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
@@ -363,18 +377,59 @@ function FormularioAdulto({ pacienteId, onListo }: { pacienteId: string; onListo
 }
 
 /**
+ * Origen del paciente (03b-4.2, C-10): si llego por el centro (sitio publico
+ * o alta por administracion) sus sesiones usan la comision por derivacion
+ * del centro. La BD lo fija al crear; ADMIN/GESTION lo corrigen.
+ */
+export function OrigenPaciente({ paciente }: { paciente: PacienteVista }) {
+  const cliente = useQueryClient();
+  const cambiar = useMutation({
+    mutationFn: (traidoPorCentro: boolean) =>
+      datos(api.PUT('/api/pacientes/{id}/origen', { params: { path: { id: paciente.id } }, body: { traidoPorCentro } })),
+    onSuccess: () => void cliente.invalidateQueries({ queryKey: ['panel', 'paciente', paciente.id] }),
+  });
+  return (
+    <Panel titulo="Origen del paciente" bajada="Define qué comisión del centro se aplica a sus sesiones en la liquidación.">
+      <div className="mt-3 flex flex-col gap-2">
+        <Interruptor
+          tono="team"
+          etiqueta="Llegó por el centro"
+          descripcion="Desde la página pública (Match o Pedir hora) o asignado por administración. Si no, es un paciente propio del profesional."
+          activo={paciente.traidoPorCentro}
+          deshabilitado={cambiar.isPending}
+          onChange={(v) => cambiar.mutate(v)}
+        />
+        {cambiar.error && (
+          <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
+            {cambiar.error instanceof ApiError ? cambiar.error.message : 'No pudimos guardar el origen.'}
+          </p>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+/**
  * Consentimiento informado de atencion: version aceptada vs vigente.
  * ADMIN/GESTION lo envian por correo (enlace de un solo uso) o lo registran
  * firmado en el centro con respaldo. Un menor lo otorga su adulto responsable.
  */
-export function ConsentimientoPaciente({ paciente, rol }: { paciente: PacienteVista; rol: Rol }) {
-  const admin = esAdministracion(rol);
-  const aceptaciones = useAceptaciones(paciente.id);
+/** Consentimiento de atencion al dia (version aceptada >= vigente). Tambien lo usa el aviso de la vista del paciente. */
+export function useConsentimientoAtencion(pacienteId: string) {
+  const aceptaciones = useAceptaciones(pacienteId);
   const vigente = useQuery({
     queryKey: ['publico', 'politica', 'CONSENTIMIENTO_ATENCION'],
     queryFn: () => datos(api.GET('/api/publico/politicas/{tipo}', { params: { path: { tipo: 'CONSENTIMIENTO_ATENCION' } } })),
     retry: false,
   });
+  const ultima = aceptaciones.data?.find((a) => a.politica.tipo === 'CONSENTIMIENTO_ATENCION');
+  const alDia = !!ultima && (!vigente.data || ultima.politica.version >= vigente.data.version);
+  return { aceptaciones, vigente, ultima, alDia };
+}
+
+export function ConsentimientoPaciente({ paciente, rol }: { paciente: PacienteVista; rol: Rol }) {
+  const admin = esAdministracion(rol);
+  const { aceptaciones, vigente, ultima, alDia } = useConsentimientoAtencion(paciente.id);
   const adultos = useAdultosResponsables(paciente.id);
   const cliente = useQueryClient();
   const [registrar, setRegistrar] = useState(false);
@@ -400,8 +455,8 @@ export function ConsentimientoPaciente({ paciente, rol }: { paciente: PacienteVi
       void cliente.invalidateQueries({ queryKey: ['panel', 'paciente', paciente.id, 'aceptaciones'] });
     },
   });
-  const ultima = aceptaciones.data?.find((a) => a.politica.tipo === 'CONSENTIMIENTO_ATENCION');
-  const alDia = !!ultima && (!vigente.data || ultima.politica.version >= vigente.data.version);
+  // 03b-4.2: acuse del protocolo del centro para pacientes (desde el portal).
+  const protocolo = aceptaciones.data?.find((a) => a.politica.tipo === 'PROTOCOLO_PACIENTE');
   return (
     <Panel titulo="Consentimiento informado">
       <EstadoConsulta consulta={aceptaciones}>
@@ -417,6 +472,12 @@ export function ConsentimientoPaciente({ paciente, rol }: { paciente: PacienteVi
                 : vigente.data
                   ? `Versión vigente ${vigente.data.version}. ${menor ? 'Lo otorga su adulto responsable.' : 'Lo acepta el paciente.'}`
                   : 'El centro todavía no publica su consentimiento informado (Configuración).'}
+            </p>
+            <p className="m-0 flex items-center gap-2 border-t border-divider pt-3 text-[13px] font-semibold text-neutral-800">
+              <Icon name={protocolo ? 'task_alt' : 'pending'} size={17} className={protocolo ? 'text-accent-2-700' : 'text-neutral-700'} />
+              {protocolo
+                ? `Protocolo del centro leído: versión ${protocolo.politica.version}, ${formatoFecha(protocolo.aceptadaEn)}${protocolo.otorgadoPor === 'ADULTO_RESPONSABLE' ? ' (por su adulto responsable)' : ''}.`
+                : 'Protocolo del centro: todavía no lo confirma en su portal.'}
             </p>
             {aviso && (
               <Aviso tono="exito" role="status">

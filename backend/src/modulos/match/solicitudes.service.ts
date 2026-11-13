@@ -21,6 +21,8 @@ interface FilaSolicitud extends DatosSolicitud {
 }
 
 const DIA = 86_400_000;
+/** Tope del JSON de respuestas (cuestionario completo o motivo de hasta 1000 caracteres). */
+const MAX_RESPUESTAS = 8000;
 
 /**
  * Solicitud de hora sin cuenta (D-2, D-3, C-15). Sin contexto RLS: todo pasa
@@ -60,6 +62,10 @@ export class SolicitudesService {
     if (dto.fin <= dto.inicio) {
       throw new BadRequestException('fin debe ser posterior a inicio');
     }
+    // Respuestas del match o, sin match, el motivo de la sesion en palabras del paciente (motivo_sesion, 03b-4.2).
+    if (dto.respuestas && JSON.stringify(dto.respuestas).length > MAX_RESPUESTAS) {
+      throw new BadRequestException('Las respuestas superan el largo permitido');
+    }
     const id = randomUUID();
     const c = (valor: string | undefined, columna: string) => (valor ? this.llavero.cifrarCampo(valor, 'solicitudes_hora', columna, id) : null);
     const { token, hash } = nuevoTokenCorreo();
@@ -71,6 +77,9 @@ export class SolicitudesService {
         ${dto.adultoParentesco ?? null}, ${c(dto.adultoTelefono, 'adulto_telefono')},
         ${dto.respuestas ? c(JSON.stringify(dto.respuestas), 'respuestas') : null}, ${dto.recomendadoId ?? null}::uuid,
         ${dto.politicaId}::uuid, ${dto.terminosId ?? null}::uuid, ${hash}, ${reserva.hash})`;
+    if (dto.aceptaWhatsapp) {
+      await this.bd.sinContexto('publico').$executeRaw`SELECT consentir_whatsapp_solicitud(${id}::uuid, ${reserva.hash})`;
+    }
     if (verificar_correo) {
       await this.correos.enviar('VERIFICACION_SOLICITUD', dto.email, token, expira);
     }
