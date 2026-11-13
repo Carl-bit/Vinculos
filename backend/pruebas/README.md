@@ -33,7 +33,7 @@ Flujo (desde la raiz del repo, Git Bash; en PowerShell anteponer `sh`):
 3. k6 en un contenedor en la red del silo (sin instalar k6):
 
    ```sh
-   MSYS_NO_PATHCONV=1 docker run --rm --network proxy \
+   MSYS_NO_PATHCONV=1 docker run --rm --network erp-stress_borde \
      -v "$(pwd -W)/backend/pruebas:/scripts:ro" grafana/k6:0.54.0 run /scripts/stress-agenda.js
    ```
 

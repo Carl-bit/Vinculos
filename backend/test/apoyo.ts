@@ -22,6 +22,8 @@ import { dvRut } from '../src/core/validacion/validadores';
 import { leerEntorno } from './bd/global';
 
 export const CLAVE = 'clave-de-prueba-123';
+/** Token de /api/internal/* de la BD de tests (su SHA-256 lo fija test/bd/levantar.sh). */
+export const TOKEN_INTERNO = 'token-interno-de-los-tests-de-la-api-0123456789';
 const HASH = bcrypt.hashSync(CLAVE, 4);
 
 export function prepararEntorno(extra: Record<string, string> = {}) {

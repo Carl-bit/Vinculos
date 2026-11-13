@@ -6,6 +6,9 @@
  */
 export type Zona = 'publico' | 'portal' | 'panel';
 
+/** Nombre cuando ni la API ni el .env del silo lo entregan (R11). */
+export const NOMBRE_RESPALDO = 'Centro';
+
 export const CREMA = '#F5EAD8';
 export const TINTA = '#2B2420';
 /** Mismos minimos que la BD. */

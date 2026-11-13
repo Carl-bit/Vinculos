@@ -11,8 +11,12 @@ services:
       context: ../backend
       dockerfile: Dockerfile
       target: build
-    image: erp-backend-seed:${CLIENTE_SLUG}
+    # Imagen comun a los silos de prueba (R11): solo cambia el .env.
+    image: vinculos-api-seed:${VINCULOS_VERSION:-dev}
     restart: 'no'
+    labels:
+      - cl.vinculos.silo=${CLIENTE_SLUG}
+      - cl.vinculos.servicio=seed
     environment:
       MIGRATION_DATABASE_URL: postgresql://vinculos_owner:${OWNER_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
       DATABASE_URL: postgresql://app_user:${APP_DB_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public

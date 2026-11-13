@@ -1836,6 +1836,193 @@
         ]
       }
     },
+    "/api/configuracion/solicitudes-modulo": {
+      "get": {
+        "description": "Roles: ADMIN",
+        "operationId": "SolicitudesModuloController_listar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SolicitudModuloVista"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "Nucleo"
+        ]
+      },
+      "post": {
+        "description": "Roles: ADMIN",
+        "operationId": "SolicitudesModuloController_solicitar",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitarModuloDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudModuloVista"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "422 si el modulo ya esta en ese estado, falta una dependencia o no esta disponible; 409 si ya hay una abierta.",
+        "tags": [
+          "Nucleo"
+        ]
+      }
+    },
     "/api/usuarios": {
       "post": {
         "description": "Roles: ADMIN",
@@ -38491,6 +38678,119 @@
           }
         }
       },
+      "ModuloCentro": {
+        "type": "string",
+        "enum": [
+          "PAGINA_PUBLICA",
+          "FICHAS",
+          "AGENDA",
+          "EQUIPO",
+          "MATCH",
+          "COBROS",
+          "WHATSAPP"
+        ]
+      },
+      "AccionModulo": {
+        "type": "string",
+        "enum": [
+          "ACTIVAR",
+          "DESACTIVAR"
+        ]
+      },
+      "EstadoSolicitudModulo": {
+        "type": "string",
+        "enum": [
+          "PENDIENTE",
+          "APROBADA",
+          "RECHAZADA",
+          "APLICADA"
+        ]
+      },
+      "SolicitudModuloVista": {
+        "type": "object",
+        "properties": {
+          "modulo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModuloCentro"
+              }
+            ]
+          },
+          "accion": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccionModulo"
+              }
+            ]
+          },
+          "motivo": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EstadoSolicitudModulo"
+              }
+            ]
+          },
+          "respuesta": {
+            "type": "string",
+            "nullable": true,
+            "description": "Respuesta del operador de Vinculos."
+          },
+          "respondidaEn": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "pedidaEn": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "modulo",
+          "accion",
+          "motivo",
+          "estado",
+          "respuesta",
+          "respondidaEn",
+          "id",
+          "pedidaEn"
+        ]
+      },
+      "SolicitarModuloDto": {
+        "type": "object",
+        "properties": {
+          "modulo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModuloCentro"
+              }
+            ]
+          },
+          "accion": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccionModulo"
+              }
+            ]
+          },
+          "motivo": {
+            "type": "string",
+            "description": "Para que lo necesita el centro (queda en el silo; no sale al plano de control).",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "modulo",
+          "accion"
+        ]
+      },
       "CrearUsuarioDto": {
         "type": "object",
         "properties": {
@@ -38928,18 +39228,6 @@
           "GENERAL",
           "PORCENTAJE",
           "MONTO_FIJO"
-        ]
-      },
-      "ModuloCentro": {
-        "type": "string",
-        "enum": [
-          "PAGINA_PUBLICA",
-          "FICHAS",
-          "AGENDA",
-          "EQUIPO",
-          "MATCH",
-          "COBROS",
-          "WHATSAPP"
         ]
       },
       "MedioConfirmacion": {

@@ -28,7 +28,8 @@ function Rotulo({ children }: { children: ReactNode }) {
 /** Posiciones de las tarjetas flotantes del diseño (porcentajes para que no se salgan en movil). */
 const FLOTANTES = ['left-[8%] top-[10%]', 'left-[30%] top-[39%]', 'left-[3%] top-[68%]'];
 
-export function Portada({ centro, perfiles }: { centro: CentroPublico; perfiles: PerfilPublico[] }) {
+export async function Portada({ centro, perfiles }: { centro: CentroPublico; perfiles: PerfilPublico[] }) {
+  const cuaderno = await esCuaderno();
   const agenda = centro.modulos.includes('AGENDA');
   const match = centro.modulos.includes('MATCH') && perfiles.length > 0;
   const tarifas = perfiles.map(tarifaDesde).filter((t): t is number => t !== null);
@@ -61,9 +62,9 @@ export function Portada({ centro, perfiles }: { centro: CentroPublico; perfiles:
           )}
         </div>
       </div>
-      {perfiles.length > 0 && esCuaderno && <NotaEquipo perfiles={perfiles} desde={tarifas.length > 0 ? Math.min(...tarifas) : null} />}
+      {perfiles.length > 0 && cuaderno && <NotaEquipo perfiles={perfiles} desde={tarifas.length > 0 ? Math.min(...tarifas) : null} />}
       {/* Bloque oliva con profesionales publicados flotando (datos reales: perfiles validados). */}
-      {perfiles.length > 0 && !esCuaderno && (
+      {perfiles.length > 0 && !cuaderno && (
         <div className="relative min-h-[380px] flex-[1_1_380px]">
           <div aria-hidden="true" className="absolute inset-[0_40px_40px_0] rounded-[40px] bg-accent-2-200" />
           {perfiles.slice(0, 3).map((p, i) => (
@@ -147,8 +148,9 @@ export function ComoTrabajamos({ centro }: { centro: CentroPublico }) {
   );
 }
 
-export function EquipoDestacado({ perfiles }: { perfiles: PerfilPublico[] }) {
+export async function EquipoDestacado({ perfiles }: { perfiles: PerfilPublico[] }) {
   if (perfiles.length === 0) return null;
+  const cuaderno = await esCuaderno();
   return (
     <section id="equipo" className="flex flex-col gap-3.5 pt-[clamp(28px,4vw,48px)]">
       <div className="flex flex-wrap items-end gap-3">
@@ -163,7 +165,7 @@ export function EquipoDestacado({ perfiles }: { perfiles: PerfilPublico[] }) {
       </div>
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
         {perfiles.slice(0, 4).map((p, i) =>
-          esCuaderno ? (
+          cuaderno ? (
             <Link key={p.id} href={`/equipo/${p.id}`} className="revelar block text-tinta hover:text-tinta">
               <TapaCuaderno orden={i} nombre={nombrePerfil(p)} especialidad={p.especialidad} />
             </Link>

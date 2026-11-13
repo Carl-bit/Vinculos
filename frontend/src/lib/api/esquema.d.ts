@@ -408,6 +408,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/configuracion/solicitudes-modulo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Roles: ADMIN */
+        get: operations["SolicitudesModuloController_listar"];
+        put?: never;
+        /**
+         * 422 si el modulo ya esta en ese estado, falta una dependencia o no esta disponible; 409 si ya hay una abierta.
+         * @description Roles: ADMIN
+         */
+        post: operations["SolicitudesModuloController_solicitar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/usuarios": {
         parameters: {
             query?: never;
@@ -6162,6 +6183,31 @@ export interface components {
             /** @description BANDEJA no se desactiva (CHECK -> 422). */
             activa?: boolean;
         };
+        /** @enum {string} */
+        ModuloCentro: "PAGINA_PUBLICA" | "FICHAS" | "AGENDA" | "EQUIPO" | "MATCH" | "COBROS" | "WHATSAPP";
+        /** @enum {string} */
+        AccionModulo: "ACTIVAR" | "DESACTIVAR";
+        /** @enum {string} */
+        EstadoSolicitudModulo: "PENDIENTE" | "APROBADA" | "RECHAZADA" | "APLICADA";
+        SolicitudModuloVista: {
+            modulo: components["schemas"]["ModuloCentro"];
+            accion: components["schemas"]["AccionModulo"];
+            motivo: string | null;
+            estado: components["schemas"]["EstadoSolicitudModulo"];
+            /** @description Respuesta del operador de Vinculos. */
+            respuesta: string | null;
+            /** Format: date-time */
+            respondidaEn: string | null;
+            id: string;
+            /** Format: date-time */
+            pedidaEn: string;
+        };
+        SolicitarModuloDto: {
+            modulo: components["schemas"]["ModuloCentro"];
+            accion: components["schemas"]["AccionModulo"];
+            /** @description Para que lo necesita el centro (queda en el silo; no sale al plano de control). */
+            motivo?: string;
+        };
         CrearUsuarioDto: {
             /** Format: email */
             email: string;
@@ -6301,8 +6347,6 @@ export interface components {
         ModeloCobro: "CENTRO" | "DIRECTO" | "MIXTO";
         /** @enum {string} */
         TipoComisionDerivacion: "GENERAL" | "PORCENTAJE" | "MONTO_FIJO";
-        /** @enum {string} */
-        ModuloCentro: "PAGINA_PUBLICA" | "FICHAS" | "AGENDA" | "EQUIPO" | "MATCH" | "COBROS" | "WHATSAPP";
         /** @enum {string} */
         MedioConfirmacion: "PAGO_EN_CENTRO" | "TRANSFERENCIA" | "PASARELA";
         ConfiguracionCentroVista: {
@@ -11169,6 +11213,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlantillaMensajeVista"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    SolicitudesModuloController_listar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolicitudModuloVista"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    SolicitudesModuloController_solicitar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolicitarModuloDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolicitudModuloVista"];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */

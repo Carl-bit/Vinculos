@@ -1599,9 +1599,9 @@ END $$;
 -- 01e
 -- =============================================================================
 
-\echo 68 Llaves: app_user no lee tablas de llaves; llaves_vigentes sin la envoltura de recuperacion; eventos solo de verificacion
+\echo 68 Llaves: app_user no lee tablas de llaves ni identidad_silo (R11); llaves_vigentes sin la envoltura de recuperacion; eventos solo de verificacion
 DO $$ DECLARE t text; BEGIN
-  FOREACH t IN ARRAY ARRAY['llaves_datos', 'custodios_llave', 'eventos_llaves'] LOOP
+  FOREACH t IN ARRAY ARRAY['llaves_datos', 'custodios_llave', 'eventos_llaves', 'identidad_silo'] LOOP
     BEGIN
       EXECUTE format('SELECT count(*) FROM %I', t);
       RAISE EXCEPTION 'caso 68: app_user lee % debio fallar', t;
@@ -7157,6 +7157,220 @@ DO $$ DECLARE c record; n int; BEGIN
           FROM evoluciones WHERE autor_id IN (test.u('c2'), test.u('c3'))), 'caso 78: copia de autoria de cuentas cerradas';
   ASSERT (SELECT count(*) FROM custodios_llave WHERE hasta IS NULL) = 3, 'caso 78: tres custodios vigentes';
   ASSERT EXISTS (SELECT 1 FROM eventos_llaves WHERE tipo = 'APROVISIONAMIENTO'), 'caso 78: aprovisionamiento registrado';
+END $$;
+
+-- =============================================================================
+-- Tarea 31 / R2-R3 (Vinculos Control, 2026-11-13)
+-- =============================================================================
+
+\echo 176 Solicitudes de modulos: solo ADMIN, estado y dependencias, una abierta por modulo, sin escritura directa; R2/R3 solo con el token del silo y sin contexto de usuario
+UPDATE configuracion_centro SET modulos_activos = ARRAY['FICHAS', 'AGENDA', 'EQUIPO', 'PAGINA_PUBLICA']::modulo_centro[];
+\connect :app_url
+DO $$ DECLARE v uuid; BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  BEGIN
+    PERFORM solicitar_modulo('MATCH', 'ACTIVAR', NULL);
+    RAISE EXCEPTION 'caso 176: PROFESIONAL solicita debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM solicitar_modulo('COBROS', 'ACTIVAR', NULL);
+    RAISE EXCEPTION 'caso 176: COBROS (fuera del MVP) debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM solicitar_modulo('FICHAS', 'ACTIVAR', NULL);
+    RAISE EXCEPTION 'caso 176: activar un modulo activo debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM solicitar_modulo('EQUIPO', 'DESACTIVAR', NULL);
+    RAISE EXCEPTION 'caso 176: desactivar EQUIPO con PAGINA_PUBLICA activa debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  v := solicitar_modulo('MATCH', 'ACTIVAR', '  Queremos ofrecer el match  ');
+  ASSERT (SELECT count(*) FROM solicitudes_modulo
+          WHERE id = v AND estado = 'PENDIENTE' AND pedida_por = test.u('a1') AND motivo = 'Queremos ofrecer el match') = 1,
+    'caso 176: solicitud registrada';
+  BEGIN
+    PERFORM solicitar_modulo('MATCH', 'ACTIVAR', NULL);
+    RAISE EXCEPTION 'caso 176: segunda solicitud abierta del mismo modulo debio fallar';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO solicitudes_modulo (modulo, accion, pedida_por, pedida_por_rol) VALUES ('MATCH', 'DESACTIVAR', test.u('a1'), 'ADMIN');
+    RAISE EXCEPTION 'caso 176: INSERT directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE solicitudes_modulo SET estado = 'APLICADA' WHERE id = v;
+    RAISE EXCEPTION 'caso 176: UPDATE directo debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM * FROM solicitudes_modulo_internas('token-interno-de-prueba-de-32-caracteres-o-mas', NULL);
+    RAISE EXCEPTION 'caso 176: R2 con contexto de usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+DO $$ BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) FROM solicitudes_modulo) = 0, 'caso 176: PROFESIONAL no ve solicitudes';
+END $$;
+DO $$ DECLARE
+  t text := 'token-interno-de-prueba-de-32-caracteres-o-mas';
+  v uuid;
+BEGIN
+  BEGIN
+    PERFORM * FROM solicitudes_modulo_internas('otro-token-de-prueba-de-32-caracteres-o-mas', NULL);
+    RAISE EXCEPTION 'caso 176: R2 con otro token debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  SELECT id INTO v FROM solicitudes_modulo_internas(t, NULL) WHERE modulo = 'MATCH' AND estado = 'PENDIENTE' AND pedida_por_rol = 'ADMIN';
+  ASSERT v IS NOT NULL, 'caso 176: R2 entrega la solicitud';
+  ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'solicitudes_modulo_internas')
+         = '{p_token,p_desde,id,modulo,accion,pedida_por_rol,pedida_en,estado,respondida_en,actualizada_en}',
+    'caso 176: R2 sin motivo ni pedida_por';
+  BEGIN
+    PERFORM responder_solicitud_modulo(t, v, 'APLICADA', NULL);
+    RAISE EXCEPTION 'caso 176: PENDIENTE -> APLICADA debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM responder_solicitud_modulo('otro-token-de-prueba-de-32-caracteres-o-mas', v, 'APROBADA', NULL);
+    RAISE EXCEPTION 'caso 176: R3 con otro token debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT responder_solicitud_modulo(t, v, 'APROBADA', 'Se activa esta semana') = 'APROBADA', 'caso 176: aprobada';
+  ASSERT responder_solicitud_modulo(t, v, 'APROBADA', NULL) = 'APROBADA', 'caso 176: repetir es idempotente';
+  BEGIN
+    PERFORM responder_solicitud_modulo(t, v, 'APLICADA', NULL);
+    RAISE EXCEPTION 'caso 176: APLICADA sin modulos_activos debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  ASSERT (SELECT count(*) FROM solicitudes_modulo_internas(t, now() - interval '1 hour') WHERE id = v AND estado = 'APROBADA') = 1,
+    'caso 176: R2 desde una fecha entrega las actualizadas';
+END $$;
+\connect :owner_url
+-- El operador aplica (hoy a mano; con R4, el job reconfigurar).
+UPDATE configuracion_centro SET modulos_activos = modulos_activos || 'MATCH'::modulo_centro;
+\connect :app_url
+DO $$ DECLARE
+  t text := 'token-interno-de-prueba-de-32-caracteres-o-mas';
+  v uuid;
+BEGIN
+  SELECT id INTO v FROM solicitudes_modulo_internas(t, NULL) WHERE modulo = 'MATCH' AND accion = 'ACTIVAR';
+  ASSERT responder_solicitud_modulo(t, v, 'APLICADA', 'Activado') = 'APLICADA', 'caso 176: aplicada';
+  BEGIN
+    PERFORM responder_solicitud_modulo(t, v, 'RECHAZADA', NULL);
+    RAISE EXCEPTION 'caso 176: APLICADA -> RECHAZADA debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+END $$;
+DO $$ BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  -- Cerrada la anterior, se puede abrir otra del mismo modulo.
+  PERFORM solicitar_modulo('MATCH', 'DESACTIVAR', NULL);
+  ASSERT (SELECT count(*) FROM solicitudes_modulo WHERE modulo = 'MATCH') = 2, 'caso 176: dos solicitudes de MATCH';
+END $$;
+\connect :owner_url
+
+\echo 177 R5 admin inicial: solo con el token del silo y sin contexto; nunca si ya hay cuenta madre activa; crea ADMIN sin contraseña + invitacion; repetir con el mismo correo reemite; otro correo 55000
+\connect :app_url
+DO $$ DECLARE t text := 'token-interno-de-prueba-de-32-caracteres-o-mas'; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM invitar_admin_inicial(t, 'nueva@centro.cl', 'Nueva Admin', gen_random_uuid(), sha256('x'), now() + interval '72 hours');
+    RAISE EXCEPTION 'caso 177: con contexto de usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+DO $$ BEGIN
+  BEGIN
+    PERFORM invitar_admin_inicial('otro-token-de-prueba-de-32-caracteres-o-mas', 'nueva@centro.cl', 'Nueva Admin', gen_random_uuid(), sha256('x'), now() + interval '72 hours');
+    RAISE EXCEPTION 'caso 177: con otro token debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM invitar_admin_inicial('token-interno-de-prueba-de-32-caracteres-o-mas', 'nueva@centro.cl', 'Nueva Admin', gen_random_uuid(), sha256('x'), now() + interval '72 hours');
+    RAISE EXCEPTION 'caso 177: con cuenta madre activa debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
+\connect :owner_url
+-- Camino feliz en una subtransaccion que se deshace: el silo "nuevo" no tiene
+-- contraseñas fijadas (como recien aprovisionado).
+DO $$ DECLARE
+  t text := 'token-interno-de-prueba-de-32-caracteres-o-mas';
+  v1 uuid; v2 uuid; n int;
+BEGIN
+  BEGIN
+    UPDATE usuarios SET password_hash = NULL WHERE cerrada_en IS NULL;
+    BEGIN
+      PERFORM invitar_admin_inicial(t, 'no-es-correo', 'Nueva Admin', gen_random_uuid(), sha256('x'), now() + interval '72 hours');
+      RAISE EXCEPTION 'caso 177: correo invalido debio fallar';
+    EXCEPTION WHEN check_violation THEN NULL; END;
+    -- Silo recien creado: sin cuentas madre. usuarios_ciclo_cuenta impide desactivar al
+    -- ultimo ADMIN; se apaga solo dentro de esta subtransaccion (se deshace al final).
+    ALTER TABLE usuarios DISABLE TRIGGER usuarios_ciclo_cuenta;
+    UPDATE usuarios SET activo = false WHERE rol = 'ADMIN' AND cerrada_en IS NULL;
+    ALTER TABLE usuarios ENABLE TRIGGER usuarios_ciclo_cuenta;
+    SELECT usuario_id INTO v1 FROM invitar_admin_inicial(t, ' Nueva@Centro.cl ', 'Nueva Admin', gen_random_uuid(), sha256('a'), now() + interval '72 hours');
+    ASSERT (SELECT count(*) FROM usuarios WHERE id = v1 AND rol = 'ADMIN' AND email = 'nueva@centro.cl' AND password_hash IS NULL AND activo) = 1,
+      'caso 177: ADMIN creado sin contraseña, correo normalizado';
+    ASSERT (SELECT count(*) FROM tokens_correo WHERE usuario_id = v1 AND tipo = 'INVITACION' AND usado_en IS NULL AND expira_en > now()) = 1,
+      'caso 177: invitacion vigente';
+    SELECT usuario_id INTO v2 FROM invitar_admin_inicial(t, 'nueva@centro.cl', 'Nueva Admin', gen_random_uuid(), sha256('b'), now() + interval '72 hours');
+    ASSERT v1 = v2, 'caso 177: repetir no crea otra cuenta';
+    -- emitir_token anula la anterior (vence en max(creada + 1 s, now()); en la misma
+    -- transaccion now() no avanza): solo una queda con su plazo de 72 h.
+    SELECT count(*) INTO n FROM tokens_correo WHERE usuario_id = v1 AND tipo = 'INVITACION' AND usado_en IS NULL AND expira_en > now() + interval '1 hour';
+    ASSERT n = 1, format('caso 177: una sola invitacion vigente (hay %s)', n);
+    BEGIN
+      PERFORM invitar_admin_inicial(t, 'otra@centro.cl', 'Otra', gen_random_uuid(), sha256('c'), now() + interval '72 hours');
+      RAISE EXCEPTION 'caso 177: pendiente con otro correo debio fallar';
+    EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+    RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'caso 177 ok: deshacer';
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM <> 'caso 177 ok: deshacer' THEN RAISE; END IF;
+  END;
+  ASSERT NOT EXISTS (SELECT 1 FROM usuarios WHERE email = 'nueva@centro.cl'), 'caso 177: la prueba no deja datos';
+END $$;
+
+\echo 178 R4 config interna: token del silo y sin contexto; lista cerrada de reglas; dependencias; idempotente; nunca hacia atras; atomico
+\connect :app_url
+DO $$ DECLARE t text := 'token-interno-de-prueba-de-32-caracteres-o-mas'; BEGIN
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM aplicar_config_interna(t, 1, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', ARRAY['FICHAS']::modulo_centro[], '{}');
+    RAISE EXCEPTION 'caso 178: con contexto de usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+DO $$ DECLARE
+  t text := 'token-interno-de-prueba-de-32-caracteres-o-mas';
+  m modulo_centro[] := ARRAY['FICHAS', 'AGENDA', 'EQUIPO', 'MATCH']::modulo_centro[];
+BEGIN
+  BEGIN
+    PERFORM aplicar_config_interna('otro-token-de-prueba-de-32-caracteres-o-mas', 1, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', m, '{}');
+    RAISE EXCEPTION 'caso 178: con otro token debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM aplicar_config_interna(t, 1, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', m, '{"nombre_centro": "Otro"}');
+    RAISE EXCEPTION 'caso 178: regla fuera de la lista debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM aplicar_config_interna(t, 1, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', ARRAY['FICHAS', 'MATCH']::modulo_centro[], '{}');
+    RAISE EXCEPTION 'caso 178: MATCH sin EQUIPO debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  ASSERT aplicar_config_interna(t, 1, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', m, '{"recordatorio_horas_antes": 24, "plazo_aviso_cancelacion_horas": 12, "match_filtro_directo": true}') = 'APLICADA', 'caso 178: aplicada';
+  ASSERT aplicar_config_interna(t, 1, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', m, '{}') = 'SIN_CAMBIOS', 'caso 178: misma revision y hash no cambia nada';
+  ASSERT (SELECT revision = 1 AND hash = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' AND modulos @> m AND m @> modulos FROM config_interna(t)), 'caso 178: config_interna refleja lo aplicado';
+  BEGIN
+    PERFORM aplicar_config_interna(t, 1, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', m, '{}');
+    RAISE EXCEPTION 'caso 178: misma revision con otro hash debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+  BEGIN
+    PERFORM aplicar_config_interna(t, 2, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', ARRAY['FICHAS', 'AGENDA', 'EQUIPO']::modulo_centro[], '{"plazo_aviso_cancelacion_horas": 99999}');
+    RAISE EXCEPTION 'caso 178: regla fuera de rango debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  ASSERT (SELECT revision = 1 AND 'MATCH' = ANY (modulos) FROM config_interna(t)), 'caso 178: un fallo no deja cambios a medias';
+  ASSERT aplicar_config_interna(t, 2, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', ARRAY['FICHAS', 'AGENDA', 'EQUIPO']::modulo_centro[], '{}') = 'APLICADA', 'caso 178: revision 2';
+  ASSERT (SELECT revision = 2 AND NOT 'MATCH' = ANY (modulos) FROM config_interna(t)), 'caso 178: MATCH apagado';
+  BEGIN
+    PERFORM aplicar_config_interna(t, 1, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', m, '{}');
+    RAISE EXCEPTION 'caso 178: volver a la revision 1 debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
+\connect :owner_url
+DO $$ BEGIN
+  -- Las dos reglas cruzadas (recordatorio antes del plazo) en un mismo UPDATE: valen juntas.
+  ASSERT (SELECT plazo_aviso_cancelacion_horas = 12 AND recordatorio_horas_antes = 24 AND match_filtro_directo FROM configuracion_centro),
+    'caso 178: reglas aplicadas con su tipo';
 END $$;
 
 DROP SCHEMA test CASCADE;

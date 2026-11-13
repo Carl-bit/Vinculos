@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import { Caveat, Figtree, Nunito } from 'next/font/google';
 import localFont from 'next/font/local';
 
+import { ProveedorNombreCentro } from '@/components/shared/Marca';
 import { Proveedores } from '@/components/shared/Proveedores';
-import { NOMBRE_CENTRO } from '@/components/shared/Marca';
-import { TEMA } from '@/lib/tema';
+import { nombreDelSilo, urlDelSilo } from '@/lib/identidadSilo';
+import { temaDelSilo } from '@/lib/tema';
 
 import './globals.css';
 
@@ -33,22 +34,30 @@ const iconos = localFont({
   preload: true,
 });
 
-export const metadata: Metadata = {
-  // Dominio del silo (build arg en Docker): resuelve a URL absoluta las imagenes de
-  // Open Graph relativas (foto del profesional al compartir su perfil).
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
-  title: { default: NOMBRE_CENTRO, template: `%s | ${NOMBRE_CENTRO}` },
-  description: 'Portal del centro clinico.',
-};
+/**
+ * R11: nombre, tema y dominio del centro se leen en runtime (la imagen
+ * vinculos-web es la misma para todos los silos).
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const nombre = await nombreDelSilo();
+  return {
+    // Dominio del silo (SITE_URL del .env): resuelve a URL absoluta las imagenes de
+    // Open Graph relativas (foto del profesional al compartir su perfil).
+    metadataBase: new URL(urlDelSilo()),
+    title: { default: nombre, template: `%s | ${nombre}` },
+    description: 'Portal del centro clinico.',
+  };
+}
 
 /**
  * Layout raiz, compartido por (publico), (portal) y (admin). El shell visual
  * de cada zona vive en components/shared/Layout*.
  */
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const [tema, nombre] = await Promise.all([temaDelSilo(), nombreDelSilo()]);
   return (
-    // Tema del silo (build arg NEXT_PUBLIC_TEMA): los tokens de cada tema cuelgan de :root[data-tema].
-    <html lang="es" data-tema={TEMA} className={`${figtree.variable} ${nunito.variable} ${caveat.variable} ${iconos.variable}`}>
+    // Tema del silo (TEMA del .env, runtime): los tokens de cada tema cuelgan de :root[data-tema].
+    <html lang="es" data-tema={tema} className={`${figtree.variable} ${nunito.variable} ${caveat.variable} ${iconos.variable}`}>
       <body>
         {/* 03b-6: primer foco de cada pagina; salta el menu y lleva al <main id="contenido"> de la zona. */}
         <a
@@ -57,7 +66,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Saltar al contenido
         </a>
-        <Proveedores>{children}</Proveedores>
+        <ProveedorNombreCentro nombre={nombre}>
+          <Proveedores>{children}</Proveedores>
+        </ProveedorNombreCentro>
       </body>
     </html>
   );

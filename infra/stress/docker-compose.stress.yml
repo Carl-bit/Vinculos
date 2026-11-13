@@ -5,7 +5,8 @@
 #   docker compose -f infra/docker-compose.yml -f infra/stress/docker-compose.stress.yml \
 #     --env-file infra/stress/stress.env up -d db migrate backend mailpit
 #
-# Sin Traefik: k6 corre en un contenedor en la red `proxy` y llama a la API
+# Sin Traefik: k6 corre en un contenedor en la red de borde del silo
+# (`erp-stress_borde`, R11) y llama a la API
 # por su nombre. Puertos solo en 127.0.0.1 (seed desde el host y lectura de
 # resultados). Nunca contra el tenant de prueba real ni produccion.
 services:
@@ -27,4 +28,4 @@ services:
       - '127.0.0.1:18025:8025'
     networks:
       - interna
-      - proxy
+      - borde

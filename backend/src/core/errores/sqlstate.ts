@@ -208,6 +208,21 @@ export const MENSAJE_POR_RESTRICCION: Record<string, string> = {
   acuerdos_profesional_profesional: 'El acuerdo es de un profesional vigente del equipo',
   acuerdos_profesional_periodo_liquidado: 'Esa fecha cae en un período ya liquidado: elige una fecha posterior a la última liquidación emitida',
   acuerdos_profesional_profesional_id_vigente_desde_key: 'Ya hay una versión del acuerdo con esa fecha',
+  // Tarea 31 (2026-11-13): solicitudes de modulos
+  solicitudes_modulo_disponible: 'Ese módulo no está disponible en esta versión',
+  solicitudes_modulo_estado: 'El módulo ya está en ese estado: revisa si está activo',
+  solicitudes_modulo_dependencias:
+    'Falta una dependencia: Match y la página pública requieren Equipo, y Cobros requiere Agenda. Ajusta primero el módulo del que depende',
+  solicitudes_modulo_una_abierta: 'Ya hay una solicitud abierta para ese módulo: espera la respuesta de Vinculos',
+  solicitudes_modulo_transicion: 'Esa respuesta no corresponde al estado actual de la solicitud',
+  config_interna_formato: 'Revision, hash, modulos o reglas con formato invalido',
+  config_interna_dependencias: 'Dependencias de modulos: Match y la pagina publica requieren Equipo; Cobros requiere Agenda',
+  config_interna_regla: 'El manifiesto trae una regla que el silo no conoce',
+  config_interna_anterior: 'La revision no es posterior a la ya aplicada en el silo',
+  admin_inicial_existente: 'El centro ya tiene una cuenta madre activa: el ADMIN inicial ya no se invita desde Vinculos',
+  admin_inicial_otro_correo: 'Ya hay una cuenta madre pendiente con otro correo: corrige el correo del manifiesto',
+  admin_inicial_datos: 'Correo o nombre del ADMIN inicial invalido, o vigencia de la invitacion fuera de rango',
+  solicitudes_modulo_aplicada: 'Los módulos activos del centro aún no reflejan la solicitud: aplica el cambio antes de marcarla aplicada',
 };
 
 /**
@@ -321,6 +336,21 @@ const RESTRICCION_POR_TEXTO: [RegExp, string][] = [
   [/El rol profesional se da de baja con fecha/, 'roles_adicionales_retiro'],
   [/No puedes quitarte un rol a ti mismo/, 'roles_adicionales_retiro_propio'],
   [/El rol de gestion no esta habilitado en el centro/, 'usuarios_gestion_habilitado'],
+  // Tarea 31: solicitar_modulo() y responder_solicitud_modulo().
+  [/no esta disponible en esta version/, 'solicitudes_modulo_disponible'],
+  [/El modulo \w+ (ya|no) esta activo/, 'solicitudes_modulo_estado'],
+  [/requiere EQUIPO activo|dependen de EQUIPO|depende de AGENDA/, 'solicitudes_modulo_dependencias'],
+  [/Transicion no permitida: \w+ -> \w+/, 'solicitudes_modulo_transicion'],
+  [/modulos_activos aun no refleja la solicitud/, 'solicitudes_modulo_aplicada'],
+  // R5: invitar_admin_inicial().
+  [/Correo o nombre del ADMIN inicial invalido|Vigencia de la invitacion invalida/, 'admin_inicial_datos'],
+  [/El centro ya tiene una cuenta madre activa/, 'admin_inicial_existente'],
+  // R4: aplicar_config_interna().
+  [/Revision, hash, modulos o reglas con formato invalido/, 'config_interna_formato'],
+  [/Dependencias de modulos: /, 'config_interna_dependencias'],
+  [/Regla desconocida: /, 'config_interna_regla'],
+  [/no es posterior a la aplicada/, 'config_interna_anterior'],
+  [/Ya hay una cuenta madre pendiente con otro correo/, 'admin_inicial_otro_correo'],
 ];
 
 function restriccionDeMensaje(mensaje: string | undefined): string | undefined {

@@ -28,12 +28,26 @@ import {
   SoporteController,
   UsuariosController,
 } from './nucleo.controller';
+import { AdminInicialService } from './admin-inicial.service';
+import { ConfigInternaService } from './config-interna.service';
+import {
+  AdminInicialInternoController,
+  ConfigInternaController,
+  SolicitudesInternasController,
+  SolicitudesModuloController,
+} from './solicitudes-modulo.controller';
+import { SolicitudesModuloService } from './solicitudes-modulo.service';
 import { SoporteService } from './soporte.service';
 import { UsuariosService } from './usuarios.service';
 
 /** Nucleo (02b): usuarios, configuracion, accesos de practicantes, bajas, alertas y directorio. */
 @Module({
   controllers: [
+    // Antes de ConfiguracionController: ruta fija configuracion/solicitudes-modulo (tarea 31).
+    SolicitudesModuloController,
+    SolicitudesInternasController,
+    AdminInicialInternoController,
+    ConfigInternaController,
     UsuariosController,
     ConfiguracionController,
     CentroController,
@@ -63,6 +77,9 @@ import { UsuariosService } from './usuarios.service';
     FeriadosService,
     RecordatoriosPersonalesService,
     PerfilesService,
+    SolicitudesModuloService,
+    AdminInicialService,
+    ConfigInternaService,
   ],
 })
 export class NucleoModule {}

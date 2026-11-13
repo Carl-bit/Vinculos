@@ -22,6 +22,7 @@ import type { Icono } from '@/lib/iconos';
 import { IVA_PORCENTAJE, RETENCION_HONORARIOS } from '@/lib/tributario';
 
 import { BarraGuardado } from './BarraGuardado';
+import { AccionSolicitud, abiertaDe, HistorialSolicitudes, useSolicitudesModulo } from './SolicitudesModulo';
 
 type Numerico =
   | 'recordatorioHorasAntes'
@@ -487,11 +488,17 @@ function ParametrosTributarios() {
   );
 }
 
+/**
+ * Tarea 31: el ADMIN solicita activar o desactivar un modulo; Vinculos lo
+ * revisa y lo aplica (la activacion no es automatica). El estado de cada
+ * solicitud llega con el polling global.
+ */
 function Modulos({ c }: { c: ConfiguracionCentro }) {
+  const solicitudes = useSolicitudesModulo();
   return (
     <Panel
       titulo="Módulos contratados"
-      bajada="Los activa Vinculos según lo contratado. Para sumar uno, escríbenos: la activación no es automática."
+      bajada="Los activa Vinculos según lo contratado. Solicita uno aquí: lo revisamos y te avisamos el estado en esta misma lista."
       accion={<Badge>{`${MODULOS.filter((m) => c.modulosActivos.includes(m.id)).length} de ${MODULOS.length} activos`}</Badge>}
       nivel={3}
     >
@@ -506,20 +513,12 @@ function Modulos({ c }: { c: ConfiguracionCentro }) {
                 <span className="text-[12px] font-semibold text-neutral-700">{m.nota}</span>
               </span>
               <Badge tono={activo ? 'positivo' : 'neutro'}>{activo ? 'Activo' : 'No contratado'}</Badge>
-              {!activo && (
-                <button
-                  type="button"
-                  disabled
-                  title="La solicitud en línea aún no está disponible: escríbenos para contratarlo."
-                  className="min-h-9 cursor-not-allowed rounded-full border border-divider bg-surface px-3.5 text-[13px] font-extrabold opacity-60"
-                >
-                  Solicitar
-                </button>
-              )}
+              <AccionSolicitud modulo={m.id} nombre={m.nombre} activo={activo} activos={c.modulosActivos} abierta={abiertaDe(solicitudes.data, m.id)} />
             </li>
           );
         })}
       </ul>
+      <HistorialSolicitudes lista={solicitudes.data ?? []} nombre={nombreModulo} />
     </Panel>
   );
 }

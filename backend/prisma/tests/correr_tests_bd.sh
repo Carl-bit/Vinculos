@@ -45,6 +45,24 @@ sh ../infra/postgres/init/10-rol-owner.sh
 npx prisma generate >/dev/null
 npx prisma migrate deploy
 node prisma/scripts/rol_api.js
+
+echo "== Identidad del silo (R11): se registra una vez, idempotente, otro slug falla, inmutable"
+node prisma/scripts/identidad_silo.js
+node prisma/scripts/identidad_silo.js
+debe_fallar env CLIENTE_SLUG=otro-silo node prisma/scripts/identidad_silo.js
+debe_fallar env -u CLIENTE_SLUG node prisma/scripts/identidad_silo.js
+debe_fallar psql -X -v ON_ERROR_STOP=1 -d "$OWNER_URL" -c "UPDATE identidad_silo SET slug = 'otro-silo'"
+debe_fallar psql -X -v ON_ERROR_STOP=1 -d "$OWNER_URL" -c "DELETE FROM identidad_silo"
+debe_fallar psql -X -v ON_ERROR_STOP=1 -d "$OWNER_URL" -c "INSERT INTO identidad_silo (id, slug) VALUES (false, 'otro-silo')"
+[ "$(psql -X -tA -d "$OWNER_URL" -c 'SELECT slug FROM identidad_silo')" = "$CLIENTE_SLUG" ]
+# Token interno: sin hash /api/internal queda cerrado; con hash solo vale ese token; formato invalido falla.
+[ "$(psql -X -tA -d "$APP_URL" -c "SELECT interno_token_valido('token-interno-de-prueba-de-32-caracteres-o-mas')")" = "f" ]
+debe_fallar env INTERNO_TOKEN_SHA256=no-es-hex node prisma/scripts/identidad_silo.js
+INTERNO_TOKEN_SHA256=$(printf '%s' 'token-interno-de-prueba-de-32-caracteres-o-mas' | sha256sum | cut -d' ' -f1) \
+  node prisma/scripts/identidad_silo.js
+[ "$(psql -X -tA -d "$APP_URL" -c "SELECT interno_token_valido('token-interno-de-prueba-de-32-caracteres-o-mas')")" = "t" ]
+[ "$(psql -X -tA -d "$APP_URL" -c "SELECT interno_token_valido('otro-token-de-prueba-de-32-caracteres-o-mas')")" = "f" ]
+
 npx prisma db seed
 npx prisma db seed
 

@@ -45,11 +45,28 @@ HTTP: Traefik valida por DNS (crea un registro TXT temporal en la zona).
 
 Traefik no publica puertos: cloudflared lo alcanza por la red Docker `proxy`.
 
-`proxy` la comparten todos los silos del host: ningun servicio se llama por
-nombre en ella. El front llega a su API por la red privada del silo
-(`erp-<slug>_silo`, alias `api-silo`). Antes usaba `backend` en `proxy`, que
-Docker resolvia al backend de cualquier silo: un login en `estres` podia
-validarse contra `demo`, y daba 401 al azar en `/sesion/*`.
+`proxy` es solo del plano del host (cloudflared, Traefik, Mailpit): ningun
+silo entra en ella (R11, 2026-11-13). Cada silo tiene tres redes propias:
+`erp-<slug>_interna` (db, migrate, backend; unica con salida),
+`erp-<slug>_silo` (front -> API, alias `api-silo`) y `erp-<slug>_borde`
+(backend y front + Traefik y Mailpit, que `servidor.sh` une con
+`docker network connect`). Dos silos nunca comparten red.
+
+Historia: antes el backend y el front de todos los silos estaban en `proxy`.
+`backend` resolvia al de cualquier silo (un login en `estres` se validaba
+contra `demo`, 401 al azar en `/sesion/*`); el alias `api-silo` lo parcho,
+pero un front seguia pudiendo llegar a la API de otro centro por IP. La red de
+borde por silo cierra eso. Al actualizar un servidor que ya tenia silos,
+`levantar` recrea backend y front en las redes nuevas; los volumenes y la
+BD no cambian.
+
+`/api/internal/*` (plano de control) nunca se publica: un router de Traefik
+con prioridad la responde 403 desde el tunel. El agente de Vinculos Control
+entra por la red de borde con el token del silo: `servidor.sh` lo genera una
+vez en `infra/servidor/internos/<slug>.token` (ignorado por git, 600) y deja
+su SHA-256 en el `.env` del silo (`INTERNO_TOKEN_SHA256`), que `migrate` guarda
+en `identidad_silo`. El agente monta esa carpeta en solo lectura
+(`TOKENS_INTERNOS_HOST` del host B). Rotar: borrar el archivo y `levantar`.
 
 1. Unir tu contenedor de cloudflared a la red (despues de que exista, paso 3):
    `docker network connect proxy <contenedor-cloudflared>`. Para que no se
@@ -152,7 +169,7 @@ queda igual publicado; las cuentas tienen una contraseña al azar.
 
 ```sh
 P=$(sed -n 's/^SEED_PASSWORD=//p' infra/servidor/silos/estres.env)
-docker run --rm --network proxy -v "$PWD/backend/pruebas:/scripts:ro" \
+docker run --rm --network erp-estres_borde -v "$PWD/backend/pruebas:/scripts:ro" \
   -e API_URL=http://erp-estres-backend-1:3001/api \
   -e MAILPIT_URL=http://<usuario>:<clave>@mailpit:8025 \
   -e PASSWORD="$P" grafana/k6:0.54.0 run /scripts/stress-agenda.js
@@ -210,7 +227,8 @@ quieran conservar. `demo` no lo necesita (se reinicia con el seed vigente).
      psql -U postgres -d app -c "SELECT migration_name FROM _prisma_migrations ORDER BY finished_at DESC LIMIT 1"
    docker network inspect erp-<slug>_silo --format '{{range .Containers}}{{.Name}} {{end}}'  # solo backend y frontend del silo
    docker exec erp-<slug>-frontend-1 wget -qO- http://api-silo:3001/api/salud
-   docker network inspect proxy --format '{{range .Containers}}{{.Name}} {{end}}'           # cloudflared sigue ahi
+   docker network inspect erp-<slug>_borde --format '{{range .Containers}}{{.Name}} {{end}}' # backend, front, traefik y mailpit
+   docker network inspect proxy --format '{{range .Containers}}{{.Name}} {{end}}'           # cloudflared, traefik y mailpit; ningun silo
    ```
    La ultima migracion debe ser la mas nueva de `backend/prisma/migrations/`.
    En el navegador: ingreso con 2FA (Mailpit, remitente del silo) y una
@@ -226,8 +244,14 @@ Volver atras: `git checkout <commit anterior>`, restaurar el dump
 `descifrar_respaldo.sh`) y `levantar` de nuevo.
 
 Error de TLS o 502 tras actualizar: cloudflared fuera de `proxy`
-(`docker network connect proxy <contenedor-cloudflared>`) o Traefik
+(`docker network connect proxy <contenedor-cloudflared>`), Traefik fuera de
+`erp-<slug>_borde` (pasa si se recreo Traefik: `levantar` de cualquier silo
+vuelve a unirlo a todas las redes de borde) o Traefik
 (`docker logs vinculos-servidor-traefik-1`).
+
+`migrate` termina con "La BD pertenece al silo X": el `.env` o el volumen son
+de otro silo (por ejemplo, un respaldo de otro centro restaurado aqui). No
+forzar: revisar que dump se restauro (`identidad_silo`, R11).
 
 ## Lo que no hay todavia
 
@@ -235,6 +259,6 @@ Error de TLS o 502 tras actualizar: cloudflared fuera de `proxy`
   salen del seed.
 - Los silos de prueba comparten Mailpit, como compartiran el SMTP real. Un
   silo de un cliente real nunca usa este Mailpit.
-- El silo efimero `infra/stress/` tambien levanta un Mailpit llamado `mailpit`
-  en la red `proxy`. No correrlo en este servidor junto al de la raiz: el
-  nombre choca.
+- El silo efimero `infra/stress/` levanta su propio Mailpit (`mailpit`) en
+  sus redes `erp-stress_interna` y `erp-stress_borde`; no comparte red con el
+  de la raiz.

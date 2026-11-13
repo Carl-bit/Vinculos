@@ -49,7 +49,8 @@ const CLAVE_DESPUES = 'bd.despues';
  *
  * sinContexto(): unico acceso sin variables de contexto, para lo que la BD
  * diseño asi: login (credenciales_login, sesiones), portal publico
- * (perfiles_publicos, disponibilidad_publica), jobs (funciones de job) y
+ * (perfiles_publicos, disponibilidad_publica), jobs (funciones de job),
+ * /api/internal (funciones con token del silo, core/interno) y
  * /salud. Sobre tablas con RLS devuelve 0 filas.
  */
 @Injectable()
@@ -141,7 +142,7 @@ export class ContextoBd {
   }
 
   /** Sin contexto RLS: solo login, portal publico, jobs y salud (ver arriba). */
-  sinContexto(_motivo: 'login' | 'publico' | 'job' | 'salud'): ClienteBd {
+  sinContexto(_motivo: 'login' | 'publico' | 'job' | 'salud' | 'interno'): ClienteBd {
     return this.cliente;
   }
 }

@@ -131,6 +131,66 @@ model ConfiguracionCentro {
   @@map("configuracion_centro")
 }
 
+/// R11 (2026-11-13). Categoria B, sin GRANT a app_user (RLS sin politicas).
+/// Una sola fila: el slug del silo dueño de esta BD. La escribe
+/// prisma/scripts/identidad_silo.js (servicio migrate, como dueño) la primera
+/// vez; despues migrate se niega a correr si CLIENTE_SLUG no coincide
+/// (respaldo de otro centro restaurado aqui, .env cruzado). El slug es
+/// inmutable (trigger); el hash del token de /api/internal/* se puede rotar.
+model IdentidadSilo {
+  id                 Boolean   @id @default(true)
+  slug               String
+  /// SHA-256 (hex) del token del plano de control; la API lo valida con interno_token_valido().
+  internoTokenSha256 String?   @map("interno_token_sha256")
+  /// R4: ultima revision del manifiesto aplicada por el plano de control y su hash.
+  revisionAplicada   Int?      @map("revision_aplicada")
+  hashAplicado       String?   @map("hash_aplicado")
+  aplicadaEn         DateTime? @map("aplicada_en") @db.Timestamptz(6)
+  creadaEn           DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
+
+  @@map("identidad_silo")
+}
+
+/// Tarea 31 / R2-R3 (2026-11-13). Categoria A (pedida_por). Solo ADMIN lee;
+/// escritura solo por solicitar_modulo() y responder_solicitud_modulo().
+/// Al plano de control sale sin motivo ni pedida_por (solicitudes_modulo_internas()).
+model SolicitudModulo {
+  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modulo        ModuloCentro
+  accion        AccionModulo
+  /// Texto del ADMIN, solo dentro del silo (no sale al plano de control).
+  motivo        String?
+  pedidaPor     String                @map("pedida_por") @db.Uuid
+  pedidaPorRol  Rol                   @map("pedida_por_rol")
+  pedidaEn      DateTime              @default(now()) @map("pedida_en") @db.Timestamptz(6)
+  estado        EstadoSolicitudModulo @default(PENDIENTE)
+  /// Respuesta del operador (Vinculos Control).
+  respuesta     String?
+  respondidaEn  DateTime?             @map("respondida_en") @db.Timestamptz(6)
+  actualizadaEn DateTime              @default(now()) @map("actualizada_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [pedidaPor], references: [id], onDelete: Restrict)
+
+  @@index([actualizadaEn])
+  @@map("solicitudes_modulo")
+}
+
+enum AccionModulo {
+  ACTIVAR
+  DESACTIVAR
+
+  @@map("accion_modulo")
+}
+
+enum EstadoSolicitudModulo {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  APLICADA
+
+  @@map("estado_solicitud_modulo")
+}
+
 /// 03b-3.1: medio con que el paciente confirma la hora.
 enum MedioConfirmacion {
   PAGO_EN_CENTRO
@@ -186,28 +246,30 @@ enum Rol {
 /// email, hash y telefono. Cerrada no cambia mas: quien vuelve recibe cuenta
 /// nueva. Nunca el ultimo ADMIN activo se desactiva. Nunca se borra.
 model Usuario {
-  id                    String    @id @db.Uuid
-  email                 String?   @unique
-  passwordHash          String?   @map("password_hash")
+  id                    String            @id @db.Uuid
+  email                 String?           @unique
+  passwordHash          String?           @map("password_hash")
   /// Nombre interno (equipo y backoffice). El nombre del portal publico es
   /// profesionales.nombre_publico.
   nombre                String?
   /// cifrado (IDENTIFICACION)
   telefono              Bytes?
-  cerradaEn             DateTime? @map("cerrada_en") @db.Timestamptz(6)
-  desactivadoEn         DateTime? @map("desactivado_en") @db.Timestamptz(6)
+  cerradaEn             DateTime?         @map("cerrada_en") @db.Timestamptz(6)
+  desactivadoEn         DateTime?         @map("desactivado_en") @db.Timestamptz(6)
   rol                   Rol
-  activo                Boolean   @default(true)
-  fechaExpiracionAcceso DateTime? @map("fecha_expiracion_acceso") @db.Timestamptz(6)
-  pacienteId            String?   @unique @map("paciente_id") @db.Uuid
+  activo                Boolean           @default(true)
+  fechaExpiracionAcceso DateTime?         @map("fecha_expiracion_acceso") @db.Timestamptz(6)
+  pacienteId            String?           @unique @map("paciente_id") @db.Uuid
+  /// Tarea 31: solicitudes de modulos que pidio (ADMIN).
+  solicitudesModulo     SolicitudModulo[]
   /// 03a: segundo factor (TOTP). cifrado (IDENTIFICACION)
-  totpSecreto           Bytes?    @map("totp_secreto")
-  totpActivo            Boolean   @default(false) @map("totp_activo")
+  totpSecreto           Bytes?            @map("totp_secreto")
+  totpActivo            Boolean           @default(false) @map("totp_activo")
   /// 03b-4.1: verificacion en dos pasos por correo (opcional para pacientes y
   /// responsables; el equipo la tiene siempre, la marca queda al primer uso).
-  verificacionCorreo    Boolean   @default(false) @map("verificacion_correo")
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  verificacionCorreo    Boolean           @default(false) @map("verificacion_correo")
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   paciente                   Paciente?                    @relation("UsuarioPaciente", fields: [pacienteId], references: [id], onDelete: Restrict)
   rolesAdicionales           RolAdicional[]               @relation("RolAdicionalUsuario")

@@ -9,8 +9,6 @@ ENV_SILO="$RAIZ/infra/stress/stress.env"
 dc() { docker compose -f "$RAIZ/infra/docker-compose.yml" -f "$RAIZ/infra/stress/docker-compose.stress.yml" --env-file "$ENV_SILO" "$@"; }
 export MSYS_NO_PATHCONV=1
 
-docker network inspect proxy >/dev/null 2>&1 || docker network create proxy >/dev/null
-
 echo "1/4 BD y migraciones (imagen del backend)"
 dc up -d --build db migrate mailpit
 dc wait migrate >/dev/null

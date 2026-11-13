@@ -23,6 +23,9 @@ infra/secrets/
 infra/respaldos/
 # .env de los silos del servidor de pruebas (contraseñas generadas por servidor.sh).
 infra/servidor/silos/
+# Tokens de /api/internal/* por silo (los lee el agente de Vinculos Control; R11 / tarea 31).
+infra/servidor/internos/
+*.token
 # Red de seguridad por si se copian fuera de infra/secrets/.
 *.shamir
 partes_entregar*/

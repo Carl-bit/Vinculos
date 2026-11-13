@@ -34,7 +34,7 @@ Estados: **Hecho**, **Parcial** (que falta), **Pendiente**, **Bloqueado**
 | 26, 29 | Match: "filtrar yo mismo" al inicio; metricas y filtro arriba | Hecho | |
 | 27, 28 | Match: eliminar preguntas y opciones; crear con opciones | Hecho | Propias se eliminan (sistema se apaga). Editor visual por tipo (2026-11-12): alternativas con orden, prioridad y filtro; escala con plantillas; dias del centro; franjas editables dentro del horario; plantillas Si/No y Modalidad |
 | 30 | Pagina del centro en pestaña nueva | Hecho | Menu "Pagina publica", perfil publico y equipo desde el panel |
-| 31 | Solicitar modulos desactivados | Pendiente (en espera) | El usuario revisa antes Vinculos Control; va con el 3 |
+| 31 | Solicitar modulos desactivados | Hecho (2026-11-13) | Configuracion > Modulos: el ADMIN solicita activar o desactivar; Vinculos Control lo recoge por `/api/internal/solicitudes` (R2), lo aplica con `/api/internal/config` (R4, job RECONFIGURAR) y responde (R3) |
 | 32 | No repetir "activo" en los modulos | Hecho | Sale el panel de dependencias del match |
 | 33 | Pacientes por reasignar solo en Fichas y Pacientes | Hecho | |
 | 34 | Quitar "Hora liberada" de las notificaciones | Hecho | Sin COBROS no se muestran sus eventos en Plantillas |

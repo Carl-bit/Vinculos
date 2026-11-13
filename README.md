@@ -115,6 +115,7 @@ docker network create proxy                                   # una vez por host
 docker compose -f infra/traefik/docker-compose.yml up -d      # una vez por host (CF_DNS_API_TOKEN, ACME_EMAIL)
 cp infra/.env.example infra/.env                              # uno por cliente
 docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
+docker network connect erp-<slug>_borde <contenedor-traefik>  # Traefik entra a la red de borde del silo
 ```
 
 `CLIENTE_SLUG`, `DOMINIO`, las contraseñas de Postgres (`POSTGRES_PASSWORD`,
@@ -122,6 +123,17 @@ docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
 sin excepciones. El servicio `migrate` corre las migraciones y fija la
 contraseña de `app_user` en cada `up`; la API arranca despues y solo recibe
 `DATABASE_URL`.
+
+Mismo esqueleto para todos (R11): las imagenes `vinculos-api` y `vinculos-web`
+son comunes; nombre, tema y dominio del centro entran en runtime por el `.env`
+(`CENTRO_NOMBRE`, `TEMA`, `DOMINIO`). Cada silo tiene sus redes
+(`erp-<slug>_interna`, `_silo`, `_borde`), labels `cl.vinculos.silo` y una
+fila en `identidad_silo`: `migrate` se niega a correr si la BD es de otro silo.
+
+`/api/internal/*` es solo para Vinculos Control (tarea 31 y siguientes): token
+por silo, del que la BD guarda solo el SHA-256 (`INTERNO_TOKEN_SHA256` en el
+`.env`, aplicado por `migrate`); Traefik la bloquea desde afuera. Sin hash
+configurado, esas rutas responden 401.
 
 ## Estado
 

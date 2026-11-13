@@ -80,10 +80,11 @@ export function CabeceraPerfil({ perfil, nivel = 2, size = 88 }: { perfil: Perfi
 }
 
 /** Tarjeta del equipo publico: datos clave, bajada y acciones. */
-export function TarjetaPerfil({ perfil, agenda, orden = 0 }: { perfil: PerfilPublico; agenda: boolean; orden?: number }) {
+export async function TarjetaPerfil({ perfil, agenda, orden = 0 }: { perfil: PerfilPublico; agenda: boolean; orden?: number }) {
+  const cuaderno = await esCuaderno();
   return (
     <article className="revelar flex flex-col gap-4 rounded-lg border border-divider bg-bg p-6 shadow-suave transition-shadow duration-300 ease-out hover:shadow-lg">
-      {esCuaderno ? (
+      {cuaderno ? (
         // Tema Cuaderno: el profesional es su cuaderno; el sello repite el registro SIS (el detalle sigue abajo).
         <>
           <TapaCuaderno

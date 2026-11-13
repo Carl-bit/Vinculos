@@ -6,7 +6,9 @@ import { Icon } from '@/components/ui/Icon';
 import { centroPublico } from '@/lib/api/servidor';
 
 import { AccesoCuenta } from './AccesoCuenta';
-import { Marca, NOMBRE_CENTRO } from './Marca';
+import { nombreDelSilo } from '@/lib/identidadSilo';
+
+import { Marca } from './Marca';
 import { MarcaZona } from './MarcaZona';
 import { NavPublica } from './NavPublica';
 import { RefrescoPublico } from './RefrescoPublico';
@@ -20,7 +22,7 @@ import { RefrescoPublico } from './RefrescoPublico';
 export async function LayoutPublico({ children }: { children: ReactNode }) {
   const centro = await centroPublico().catch(() => null);
   const modulos = centro?.modulos ?? [];
-  const nombre = centro?.nombre_centro ?? NOMBRE_CENTRO;
+  const nombre = centro?.nombre_centro ?? (await nombreDelSilo());
   const nav = [
     modulos.includes('PAGINA_PUBLICA') && { href: '/equipo', etiqueta: 'Equipo' },
     centro && { href: '/#servicios', etiqueta: 'Servicios' },

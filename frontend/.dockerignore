@@ -5,7 +5,7 @@ coverage
 *.log
 *.tsbuildinfo
 
-# Variables: las publicas entran como build args (ver infra/docker-compose.yml).
+# Variables: nada del centro entra en la imagen (R11: nombre, tema y dominio en runtime).
 .env
 .env.*
 !.env.example

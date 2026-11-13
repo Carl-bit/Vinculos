@@ -159,8 +159,9 @@ function useChips(): Partial<Record<Seccion, { texto: string; tono: Tono }>> {
 /**
  * Configuracion del centro (diseño "Opcion A submenu agrupado por tema", solo
  * ADMIN): submenu lateral por tema con buscador y contadores; cada seccion
- * reune los bloques de un mismo tema. Las conexiones de pasarela, "Solicitar"
- * un modulo y "Recordar a pendientes" son diseño de ejemplo, sin endpoint
+ * reune los bloques de un mismo tema. Las conexiones de pasarela y
+ * "Recordar a pendientes" son diseño de ejemplo, sin endpoint ("Solicitar" un
+ * modulo ya funciona: tarea 31, SolicitudesModulo.tsx)
  * (ver docs/front/inventario_ui.md). Los acuerdos por profesional son del
  * modulo Cobros: la pagina los pasa como `acuerdosProfesionales`.
  */

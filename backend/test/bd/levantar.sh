@@ -30,6 +30,9 @@ createdb -U postgres app
 sh ../infra/postgres/init/10-rol-owner.sh >/dev/null
 npx prisma migrate deploy >/dev/null
 node prisma/scripts/rol_api.js >/dev/null
+# R11 + tarea 31: identidad del silo y hash del token de /api/internal (test/apoyo.ts, TOKEN_INTERNO).
+INTERNO_TOKEN_SHA256=$(printf '%s' 'token-interno-de-los-tests-de-la-api-0123456789' | sha256sum | cut -d' ' -f1) \
+  node prisma/scripts/identidad_silo.js >/dev/null
 npx prisma db seed >/dev/null
 sh ../infra/scripts/llaves/aprovisionar.sh >/dev/null
 
