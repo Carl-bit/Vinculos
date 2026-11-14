@@ -2,22 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import { condicionesAgendamiento, edadEn } from './condiciones';
 
-const base = { plazo_aviso_cancelacion_horas: 24, penalizacion_cancelacion_porcentaje: 0, cobro_inasistencia_porcentaje: 0, modelo_cobro: 'CENTRO' as const };
+const base = { plazo_aviso_cancelacion_horas: 24 };
 
-describe('condicionesAgendamiento', () => {
-  it('sin porcentajes no promete cobros', () => {
+describe('condicionesAgendamiento (MVP sin COBROS)', () => {
+  it('el aviso para cancelar, sin cargos ni pagos', () => {
     const c = condicionesAgendamiento(base, false);
     expect(c[0]).toContain('hasta 24 horas antes');
-    expect(c.join(' ')).not.toMatch(/se cobra/);
-    expect(c.at(-1)).toBe('La sesión se paga al centro.');
+    expect(c.join(' ')).not.toMatch(/cobr|pag|cargo|costo/i);
   });
 
-  it('con porcentajes los muestra y agrega la condicion del menor', () => {
-    const c = condicionesAgendamiento({ ...base, penalizacion_cancelacion_porcentaje: 50, cobro_inasistencia_porcentaje: 100, modelo_cobro: 'DIRECTO' }, true);
-    expect(c.join(' ')).toMatch(/se cobra el 50 % del valor/);
-    expect(c.join(' ')).toMatch(/no llegas sin avisar, se cobra el 100 %/);
-    expect(c).toContain('La sesión se paga directamente al profesional.');
-    expect(c.at(-1)).toMatch(/adulto responsable/);
+  it('agrega la condicion del menor', () => {
+    expect(condicionesAgendamiento(base, true).at(-1)).toMatch(/adulto responsable/);
   });
 });
 

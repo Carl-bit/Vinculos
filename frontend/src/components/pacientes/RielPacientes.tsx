@@ -142,9 +142,7 @@ export function RielPacientes({ rol, seleccionado }: { rol: Rol; seleccionado?: 
     (derivaciones.data ?? []).filter((d) => d.profesionalOrigenId === yo),
     (id) => equipo.data?.find((m) => m.id === id)?.nombre ?? 'otro profesional',
   );
-  const hoy = (citas.data ?? [])
-    .filter((c) => c.pacienteId && (c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO'))
-    .sort((a, b) => a.inicio.localeCompare(b.inicio));
+  const hoy = (citas.data ?? []).filter((c) => c.pacienteId && c.estado === 'CONFIRMADA').sort((a, b) => a.inicio.localeCompare(b.inicio));
   const cerradas = new Set(conEvolucion.data ?? []);
   const ahora = Date.now();
   const estadoPaciente = new Map<string, 'sc' | 'falta' | 'ok'>();
@@ -203,13 +201,11 @@ export function RielPacientes({ rol, seleccionado }: { rol: Rol; seleccionado?: 
                 {hoy.map((c) => {
                   const fin = new Date(c.fin).getTime();
                   const estado =
-                    c.estado === 'PENDIENTE_PAGO'
-                      ? { t: 'Pago pendiente', c: 'bg-pendiente-100 text-pendiente-900' }
-                      : fin <= ahora && !cerradas.has(c.id)
-                        ? { t: 'Sin evolución', c: 'bg-accent-200 text-accent-900' }
-                        : new Date(c.inicio).getTime() <= ahora && ahora < fin
-                          ? { t: 'En curso', c: 'bg-online-100 text-online-900' }
-                          : null;
+                    fin <= ahora && !cerradas.has(c.id)
+                      ? { t: 'Sin evolución', c: 'bg-accent-200 text-accent-900' }
+                      : new Date(c.inicio).getTime() <= ahora && ahora < fin
+                        ? { t: 'En curso', c: 'bg-online-100 text-online-900' }
+                        : null;
                   return (
                     <li key={c.id}>
                       <button

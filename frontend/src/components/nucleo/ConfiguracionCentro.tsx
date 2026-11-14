@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 
 import { Encabezado } from '@/components/shared/Encabezado';
 import { api, datos } from '@/lib/api/cliente';
@@ -16,20 +16,20 @@ import { MarcaCentro } from './MarcaCentro';
 import { ExportacionCentro } from './ExportacionCentro';
 import { FeriadosCentro } from './FeriadosCentro';
 import { AvisoSinHorario, HorarioCentroEditor, PoliticasCentro } from './HorarioPoliticasCentro';
-import { MediosPagoCentro } from './MediosPagoCentro';
 import { PlantillasMensaje } from './PlantillasMensaje';
 import { MODULOS, ReglasCentro } from './ReglasCentro';
 import { SolicitudesDerechos } from './SolicitudesDerechos';
 import { SoporteCentro } from './SoporteCentro';
 
-type Seccion = 'datos' | 'marca' | 'horario' | 'agenda' | 'cobros' | 'medios' | 'avisos' | 'equipo' | 'legal' | 'privacidad' | 'vinculos';
+/** MVP sin COBROS (2026-11-11): sin secciones de finanzas (cobros, acuerdos, medios de pago). */
+type Seccion = 'datos' | 'marca' | 'horario' | 'agenda' | 'avisos' | 'equipo' | 'legal' | 'privacidad' | 'vinculos';
 type Tono = 'atencion' | 'positivo' | 'neutro';
 
 /** Diseño "Opcion A submenu agrupado por tema": secciones por tema, con titulo, bajada y palabras para el buscador. */
 const SECCIONES: Record<Seccion, { nombre: string; bajada: string; claves: string }> = {
   datos: {
     nombre: 'Datos y página pública',
-    bajada: 'Lo que se edita acá aparece en correos, comprobantes y la página pública.',
+    bajada: 'Lo que se edita acá aparece en correos y en la página pública.',
     claves: 'nombre rut correo teléfono dirección whatsapp instagram logo portada misión visión servicios contacto',
   },
   marca: {
@@ -46,16 +46,6 @@ const SECCIONES: Record<Seccion, { nombre: string; bajada: string; claves: strin
     nombre: 'Agenda y plazos',
     bajada: 'Reservas, recordatorios y plazos de derivaciones, consentimientos y evoluciones.',
     claves: 'recordatorio margen retención derivación consentimiento oposición evolución edad mínima mensajes conservación plazo',
-  },
-  cobros: {
-    nombre: 'Cobros y acuerdos',
-    bajada: 'Quién cobra cada atención y qué se deben el centro y cada profesional.',
-    claves: 'cobro comisión acuerdo cuota box arriendo cancelación inasistencia cargo deuda moroso gracia liquidación pago previo boleta retención iva',
-  },
-  medios: {
-    nombre: 'Medios de pago',
-    bajada: 'Cómo paga el paciente y con qué cuenta se conecta cada cobro.',
-    claves: 'medios pago transferencia cuenta banco titular plazo porcentaje pasarela link conexión',
   },
   avisos: {
     nombre: 'Avisos al paciente y equipo',
@@ -87,14 +77,11 @@ const SECCIONES: Record<Seccion, { nombre: string; bajada: string; claves: strin
 const GRUPOS: { titulo: string; secciones: Seccion[] }[] = [
   { titulo: 'El centro', secciones: ['datos', 'marca', 'horario'] },
   { titulo: 'Operación', secciones: ['agenda'] },
-  { titulo: 'Finanzas', secciones: ['cobros', 'medios'] },
   { titulo: 'Comunicación', secciones: ['avisos'] },
   { titulo: 'Equipo', secciones: ['equipo'] },
   { titulo: 'Legal y privacidad', secciones: ['legal', 'privacidad'] },
   { titulo: 'Vinculos', secciones: ['vinculos'] },
 ];
-
-const FINANZAS: Seccion[] = ['cobros', 'medios'];
 
 /** Enlaces anteriores (?vista=) a la seccion que hoy los contiene. */
 const ALIAS: Record<string, Seccion> = {
@@ -102,7 +89,7 @@ const ALIAS: Record<string, Seccion> = {
   soporte: 'vinculos',
   politicas: 'legal',
   notificaciones: 'avisos',
-  reglas: 'cobros',
+  reglas: 'agenda',
   roles: 'equipo',
   auditoria: 'privacidad',
   derechos: 'privacidad',
@@ -131,16 +118,6 @@ function useChips(): Partial<Record<Seccion, { texto: string; tono: Tono }>> {
   const hayProtocolo = usePoliticas().data?.some((x) => x.tipo === 'PROTOCOLO_EQUIPO') ?? false;
   const lecturas = useLecturasProtocolo(hayProtocolo).data;
   const equipo = useDirectorioEquipo(true).data;
-  const acuerdos = useQuery({
-    queryKey: ['cobros', 'acuerdos'],
-    queryFn: () => datos(api.GET('/api/cobros/acuerdos')),
-    enabled: !!c?.modulosActivos.includes('COBROS'),
-  }).data;
-  const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
-  const sinAcuerdo =
-    acuerdos && equipo
-      ? equipo.filter((m) => m.roles.includes('PROFESIONAL') && !acuerdos.some((a) => a.profesionalId === m.id && a.vigenteDesde.slice(0, 10) <= hoy)).length
-      : 0;
   // Mismo conteo que LecturasProtocolo: integrantes del equipo sin lectura de la version vigente.
   const leidos = new Set(lecturas?.map((l) => l.usuarioId));
   const sinLeer =
@@ -148,8 +125,6 @@ function useChips(): Partial<Record<Seccion, { texto: string; tono: Tono }>> {
   return {
     datos: p && (!p.mision?.trim() || !p.vision?.trim()) ? { texto: !p.mision?.trim() ? 'Misión vacía' : 'Visión vacía', tono: 'atencion' } : undefined,
     horario: horario && horario.length === 0 ? { texto: 'Sin horario', tono: 'atencion' } : undefined,
-    cobros: sinAcuerdo ? { texto: `${sinAcuerdo} sin acuerdo`, tono: 'atencion' } : undefined,
-    medios: c ? { texto: `${c.mediosPagoHabilitados.length} ${c.mediosPagoHabilitados.length === 1 ? 'activo' : 'activos'}`, tono: 'positivo' } : undefined,
     avisos: plantillas ? { texto: String(plantillas.length), tono: 'neutro' } : undefined,
     legal: sinLeer ? { texto: `${sinLeer} sin leer`, tono: 'atencion' } : undefined,
     vinculos: c ? { texto: `${c.modulosActivos.length} de ${MODULOS.length}`, tono: 'neutro' } : undefined,
@@ -159,26 +134,20 @@ function useChips(): Partial<Record<Seccion, { texto: string; tono: Tono }>> {
 /**
  * Configuracion del centro (diseño "Opcion A submenu agrupado por tema", solo
  * ADMIN): submenu lateral por tema con buscador y contadores; cada seccion
- * reune los bloques de un mismo tema. Las conexiones de pasarela y
- * "Recordar a pendientes" son diseño de ejemplo, sin endpoint ("Solicitar" un
- * modulo ya funciona: tarea 31, SolicitudesModulo.tsx)
- * (ver docs/front/inventario_ui.md). Los acuerdos por profesional son del
- * modulo Cobros: la pagina los pasa como `acuerdosProfesionales`.
+ * reune los bloques de un mismo tema. "Recordar a pendientes" es diseño de
+ * ejemplo, sin endpoint ("Solicitar" un modulo ya funciona: tarea 31,
+ * SolicitudesModulo.tsx) (ver docs/front/inventario_ui.md). MVP sin COBROS:
+ * una seccion de finanzas pedida por un enlace viejo (?vista=cobros) cae en Datos.
  */
-export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesionales?: ReactNode } = {}) {
+export function ConfiguracionCentro() {
   const parametros = useSearchParams();
   const pedida = parametros.get('vista') ?? 'datos';
-  // MVP: sin el modulo Cobros no hay seccion de Finanzas (ni por enlace directo).
-  const cobrosActivo = !!useConfiguracionCentro().data?.modulosActivos.includes('COBROS');
-  const pedidaValida: Seccion = pedida in SECCIONES ? (pedida as Seccion) : (ALIAS[pedida] ?? 'datos');
-  const seccion: Seccion = !cobrosActivo && FINANZAS.includes(pedidaValida) ? 'datos' : pedidaValida;
+  const seccion: Seccion = pedida in SECCIONES ? (pedida as Seccion) : (ALIAS[pedida] ?? 'datos');
   const [busqueda, setBusqueda] = useState('');
   const chips = useChips();
   const filtro = normalizar(busqueda.trim());
   const coincide = (s: Seccion) => !filtro || normalizar(`${SECCIONES[s].nombre} ${SECCIONES[s].claves}`).includes(filtro);
-  const grupos = GRUPOS.map((g) => ({ ...g, secciones: g.secciones.filter((s) => coincide(s) && (cobrosActivo || !FINANZAS.includes(s))) })).filter(
-    (g) => g.secciones.length,
-  );
+  const grupos = GRUPOS.map((g) => ({ ...g, secciones: g.secciones.filter(coincide) })).filter((g) => g.secciones.length);
   const enlace = (s: Seccion) => (s === 'datos' ? '/admin/configuracion' : `/admin/configuracion?vista=${s}`);
   const actual = SECCIONES[seccion];
 
@@ -199,7 +168,7 @@ export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesi
             type="search"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Ej.: comisión, recordatorio, feriado"
+            placeholder="Ej.: recordatorio, feriado, consentimiento"
             className="min-h-11 rounded-full border border-neutral-400 bg-bg px-4 text-[14px] text-text placeholder:text-neutral-700"
           />
         </label>
@@ -257,14 +226,9 @@ export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesi
               </div>
             </div>
           )}
-          {(seccion === 'agenda' || seccion === 'cobros' || seccion === 'equipo' || seccion === 'vinculos') && (
-            <ReglasCentro
-              seccion={seccion === 'equipo' ? 'roles' : seccion === 'vinculos' ? 'modulos' : seccion}
-              nombreSeccion={actual.nombre}
-              acuerdos={acuerdosProfesionales}
-            />
+          {(seccion === 'agenda' || seccion === 'equipo' || seccion === 'vinculos') && (
+            <ReglasCentro seccion={seccion === 'equipo' ? 'roles' : seccion === 'vinculos' ? 'modulos' : seccion} nombreSeccion={actual.nombre} />
           )}
-          {seccion === 'medios' && <MediosPagoCentro />}
           {seccion === 'avisos' && <PlantillasMensaje />}
           {seccion === 'legal' && <PoliticasCentro />}
           {seccion === 'privacidad' && (

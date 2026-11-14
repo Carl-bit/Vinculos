@@ -18,7 +18,6 @@ export type PacientePortal = components['schemas']['PacientePortal'];
 export type MisDatosPortal = components['schemas']['MisDatosPortal'];
 export type MensajePortal = components['schemas']['MensajePortal'];
 export type ResenaPortal = components['schemas']['ResenaPortal'];
-export type EstadoPagoCita = components['schemas']['EstadoPagoCitaVista'];
 export type DocumentoClinico = components['schemas']['DocumentoClinicoVista'];
 export type SolicitudEpicrisis = components['schemas']['SolicitudEpicrisisPortal'];
 export type Consentimiento = components['schemas']['ConsentimientoVista'];
@@ -131,18 +130,13 @@ export function usePreferencias(pacienteId: string | undefined, responsable: boo
   });
 }
 
-export function useCobrosPortal(habilitado = true) {
-  return useQuery({ queryKey: ['portal', 'cobros'], queryFn: () => datos(api.GET('/api/cobros/citas')), enabled: habilitado });
-}
-
 /** Estado de una cita para el paciente (diseño "Mi Cuenta"). MVP sin cobros: la confirma su profesional (SOLICITADA). */
 export function estadoCitaPortal(c: Pick<CitaPortal, 'estado' | 'realizada' | 'fin'>): { texto: string; tono: 'positivo' | 'atencion' | 'neutro' } {
   if (c.estado === 'CANCELADA') return { texto: 'Cancelada', tono: 'atencion' };
   if (c.estado === 'POR_REPROGRAMAR') return { texto: 'Por reprogramar', tono: 'atencion' };
-  if (c.estado === 'PENDIENTE_PAGO') return { texto: 'Pago pendiente', tono: 'atencion' };
   if (c.estado === 'SOLICITADA') return { texto: 'Por confirmar', tono: 'atencion' };
   if (c.estado === 'PROPUESTA') return { texto: 'Propuesta, por elegir', tono: 'atencion' };
-  if (c.estado === 'LIBERADA') return { texto: 'Liberada (pago vencido)', tono: 'neutro' };
+  if (c.estado === 'LIBERADA') return { texto: 'Liberada (plazo vencido)', tono: 'neutro' };
   if (c.realizada) return { texto: 'Completada', tono: 'neutro' };
   return { texto: 'Confirmada', tono: 'positivo' };
 }

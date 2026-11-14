@@ -7,7 +7,6 @@ import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
 import { clavePolitica, EnlacePolitica, esVersionNueva, MENSAJE_VERSION_NUEVA } from '@/components/shared/EnlacePolitica';
 import { usePortal } from '@/components/shared/ContextoPortal';
 import { EstadoVista } from '@/components/shared/EstadoVista';
-import { PagoCitaPortal } from '@/components/shared/PagoCitaPortal';
 import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
@@ -118,27 +117,6 @@ export function PedirHoraPortal() {
           Hacer el match terapéutico
         </ButtonLink>
       </Panel>
-    );
-  }
-
-  // 03b-3.1: con cuenta verificada no hay retencion: directo al paso de pago.
-  if (reservar.data?.estado === 'PENDIENTE_PAGO') {
-    return (
-      <div className="entrada flex max-w-[680px] flex-col gap-5">
-        <h2 className="m-0 text-[clamp(26px,3.4vw,36px)] leading-[1.05] font-black tracking-[-0.03em]">Falta el pago para confirmar tu hora</h2>
-        {reservar.variables && (
-          <p className="m-0 rounded-lg border border-divider bg-bg px-6 py-4 text-[16px] font-black tracking-[-0.02em] shadow-suave first-letter:uppercase">
-            {formatoFechaLarga(reservar.variables.inicio)} a las {formatoHora(reservar.variables.inicio)} ·{' '}
-            {NOMBRE_MODALIDAD_CITA[reservar.variables.modalidad]}
-          </p>
-        )}
-        <PagoCitaPortal citaId={reservar.data.citaId} />
-        <div>
-          <ButtonLink href="/portal#horas" variant="ghost" icon="calendar_month">
-            Ver mis horas
-          </ButtonLink>
-        </div>
-      </div>
     );
   }
 
@@ -292,7 +270,8 @@ function RetornoPrincipal({ actual }: { actual: string }) {
   const cliente = useQueryClient();
   const retorno = useQuery({
     queryKey: ['portal', 'retorno', portal.pacienteParam ?? 'propio'],
-    queryFn: () => datos(api.GET('/api/portal/retorno', { params: { query: { pacienteId: portal.pacienteParam } } })),
+    // Sin retorno pendiente la API responde vacio: null (React Query no acepta undefined).
+    queryFn: async () => (await datos(api.GET('/api/portal/retorno', { params: { query: { pacienteId: portal.pacienteParam } } }))) ?? null,
     enabled: !portal.cargando && !!portal.pacienteId,
   });
   const pedir = useMutation({

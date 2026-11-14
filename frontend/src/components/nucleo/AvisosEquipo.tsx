@@ -15,7 +15,6 @@ type Preferencias = components['schemas']['PreferenciasEquipo'];
 const CLAVE = ['panel', 'preferencias-equipo'];
 const GRUPOS: { k: keyof Preferencias; etiqueta: string; nota: string }[] = [
   { k: 'agenda', etiqueta: 'Agenda', nota: 'Citas canceladas y horas pedidas.' },
-  { k: 'cobros', etiqueta: 'Cobros', nota: 'Sesiones con pago pendiente.' },
   { k: 'derivaciones', etiqueta: 'Derivaciones', nota: 'Cambios en una derivación que iniciaste.' },
   { k: 'mensajes', etiqueta: 'Mensajes', nota: 'Mensajes de pacientes y del equipo.' },
 ];

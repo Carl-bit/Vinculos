@@ -124,19 +124,6 @@ test('03b-6: reserva sin verificar vence, la hora se libera y se ofrece otra con
   await expect.poll(() => sqlPrueba(`SELECT estado FROM solicitudes_hora WHERE email = '${email}'`), { timeout: 90_000, intervals: [5_000] }).toBe('EXPIRADA');
 });
 
-test('pago en línea (pasarela simulada): el pago confirma la hora y llega la invitación a la cuenta; menor exige adulto responsable', async ({ page }) => {
-  await page.goto('/equipo');
-  await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Tres/ }).click();
-  await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
-  const email = await pedirHora(page, 'menor', true);
-  await elegirMedio(page, /^Pago en línea/);
-  await page.getByRole('button', { name: /Pagar .* en línea/ }).click();
-  await page.getByRole('button', { name: 'Simular pago aprobado' }).click();
-  await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible({ timeout: 15_000 });
-  // El paciente nace con el pago: la invitacion llega al correo de la reserva (adulto responsable).
-  expect(await enlaceDelCorreo(email, '/cuenta/activar')).toContain('token=');
-});
-
 test('ya soy paciente: solo pide el correo y responde siempre igual', async ({ page }) => {
   for (const email of ['paciente@centro-prueba.cl', 'no.existe@ejemplo.cl']) {
     await page.goto('/pedir-hora');

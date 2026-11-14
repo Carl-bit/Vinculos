@@ -343,8 +343,7 @@ export function SeguimientoEquipo({ rol }: { rol: Rol }) {
 
   const todos = miembros.map((m) => ({ m, items: itemsDe(m) }));
   const carga = (id: string) => (pacientes.data ?? []).filter((p) => p.profesionalId === id).length;
-  const hoyDe = (id: string) =>
-    (citasHoy.data ?? []).filter((c) => c.profesionalId === id && (c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO')).length;
+  const hoyDe = (id: string) => (citasHoy.data ?? []).filter((c) => c.profesionalId === id && c.estado === 'CONFIRMADA').length;
   const alDia = (id: string) => {
     const total = carga(id);
     const sinCerrar = new Set(pend.filter((p) => p.profesional_id === id && p.tipo === 'SIN_EVOLUCION').map((p) => p.paciente_id)).size;
@@ -527,7 +526,6 @@ export function SeguimientoEquipo({ rol }: { rol: Rol }) {
                 <section aria-labelledby="t-prof" className="@container flex min-w-0 flex-col gap-3.5">
                   <Profesional
                     miembro={actual.m}
-                    rol={rol}
                     pacientes={carga(actual.m.id)}
                     hoy={hoyDe(actual.m.id)}
                     alDia={alDia(actual.m.id)}
@@ -655,7 +653,6 @@ const ESTADO_CANDIDATO_CORTO: Record<string, string> = {
 /** Ficha del profesional elegido: acciones de coordinacion y cinco indicadores (sin contenido clinico). */
 function Profesional({
   miembro: m,
-  rol,
   pacientes,
   hoy,
   alDia,
@@ -663,7 +660,6 @@ function Profesional({
   pacientesLista,
 }: {
   miembro: MiembroDirectorio;
-  rol: Rol;
   pacientes: number;
   hoy: number;
   alDia: string;
@@ -716,11 +712,6 @@ function Profesional({
         </div>
         <div className="ml-auto flex flex-wrap gap-1.5">
           <AgendaProfesional profesionalId={m.id} nombre={m.nombre ?? 'el profesional'} />
-          {rol === 'ADMIN' || rol === 'GESTION' ? (
-            <ButtonLink href={`/admin/cobros?profesional=${m.id}`} variant="secondary" icon="receipt_long" className="!px-3.5 !py-2 !text-[12.5px]">
-              Liquidaciones
-            </ButtonLink>
-          ) : null}
         </div>
       </div>
       <dl className="m-0 grid grid-cols-2 gap-2 @[420px]:grid-cols-3 @[620px]:grid-cols-5">

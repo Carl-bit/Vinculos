@@ -28,12 +28,11 @@ const PEDIR_OTRA = (
 );
 
 /**
- * Enlace del correo (/pedir-hora/verificar?token=). 03b-3.2: solo existe
- * cuando se paga en el centro; los demas medios confirman con el pago. El
- * token se usa recien al presionar el boton: un escaner de correo que abra el
+ * Enlace del correo (/pedir-hora/verificar?token=). MVP sin COBROS: con el
+ * correo verificado, la solicitud pasa a su profesional. El token se usa recien al presionar el boton: un escaner de correo que abra el
  * enlace no consume la solicitud. Confirmada, tomada (la retencion vencio y
- * otra persona tomo la hora: horas cercanas) o vencida. Si despues se eligio
- * pagar antes, la API responde 409 con el motivo (se muestra tal cual).
+ * otra persona tomo la hora: horas cercanas) o vencida. Si la API responde
+ * 409, el motivo se muestra tal cual.
  */
 export function VerificarSolicitud() {
   const token = useSearchParams().get('token') ?? '';

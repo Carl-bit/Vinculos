@@ -33,23 +33,19 @@ test('paciente: Mi cuenta con su profesional, horas, mensajes y datos; contacto 
   await expect(page.getByText('Escribe el teléfono con código de país')).toBeVisible();
 });
 
-test('paciente: pagos con saldo, documentos, y copia de ficha', async ({ page }) => {
+test('paciente: documentos y copia de ficha', async ({ page }) => {
   await ingresar(page, 'paciente');
-  await secciones(page).getByRole('link', { name: 'Pagos' }).click();
-  await expect(page.getByText(/Tienes \$[\d.]+ por pagar/)).toBeVisible();
-  await expect(page.getByText('Pago parcial')).toBeVisible();
   await secciones(page).getByRole('link', { name: 'Documentos' }).click();
   await expect(page.getByText(/Certificado de atencion/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Copia de la ficha clínica' })).toBeVisible();
   await expect(page.getByText(/Pedida el/)).toBeVisible();
 });
 
-test('adolescente: cuenta restringida sin pagos, documentos ni consentimientos', async ({ page }) => {
+test('adolescente: cuenta restringida sin documentos ni consentimientos', async ({ page }) => {
   await ingresar(page, 'adolescente');
   await expect(page.getByText(/Tu cuenta es de adolescente/)).toBeVisible();
-  await expect(secciones(page).getByRole('link', { name: 'Pagos' })).toHaveCount(0);
   await expect(secciones(page).getByRole('link', { name: 'Documentos' })).toHaveCount(0);
-  await page.goto('/portal/pagos');
+  await page.goto('/portal/documentos');
   await expect(page.getByText('Esta sección la ve tu adulto responsable')).toBeVisible();
 });
 

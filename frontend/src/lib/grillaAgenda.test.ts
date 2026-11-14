@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { carriles, estadoVisual, horaInicioCentro, posicion, tramosLibres } from './grillaAgenda';
+import { carriles, estadoVisual, horaFinCentro, horaInicioCentro, posicion, tramosLibres } from './grillaAgenda';
 
 describe('grilla de la agenda', () => {
   it('tramosLibres: corta el rango bajo las sesiones y descarta el descanso entre ellas', () => {
@@ -29,6 +29,20 @@ describe('grilla de la agenda', () => {
     expect(horaInicioCentro([{ inicioMin: 9 * 60 + 30 }, { inicioMin: 7 * 60 }])).toBe(7);
   });
 
+  it('ultima hora: el cierre mas tardio del centro (redondeado hacia arriba), o las 24:00 sin horario', () => {
+    expect(horaFinCentro(undefined)).toBe(24);
+    expect(horaFinCentro([{ finMin: 20 * 60 }, { finMin: 18 * 60 + 30 }])).toBe(20);
+    expect(horaFinCentro([{ finMin: 20 * 60 + 30 }])).toBe(21);
+    expect(horaFinCentro([{ finMin: 24 * 60 }])).toBe(24);
+  });
+
+  it('posicion dentro del horario del centro (09:00 a 20:00): lo que pasa del cierre se recorta', () => {
+    // 10:30 a 11:20 en Chile: 1,5 h de 11 h.
+    expect(posicion('2026-11-03T13:30:00Z', '2026-11-03T14:20:00Z', 9, 20).top).toBeCloseTo((90 / 660) * 100);
+    // 19:30 a 20:30: solo 30 min visibles.
+    expect(posicion('2026-11-03T22:30:00Z', '2026-11-03T23:30:00Z', 9, 20).alto).toBeCloseTo((30 / 660) * 100);
+  });
+
   it('carriles: solo las que se pisan comparten ancho', () => {
     const a = { inicio: '2026-11-03T13:00:00Z', fin: '2026-11-03T14:00:00Z' };
     const b = { inicio: '2026-11-03T13:30:00Z', fin: '2026-11-03T14:30:00Z' };
@@ -39,15 +53,15 @@ describe('grilla de la agenda', () => {
     expect(r.get(c)).toEqual({ carril: 0, total: 1 });
   });
 
-  it('estado visual con simbolo: confirmada, pago, atendida, sin evolucion, no asistio, por reprogramar', () => {
+  it('estado visual con simbolo: confirmada, por confirmar, atendida, sin evolucion, por reprogramar', () => {
     const ahora = Date.parse('2026-11-03T12:00:00Z');
     const futura = { fin: '2026-11-04T12:00:00Z' };
     const pasada = { fin: '2026-11-02T12:00:00Z' };
     expect(estadoVisual({ ...futura, estado: 'CONFIRMADA' }, { ahora })).toBe('confirmada');
-    expect(estadoVisual({ ...futura, estado: 'PENDIENTE_PAGO' }, { ahora })).toBe('pendiente_pago');
+    expect(estadoVisual({ ...futura, estado: 'SOLICITADA' }, { ahora })).toBe('por_confirmar');
+    expect(estadoVisual({ ...futura, estado: 'PROPUESTA' }, { ahora })).toBe('por_confirmar');
     expect(estadoVisual({ ...pasada, estado: 'CONFIRMADA' }, { ahora, conEvolucion: true })).toBe('atendida');
     expect(estadoVisual({ ...pasada, estado: 'CONFIRMADA' }, { ahora, conEvolucion: false })).toBe('sin_evolucion');
-    expect(estadoVisual({ ...pasada, estado: 'CONFIRMADA' }, { ahora, conEvolucion: false, inasistencia: true })).toBe('no_asistio');
     expect(estadoVisual({ ...pasada, estado: 'CONFIRMADA' }, { ahora })).toBe('realizada');
     expect(estadoVisual({ ...futura, estado: 'POR_REPROGRAMAR' }, { ahora })).toBe('por_reprogramar');
     expect(estadoVisual({ ...futura, estado: 'CANCELADA' }, { ahora })).toBeNull();

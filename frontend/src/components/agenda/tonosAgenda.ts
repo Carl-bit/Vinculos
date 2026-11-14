@@ -47,8 +47,9 @@ export const NOMBRE_ESTADO_CITA: Record<CitaVista['estado'], string> = {
   SOLICITADA: 'Por aprobar',
   POR_REPROGRAMAR: 'Por reprogramar',
   CANCELADA: 'Cancelada',
-  PENDIENTE_PAGO: 'Pago pendiente',
-  LIBERADA: 'Liberada (pago vencido)',
+  // Estado del modulo COBROS (apagado en el MVP): no ocurre; texto neutro por completitud del tipo.
+  PENDIENTE_PAGO: 'Por confirmar',
+  LIBERADA: 'Liberada (plazo vencido)',
   RETENIDA: 'Hora retenida (reserva en curso)',
   // Punto 7 (2026-11-11): hora que propuso el profesional; espera que el paciente la elija.
   PROPUESTA: 'Propuesta al paciente',

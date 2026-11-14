@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { useMiCuenta, useModulos } from '@/lib/consultas';
+import { useMiCuenta } from '@/lib/consultas';
 import {
   NOMBRE_MODALIDAD,
   NOMBRE_ROL,
@@ -71,7 +71,6 @@ const valorCampo = (p: PerfilProfesional, c: CampoPerfil) =>
     enfoques: p.enfoques.join(', '),
     foto_url: '',
   })[c];
-const ACUERDO = { DIRECTO: 'A · cobra el profesional', CENTRO: 'B · cobra el centro', MIXTO: 'C · mixto' } as const;
 /** Boton compacto dentro de las filas (el sistema no tiene talla sm). */
 const CHICO = '!min-h-9 !px-3 !py-1.5 !text-[12.5px]';
 const textoError = (e: unknown, base: string) => (e instanceof ApiError ? e.message : base);
@@ -225,7 +224,7 @@ export function FichaValidacion({
           </div>
           <div className="flex min-w-0 flex-col gap-4">
             <TrabajoPacientes miembro={miembro} />
-            <Administrativo miembro={miembro} cuenta={cuenta} admin={admin} bajaEn={bajaEn} />
+            <Administrativo miembro={miembro} cuenta={cuenta} bajaEn={bajaEn} />
             {profesional && <HistorialTarifas profesionalId={miembro.id} />}
           </div>
         </div>
@@ -858,23 +857,12 @@ function TrabajoPacientes({ miembro }: { miembro: Integrante }) {
   );
 }
 
-function Administrativo({ miembro, cuenta, admin, bajaEn }: { miembro: Integrante; cuenta?: Cuenta; admin: boolean; bajaEn?: string | null }) {
+function Administrativo({ miembro, cuenta, bajaEn }: { miembro: Integrante; cuenta?: Cuenta; bajaEn?: string | null }) {
   const profesional = miembro.roles.includes('PROFESIONAL');
   const conDatos = profesional || miembro.roles.includes('PRACTICANTE');
   const tarifas = useTarifas(profesional ? miembro.id : undefined);
-  const cobrosActivo = useModulos().data?.activos.includes('COBROS') ?? false;
-  const acuerdos = useQuery({
-    queryKey: ['cobros', 'acuerdos'],
-    queryFn: () => datos(api.GET('/api/cobros/acuerdos')),
-    enabled: admin && profesional && cobrosActivo,
-    retry: false,
-  });
   const [verDatos, setVerDatos] = useState(false);
   const privados = useDatosPrivados(conDatos ? miembro.id : undefined, verDatos);
-  const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
-  const acuerdo = (acuerdos.data ?? [])
-    .filter((a) => a.profesionalId === miembro.id && a.vigenteDesde.slice(0, 10) <= hoy)
-    .sort((a, b) => b.vigenteDesde.localeCompare(a.vigenteDesde))[0];
   const vigentes = tarifasVigentes(tarifas.data ?? [], Date.now());
   const general = vigentes.find((t) => !t.tipoAtencionId && !t.modalidad) ?? vigentes[0];
   const d = privados.data;
@@ -889,43 +877,17 @@ function Administrativo({ miembro, cuenta, admin, bajaEn }: { miembro: Integrant
             tono={general ? undefined : 'alerta'}
           />
         )}
-        {admin && profesional && acuerdos.isSuccess && (
-          <Fila
-            etiqueta="Acuerdo con el centro"
-            valor={acuerdo ? ACUERDO[acuerdo.modelo] : 'Reglas generales del centro'}
-            accion={
-              <ButtonLink href="/admin/configuracion?seccion=cobros" variant="ghost" className={CHICO}>
-                Ver
-              </ButtonLink>
-            }
-          />
-        )}
         {conDatos && (
           <Fila
-            // MVP sin COBROS (2026-11-11): solo el RUT; la cuenta bancaria no se muestra.
-            etiqueta={cobrosActivo ? 'Datos para pagos' : 'RUT'}
-            valor={
-              verDatos
-                ? privados.isPending
-                  ? '…'
-                  : !cobrosActivo
-                    ? (d?.rut ?? 'No lo registra todavía')
-                    : d
-                      ? `${d.banco ?? 'Banco'} · ${d.tipoCuenta ?? ''} ${d.numeroCuenta ?? ''}`.trim()
-                      : 'No los registra todavía'
-                : 'Cifrado'
-            }
+            // MVP sin COBROS (2026-11-11): solo el RUT; sin cuenta bancaria.
+            etiqueta="RUT"
+            valor={verDatos ? (privados.isPending ? '…' : (d?.rut ?? 'No lo registra todavía')) : 'Cifrado'}
             accion={
               <Button variant="ghost" className={CHICO} icon={verDatos ? 'visibility_off' : 'visibility'} onClick={() => setVerDatos((v) => !v)}>
                 {verDatos ? 'Ocultar' : 'Ver datos'}
               </Button>
             }
           />
-        )}
-        {cobrosActivo && verDatos && d && (
-          <p className="m-0 px-1 text-[12.5px] font-semibold text-neutral-800">
-            RUT {d.rut ?? '—'} · Titular {d.titular ?? '—'}
-          </p>
         )}
         <Fila
           etiqueta="Cuenta"
@@ -940,11 +902,7 @@ function Administrativo({ miembro, cuenta, admin, bajaEn }: { miembro: Integrant
           }
           tono={bajaEn || !miembro.activo ? 'alerta' : undefined}
         />
-        {conDatos && (
-          <span className="px-1 text-[12px] font-semibold text-neutral-700">
-            {cobrosActivo ? 'Ver los datos para pagos queda en la auditoría.' : 'Ver el RUT queda en la auditoría.'}
-          </span>
-        )}
+        {conDatos && <span className="px-1 text-[12px] font-semibold text-neutral-700">Ver el RUT queda en la auditoría.</span>}
       </div>
     </Panel>
   );

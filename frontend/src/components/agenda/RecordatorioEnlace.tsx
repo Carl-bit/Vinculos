@@ -92,8 +92,8 @@ export function RecordatorioEnlace() {
         titulo="Cancelamos tu hora"
         texto={
           resultado.aTiempo
-            ? 'Avisaste con anticipación: la cancelación no tiene cargo. Si pagaste, el centro te indicará cómo se usa ese pago.'
-            : `La cancelación fue fuera de plazo: aplica el ${resultado.penalizacion ?? 0}% de cargo según la política del centro.`
+            ? 'Avisaste con anticipación: tu hora quedó cancelada y libre para otra persona.'
+            : 'Tu hora quedó cancelada. Fue con poco aviso: la próxima vez avísanos apenas sepas, así la hora queda para otra persona.'
         }
         detalle={cuando}
         accion={

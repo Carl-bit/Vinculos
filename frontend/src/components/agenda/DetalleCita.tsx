@@ -12,7 +12,6 @@ import { Modal } from '@/components/ui/Modal';
 import { AprobarSolicitud } from '@/components/shared/AprobarSolicitud';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { MEDIO_PAGO, type MedioPago } from '@/lib/cobros';
 import { useMiCuenta, useProfesionales } from '@/lib/consultas';
 import { formatoFechaHora, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
@@ -33,11 +32,9 @@ const diaChile = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'America
  *   puede otorgarlo aca mismo; GESTION no otorga accesos.
  * - "Derivar paciente": cambio definitivo de tratante, desde la ficha.
  *
- * 03b-3.2: la pendiente de pago muestra su plazo; se confirma con el pago
- * (portal, transferencia validada o pago registrado en Cobros). 03b-3.3: si
- * vence sin pago se mantiene y se paga en el centro. La hora retenida
- * (reserva sin cuenta en curso, sin paciente) se cobra en caja si es
- * presencial (crea paciente y ficha) o se libera con motivo (ADMIN/GESTION).
+ * MVP sin COBROS (2026-11-11): la hora retenida (reserva sin cuenta en
+ * curso, sin paciente, esperando que verifique su correo) solo se libera con
+ * motivo (ADMIN/GESTION); la solicitada la aprueba su profesional.
  */
 export function DetalleCita({
   cita,
@@ -117,15 +114,8 @@ export function DetalleCita({
 
         {cita.estado === 'RETENIDA' && (
           <Aviso tono="info" titulo="Reserva en curso">
-            Alguien pidió esta hora desde el sitio y está pagando{cita.pagoVenceEn ? ` (plazo: ${formatoFechaHora(cita.pagoVenceEn)})` : ''}. El paciente se
-            crea con el pago validado; si no paga a tiempo, la hora se libera sola.
-            {cita.modalidad === 'PRESENCIAL' && ' Si viene a pagar al centro, cóbrala acá.'}
-          </Aviso>
-        )}
-        {cita.estado === 'PENDIENTE_PAGO' && (
-          <Aviso tono="advertencia" titulo="Pago pendiente">
-            Se confirma con el pago{cita.pagoVenceEn ? ` antes del ${formatoFechaHora(cita.pagoVenceEn)}` : ''}: el paciente paga desde su cuenta o se registra
-            en Cobros. Si vence el plazo sin pago, la hora se mantiene y se paga en el centro.
+            Alguien pidió esta hora desde el sitio y está verificando su correo{cita.pagoVenceEn ? ` (plazo: ${formatoFechaHora(cita.pagoVenceEn)})` : ''}. Al
+            verificarlo, la solicitud pasa a su profesional; si no lo verifica a tiempo, la hora se libera sola.
           </Aviso>
         )}
         {cita.estado === 'SOLICITADA' && (
@@ -141,9 +131,7 @@ export function DetalleCita({
           </Aviso>
         )}
 
-        {(admin || (esTratante && cita.modalidad === 'PRESENCIAL')) && cita.estado === 'RETENIDA' && (
-          <HoraRetenida cita={cita} puedeLiberar={admin} onListo={listo} />
-        )}
+        {admin && cita.estado === 'RETENIDA' && <LiberarHora cita={cita} onListo={listo} />}
 
         {cita.estado === 'LIBERADA' && cita.motivoLiberacion && (
           <Aviso tono="info" titulo="Hora liberada por el centro">
@@ -186,7 +174,7 @@ export function DetalleCita({
 
         {cita.estado === 'RETENIDA' ? null : pasada ? (
           <div className="flex flex-col gap-3">
-            <p className="m-0 text-[13px] font-semibold text-neutral-700">Sesión ya ocurrida: la asistencia y el pago se registran en Cobros.</p>
+            <p className="m-0 text-[13px] font-semibold text-neutral-700">Sesión ya ocurrida.</p>
             {rol === 'ADMIN' && cita.estado === 'CONFIRMADA' && (
               <div className="flex flex-wrap items-center gap-2.5">
                 <Button
@@ -230,80 +218,33 @@ export function DetalleCita({
   );
 }
 
-const MEDIOS_CAJA: MedioPago[] = ['EFECTIVO', 'TARJETA_DEBITO', 'TARJETA_CREDITO', 'TRANSFERENCIA', 'CONVENIO'];
-
-/**
- * Hora retenida desde el panel: cobrar en caja (solo presencial; cubre al
- * menos lo exigido para confirmar y crea paciente y ficha) lo hacen
- * ADMIN/GESTION o el profesional de la cita (03b-3.4: en la consulta se le
- * paga a el); liberarla con motivo, solo ADMIN/GESTION.
- */
-function HoraRetenida({ cita, puedeLiberar, onListo }: { cita: CitaVista; puedeLiberar: boolean; onListo: () => void }) {
-  const [modo, setModo] = useState<'caja' | 'liberar' | null>(null);
-  const [monto, setMonto] = useState(String(cita.monto ?? ''));
-  const [medio, setMedio] = useState<MedioPago>('EFECTIVO');
+/** Hora retenida desde el panel: ADMIN/GESTION la libera con motivo. */
+function LiberarHora({ cita, onListo }: { cita: CitaVista; onListo: () => void }) {
+  const [abierto, setAbierto] = useState(false);
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState<string>();
-  const fallo = (texto: string) => (e: unknown) => setError(e instanceof ApiError ? e.message : texto);
 
-  const caja = useMutation({
-    mutationFn: () => datos(api.POST('/api/cobros/citas/{id}/caja', { params: { path: { id: cita.id } }, body: { monto: Number(monto), medioPago: medio } })),
-    onSuccess: onListo,
-    onError: fallo('No pudimos registrar el pago.'),
-  });
   const liberar = useMutation({
     mutationFn: () => datos(api.PATCH('/api/citas/{id}/liberacion', { params: { path: { id: cita.id } }, body: { motivo: motivo.trim() } })),
     onSuccess: onListo,
-    onError: fallo('No pudimos liberar la hora.'),
+    onError: (e) => setError(e instanceof ApiError ? e.message : 'No pudimos liberar la hora.'),
   });
 
-  if (!modo) {
+  if (!abierto) {
     return (
       <div className="flex flex-wrap justify-end gap-2.5">
-        {puedeLiberar && (
-          <Button variant="ghost" icon="event_busy" onClick={() => setModo('liberar')}>
-            Liberar hora
-          </Button>
-        )}
-        {cita.modalidad === 'PRESENCIAL' && (
-          <Button variant="secondary" icon="payments" onClick={() => setModo('caja')}>
-            Cobrar en caja
-          </Button>
-        )}
+        <Button variant="ghost" icon="event_busy" onClick={() => setAbierto(true)}>
+          Liberar hora
+        </Button>
       </div>
     );
   }
   return (
     <div className="flex flex-col gap-3.5 rounded-lg border border-accent-500 bg-accent-100 px-[18px] py-4">
-      <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-accent-800 uppercase">{modo === 'caja' ? 'Cobrar en caja' : 'Liberar hora'}</p>
-      {modo === 'caja' ? (
-        <>
-          <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
-            Confirma con la persona la fecha, la hora y el profesional de su reserva. Al registrar el pago se crean el paciente y su ficha, la hora queda
-            confirmada y le llega la invitación a su cuenta.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Monto" hint="Al menos lo exigido para confirmar, sin superar el valor de la sesión." required>
-              {(p) => <Input {...p} inputMode="numeric" value={monto} onChange={(e) => setMonto(e.target.value.replace(/\D/g, ''))} />}
-            </Field>
-            <Field label="Medio de pago" required>
-              {(p) => (
-                <Select {...p} value={medio} onChange={(e) => setMedio(e.target.value as MedioPago)}>
-                  {MEDIOS_CAJA.map((m) => (
-                    <option key={m} value={m}>
-                      {MEDIO_PAGO[m]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          </div>
-        </>
-      ) : (
-        <Field label="Motivo" hint="Queda registrado. La reserva ya no se puede confirmar." required>
-          {(p) => <Textarea {...p} rows={2} maxLength={500} value={motivo} onChange={(e) => setMotivo(e.target.value)} />}
-        </Field>
-      )}
+      <p className="m-0 text-[11px] font-extrabold tracking-[0.1em] text-accent-800 uppercase">Liberar hora</p>
+      <Field label="Motivo" hint="Queda registrado. La reserva ya no se puede confirmar." required>
+        {(p) => <Textarea {...p} rows={2} maxLength={500} value={motivo} onChange={(e) => setMotivo(e.target.value)} />}
+      </Field>
       {error && (
         <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
           {error}
@@ -313,21 +254,15 @@ function HoraRetenida({ cita, puedeLiberar, onListo }: { cita: CitaVista; puedeL
         <Button
           variant="ghost"
           onClick={() => {
-            setModo(null);
+            setAbierto(false);
             setError(undefined);
           }}
         >
           Volver
         </Button>
-        {modo === 'caja' ? (
-          <Button variant="team" icon="payments" disabled={!Number(monto)} loading={caja.isPending} onClick={() => caja.mutate()}>
-            Registrar pago y confirmar
-          </Button>
-        ) : (
-          <Button variant="team" icon="event_busy" disabled={motivo.trim().length < 3} loading={liberar.isPending} onClick={() => liberar.mutate()}>
-            Liberar hora
-          </Button>
-        )}
+        <Button variant="team" icon="event_busy" disabled={motivo.trim().length < 3} loading={liberar.isPending} onClick={() => liberar.mutate()}>
+          Liberar hora
+        </Button>
       </div>
     </div>
   );

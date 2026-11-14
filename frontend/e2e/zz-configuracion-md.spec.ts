@@ -17,8 +17,6 @@ const SECCIONES: { etiqueta: string; componente: string }[] = [
   { etiqueta: 'Datos y página pública', componente: 'nucleo/DatosCentro.tsx' },
   { etiqueta: 'Horario y feriados', componente: 'nucleo/HorarioPoliticasCentro.tsx (HorarioCentroEditor) + nucleo/FeriadosCentro.tsx' },
   { etiqueta: 'Agenda y plazos', componente: 'nucleo/ReglasCentro.tsx (seccion="agenda")' },
-  { etiqueta: 'Cobros y acuerdos', componente: 'nucleo/ReglasCentro.tsx (seccion="cobros") + cobros/AcuerdosProfesionales.tsx' },
-  { etiqueta: 'Medios de pago', componente: 'nucleo/MediosPagoCentro.tsx' },
   { etiqueta: 'Avisos al paciente y equipo', componente: 'nucleo/PlantillasMensaje.tsx' },
   { etiqueta: 'Roles y accesos', componente: 'nucleo/ReglasCentro.tsx (seccion="roles")' },
   { etiqueta: 'Consentimientos y políticas', componente: 'nucleo/HorarioPoliticasCentro.tsx (PoliticasCentro)' },

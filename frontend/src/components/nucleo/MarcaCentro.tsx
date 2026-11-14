@@ -26,7 +26,7 @@ const ZONAS: { zona: Zona; nombre: string; bajada: string; principal: Campo; fon
     principal: 'colorMarca',
     fondo: 'colorFondoPublico',
   },
-  { zona: 'portal', nombre: 'Portal del paciente', bajada: 'Mi cuenta, horas, pagos y consentimientos.', principal: 'colorPortal', fondo: 'colorFondoPortal' },
+  { zona: 'portal', nombre: 'Portal del paciente', bajada: 'Mi cuenta, horas y consentimientos.', principal: 'colorPortal', fondo: 'colorFondoPortal' },
   {
     zona: 'panel',
     nombre: 'Panel del equipo',

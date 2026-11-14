@@ -54,8 +54,7 @@ const desde = (c: ConfiguracionCentro, p: ContenidoPublico): Formulario => ({
 
 /**
  * Datos y pagina publica (diseño "Opcion A submenu agrupado"): identidad y
- * contacto (nombre y RUT: remitente de correos y emisor de comprobantes del
- * modelo CENTRO), logo, textos de la portada, mision, vision y servicios. Los
+ * contacto (nombre y RUT: remitente de correos), logo, textos de la portada, mision, vision y servicios. Los
  * colores de marca estan en "Marca y apariencia" (03c). Un campo vacio se
  * borra (null). Solo ADMIN.
  */

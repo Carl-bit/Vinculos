@@ -48,7 +48,7 @@ function Shell({ sesion, cuenta, children }: { sesion: SesionActiva; cuenta: Rea
       {/* 03c: el portal va sobre el lienzo con puntos (como el panel); las tarjetas quedan en crema. */}
       <div className="trama min-h-screen overflow-x-clip">
         <div className="mx-auto max-w-[1120px] px-[clamp(20px,4vw,40px)] pb-[72px]">
-          <header className="flex flex-wrap items-center gap-x-5 gap-y-3 py-[22px]">
+          <header className="flex flex-wrap items-center gap-x-5 gap-y-3 py-[22px] [@media(max-height:860px)]:py-3">
             <Marca href="/portal" />
           </header>
 
@@ -69,7 +69,7 @@ function Shell({ sesion, cuenta, children }: { sesion: SesionActiva; cuenta: Rea
               </div>
               <p className="m-0 mb-1 flex max-w-md gap-2 text-[12.5px] font-semibold text-accent-2-900">
                 <Icon name="family_restroom" size={18} className="text-accent-2-700" />
-                Como adulto responsable ves sus horas, pagos y documentos. Los mensajes que tu menor le escribe a su profesional son privados.
+                Como adulto responsable ves sus horas y documentos. Los mensajes que tu menor le escribe a su profesional son privados.
               </p>
             </div>
           )}

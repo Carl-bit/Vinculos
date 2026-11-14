@@ -10,7 +10,7 @@ const iso = (desdeAhoraMin: number) => new Date(Date.now() + desdeAhoraMin * MIN
 const citas = [
   // En curso (empezo hace 10 min) y otra en una hora.
   { id: 'c1', estado: 'CONFIRMADA', inicio: iso(-10), fin: iso(40), profesionalId: 'p1', pacienteId: 'pa1', espacioId: 'b1', modalidad: 'PRESENCIAL' },
-  { id: 'c2', estado: 'PENDIENTE_PAGO', inicio: iso(60), fin: iso(110), profesionalId: 'p1', pacienteId: 'pa2', espacioId: null, modalidad: 'ONLINE' },
+  { id: 'c2', estado: 'CONFIRMADA', inicio: iso(60), fin: iso(110), profesionalId: 'p1', pacienteId: 'pa2', espacioId: null, modalidad: 'ONLINE' },
 ];
 const mensajes = vi.fn(() => lista([{ id: 'm1', pacienteId: 'pa1', leidoEn: null, creadoEn: iso(-120), contenido: 'x', profesionalId: 'p1' }]));
 

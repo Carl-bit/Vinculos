@@ -12,8 +12,8 @@ import { Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { api, datos } from '@/lib/api/cliente';
 import { useHorarioCentro } from '@/lib/centro';
-import { useMiCuenta, useModulos } from '@/lib/consultas';
-import { ESTADOS_VISUALES, estadoVisual, horaInicioCentro, tramosLibres, type EstadoVisual, type HoraElegida } from '@/lib/grillaAgenda';
+import { useMiCuenta } from '@/lib/consultas';
+import { ESTADOS_VISUALES, estadoVisual, horaFinCentro, horaInicioCentro, tramosLibres, type EstadoVisual, type HoraElegida } from '@/lib/grillaAgenda';
 import { DURACION_SESION_MIN, bloquesDeSesion, dia } from '@/lib/horarios';
 import {
   fechaHoyChile,
@@ -95,8 +95,8 @@ type Columna = ColumnaGrilla<Evento>;
  * grilla de tiempo real que va de la apertura del centro (08:00 sin horario) a
  * las 24:00. Las horas por confirmar estan en la pestaña Pendientes.
  *
- * - Sesiones con el color de su modalidad (presencial / online / pago
- *   pendiente). ADMIN y GESTION ven todo el equipo o un profesional.
+ * - Sesiones con el color de su modalidad (presencial / online / por
+ *   confirmar). ADMIN y GESTION ven todo el equipo o un profesional.
  * - Box elegido en "Ver box": encima las sesiones (del profesional; sin
  *   profesional elegido, las de ese box) y de fondo sus horas libres, lo
  *   apartado y cada sesion ajena como "Ocupado" (sesiones_espacios(), sin
@@ -120,9 +120,10 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
   const [boxId, setBoxId] = useState<string | null>(null);
   const { profesionalId, setProfesionalId } = useEquipoActivo();
   const cuenta = useMiCuenta();
-  const modulos = useModulos();
   const ahora = useAhora();
-  const desdeHora = horaInicioCentro(useHorarioCentro().data);
+  const horario = useHorarioCentro().data;
+  const desdeHora = horaInicioCentro(horario);
+  const hastaHora = horaFinCentro(horario);
 
   const hoy = fechaHoyChile();
   const diaVista = sumarDias(hoy, vista === 'dia' ? desplazamiento : 0);
@@ -168,16 +169,11 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
     queryFn: () => datos(api.GET('/api/espacios/bloques', { params: { query: rango } })),
     enabled: !!box && admin,
   });
-  // Simbolos de estado: sesiones con evolucion (solo el equipo tratante: es clinico) e inasistencias (Cobros).
+  // Simbolo de estado: sesiones con evolucion (solo el equipo tratante: es clinico).
   const evolucion = useQuery({
     queryKey: ['panel', 'citas-con-evolucion', rango.desde, rango.hasta],
     queryFn: () => datos(api.GET('/api/citas-con-evolucion', { params: { query: rango } })),
     enabled: clinico,
-  });
-  const cobros = useQuery({
-    queryKey: ['panel', 'cobros-citas', rango.desde, rango.hasta, filtro],
-    queryFn: () => datos(api.GET('/api/cobros/citas', { params: { query: { ...rango, profesionalId: filtro } } })),
-    enabled: rol !== 'PRACTICANTE' && !!modulos.data?.activos.includes('COBROS'),
   });
 
   const setVista = (v: VistaAgenda) => {
@@ -191,12 +187,10 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
   const nombreBox = new Map((espacios.data ?? []).map((e) => [e.id, e.nombre]));
   const activos = (espacios.data ?? []).filter((e) => e.activo);
   const conEvolucion = new Set(evolucion.data ?? []);
-  const inasistencias = new Set((cobros.data ?? []).filter((c) => c.inasistencia).map((c) => c.cita_id));
 
   const visibles = (citas.data ?? []).filter((c) => c.estado !== 'CANCELADA' && c.estado !== 'LIBERADA');
   const variosProfesionales = admin && !filtro;
-  const estadoDe = (c: CitaVista) =>
-    estadoVisual(c, { ahora, conEvolucion: clinico && evolucion.isSuccess ? conEvolucion.has(c.id) : undefined, inasistencia: inasistencias.has(c.id) });
+  const estadoDe = (c: CitaVista) => estadoVisual(c, { ahora, conEvolucion: clinico && evolucion.isSuccess ? conEvolucion.has(c.id) : undefined });
 
   // Quien aparto un bloque: solo llega a ADMIN/GESTION.
   const quienAparto = (o: { espacio_id: string; inicio: string; fin: string }) => {
@@ -257,7 +251,7 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
   const huecosOnline = (d: string): HoraElegida[] => {
     if (!conOnline) return [];
     const salida: HoraElegida[] = [];
-    for (let h = desdeHora; h < 24; h++) {
+    for (let h = desdeHora; h < hastaHora; h++) {
       const inicio = instanteChile(d, h * 60);
       const fin = new Date(inicio.getTime() + DURACION_SESION_MIN * 60_000);
       if (inicio.getTime() <= ahora) continue;
@@ -288,7 +282,6 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
   };
 
   const estadosPresentes = [...new Set(sesiones.map(estadoDe).filter((e): e is EstadoVisual => !!e))];
-  const fondosPresentes = [...new Set(fondo.flatMap((f) => (f.tipo === 'fondo' && f.clase !== 'libre' ? [f.clase] : [])))];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -336,19 +329,7 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
       {/* Fila de filtros (2026-11-14): leyenda a la izquierda; Ver box y modalidad a la derecha. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <div className="min-w-0 flex-1">
-          <Leyenda
-            estados={estadosPresentes}
-            fondos={fondosPresentes}
-            clinico={clinico}
-            box={box ? (nombreBox.get(box) ?? 'Box') : null}
-            ayuda={
-              conOnline
-                ? box
-                  ? 'Toca una hora vacía para agendar online o una libre del box para presencial'
-                  : 'Toca una hora vacía para agendar online; para presencial, elige un box en "Ver box"'
-                : null
-            }
-          />
+          <Leyenda estados={estadosPresentes} clinico={clinico} />
         </div>
         <div role="toolbar" aria-label="Filtros de la agenda" className="flex flex-wrap items-center gap-2.5">
           {activos.length > 0 && (
@@ -406,6 +387,7 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
                   hoy={hoy}
                   ahora={ahora}
                   desdeHora={desdeHora}
+                  hastaHora={hastaHora}
                   huecos={huecosOnline}
                   onHueco={onElegirHora}
                   render={(e) =>
@@ -492,21 +474,14 @@ function HoraDisponible({ clase, hora, onElegir }: { clase: ClaseFondo; hora: Ho
   );
 }
 
-function Leyenda({
-  estados,
-  fondos,
-  clinico,
-  box,
-  ayuda,
-}: {
-  estados: EstadoVisual[];
-  fondos: ClaseFondo[];
-  clinico: boolean;
-  box: string | null;
-  ayuda: string | null;
-}) {
-  // Pago pendiente y sin evolucion llevan marca propia; el resto de los estados presentes, su simbolo.
-  const otros = estados.filter((e) => e !== 'confirmada' && e !== 'pendiente_pago' && e !== 'retenida' && e !== 'sin_evolucion');
+/**
+ * Leyenda corta (2026-11-14): modalidad, "Box disponible" (horas libres del box
+ * elegido en "Ver box") y los simbolos de estado presentes. Sin textos de ayuda
+ * ni entradas de fondo: los bloques de la grilla ya dicen lo suyo.
+ */
+function Leyenda({ estados, clinico }: { estados: EstadoVisual[]; clinico: boolean }) {
+  // Sin evolucion lleva marca propia; el resto de los estados presentes, su simbolo.
+  const otros = estados.filter((e) => e !== 'confirmada' && e !== 'por_confirmar' && e !== 'retenida' && e !== 'sin_evolucion');
   const muestra = 'size-[13px] flex-none rounded-[4px]';
   return (
     <ul aria-label="Leyenda" className="m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 p-0 text-[12px] font-bold text-neutral-800">
@@ -519,8 +494,8 @@ function Leyenda({
         Online
       </li>
       <li className="inline-flex items-center gap-1.5">
-        <span aria-hidden className={`${muestra} border-2 border-dashed border-pendiente-700 bg-pendiente-100`} />
-        Pago pendiente
+        <span aria-hidden className={`${muestra} ${CLASE_FONDO.libre}`} />
+        Box disponible
       </li>
       {clinico && (
         <li className="inline-flex items-center gap-1.5">
@@ -534,19 +509,6 @@ function Leyenda({
           {ESTADOS_VISUALES[e].texto}
         </li>
       ))}
-      {fondos.map((f) => (
-        <li key={f} className="inline-flex items-center gap-1.5">
-          <span aria-hidden className={`${muestra} border ${CLASE_FONDO[f]}`} />
-          {f === 'ocupado' || f === 'reservando' ? `${TEXTO_FONDO[f]} por otra persona` : textoFondo(f, clinico)}
-        </li>
-      ))}
-      {ayuda && <li className="font-semibold text-neutral-700">{ayuda}</li>}
-      {box && (
-        <li className="inline-flex items-center gap-1.5 font-extrabold text-accent-2-800 sm:ml-auto">
-          <span aria-hidden className={`${muestra} ${CLASE_FONDO.libre}`} />
-          Horas libres de {box}
-        </li>
-      )}
     </ul>
   );
 }

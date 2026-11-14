@@ -39,7 +39,6 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
     { etiqueta: 'Agenda y Espacios', icono: 'calendar_month', href: '/admin/agenda', grupo: 'modulos', roles: EQUIPO, modulo: 'AGENDA' },
     { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'modulos', roles: ['ADMIN', 'GESTION'], modulo: 'EQUIPO', fueraDelMenu: ['ADMIN'] },
     { etiqueta: 'Match Terapéutico', icono: 'join', href: '/admin/match', grupo: 'modulos', roles: ['ADMIN'], modulo: 'MATCH' },
-    { etiqueta: 'Cobros', icono: 'payments', href: '/admin/cobros', grupo: 'modulos', roles: ['ADMIN', 'GESTION', 'PROFESIONAL'], modulo: 'COBROS' },
     // 2026-10-27: la seccion Centro es solo de la cuenta madre (ADMIN).
     // 2026-11-05: la cuenta madre gestiona el equipo desde Centro (GESTION lo ve en Modulos).
     { etiqueta: 'Equipo', icono: 'groups', href: '/admin/equipo', grupo: 'centro', roles: ['ADMIN'], modulo: 'EQUIPO' },
@@ -50,7 +49,6 @@ export const MENU: Record<Zona, readonly ItemMenu[]> = {
     { etiqueta: 'Mi cuenta', icono: 'person', href: '/portal', grupo: 'principal', roles: PORTAL },
     { etiqueta: 'Pedir una hora', icono: 'event', href: '/portal/pedir-hora', grupo: 'principal', roles: PORTAL, modulo: 'AGENDA' },
     { etiqueta: 'Resumen', icono: 'person', href: '/portal', grupo: 'secciones', roles: PORTAL },
-    { etiqueta: 'Pagos', icono: 'payments', href: '/portal/pagos', grupo: 'secciones', roles: PORTAL, modulo: 'COBROS', soloCuentaPlena: true },
     { etiqueta: 'Documentos', icono: 'description', href: '/portal/documentos', grupo: 'secciones', roles: PORTAL, modulo: 'FICHAS', soloCuentaPlena: true },
     {
       etiqueta: 'Consentimientos',

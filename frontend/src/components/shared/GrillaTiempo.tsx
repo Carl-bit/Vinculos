@@ -29,11 +29,11 @@ export interface ColumnaGrilla<E extends EventoGrilla> {
 
 /**
  * Colores de la sesion por modalidad (design-reference "Opcion A semana
- * unificada"): presencial terracota, online azul, pago pendiente punteado.
+ * unificada"): presencial terracota, online azul, por confirmar punteado.
  */
-export const pendienteDePago = (e: EstadoVisual | null) => e === 'pendiente_pago' || e === 'retenida';
+export const porConfirmar = (e: EstadoVisual | null) => e === 'por_confirmar' || e === 'retenida';
 export const claseSesion = (c: Pick<CitaVista, 'modalidad'>, e: EstadoVisual | null) =>
-  pendienteDePago(e)
+  porConfirmar(e)
     ? 'border-2 border-dashed border-pendiente-700 bg-pendiente-100 text-pendiente-900'
     : c.modalidad === 'ONLINE'
       ? 'border border-online-600 bg-online-100 text-online-900'
@@ -41,7 +41,7 @@ export const claseSesion = (c: Pick<CitaVista, 'modalidad'>, e: EstadoVisual | n
 
 /**
  * Grilla de tiempo: una columna por dia con encabezado fijo y resumen. Va de
- * desdeHora a las 24:00 y estira las horas al alto disponible (minimo
+ * desdeHora a hastaHora (horario del centro) y estira las horas al alto disponible (minimo
  * ALTO_HORA_MINIMO por hora; bajo eso, scroll interno). Debajo de los eventos,
  * las horas vacias a futuro (`huecos`, opcional) se eligen con el mouse para
  * agendar online; con teclado se agenda desde "Agendar sesion" (evita decenas
@@ -52,6 +52,7 @@ export function GrillaTiempo<E extends EventoGrilla>({
   hoy,
   ahora,
   desdeHora,
+  hastaHora = 24,
   huecos,
   onHueco,
   render,
@@ -61,13 +62,17 @@ export function GrillaTiempo<E extends EventoGrilla>({
   hoy: string;
   ahora: number;
   desdeHora: number;
+  /** Cierre mas tardio del centro (horaFinCentro); sin horario, 24. */
+  hastaHora?: number;
   huecos?: (dia: string) => HoraElegida[];
   onHueco?: (h: HoraElegida) => void;
   render: (e: E) => ReactNode;
   /** Alto minimo de una hora (px); bajo eso, scroll interno. */
   altoHora?: number;
 }) {
-  const horas = Array.from({ length: 24 - desdeHora }, (_, i) => desdeHora + i);
+  // Solo las horas en que se atiende; un horario mal cargado (cierre <= apertura) vuelve a 24:00.
+  const fin = hastaHora > desdeHora ? hastaHora : 24;
+  const horas = Array.from({ length: fin - desdeHora }, (_, i) => desdeHora + i);
   const pct = (h: number) => `${((h - desdeHora) / horas.length) * 100}%`;
   // Semana (7 o mas columnas): 84 px minimo para que entre completa en un notebook (1280 px); pocas columnas, 120.
   const plantilla = { gridTemplateColumns: `56px repeat(${columnas.length}, minmax(${columnas.length >= 7 ? 84 : 120}px, 1fr))` };
@@ -118,7 +123,7 @@ export function GrillaTiempo<E extends EventoGrilla>({
                 <span key={h} aria-hidden className="absolute inset-x-0 border-t border-divider/70" style={{ top: pct(h) }} />
               ))}
               {huecos?.(c.dia).map((h) => {
-                const p = posicion(h.inicio.toISOString(), h.fin.toISOString(), desdeHora);
+                const p = posicion(h.inicio.toISOString(), h.fin.toISOString(), desdeHora, fin);
                 const texto = horaCorta.format(h.inicio);
                 return (
                   <button
@@ -134,7 +139,7 @@ export function GrillaTiempo<E extends EventoGrilla>({
                   </button>
                 );
               })}
-              {c.dia === hoy && minutoAhora >= desdeHora * 60 && (
+              {c.dia === hoy && minutoAhora >= desdeHora * 60 && minutoAhora <= fin * 60 && (
                 <span
                   aria-hidden
                   className="pointer-events-none absolute inset-x-0 z-[3] border-t-2 border-accent-700"
@@ -144,7 +149,7 @@ export function GrillaTiempo<E extends EventoGrilla>({
                 </span>
               )}
               {c.eventos.map((e, i) => {
-                const p = posicion(e.inicio, e.fin, desdeHora);
+                const p = posicion(e.inicio, e.fin, desdeHora, fin);
                 if (p.alto <= 0) return null;
                 const l = lugar.get(e) ?? { carril: 0, total: 1 };
                 const base: EventoGrilla = e;
@@ -166,12 +171,12 @@ export function GrillaTiempo<E extends EventoGrilla>({
   );
 }
 
-/** Etiqueta "SIN EVOL." / "PAGO" del diseño (texto, no solo color). */
-export function Marca({ children, tono }: { children: ReactNode; tono: 'oscuro' | 'pago' }) {
+/** Etiqueta "SIN EVOL." / "POR CONF." del diseño (texto, no solo color). */
+export function Marca({ children, tono }: { children: ReactNode; tono: 'oscuro' | 'pendiente' }) {
   return (
     <span
       className={`flex-none rounded-full px-1.5 py-px text-[9.5px] whitespace-nowrap leading-tight font-extrabold tracking-[0.02em] ${
-        tono === 'pago' ? 'bg-pendiente-900 text-neutral-100' : 'bg-text text-neutral-100'
+        tono === 'pendiente' ? 'bg-pendiente-900 text-neutral-100' : 'bg-text text-neutral-100'
       }`}
     >
       {children}
@@ -199,7 +204,7 @@ export function TarjetaCita({
   onElegir: (c: CitaVista) => void;
 }) {
   const e = estado ? ESTADOS_VISUALES[estado] : null;
-  const marca = estado === 'sin_evolucion' ? 'SIN EVOL.' : pendienteDePago(estado) ? (estado === 'retenida' ? 'RETENIDA' : 'PAGO') : null;
+  const marca = estado === 'sin_evolucion' ? 'SIN EVOL.' : porConfirmar(estado) ? (estado === 'retenida' ? 'RETENIDA' : 'POR CONF.') : null;
   const simbolo = e && !marca && estado !== 'confirmada' ? e : null;
   const lugar = cita.modalidad === 'ONLINE' ? 'Online' : (box ?? 'Presencial');
   return (
@@ -221,7 +226,7 @@ export function TarjetaCita({
         <span className="truncate">{profesional ? `${profesional} · ${lugar}` : lugar}</span>
         {marca && (
           <span className="ml-auto">
-            <Marca tono={marca === 'SIN EVOL.' ? 'oscuro' : 'pago'}>{marca}</Marca>
+            <Marca tono={marca === 'SIN EVOL.' ? 'oscuro' : 'pendiente'}>{marca}</Marca>
           </span>
         )}
       </span>

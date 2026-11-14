@@ -11,7 +11,7 @@ import { Badge, type TonoBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Icon } from '@/components/ui/Icon';
-import { useMiCuenta, useModulos } from '@/lib/consultas';
+import { useMiCuenta } from '@/lib/consultas';
 import { useExportacionesPendientes } from '@/lib/exportaciones';
 import { formatoHora } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
@@ -42,12 +42,10 @@ import { MisRecordatorios } from './MisRecordatorios';
 const diaSemana = new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', weekday: 'short', day: 'numeric' });
 
 /** Citas que cuentan como agendadas en el inicio (las demas no ocupan la hora). */
-const agendada = (c: CitaVista) =>
-  c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO' || c.estado === 'POR_REPROGRAMAR' || c.estado === 'SOLICITADA' || c.estado === 'PROPUESTA';
+const agendada = (c: CitaVista) => c.estado === 'CONFIRMADA' || c.estado === 'POR_REPROGRAMAR' || c.estado === 'SOLICITADA' || c.estado === 'PROPUESTA';
 
 const ESTADO_SEMANA: Partial<Record<CitaVista['estado'], { texto: string; tono: TonoBadge }>> = {
   CONFIRMADA: { texto: 'Confirmada', tono: 'positivo' },
-  PENDIENTE_PAGO: { texto: 'Pendiente de pago', tono: 'atencion' },
   SOLICITADA: { texto: 'Por aprobar', tono: 'atencion' },
   PROPUESTA: { texto: 'Propuesta al paciente', tono: 'atencion' },
   POR_REPROGRAMAR: { texto: 'Por reprogramar', tono: 'atencion' },
@@ -85,8 +83,6 @@ export function InicioPanel({ rol, orden: externo }: { rol: Rol; orden?: OrdenBl
 
   const propio = useOrdenBloques(rol);
   const orden = externo ?? propio;
-  // MVP sin finanzas: sin el modulo COBROS no se muestran pendientes de pagos, transferencias ni deudas.
-  const cobros = !!useModulos().data?.activos.includes('COBROS');
   return (
     <EstadoConsulta consulta={reporte}>
       {(r) => {
@@ -109,7 +105,7 @@ export function InicioPanel({ rol, orden: externo }: { rol: Rol; orden?: OrdenBl
           },
           pendientes: {
             titulo: 'Pendientes',
-            contenido: admin ? <Pendientes items={pendientesCentro(r, rol, cobros)} /> : <PendientesPropios r={r} rol={rol} cobros={cobros} />,
+            contenido: admin ? <Pendientes items={pendientesCentro(r, rol)} /> : <PendientesPropios r={r} rol={rol} />,
           },
           recordatorios: { titulo: 'Mis recordatorios', contenido: <MisRecordatorios /> },
         };
@@ -402,7 +398,6 @@ function SesionFoco({ lista }: { lista: CitaVista[] }) {
             <p className="m-0 flex items-center gap-1.5 text-[13.5px] font-bold text-neutral-800">
               <Icon name={foco.modalidad === 'ONLINE' ? 'videocam' : 'meeting_room'} size={17} />
               {foco.modalidad === 'ONLINE' ? 'Online · enlace en el detalle de la sesión' : `Presencial · ${n.lugar(foco)}`}
-              {foco.estado === 'PENDIENTE_PAGO' ? ' · pago pendiente' : ''}
             </p>
           </div>
         </div>
@@ -706,7 +701,7 @@ function EstaSemana({ lista, admin, r }: { lista: CitaVista[]; admin: boolean; r
 }
 
 /** 4b. Pendientes del profesional: incluye copias de datos por completar y consentimientos pendientes. */
-function PendientesPropios({ r, rol, cobros }: { r: ReporteDashboard; rol: Rol; cobros: boolean }) {
+function PendientesPropios({ r, rol }: { r: ReporteDashboard; rol: Rol }) {
   const exportaciones = useExportacionesPendientes(rol === 'PROFESIONAL');
   const consentimientos = r.pendientes?.consentimientos_pendientes ?? 0;
   return (
@@ -723,7 +718,7 @@ function PendientesPropios({ r, rol, cobros }: { r: ReporteDashboard; rol: Rol; 
               },
             ]
           : []),
-        ...pendientesPropios(r, cobros),
+        ...pendientesPropios(r),
         ...(consentimientos > 0
           ? [
               {
@@ -750,34 +745,11 @@ interface Pendiente {
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
-function pendientesCentro(r: ReporteDashboard, rol: Rol, cobros: boolean): Pendiente[] {
+/** MVP sin COBROS (2026-11-11): sin transferencias, pagos pendientes ni deudas. */
+function pendientesCentro(r: ReporteDashboard, rol: Rol): Pendiente[] {
   const p = r.pendientes;
   if (!p) return [];
   const lista: (Pendiente | false)[] = [
-    cobros &&
-      p.transferencias_por_validar > 0 && {
-        icono: 'payments',
-        titulo: plural(p.transferencias_por_validar, 'transferencia por validar', 'transferencias por validar'),
-        meta: 'Al validarla, la hora queda confirmada',
-        href: '/admin/cobros?vista=transferencias',
-        tono: 'atencion',
-      },
-    cobros &&
-      p.pagos_pendientes > 0 && {
-        icono: 'schedule',
-        titulo: plural(p.pagos_pendientes, 'hora con pago pendiente', 'horas con pago pendiente'),
-        meta: 'Se confirman con el pago; si vence el plazo, se pagan en el centro',
-        href: '/admin/agenda?vista=pendientes',
-        tono: 'neutra',
-      },
-    cobros &&
-      p.pacientes_con_deuda > 0 && {
-        icono: 'payments',
-        titulo: plural(p.pacientes_con_deuda, 'paciente con deuda', 'pacientes con deuda'),
-        meta: 'Sesiones realizadas sin pagar: no agendan hasta regularizar',
-        href: '/admin/cobros?vista=deudas',
-        tono: 'atencion',
-      },
     (r.fichas_por_cerrar ?? 0) > 0 && {
       icono: 'edit_note',
       titulo: plural(r.fichas_por_cerrar!, 'ficha por cerrar', 'fichas por cerrar'),
@@ -840,7 +812,7 @@ function pendientesCentro(r: ReporteDashboard, rol: Rol, cobros: boolean): Pendi
   return lista.filter((x): x is Pendiente => !!x);
 }
 
-function pendientesPropios(r: ReporteDashboard, cobros: boolean): Pendiente[] {
+function pendientesPropios(r: ReporteDashboard): Pendiente[] {
   const lista: (Pendiente | false)[] = [
     (r.fichas_sin_cerrar ?? 0) > 0 && {
       icono: 'edit_note',
@@ -856,22 +828,6 @@ function pendientesPropios(r: ReporteDashboard, cobros: boolean): Pendiente[] {
       href: '/admin/fichas?vista=borradores',
       tono: 'atencion',
     },
-    cobros &&
-      (r.pagos_pendientes ?? 0) > 0 && {
-        icono: 'schedule',
-        titulo: plural(r.pagos_pendientes!, 'hora con pago pendiente', 'horas con pago pendiente'),
-        meta: 'Se confirman con el pago del paciente',
-        href: '/admin/agenda?vista=pendientes',
-        tono: 'neutra',
-      },
-    cobros &&
-      (r.pacientes_con_deuda ?? 0) > 0 && {
-        icono: 'payments',
-        titulo: plural(r.pacientes_con_deuda!, 'paciente con deuda', 'pacientes con deuda'),
-        meta: 'Sesiones realizadas sin pagar: no agendan hasta regularizar',
-        href: '/admin/cobros?vista=deudas',
-        tono: 'atencion',
-      },
     (r.mensajes_sin_leer ?? 0) > 0 && {
       icono: 'mail',
       titulo: plural(r.mensajes_sin_leer!, 'mensaje sin leer', 'mensajes sin leer'),

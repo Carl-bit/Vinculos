@@ -12,7 +12,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Modal } from '@/components/ui/Modal';
 import { useHorarioCentro } from '@/lib/centro';
 import { formatoFechaCorta, formatoFechaLarga, formatoHora } from '@/lib/formato';
-import { estadoVisual, horaInicioCentro } from '@/lib/grillaAgenda';
+import { estadoVisual, horaFinCentro, horaInicioCentro } from '@/lib/grillaAgenda';
 import {
   fechaHoyChile,
   mesChile,
@@ -163,7 +163,9 @@ function Calendario({ profesionalId, onIr }: { profesionalId: string; onIr: () =
 function Semana({ dias, lista, nombres, agenda }: { dias: string[]; lista: CitaVista[]; nombres: Map<string, string>; agenda: string }) {
   const router = useRouter();
   const box = new Map((useEspacios().data ?? []).map((e) => [e.id, e.nombre]));
-  const desdeHora = horaInicioCentro(useHorarioCentro().data);
+  const horario = useHorarioCentro().data;
+  const desdeHora = horaInicioCentro(horario);
+  const hastaHora = horaFinCentro(horario);
   const ahora = useAhora();
   const hoy = fechaHoyChile();
   const eventos: EventoGrilla[] = lista.map((c) => ({ tipo: 'cita', cita: c, inicio: c.inicio, fin: c.fin }));
@@ -181,6 +183,7 @@ function Semana({ dias, lista, nombres, agenda }: { dias: string[]; lista: CitaV
         hoy={hoy}
         ahora={ahora}
         desdeHora={desdeHora}
+        hastaHora={hastaHora}
         altoHora={44}
         render={(e) =>
           e.tipo === 'cita' && (

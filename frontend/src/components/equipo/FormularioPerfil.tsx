@@ -281,13 +281,6 @@ export function FormularioPerfil({
         )}
         <Interruptor
           tono="team"
-          etiqueta="Cobro directo"
-          descripcion="El profesional cobra y emite su boleta; el centro no recibe esos pagos."
-          activo={opciones.cobroDirecto}
-          onChange={(v) => setOpciones((o) => ({ ...o, cobroDirecto: v }))}
-        />
-        <Interruptor
-          tono="team"
           etiqueta="Boleta reembolsable"
           descripcion="Se indica en el perfil público para pacientes con seguro."
           activo={opciones.boletaReembolsable}

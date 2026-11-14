@@ -3,49 +3,10 @@ import { expect, test } from '@playwright/test';
 import { ingresar, ingresarEquipo } from './apoyo';
 
 /**
- * AUD-01 (docs/cumplimiento/roadmap_aud01.md) contra el seed demo: comprobante
- * de pago y boleta del SII (E1.4) y auditoria de accesos (E1.5).
+ * AUD-01 (docs/cumplimiento/roadmap_aud01.md) contra el seed demo: auditoria
+ * de accesos (E1.5) y el resto de cumplimiento. MVP sin COBROS (2026-11-11):
+ * sin comprobantes de pago ni boletas (E1.4).
  */
-test('Cobros: la sesion pagada muestra el comprobante (no tributario); ADMIN registra y anula la boleta del SII', async ({ page }) => {
-  await ingresarEquipo(page, 'admin');
-  await page.goto('/admin/cobros');
-  await page.getByRole('tab', { name: 'Asistencia y pago' }).click();
-  await page.getByRole('tab', { name: 'Todas' }).click();
-  const pagada = page.locator('li, tr').filter({ hasText: 'Pagada' }).first();
-  await pagada.getByRole('button', { name: 'Asistencia y pago' }).click();
-  const modal = page.getByRole('dialog');
-  await expect(modal.getByText(/Comprobante de pago CP-\d{8} \(no es boleta del SII\)/)).toBeVisible();
-
-  const folio = String(Date.now()).slice(-9);
-  await modal.getByRole('button', { name: 'Registrar boleta emitida' }).click();
-  await expect(modal.getByLabel(/Tipo de documento/)).not.toContainText('Boleta de honorarios');
-  await modal.getByLabel(/Folio/).fill(folio);
-  await modal.getByRole('button', { name: 'Registrar', exact: true }).click();
-  await expect(modal.getByText(`Boleta electrónica folio ${folio}`)).toBeVisible();
-
-  // Se anula con motivo y queda registrado (la sesion vuelve a quedar sin documento para la proxima corrida).
-  await modal.getByRole('region', { name: 'Documento tributario (SII)' }).getByRole('button', { name: 'Anular' }).last().click();
-  await modal.getByLabel(/Motivo de la anulación/).fill('Prueba automatizada');
-  await modal.getByRole('button', { name: 'Anular registro' }).click();
-  await expect(modal.getByText(/anulado: Prueba automatizada/).last()).toBeVisible();
-});
-
-test('Cobros y Configuracion (ADMIN): bandeja de transferencias del seed y medios de pago sin pasarela', async ({ page }) => {
-  await ingresarEquipo(page, 'admin');
-  await page.goto('/admin/cobros?vista=transferencias');
-  const tabla = page.getByRole('table', { name: 'Transferencias' });
-  await expect(tabla).toBeVisible();
-  await tabla.getByRole('button', { name: 'Validar' }).first().click();
-  await expect(page.getByRole('dialog').getByRole('button', { name: 'Validar y registrar pago' })).toBeVisible();
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
-
-  await page.goto('/admin/configuracion?vista=medios');
-  await expect(page.getByRole('switch', { name: /Transferencia/ })).toBeChecked();
-  await expect(page.getByLabel(/Banco/)).toHaveValue('Banco Ficticio (Demo)');
-  // Pasarela: solo el diseño de ejemplo (no se activa desde aca).
-  await expect(page.getByRole('switch', { name: /Link de pago/ })).toBeDisabled();
-});
-
 test('Configuracion (ADMIN): auditoria de accesos con quien, rol activo y accion', async ({ page }) => {
   await ingresarEquipo(page, 'admin');
   await page.goto('/admin/configuracion?vista=auditoria');

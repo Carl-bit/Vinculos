@@ -34,8 +34,6 @@ const DESTINO: Partial<Record<MensajeBandeja['tipo'], { icono: Icono; href: stri
   CITA_AUSENCIA_PROFESIONAL: { icono: 'event_busy', href: '/portal#horas', accion: 'Elegir qué hacer' },
   CONTACTO_EMERGENCIA_PENDIENTE: { icono: 'call', href: '/portal/seguridad?seccion=contactos', accion: 'Agregar contacto' },
   DOCUMENTO_CLINICO: { icono: 'description', href: '/portal/documentos', accion: 'Ver documentos' },
-  PAGO_REGISTRADO: { icono: 'payments', href: '/portal/pagos', accion: 'Ver pagos' },
-  COMPROBANTE_EMITIDO: { icono: 'receipt_long', href: '/portal/pagos', accion: 'Ver pagos' },
 };
 
 /**
@@ -147,7 +145,7 @@ function PreferenciasCorreo() {
             />
             <Interruptor
               etiqueta="Avisos operativos"
-              descripcion="Confirmaciones, cambios de hora, pagos, comprobantes y documentos disponibles."
+              descripcion="Confirmaciones, cambios de hora y documentos disponibles."
               activo={p.avisosOperativos}
               deshabilitado={guardar.isPending}
               onChange={(v) => guardar.mutate({ avisosOperativos: v })}

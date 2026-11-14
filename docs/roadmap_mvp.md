@@ -76,3 +76,37 @@ supervisor y la baja cancela las propuestas.
 ## Decisiones abiertas
 
 - **10:** SSE desde la API (un contenedor, sin Redis) o polling mas corto.
+
+## Front sin cobros ni finanzas (2026-11-14)
+
+Pedido del usuario: el MVP no implementa cobros. Se quito del front toda
+conexion con COBROS (las tablas y funciones del backend siguen dormidas,
+decision 2026-11-11). Las tarifas de los profesionales se mantienen como dato
+informativo (perfil, match, solicitud de hora), igual que la boleta reembolsable.
+
+- Borrados: paginas `/admin/cobros`, `/portal/pagos`, `/pagar`;
+  `components/cobros/*`, `MediosPagoCentro`, `CobrosPaciente`, `PasoPago`,
+  `PagoCitaPortal`, `lib/cobros.ts`, `lib/pagos.ts`, `lib/tributario.ts`.
+- `lib/reserva.ts` reemplaza a `lib/pagos.ts` para el sondeo del estado de la
+  reserva; pedir hora queda en 3 pasos (horario, datos, solicitud) sin paso de pago.
+- Fuera: menu Cobros y Pagos, seccion Finanzas de Configuracion (cobros,
+  acuerdos, medios de pago, comisiones, cargos, morosidad, parametros
+  tributarios), "Dinero" de Mi cuenta (queda solo el RUT), datos bancarios,
+  "Cobro directo", "Origen del paciente" (comision), bloqueo por deuda al
+  agendar, cobrar en caja, pestaña "Pago pendiente", "No asistio" (venia de
+  Cobros), pendientes de pagos/transferencias/deudas del inicio, plantillas de
+  pago, avisos de pago del portal, cargos en las condiciones de agendamiento.
+- El aviso minimo para cancelar pasa a "Reservas y recordatorios" (lo exige el
+  CHECK con el recordatorio).
+- Calendario: las horas SOLICITADA/PROPUESTA se mostraban como "Pendiente de
+  pago" / "PAGO"; ahora "Por confirmar" / "POR CONF.". "Liberada (pago
+  vencido)" pasa a "Liberada (plazo vencido)".
+- Pruebas: vitest 142/142, typecheck y lint limpios. E2E: se quitaron los
+  casos de cobros y las rutas borradas.
+
+**Pendiente:** reescribir y correr los e2e de pedir hora que pasaban por el
+paso de pago (`publico.spec.ts`: pedir hora sin cuenta, verificar en otra
+pestaña, reserva vencida, consentimiento por token; `portal.spec.ts`: pide
+hora con su tratante; `apoyo.ts`: `elegirMedio` y el alta de paciente nuevo)
+contra el flujo sin cobros (verificar correo -> SOLICITADA -> aprueba el
+profesional). Requieren el stack y el seed levantados.

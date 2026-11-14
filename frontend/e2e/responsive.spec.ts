@@ -28,7 +28,7 @@ test.describe('celular (390 px)', () => {
 
   test('portal del paciente', async ({ page }) => {
     await ingresar(page, 'paciente', 'portal');
-    await sinDesborde(page, ['/portal', '/portal/pedir-hora', '/portal/pagos', '/portal/documentos', '/portal/consentimientos', '/portal/resenas']);
+    await sinDesborde(page, ['/portal', '/portal/pedir-hora', '/portal/documentos', '/portal/consentimientos', '/portal/resenas']);
   });
 });
 
@@ -37,6 +37,6 @@ test.describe('tablet (768 px, vertical)', () => {
 
   test('panel del equipo', async ({ page }) => {
     await ingresarEquipo(page, 'admin');
-    await sinDesborde(page, ['/admin', '/admin/agenda', '/admin/fichas', '/admin/equipo', '/admin/cobros', '/admin/mensajes', '/admin/configuracion']);
+    await sinDesborde(page, ['/admin', '/admin/agenda', '/admin/fichas', '/admin/equipo', '/admin/mensajes', '/admin/configuracion']);
   });
 });

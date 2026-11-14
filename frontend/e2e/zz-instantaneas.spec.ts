@@ -30,7 +30,6 @@ const VISTAS: { usuario: string | null; zona?: 'admin' | 'portal'; rutas: string
       '/admin/perfil',
       '/admin/agenda',
       '/admin/equipo',
-      '/admin/cobros',
       '/admin/configuracion',
       '/admin/configuracion?vista=politicas',
       '/admin/configuracion?vista=reglas',
@@ -44,11 +43,11 @@ const VISTAS: { usuario: string | null; zona?: 'admin' | 'portal'; rutas: string
       '/admin/mensajes',
     ],
   },
-  { usuario: 'profesional1', zona: 'admin', rutas: ['/admin', '/admin/perfil', '/admin/agenda', '/admin/fichas', '/admin/cobros', '/admin/mensajes'] },
+  { usuario: 'profesional1', zona: 'admin', rutas: ['/admin', '/admin/perfil', '/admin/agenda', '/admin/fichas', '/admin/mensajes'] },
   {
     usuario: 'paciente',
     zona: 'portal',
-    rutas: ['/portal', '/portal/pedir-hora', '/portal/pagos', '/portal/documentos', '/portal/seguridad', '/portal/consentimientos', '/portal/avisos'],
+    rutas: ['/portal', '/portal/pedir-hora', '/portal/documentos', '/portal/seguridad', '/portal/consentimientos', '/portal/avisos'],
   },
 ];
 

@@ -1,12 +1,10 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 
 import { AvatarProfesional } from '@/components/shared/AvatarProfesional';
 import { EnlacePolitica, esVersionNueva, MENSAJE_VERSION_NUEVA, vigentePolitica } from '@/components/shared/EnlacePolitica';
-import { PasoPago } from '@/components/shared/PasoPago';
-import { Aviso } from '@/components/ui/Aviso';
 import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Casilla } from '@/components/ui/Casilla';
@@ -20,7 +18,7 @@ import { formatoClp, formatoFechaLarga, formatoHora, rutValido } from '@/lib/for
 import type { Bloque } from '@/lib/horarios';
 import { olvidarMatch, ultimoMatch } from '@/lib/match-memoria';
 import type { Icono } from '@/lib/iconos';
-import { caminoReserva, useEstadoPago, type CaminoPago, type EstadoConfirmacion } from '@/lib/pagos';
+import { useEstadoReserva, type EstadoReserva } from '@/lib/reserva';
 import { nombreCorto, nombrePerfil } from '@/lib/perfiles';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
@@ -33,7 +31,8 @@ type Centro = components['schemas']['CentroPublico'];
 type Perfil = components['schemas']['PerfilPublico'];
 type Politica = { id: string; version: number };
 
-const PASOS = ['Horario', 'Tus datos', 'Pago', 'Confirmada'] as const;
+/** MVP sin COBROS (2026-11-11): sin paso de pago; la hora la confirma su profesional. */
+const PASOS = ['Horario', 'Tus datos', 'Solicitud', 'Confirmada'] as const;
 
 interface Datos {
   nombre: string;
@@ -85,14 +84,13 @@ const tarifaPara = (p: Perfil, m: Bloque['modalidad']) =>
 
 /**
  * Pedir hora sin cuenta (D-2, D-3): horario, datos de contacto con la
- * politica de datos y, con la hora retenida (03b-3.2: cuenta regresiva), el
- * pago con los medios del centro. El pago validado confirma la hora y crea al
- * paciente (la invitacion a la cuenta llega al correo); con pago en el centro
- * el gatillo es el enlace del correo. La pestaña consulta el estado de la
- * reserva (token opaco en memoria) cada pocos segundos mientras esta visible
- * y avanza sola, tambien si el correo se abre en otro dispositivo. El
- * vencimiento lo decide el servidor: al llegar a cero, la cuenta regresiva
- * solo pide el estado.
+ * politica de datos y, con la hora retenida (03b-3.2: cuenta regresiva), la
+ * verificacion del correo. Verificado, la solicitud llega a su profesional,
+ * que la confirma o propone otras horas (MVP sin COBROS, 2026-11-11). La
+ * pestaña consulta el estado de la reserva (token opaco en memoria) cada pocos
+ * segundos mientras esta visible y avanza sola, tambien si el correo se abre
+ * en otro dispositivo. El vencimiento lo decide el servidor: al llegar a cero,
+ * la cuenta regresiva solo pide el estado.
  */
 export function SolicitudHora({
   perfil,
@@ -117,8 +115,7 @@ export function SolicitudHora({
   const [enviando, setEnviando] = useState(false);
   const [retencion, setRetencion] = useState<{ desde: Date; hasta: Date } | null>(null);
   const [reserva, setReserva] = useState<string | null>(null);
-  const camino = useMemo(() => (reserva ? caminoReserva(reserva) : null), [reserva]);
-  const consulta = useEstadoPago(paso >= 2 ? camino : null);
+  const consulta = useEstadoReserva(paso >= 2 ? reserva : null);
   const estadoReserva = consulta.data;
   const titulo = useRef<HTMLHeadingElement>(null);
   const alerta = useRef<HTMLParagraphElement>(null);
@@ -295,7 +292,7 @@ export function SolicitudHora({
               Elige el horario de tu sesión
             </h1>
             <p className="m-0 mb-6 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
-              Estas son las horas libres de {nombreCorto(perfil)}. Al enviar tus datos, te guardamos la hora unos minutos mientras pagas.
+              Estas son las horas libres de {nombreCorto(perfil)}. Al enviar tus datos, te guardamos la hora mientras confirmas tu correo.
             </p>
             <div className="rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave">
               <SelectorHorario
@@ -330,7 +327,8 @@ export function SolicitudHora({
               Datos del paciente
             </h1>
             <p className="m-0 max-w-[56ch] text-base leading-relaxed text-pretty text-neutral-700">
-              Con el pago confirmamos tu hora y te enviamos al correo la confirmación y la invitación para crear tu cuenta.
+              Te enviamos un enlace al correo para confirmar tu solicitud. Cuando {nombreCorto(perfil)} acepte la hora, te llegan la confirmación y la
+              invitación para crear tu cuenta.
             </p>
 
             <fieldset className="m-0 grid gap-4 rounded-lg border border-divider bg-bg p-[clamp(18px,3vw,28px)] shadow-suave sm:grid-cols-2">
@@ -505,10 +503,9 @@ export function SolicitudHora({
           </form>
         )}
 
-        {paso === 2 && bloque && retencion && camino && (
+        {paso === 2 && bloque && retencion && reserva && (
           <ResultadoReserva
             estado={estadoReserva}
-            camino={camino}
             perfil={perfil}
             centro={centro}
             email={d.email.trim()}
@@ -563,14 +560,13 @@ export function SolicitudHora({
 }
 
 /**
- * Con la hora retenida: el paso de pago (o "revisa tu correo" si se paga en el
- * centro) con la cuenta regresiva, y la pantalla final: confirmada, liberada
- * (con las horas libres para elegir otra; los datos del formulario se
- * conservan) o pagada cuando la hora ya no estaba (devolucion).
+ * Con la hora retenida: "revisa tu correo" con la cuenta regresiva; despues,
+ * la solicitud en manos del profesional y la pantalla final: confirmada,
+ * otras horas propuestas o liberada (con las horas libres para elegir otra;
+ * los datos del formulario se conservan).
  */
 function ResultadoReserva({
   estado,
-  camino,
   perfil,
   centro,
   email,
@@ -579,8 +575,7 @@ function ResultadoReserva({
   onVencida,
   onOtraHora,
 }: {
-  estado: EstadoConfirmacion | undefined;
-  camino: CaminoPago;
+  estado: EstadoReserva | undefined;
   perfil: Perfil;
   centro: Centro;
   email: string;
@@ -610,20 +605,17 @@ function ResultadoReserva({
     );
   }
   if (estado.estado === 'RETENIDA') {
-    const correo = estado.siguiente === 'VERIFICAR_CORREO';
     return (
       <section className="entrada flex flex-col gap-5" aria-live="polite">
-        {encabezado(correo ? 'mark_email_read' : 'payments', correo ? 'Revisa tu correo' : 'Paga para confirmar tu hora')}
-        {correo &&
-          parrafo(
-            `Enviamos un enlace a ${email}. Ábrelo antes de que termine el tiempo: así tu solicitud llega a ${nombreCorto(perfil)}, que tiene hasta 24 horas para confirmarla, y la hora queda guardada para ti mientras tanto. Si no lo ves, revisa la carpeta de spam. Puedes abrirlo en este u otro dispositivo: esta pantalla avanza sola.`,
-          )}
-        {estado.venceEn && !estado.comprobanteRecibido && (
+        {encabezado('mark_email_read', 'Revisa tu correo')}
+        {parrafo(
+          `Enviamos un enlace a ${email}. Ábrelo antes de que termine el tiempo: así tu solicitud llega a ${nombreCorto(perfil)}, que tiene hasta 24 horas para confirmarla, y la hora queda guardada para ti mientras tanto. Si no lo ves, revisa la carpeta de spam. Puedes abrirlo en este u otro dispositivo: esta pantalla avanza sola.`,
+        )}
+        {estado.venceEn && (
           <div className="rounded-lg border border-divider bg-bg p-6 shadow-suave">
             <CuentaRegresiva desde={desde} hasta={new Date(estado.venceEn)} onVencida={onVencida} />
           </div>
         )}
-        <PasoPago camino={camino} estado={estado} />
       </section>
     );
   }
@@ -632,11 +624,6 @@ function ResultadoReserva({
       <section className="entrada flex flex-col gap-5" aria-live="polite">
         {encabezado('check_circle', 'Tu hora quedó confirmada')}
         {parrafo('Te enviamos la confirmación por correo. Si eres paciente nuevo, ahí también llega la invitación para crear tu cuenta.')}
-        {estado.medio === 'PAGO_EN_CENTRO' && (
-          <Aviso tono="exito" icono="storefront" titulo="Pagas al llegar">
-            El pago se hace en el centro, el día de tu sesión.
-          </Aviso>
-        )}
       </section>
     );
   }
@@ -663,18 +650,6 @@ function ResultadoReserva({
         {encabezado('event_repeat', `${nombreCorto(perfil)} te propuso otras horas`)}
         {parrafo(
           `No puede atenderte en el horario que pediste. Te enviamos a ${email} sus propuestas y la invitación para entrar a tu cuenta: ahí eliges una o pides otra hora. Las guardamos por un tiempo limitado.`,
-        )}
-      </section>
-    );
-  }
-  if (estado.siguiente === 'CONTACTAR_CENTRO') {
-    return (
-      <section className="entrada flex flex-col gap-5" aria-live="polite">
-        {encabezado('info', 'Recibimos tu pago, pero la hora ya no estaba')}
-        {parrafo(
-          `El pago llegó después de que venciera el plazo para pagar y otra persona tomó la hora. El centro te contactará para devolverlo${
-            centro.contacto_correo ? `; también puedes escribir a ${centro.contacto_correo}` : ''
-          }.`,
         )}
       </section>
     );

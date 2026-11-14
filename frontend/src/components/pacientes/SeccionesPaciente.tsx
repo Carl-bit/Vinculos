@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/Button';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Field, Input, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
-import { Interruptor } from '@/components/ui/Interruptor';
 import { Modal } from '@/components/ui/Modal';
 import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
@@ -168,8 +167,9 @@ const ESTADO_CITA: Record<CitaVista['estado'], { texto: string; tono: TonoBadge 
   SOLICITADA: { texto: 'Por aprobar', tono: 'atencion' },
   POR_REPROGRAMAR: { texto: 'Por reprogramar', tono: 'atencion' },
   CANCELADA: { texto: 'Cancelada', tono: 'neutro' },
-  PENDIENTE_PAGO: { texto: 'Pago pendiente', tono: 'atencion' },
-  LIBERADA: { texto: 'Liberada (pago vencido)', tono: 'neutro' },
+  // Estado del modulo COBROS (apagado en el MVP): no ocurre; texto neutro por completitud del tipo.
+  PENDIENTE_PAGO: { texto: 'Por confirmar', tono: 'atencion' },
+  LIBERADA: { texto: 'Liberada (plazo vencido)', tono: 'neutro' },
   // Sin paciente: nunca aparece en el historial de un paciente.
   RETENIDA: { texto: 'Hora retenida', tono: 'atencion' },
   PROPUESTA: { texto: 'Propuesta, por elegir', tono: 'atencion' },
@@ -377,39 +377,6 @@ function FormularioAdulto({ pacienteId, onListo }: { pacienteId: string; onListo
 }
 
 /**
- * Origen del paciente (03b-4.2, C-10): si llego por el centro (sitio publico
- * o alta por administracion) sus sesiones usan la comision por derivacion
- * del centro. La BD lo fija al crear; ADMIN/GESTION lo corrigen.
- */
-export function OrigenPaciente({ paciente }: { paciente: PacienteVista }) {
-  const cliente = useQueryClient();
-  const cambiar = useMutation({
-    mutationFn: (traidoPorCentro: boolean) =>
-      datos(api.PUT('/api/pacientes/{id}/origen', { params: { path: { id: paciente.id } }, body: { traidoPorCentro } })),
-    onSuccess: () => void cliente.invalidateQueries({ queryKey: ['panel', 'paciente', paciente.id] }),
-  });
-  return (
-    <Panel titulo="Origen del paciente" bajada="Define qué comisión del centro se aplica a sus sesiones en la liquidación.">
-      <div className="mt-3 flex flex-col gap-2">
-        <Interruptor
-          tono="team"
-          etiqueta="Llegó por el centro"
-          descripcion="Desde la página pública (Match o Pedir hora) o asignado por administración. Si no, es un paciente propio del profesional."
-          activo={paciente.traidoPorCentro}
-          deshabilitado={cambiar.isPending}
-          onChange={(v) => cambiar.mutate(v)}
-        />
-        {cambiar.error && (
-          <p role="alert" className="m-0 text-[13px] font-bold text-accent-700">
-            {cambiar.error instanceof ApiError ? cambiar.error.message : 'No pudimos guardar el origen.'}
-          </p>
-        )}
-      </div>
-    </Panel>
-  );
-}
-
-/**
  * Consentimiento informado de atencion: version aceptada vs vigente.
  * ADMIN/GESTION lo envian por correo (enlace de un solo uso) o lo registran
  * firmado en el centro con respaldo. Un menor lo otorga su adulto responsable.
@@ -580,7 +547,7 @@ export function CuentaPaciente({ paciente }: { paciente: PacienteVista }) {
   ];
   const elegido = destino || opciones[0]?.id;
   return (
-    <Panel titulo="Cuenta del portal" bajada="Con cuenta, el paciente ve sus horas, pagos y documentos, y responde consentimientos.">
+    <Panel titulo="Cuenta del portal" bajada="Con cuenta, el paciente ve sus horas y documentos, y responde consentimientos.">
       <div className="flex flex-col gap-3">
         {resultado && (
           <Aviso tono="exito" role="status">

@@ -40,12 +40,12 @@ let filtroProfesional: string | null = null;
 vi.mock('@/components/shared/EquipoActivo', () => ({ useEquipoActivo: () => ({ profesionalId: filtroProfesional, setProfesionalId: vi.fn() }) }));
 vi.mock('@/lib/consultas', () => ({
   useMiCuenta: () => lista({ id: 'p1' }),
-  useModulos: () => lista({ activos: ['AGENDA', 'FICHAS', 'COBROS'] }),
+  useModulos: () => lista({ activos: ['AGENDA', 'FICHAS'] }),
 }));
 let citas: unknown[] = [];
 vi.mock('@/lib/panel', async (original) => ({
   ...(await original<typeof import('@/lib/panel')>()),
-  // El panel pide las de pago pendiente con su propio filtro: vacias salvo que la prueba las use.
+  // Las consultas con filtro de estado (otras pestañas) vuelven vacias salvo que la prueba las use.
   useCitas: (f: { estado?: string }) => lista(f.estado ? [] : citas),
   useRetencionesAjenas: () => lista([{ espacioId: 'b1', inicio: enChile('15:00'), fin: enChile('15:50') }]),
   useEquipoAgenda: () =>
@@ -141,9 +141,9 @@ describe('CalendarioAgenda (03b-4.2)', () => {
     await elegirBox('Box 1');
     // Grilla + leyenda.
     expect(await screen.findAllByText('Libre')).toHaveLength(1);
-    expect(within(screen.getByRole('list', { name: 'Leyenda' })).getByText('Horas libres de Box 1')).toBeInTheDocument();
-    // El bloque propio se corta bajo la sesion de las 10:00: dos tramos + leyenda.
-    expect(await screen.findAllByText('Tu horario apartado')).toHaveLength(3);
+    expect(within(screen.getByRole('list', { name: 'Leyenda' })).getByText('Box disponible')).toBeInTheDocument();
+    // El bloque propio se corta bajo la sesion de las 10:00: dos tramos (la leyenda ya no lo repite).
+    expect(await screen.findAllByText('Tu horario apartado')).toHaveLength(2);
     const ocupados = screen.getAllByText('Ocupado');
     expect(ocupados).toHaveLength(1);
     expect(ocupados[0]!.parentElement!.textContent).not.toMatch(/Ana|Profesional/);

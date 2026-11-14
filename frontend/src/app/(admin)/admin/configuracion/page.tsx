@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 
-import { AcuerdosProfesionales } from '@/components/cobros/AcuerdosProfesionales';
 import { ConfiguracionCentro } from '@/components/nucleo/ConfiguracionCentro';
 import { EstadoVista } from '@/components/shared/EstadoVista';
 import { useSesion } from '@/lib/consultas';
@@ -12,7 +11,7 @@ function Configuracion() {
   const sesion = useSesion();
   if (sesion.tipo !== 'activa') return null;
   if (sesion.sesion.rol !== 'ADMIN') return <EstadoVista estado="sin-permiso" />;
-  return <ConfiguracionCentro acuerdosProfesionales={<AcuerdosProfesionales />} />;
+  return <ConfiguracionCentro />;
 }
 
 export default function Pagina() {

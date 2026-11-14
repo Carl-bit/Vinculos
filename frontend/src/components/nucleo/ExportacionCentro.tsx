@@ -96,7 +96,7 @@ export function ExportacionCentro() {
   return (
     <Panel
       titulo="Exportación completa del centro"
-      bajada="Todos los datos del centro (pacientes, fichas, agenda, equipo, cobros, políticas y auditoría) en un archivo cifrado, para conservarlos o llevarlos a otro sistema."
+      bajada="Todos los datos del centro (pacientes, fichas, agenda, equipo, políticas y auditoría) en un archivo cifrado, para conservarlos o llevarlos a otro sistema."
     >
       <div className="mt-4 flex flex-col gap-4">
         <Aviso tono="nota" titulo="Guarda la clave en un lugar seguro">

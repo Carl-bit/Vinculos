@@ -20,7 +20,7 @@ import { Panel } from '@/components/ui/Panel';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
 import { edadEn } from '@/lib/condiciones';
-import { useMiCuenta, useModulos } from '@/lib/consultas';
+import { useMiCuenta } from '@/lib/consultas';
 import { useBorradores } from '@/lib/fichas';
 import { formatoClp, formatoFecha, formatoFechaCorta, formatoRut, formatoTelefono, rutValido } from '@/lib/formato';
 import type { Icono } from '@/lib/iconos';
@@ -45,7 +45,6 @@ import { reglaCorreo, reglaTelefono, useValidacionCampos } from '@/lib/validacio
 import { AccesosPaciente } from './AccesosTemporales';
 import { AdjuntosFicha } from './AdjuntosFicha';
 import { AltaPaciente } from './AltaPaciente';
-import { CobrosPaciente, usePagosPaciente } from './CobrosPaciente';
 import { CrearDerivacion } from './CrearDerivacion';
 import { ResumenContactoTratante } from './FichaClinica';
 import { DocumentosFicha } from './DocumentosFicha';
@@ -60,12 +59,11 @@ import {
   DerivacionRecibida,
   HistorialSesiones,
   IndicacionesPaciente,
-  OrigenPaciente,
   useConsentimientoAtencion,
 } from './SeccionesPaciente';
 import { SolicitudesEpicrisis } from './SolicitudesEpicrisis';
 
-type Seccion = 'resumen' | 'sesiones' | 'evoluciones' | 'documentos' | 'cobros' | 'consentimientos' | 'datos';
+type Seccion = 'resumen' | 'sesiones' | 'evoluciones' | 'documentos' | 'consentimientos' | 'datos';
 /** Trabajo sobre la ficha a pantalla completa (editor y archivo de evoluciones, ficha de ingreso). */
 type Foco = 'evoluciones' | 'ingreso';
 /** Secciones de la antigua pagina /ficha y de las pestañas (enlaces guardados). */
@@ -93,10 +91,10 @@ const irASeccion = (id: Seccion) => {
  *   seccion. Datos rapidos y siguiente paso bajo el encabezado.
  * - Equipo con acceso clinico (tratante o acceso temporal): Resumen (motivo,
  *   ultima evolucion, equipo y contacto), Sesiones, Evoluciones, Documentos,
- *   Cobros, Consentimientos y Datos. El editor y archivo de evoluciones y el
- *   ingreso se abren a pantalla completa (`?vista=evoluciones|ingreso`).
- * - ADMIN/GESTION: Sesiones (estado administrativo), Cobros, Consentimientos
- *   y Datos. Nunca contenido clinico.
+ *   Consentimientos y Datos. El editor y archivo de evoluciones y el ingreso
+ *   se abren a pantalla completa (`?vista=evoluciones|ingreso`).
+ * - ADMIN/GESTION: Sesiones (estado administrativo), Consentimientos y Datos.
+ *   Nunca contenido clinico. MVP sin COBROS (2026-11-11): sin seccion de cobros.
  * Toda lectura clinica pasa por los mismos endpoints (accesos_ficha).
  * `embebido`: dentro del riel "Mis pacientes" del profesional (sin "Volver").
  */
@@ -118,18 +116,16 @@ function VistaPaciente({ paciente: p, rol }: { paciente: PacienteVista; rol: Rol
   const router = useRouter();
   const parametros = useSearchParams();
   const cuenta = useMiCuenta();
-  const modulos = useModulos();
   const admin = esAdministracion(rol);
   const rolClinico = rol === 'PROFESIONAL' || rol === 'PRACTICANTE';
   const tratante = !!cuenta.data?.id && p.profesionalId === cuenta.data.id;
   const ficha = useFicha(p.id, rolClinico);
   // Acceso clinico: el tratante (aunque la ficha aun no este abierta) o quien la ve por un acceso temporal.
   const clinico = rolClinico && (tratante || !!ficha.data);
-  const conCobros = rol !== 'PRACTICANTE' && !!modulos.data?.activos.includes('COBROS');
   const [editar, setEditar] = useState(false);
   // `?derivar=1`: llega desde el detalle de una sesion en la agenda ("Derivar paciente").
   const [derivar, setDerivar] = useState(parametros.get('derivar') === '1');
-  const estado = useEstadoPaciente(p, rol, clinico, tratante, ficha.data?.id, conCobros);
+  const estado = useEstadoPaciente(p, rol, clinico, tratante, ficha.data?.id);
 
   // Resumen y Datos primero: lo que se mira al abrir la ficha, sin bajar hasta el fondo.
   const secciones: { id: Seccion; etiqueta: string; n?: number }[] = [
@@ -142,7 +138,6 @@ function VistaPaciente({ paciente: p, rol }: { paciente: PacienteVista; rol: Rol
           { id: 'documentos', etiqueta: 'Documentos' },
         ] as const)
       : []),
-    ...(conCobros ? [{ id: 'cobros' as const, etiqueta: 'Cobros', n: estado.porPagar }] : []),
     { id: 'consentimientos', etiqueta: 'Consentimientos', n: estado.consentimientoPendiente ? 1 : 0 },
   ];
   const pedida = parametros.get('vista') ?? '';
@@ -225,13 +220,7 @@ function VistaPaciente({ paciente: p, rol }: { paciente: PacienteVista; rol: Rol
             boton: 'Ver consentimiento',
             accion: () => saltar('consentimientos'),
           }
-        : estado.porPagar > 0
-          ? {
-              texto: estado.porPagar === 1 ? 'Tiene un pago pendiente.' : `Tiene ${estado.porPagar} pagos pendientes.`,
-              boton: 'Ver cobros',
-              accion: () => saltar(conCobros ? 'cobros' : 'sesiones'),
-            }
-          : null;
+        : null;
 
   return (
     <>
@@ -327,7 +316,6 @@ function VistaPaciente({ paciente: p, rol }: { paciente: PacienteVista; rol: Rol
             {rol === 'PROFESIONAL' && tratante && ficha.data && <AltaPaciente pacienteId={p.id} />}
             {admin && <SolicitudesEpicrisis pacienteId={p.id} puedeResolver={rol === 'ADMIN'} />}
             {admin && <CuentaPaciente paciente={p} />}
-            {admin && <OrigenPaciente paciente={p} />}
           </Seccion>
           <Seccion id="sesiones" etiqueta="Sesiones">
             <DerivacionRecibida pacienteId={p.id} habilitado={rol === 'ADMIN' || tratante} />
@@ -348,11 +336,6 @@ function VistaPaciente({ paciente: p, rol }: { paciente: PacienteVista; rol: Rol
               <SolicitudesEpicrisis pacienteId={p.id} puedeResolver />
               <DocumentosFicha pacienteId={p.id} />
               <AdjuntosFicha pacienteId={p.id} />
-            </Seccion>
-          )}
-          {conCobros && (
-            <Seccion id="cobros" etiqueta="Cobros">
-              <CobrosPaciente pacienteId={p.id} />
             </Seccion>
           )}
           <Seccion id="consentimientos" etiqueta="Consentimientos">
@@ -446,7 +429,7 @@ const modalidadHabitual = (citas: CitaVista[]) => {
 };
 
 /** Estado de la ficha para el encabezado, el siguiente paso y los contadores del indice. */
-function useEstadoPaciente(p: PacienteVista, rol: Rol, clinico: boolean, tratante: boolean, fichaId: string | undefined, conCobros: boolean) {
+function useEstadoPaciente(p: PacienteVista, rol: Rol, clinico: boolean, tratante: boolean, fichaId: string | undefined) {
   const admin = esAdministracion(rol);
   const citas = useCitas({ pacienteId: p.id });
   const equipo = useEquipoAgenda();
@@ -457,7 +440,6 @@ function useEstadoPaciente(p: PacienteVista, rol: Rol, clinico: boolean, tratant
   const estado = estados.data?.find((e) => e.paciente_id === p.id);
   const borradores = useBorradores(fichaId, clinico && !!fichaId);
   const consentimiento = useConsentimientoAtencion(p.id);
-  const pagos = usePagosPaciente(p.id, conCobros);
   const tarifas = useQuery({
     queryKey: ['panel', 'tarifas', p.profesionalId],
     queryFn: () => datos(api.GET('/api/profesionales/{id}/tarifas', { params: { path: { id: p.profesionalId! } } })),
@@ -465,7 +447,7 @@ function useEstadoPaciente(p: PacienteVista, rol: Rol, clinico: boolean, tratant
   });
   const ahora = Date.now();
   const lista = citas.data ?? [];
-  const habitual = modalidadHabitual(lista.filter((c) => c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO'));
+  const habitual = modalidadHabitual(lista.filter((c) => c.estado === 'CONFIRMADA'));
   const vigentes = (tarifas.data ?? []).filter((t) => new Date(t.vigenteDesde).getTime() <= ahora).sort((a, b) => b.vigenteDesde.localeCompare(a.vigenteDesde));
   const edad = edadEn(p.fechaNacimiento);
   return {
@@ -479,9 +461,8 @@ function useEstadoPaciente(p: PacienteVista, rol: Rol, clinico: boolean, tratant
       vigentes.find((t) => !t.tipoAtencionId && t.modalidad === habitual) ??
       vigentes.find((t) => !t.tipoAtencionId && !t.modalidad),
     realizadas: lista.filter((c) => c.estado === 'CONFIRMADA' && new Date(c.fin).getTime() <= ahora).length,
-    proxima: lista
-      .filter((c) => (c.estado === 'CONFIRMADA' || c.estado === 'PENDIENTE_PAGO') && new Date(c.inicio).getTime() >= ahora)
-      .sort((a, b) => a.inicio.localeCompare(b.inicio))[0]?.inicio,
+    proxima: lista.filter((c) => c.estado === 'CONFIRMADA' && new Date(c.inicio).getTime() >= ahora).sort((a, b) => a.inicio.localeCompare(b.inicio))[0]
+      ?.inicio,
     tratanteNombre: equipo.data?.find((m) => m.id === p.profesionalId)?.nombre,
     tipo: tipos.data?.find((t) => t.id === p.tipoAtencionId)?.nombre,
     adultos: adultos.data ?? [],
@@ -489,9 +470,6 @@ function useEstadoPaciente(p: PacienteVista, rol: Rol, clinico: boolean, tratant
     sinEvolucion: clinico ? (estado?.sesiones_sin_cerrar ?? 0) : 0,
     borradores: borradores.data?.length ?? 0,
     consentimientoPendiente: !!consentimiento.vigente.data && !consentimiento.alDia && consentimiento.aceptaciones.isSuccess,
-    porPagar: conCobros
-      ? (pagos.data ?? []).filter((c) => c.saldo > 0 && c.estado_cita !== 'CANCELADA').length
-      : lista.filter((c) => c.estado === 'PENDIENTE_PAGO').length,
   };
 }
 type EstadoPaciente = ReturnType<typeof useEstadoPaciente>;

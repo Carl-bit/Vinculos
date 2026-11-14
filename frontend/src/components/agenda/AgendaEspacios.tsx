@@ -140,7 +140,6 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
       <AgendarSesion
         key={hora?.inicio.toISOString() ?? 'agendar'}
         abierto={agendar || !!reprogramar || !!hora}
-        rol={rol}
         pacienteInicial={parametros.get('paciente') ?? undefined}
         reprogramar={reprogramar ?? undefined}
         horaElegida={hora ?? undefined}

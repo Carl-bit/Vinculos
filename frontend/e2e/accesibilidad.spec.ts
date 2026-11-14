@@ -37,20 +37,12 @@ test('sitio público sin violaciones WCAG AA', async ({ page }) => {
 
 test('portal del paciente sin violaciones WCAG AA', async ({ page }) => {
   await ingresar(page, 'paciente', 'portal');
-  await sinViolaciones(page, [
-    '/portal',
-    '/portal/pedir-hora',
-    '/portal/pagos',
-    '/portal/documentos',
-    '/portal/consentimientos',
-    '/portal/resenas',
-    '/portal/seguridad',
-  ]);
+  await sinViolaciones(page, ['/portal', '/portal/pedir-hora', '/portal/documentos', '/portal/consentimientos', '/portal/resenas', '/portal/seguridad']);
 });
 
 test('panel del equipo sin violaciones WCAG AA', async ({ page }) => {
   await ingresarEquipo(page, 'admin');
-  await sinViolaciones(page, ['/admin', '/admin/agenda', '/admin/fichas', '/admin/equipo', '/admin/cobros', '/admin/mensajes', '/admin/configuracion']);
+  await sinViolaciones(page, ['/admin', '/admin/agenda', '/admin/fichas', '/admin/equipo', '/admin/mensajes', '/admin/configuracion']);
 });
 
 test('teclado: el primer Tab ofrece saltar al contenido y lleva el foco al main', async ({ page }) => {

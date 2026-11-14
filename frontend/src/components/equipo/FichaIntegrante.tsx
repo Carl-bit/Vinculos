@@ -32,7 +32,7 @@ import {
   type Cuenta,
 } from '@/lib/equipo';
 import { useConfiguracionCentro } from '@/lib/centro';
-import { useMiCuenta, useModulos, useProfesionales } from '@/lib/consultas';
+import { useMiCuenta, useProfesionales } from '@/lib/consultas';
 import { formatoClp, formatoFecha, formatoFechaLarga, formatoHora } from '@/lib/formato';
 import { inicioDiaChile, sumarDias, useEstadoFichas, useTiposAtencion } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
@@ -420,18 +420,14 @@ export function HistorialTarifas({ profesionalId }: { profesionalId: string }) {
   );
 }
 
-/**
- * RUT y cuenta bancaria (cifrados): se descifran solo al pedirlos y no se guardan en cache.
- * MVP sin COBROS (2026-11-11): solo el RUT; la cuenta bancaria no se muestra.
- */
+/** RUT del profesional (cifrado): se descifra solo al pedirlo y no se guarda en cache. MVP sin COBROS: sin cuenta bancaria. */
 function DatosPrivados({ profesionalId }: { profesionalId: string }) {
   const [ver, setVer] = useState(false);
   const privados = useDatosPrivados(profesionalId, ver);
-  const cobros = useModulos().data?.activos.includes('COBROS') ?? false;
   return (
     <Panel
-      titulo={cobros ? 'Datos para pagos' : 'RUT'}
-      bajada={cobros ? 'RUT y cuenta bancaria del profesional, para liquidaciones. Se guardan cifrados.' : 'RUT del profesional. Se guarda cifrado.'}
+      titulo="RUT"
+      bajada="RUT del profesional. Se guarda cifrado."
       accion={
         <Button variant="secondary" icon={ver ? 'visibility_off' : 'visibility'} onClick={() => setVer((v) => !v)} className="!py-2.5">
           {ver ? 'Ocultar' : 'Ver datos'}
@@ -444,25 +440,13 @@ function DatosPrivados({ profesionalId }: { profesionalId: string }) {
             {(d) =>
               d ? (
                 <dl className="m-0 grid gap-3 sm:grid-cols-2">
-                  {[
-                    ['RUT', d.rut],
-                    ['Titular', d.titular],
-                    ['Banco', d.banco],
-                    ['Tipo de cuenta', d.tipoCuenta],
-                    ['Número de cuenta', d.numeroCuenta],
-                  ]
-                    .filter(([k]) => cobros || k === 'RUT')
-                    .map(([k, v]) => (
-                      <div key={k}>
-                        <dt className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">{k}</dt>
-                        <dd className="m-0 text-[14px] font-bold">{v ?? '—'}</dd>
-                      </div>
-                    ))}
+                  <div>
+                    <dt className="text-[11px] font-extrabold tracking-[0.1em] text-neutral-700 uppercase">RUT</dt>
+                    <dd className="m-0 text-[14px] font-bold">{d.rut ?? '—'}</dd>
+                  </div>
                 </dl>
               ) : (
-                <p className="m-0 text-[13.5px] font-semibold text-neutral-800">
-                  {cobros ? 'Todavía no registra sus datos para pagos.' : 'Todavía no registra su RUT.'}
-                </p>
+                <p className="m-0 text-[13.5px] font-semibold text-neutral-800">Todavía no registra su RUT.</p>
               )
             }
           </EstadoConsulta>

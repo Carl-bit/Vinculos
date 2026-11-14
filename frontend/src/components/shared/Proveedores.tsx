@@ -9,7 +9,7 @@ import { ApiError } from '@/lib/api/errores';
 const reintentar = (fallos: number, error: unknown) => !(error instanceof ApiError && error.status < 500) && fallos < 2;
 
 const SEGUNDO = 1000;
-/** Datos fijos (staleTime Infinity: politica vigente, datos de pago, enlace firmado): ni sondeo ni recarga en cadena. */
+/** Datos fijos (staleTime Infinity: politica vigente, enlace firmado): ni sondeo ni recarga en cadena. */
 const fijo = (q: Query) => (q.options as { staleTime?: unknown }).staleTime === Infinity;
 
 /**

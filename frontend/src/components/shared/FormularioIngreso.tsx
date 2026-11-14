@@ -53,7 +53,7 @@ const TEXTOS = {
     boton: 'Entrar a mi cuenta',
     codigo: 'Si activaste la verificación en dos pasos, te pediremos un código por correo.',
     puntos: [
-      { texto: 'Tus horas y pagos en un solo lugar', modulo: 'AGENDA' },
+      { texto: 'Tus horas en un solo lugar', modulo: 'AGENDA' },
       { texto: 'Escríbele a tu profesional desde tu cuenta', modulo: null },
       { texto: 'Documentos que te emita el centro', modulo: null },
     ],

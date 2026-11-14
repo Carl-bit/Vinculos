@@ -3,7 +3,6 @@
 import { Suspense } from 'react';
 
 import { IntegracionesAgenda } from '@/components/agenda/IntegracionesAgenda';
-import { MiAcuerdo, MisLiquidaciones } from '@/components/cobros/MiAcuerdo';
 import { CambiarAProfesional } from '@/components/equipo/CambiarAProfesional';
 import { FichaIntegrante } from '@/components/equipo/FichaIntegrante';
 import { DocumentosPracticante } from '@/components/equipo/DocumentosPracticante';
@@ -28,9 +27,9 @@ import { useMiCuenta, useModulos, useSesion } from '@/lib/consultas';
 /**
  * Mi cuenta (diseño "Mi cuenta en estilo Moderno A", 2026-11-05): todo lo
  * privado del integrante, que nunca sale en el perfil publico. Mis datos
- * (contacto, seguridad), Mi trabajo (pacientes, avisos, videollamada,
- * protocolo) y Dinero (acuerdo, datos para pagos, liquidaciones). Cada
- * seccion aparece solo si el rol activo y los modulos la tienen.
+ * (contacto, seguridad, RUT) y Mi trabajo (pacientes, avisos, videollamada,
+ * protocolo). Cada seccion aparece solo si el rol activo y los modulos la
+ * tienen. MVP sin COBROS (2026-11-11): sin seccion de dinero.
  */
 export default function Pagina() {
   const sesion = useSesion();
@@ -47,7 +46,6 @@ export default function Pagina() {
   const conPerfil = profesional && equipo;
   // Cuenta madre con rol Profesional trabajando como ADMIN/GESTION: su ficha del equipo y el cambio de rol.
   const cuentaMadre = roles.includes('PROFESIONAL') && !clinico && equipo;
-  const cobros = profesional && activos.includes('COBROS');
 
   const secciones = (
     [
@@ -131,30 +129,14 @@ export default function Pagina() {
         chip: protocolo?.vigente && !protocolo.leidoEn ? { texto: 'Sin leer', tono: 'atencion' } : undefined,
         contenido: <ProtocoloEquipo />,
       },
+      // Sin datos bancarios; el RUT se sigue registrando (sirve para ingresar).
       clinico &&
-        equipo &&
-        activos.includes('COBROS') && {
-          id: 'pagos',
-          grupo: 'Dinero',
-          titulo: 'Pagos y liquidaciones',
-          descripcion: 'Vinculos calcula; el dinero lo mueve el centro o tu propia cuenta.',
-          contenido: (
-            <>
-              {cobros && <MiAcuerdo />}
-              <MisDatosPrivados usuarioId={c.id} />
-              {cobros && <MisLiquidaciones />}
-            </>
-          ),
-        },
-      // MVP sin COBROS (2026-11-11): sin datos bancarios; el RUT se sigue registrando (sirve para ingresar).
-      clinico &&
-        equipo &&
-        !activos.includes('COBROS') && {
+        equipo && {
           id: 'rut',
           grupo: 'Mis datos',
           titulo: 'RUT',
           descripcion: 'Se guarda cifrado y también sirve para iniciar sesión.',
-          contenido: <MisDatosPrivados usuarioId={c.id} soloRut />,
+          contenido: <MisDatosPrivados usuarioId={c.id} />,
         },
     ] as (SeccionCuenta | false)[]
   ).filter((s): s is SeccionCuenta => !!s);

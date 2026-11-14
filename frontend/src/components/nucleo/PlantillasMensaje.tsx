@@ -11,7 +11,6 @@ import { Interruptor } from '@/components/ui/Interruptor';
 import { api, datos } from '@/lib/api/cliente';
 import type { components } from '@/lib/api/esquema';
 import { ApiError } from '@/lib/api/errores';
-import { useModulos } from '@/lib/consultas';
 import { aDatosSimples, aVariables, datoInvalido, DATOS_MENSAJE } from '@/lib/variablesMensaje';
 
 type Plantilla = components['schemas']['PlantillaMensajeVista'];
@@ -36,14 +35,6 @@ const NOMBRES: Record<string, string> = {
   CITA_AUSENCIA_PROFESIONAL: 'Profesional ausente (hora por reprogramar)',
   CIERRE_REQUERIDO: 'Cierre requerido',
   POSIBLE_DUPLICADO: 'Posible duplicado',
-  INSTRUCCIONES_TRANSFERENCIA: 'Instrucciones de transferencia',
-  COMPROBANTE_RECIBIDO: 'Comprobante recibido',
-  PAGO_VALIDADO: 'Pago validado',
-  PAGO_RECHAZADO: 'Pago rechazado',
-  PAGO_PENDIENTE: 'Pago pendiente',
-  PAGO_REGISTRADO: 'Pago registrado',
-  COMPROBANTE_EMITIDO: 'Comprobante emitido',
-  DEUDA_PENDIENTE: 'Deuda pendiente',
   CONSENTIMIENTO_SOLICITADO: 'Consentimiento solicitado',
   CONSENTIMIENTO_POR_VENCER: 'Consentimiento por vencer',
   AVISO_CAMBIO_SUPERVISOR: 'Cambio de supervisor',
@@ -57,7 +48,7 @@ const NOMBRES: Record<string, string> = {
 };
 const nombreEvento = (e: string) => NOMBRES[e] ?? evento(e);
 
-/** Eventos del modulo COBROS (pago vencido = "hora liberada"): sin COBROS no se muestran (punto 34). */
+/** Eventos del modulo COBROS (pago vencido = "hora liberada"): MVP sin COBROS (2026-11-11), nunca se muestran (punto 34). */
 const EVENTOS_COBROS = new Set([
   'HORA_LIBERADA',
   'INSTRUCCIONES_TRANSFERENCIA',
@@ -85,19 +76,6 @@ const GRUPOS: { titulo: string; eventos: string[] }[] = [
       'PROPUESTA_ACEPTADA',
       'CIERRE_REQUERIDO',
       'POSIBLE_DUPLICADO',
-    ],
-  },
-  {
-    titulo: 'Pagos',
-    eventos: [
-      'INSTRUCCIONES_TRANSFERENCIA',
-      'COMPROBANTE_RECIBIDO',
-      'PAGO_VALIDADO',
-      'PAGO_RECHAZADO',
-      'PAGO_PENDIENTE',
-      'PAGO_REGISTRADO',
-      'COMPROBANTE_EMITIDO',
-      'DEUDA_PENDIENTE',
     ],
   },
   {
@@ -144,11 +122,10 @@ const conMuestra = (t: string) => t.replace(/\{(\w+)\}/g, (o, k: string) => MUES
  * todavia. Se escribe {paciente}; lib/variablesMensaje traduce a lo que guarda la API.
  */
 export function PlantillasMensaje() {
-  const cobros = useModulos().data?.activos.includes('COBROS') ?? false;
   const lista = useQuery({
     queryKey: ['configuracion', 'plantillas'],
     queryFn: () => datos(api.GET('/api/plantillas-mensaje')),
-    select: (l) => (cobros ? l : l.filter((p) => !EVENTOS_COBROS.has(p.evento))),
+    select: (l) => l.filter((p) => !EVENTOS_COBROS.has(p.evento)),
   });
   const [filtro, setFiltro] = useState<string>('Todos');
   const [elegida, setElegida] = useState<string | null>(null);

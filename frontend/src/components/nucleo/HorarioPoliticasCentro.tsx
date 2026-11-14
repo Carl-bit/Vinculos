@@ -241,7 +241,7 @@ const TIPOS: { tipo: PoliticaVista['tipo']; titulo: string; bajada: string; equi
     bajada: 'Se muestra a cada paciente y debe aceptarse de forma explícita.',
   },
   { tipo: 'POLITICA_DATOS', titulo: 'Política de datos personales', bajada: 'Se acepta al registrarse o pedir hora.' },
-  { tipo: 'TERMINOS_AGENDAMIENTO', titulo: 'Términos de agendamiento', bajada: 'Cancelación, inasistencia y pagos; se aceptan al reservar.' },
+  { tipo: 'TERMINOS_AGENDAMIENTO', titulo: 'Términos de agendamiento', bajada: 'Cancelación e inasistencia; se aceptan al reservar.' },
   {
     tipo: 'CONSENTIMIENTO_PRACTICANTE',
     titulo: 'Consentimiento de atención con practicante',

@@ -37,7 +37,7 @@ vi.mock('@tanstack/react-query', async (original) => ({
   useQueryClient: () => ({ setQueryData: vi.fn(), invalidateQueries: vi.fn() }),
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
-vi.mock('@/lib/consultas', () => ({ useMiCuenta: () => lista({ id: miId }), useModulos: () => lista({ activos: ['FICHAS', 'AGENDA', 'COBROS'] }) }));
+vi.mock('@/lib/consultas', () => ({ useMiCuenta: () => lista({ id: miId }), useModulos: () => lista({ activos: ['FICHAS', 'AGENDA'] }) }));
 vi.mock('@/lib/fichas', () => ({ useBorradores: () => lista([{ id: 'b1' }]), useIngresos: () => lista([]) }));
 vi.mock('@/lib/panel', async (original) => ({
   ...(await original<typeof import('@/lib/panel')>()),
@@ -59,7 +59,6 @@ vi.mock('./SeccionesPaciente', () => ({
   DerivacionRecibida: () => null,
   HistorialSesiones: () => <p>historial</p>,
   IndicacionesPaciente: () => <p>indicaciones</p>,
-  OrigenPaciente: () => <p>origen</p>,
   useConsentimientoAtencion: () => ({ vigente: lista({ version: 2 }), aceptaciones: lista([]), alDia: false }),
 }));
 vi.mock('./FichaClinica', () => ({
@@ -71,7 +70,6 @@ vi.mock('./IngresoFicha', () => ({ IngresoFicha: () => <p>ingreso</p> }));
 // La ficha monta todas las secciones a la vez: las de Datos tienen sus propias pruebas.
 vi.mock('./AccesosTemporales', () => ({ AccesosPaciente: () => <p>accesos</p> }));
 vi.mock('./AltaPaciente', () => ({ AltaPaciente: () => <p>alta</p> }));
-vi.mock('./CobrosPaciente', () => ({ CobrosPaciente: () => <p>cobros</p>, usePagosPaciente: () => lista([]) }));
 vi.mock('./CrearDerivacion', () => ({ CrearDerivacion: () => null }));
 vi.mock('./DocumentosFicha', () => ({ DocumentosFicha: () => <p>documentos</p> }));
 vi.mock('./AdjuntosFicha', () => ({ AdjuntosFicha: () => <p>adjuntos</p> }));
@@ -95,7 +93,7 @@ describe('Vista del paciente (03b-4.2)', () => {
   it('tratante: ficha en una pagina con indice, encabezado fijo y siguiente paso', () => {
     montar('PROFESIONAL');
     // 2 sesiones sin evolucion + 1 borrador en Evoluciones; consentimiento pendiente.
-    expect(indice()).toEqual(['Resumen', 'Datos', 'Sesiones', 'Evolucionespendientes: 3', 'Documentos', 'Cobros', 'Consentimientospendientes: 1']);
+    expect(indice()).toEqual(['Resumen', 'Datos', 'Sesiones', 'Evolucionespendientes: 3', 'Documentos', 'Consentimientospendientes: 1']);
     const encabezado = screen.getByRole('heading', { level: 1, name: 'Ana Demo' }).closest('header')!;
     expect(encabezado.className).toMatch(/sticky/);
     expect(within(encabezado).getByText(/RUT 12\.345\.678-5/)).toBeInTheDocument();
@@ -120,11 +118,11 @@ describe('Vista del paciente (03b-4.2)', () => {
     expect(screen.queryByRole('region', { name: 'Sesiones' })).toBeNull();
   });
 
-  it('ADMIN/GESTION: Sesiones, Cobros, Consentimientos y Datos; nunca contenido clinico', () => {
+  it('ADMIN/GESTION: Sesiones, Consentimientos y Datos; nunca contenido clinico ni cobros', () => {
     miId = 'a1';
     for (const rol of ['ADMIN', 'GESTION'] as const) {
       const { unmount } = montar(rol);
-      expect(indice()).toEqual(['Datos', 'Sesiones', 'Cobros', 'Consentimientospendientes: 1']);
+      expect(indice()).toEqual(['Datos', 'Sesiones', 'Consentimientospendientes: 1']);
       expect(useFicha).toHaveBeenCalledWith('pa1', false);
       expect(screen.queryByRole('region', { name: 'Resumen' })).toBeNull();
       expect(screen.queryByRole('region', { name: 'Evoluciones' })).toBeNull();

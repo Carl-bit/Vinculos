@@ -41,7 +41,6 @@ test('Ficha: scroll con rueda y saltos del indice llegan a su seccion', async ({
   for (const [enlace, region] of [
     ['Sesiones', 'Sesiones'],
     ['Evoluciones', 'Evoluciones'],
-    ['Cobros', 'Cobros'],
     ['Consentimientos', 'Consentimientos'],
     ['Datos', 'Datos'],
   ] as const) {

@@ -70,7 +70,7 @@ export function SeccionesCuenta({ secciones }: { secciones: SeccionCuenta[] }) {
       <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
         <header className="flex flex-col gap-0.5 px-1.5">
           <span className="text-[11px] font-extrabold tracking-[0.12em] text-accent-700 uppercase">{actual.grupo}</span>
-          <h1 className="m-0 text-[32px] leading-[1.1] font-black tracking-[-0.03em]">{actual.titulo}</h1>
+          <h1 className="m-0 text-[clamp(24px,2.2vw,32px)] leading-[1.1] font-black tracking-[-0.03em] [@media(max-height:860px)]:text-[22px]">{actual.titulo}</h1>
           <p className="m-0 text-[14px] font-semibold text-neutral-700">{actual.descripcion}</p>
         </header>
         <div key={actual.id} className="flex flex-col gap-4">

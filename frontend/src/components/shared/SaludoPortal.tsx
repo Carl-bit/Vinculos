@@ -12,15 +12,15 @@ export function SaludoPortal() {
   const nombre = cuenta.data?.nombre?.split(' ')[0];
   const menor = portal.paciente?.nombre;
   const bajada = portal.responsable
-    ? `Acá ves las horas, pagos y documentos${menor ? ` de ${menor}` : ' de tus menores a cargo'} y puedes escribirle a su profesional. El contenido de las sesiones no se muestra en esta vista.`
+    ? `Acá ves las horas y documentos${menor ? ` de ${menor}` : ' de tus menores a cargo'} y puedes escribirle a su profesional. El contenido de las sesiones no se muestra en esta vista.`
     : 'Acá ves tus horas, tus datos y puedes escribirle a tu profesional. El contenido de tus sesiones no se guarda en esta vista.';
   return (
     <>
       <Encabezado sobretitulo="Mi cuenta" titulo={nombre ? `Hola, ${nombre}.` : 'Hola.'} bajada={bajada} />
       {portal.restringida && (
         <Aviso tono="info" icono="shield_person" className="-mt-2 mb-[18px] max-w-[760px]">
-          Tu cuenta es de adolescente: aquí ves tus horas, tus recordatorios y puedes escribirle a tu profesional. Pagos, documentos y consentimientos los ve tu
-          adulto responsable.
+          Tu cuenta es de adolescente: aquí ves tus horas, tus recordatorios y puedes escribirle a tu profesional. Documentos y consentimientos los ve tu adulto
+          responsable.
         </Aviso>
       )}
       {portal.responsable && !portal.cargando && portal.pacientes.length === 0 && (

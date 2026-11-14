@@ -30,16 +30,20 @@ describe('menuVisible', () => {
   });
 
   it('oculta opciones que el rol activo no tiene', () => {
-    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
+    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH'] as const;
     const practicante = etiquetas(menuVisible('admin', 'PRACTICANTE', todos));
     expect(practicante).not.toContain('Configuración');
-    expect(practicante).not.toContain('Cobros');
     expect(practicante).not.toContain('Match Terapéutico');
-    expect(etiquetas(menuVisible('admin', 'GESTION', todos))).toContain('Cobros');
+  });
+
+  it('MVP sin COBROS: ni Cobros ni Pagos en ningun menu, aunque el modulo llegara activo', () => {
+    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
+    for (const rol of ['ADMIN', 'GESTION', 'PROFESIONAL'] as const) expect(etiquetas(menuVisible('admin', rol, todos))).not.toContain('Cobros');
+    expect(etiquetas(menuVisible('portal', 'PACIENTE', todos))).not.toContain('Pagos');
   });
 
   it('la seccion Centro es solo de la cuenta madre (ADMIN)', () => {
-    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
+    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH'] as const;
     expect(menuVisible('admin', 'ADMIN', todos).filter((i) => i.grupo === 'centro')).toHaveLength(3);
     for (const rol of ['GESTION', 'PROFESIONAL', 'PRACTICANTE'] as const) {
       expect(menuVisible('admin', rol, todos).filter((i) => i.grupo === 'centro')).toEqual([]);
@@ -52,10 +56,10 @@ describe('menuVisible', () => {
     expect(etiquetas(principal([]))).toEqual(['Mi cuenta']);
   });
 
-  it('la cuenta restringida del adolescente no ve pagos, documentos, consentimientos ni reseñas', () => {
-    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
+  it('la cuenta restringida del adolescente no ve documentos, consentimientos ni reseñas', () => {
+    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH'] as const;
     const plena = etiquetas(menuVisible('portal', 'PACIENTE', todos).filter((i) => i.grupo === 'secciones'));
-    expect(plena).toEqual(['Resumen', 'Pagos', 'Documentos', 'Consentimientos', 'Mensajes', 'Reseñas', 'Seguridad']);
+    expect(plena).toEqual(['Resumen', 'Documentos', 'Consentimientos', 'Mensajes', 'Reseñas', 'Seguridad']);
     const restringida = etiquetas(menuVisible('portal', 'PACIENTE', todos, { restringida: true }).filter((i) => i.grupo === 'secciones'));
     expect(restringida).toEqual(['Resumen', 'Mensajes', 'Seguridad']);
   });

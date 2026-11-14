@@ -82,7 +82,7 @@ type Accion = { tipo: 'ir'; seccion: Seccion | null } | { tipo: 'paciente' };
  * flotante"): el perfil tal como lo ve el paciente; cada parte se toca para
  * editarla en el inspector y el lienzo muestra el cambio en vivo. "Ver cómo me
  * ven los pacientes" muestra la pagina publica real (mismos componentes) con
- * lo guardado. Lo privado (contacto, seguridad, pagos) vive en Mi cuenta.
+ * lo guardado. Lo privado (contacto, seguridad, RUT) vive en Mi cuenta.
  */
 export function EditorPerfil({ usuarioId, nombreCuenta, agenda }: { usuarioId: string; nombreCuenta: string; agenda: boolean }) {
   const perfil = usePerfilProfesional(usuarioId);

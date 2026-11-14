@@ -31,17 +31,17 @@ const MENU_ADMIN = [
   'Fichas y Pacientes',
   'Agenda y Espacios',
   'Match Terapéutico',
-  'Cobros',
   'Equipo',
   'Configuración',
   'Página pública',
 ];
 // 2026-10-27: la seccion Centro (Configuracion y Pagina publica) es solo de la cuenta madre.
 // 2026-11-05: Centro suma Equipo (gestion de profesionales) para la cuenta madre.
-const MENU_GESTION = ['Inicio', 'Mi perfil', 'Mensajes', 'Fichas y Pacientes', 'Agenda y Espacios', 'Equipo', 'Cobros'];
+// MVP sin COBROS (2026-11-11): sin Cobros en el menu ni Pagos en el portal.
+const MENU_GESTION = ['Inicio', 'Mi perfil', 'Mensajes', 'Fichas y Pacientes', 'Agenda y Espacios', 'Equipo'];
 // 2026-10-29: Equipo es solo de ADMIN/GESTION.
 const MENU_CLINICO = MENU_GESTION.filter((m) => m !== 'Equipo');
-const SECCIONES = ['Resumen', 'Pagos', 'Documentos', 'Consentimientos', 'Avisos', 'Reseñas', 'Seguridad'];
+const SECCIONES = ['Resumen', 'Documentos', 'Consentimientos', 'Avisos', 'Reseñas', 'Seguridad'];
 
 const CASOS: Caso[] = [
   {
@@ -90,11 +90,8 @@ const CASOS: Caso[] = [
     nombre: 'PRACTICANTE',
     usuario: 'practicante',
     zona: 'admin',
-    menu: MENU_CLINICO.filter((m) => m !== 'Cobros'),
-    bloqueadas: [
-      { ruta: '/admin/cobros', texto: SIN_PERMISO },
-      { ruta: '/admin/configuracion', texto: SIN_PERMISO },
-    ],
+    menu: MENU_CLINICO,
+    bloqueadas: [{ ruta: '/admin/configuracion', texto: SIN_PERMISO }],
     api: { metodo: 'GET', ruta: '/api/cobros/liquidaciones' },
   },
   {
@@ -110,10 +107,7 @@ const CASOS: Caso[] = [
     usuario: 'adolescente',
     zona: 'portal',
     menu: ['Resumen', 'Avisos', 'Seguridad'],
-    bloqueadas: [
-      { ruta: '/portal/pagos', texto: SOLO_RESPONSABLE },
-      { ruta: '/portal/documentos', texto: SOLO_RESPONSABLE },
-    ],
+    bloqueadas: [{ ruta: '/portal/documentos', texto: SOLO_RESPONSABLE }],
     api: { metodo: 'GET', ruta: '/api/cobros/liquidaciones' },
   },
   {

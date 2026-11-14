@@ -55,7 +55,7 @@ test('Agenda: pestañas de espacios y pendientes; horarios y boxes desde el enca
 
   await page.getByRole('button', { name: 'Volver a la agenda' }).click();
   await page.getByRole('tab', { name: 'Pendientes' }).click();
-  await expect(page.getByRole('heading', { name: 'Pago pendiente' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pago pendiente' })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Por reprogramar' })).toBeVisible();
 });
 
@@ -78,22 +78,6 @@ test('Agenda: el detalle de una sesion futura ofrece cubrir sesion y explica la 
   await expect(modal.getByRole('button', { name: /cubrir/i }).last()).toBeEnabled();
 });
 
-test('Cobros: resumen del periodo y "registrar asistencia y pago" de una sesion', async ({ page }) => {
-  await ingresarAdmin(page);
-  await page.goto('/admin/cobros');
-  await expect(page.getByRole('heading', { name: 'Liquidación por profesional' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Comisión del centro' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Asistencia y pago' }).click();
-  await page.getByRole('tab', { name: 'Todas' }).click();
-  await page.getByRole('button', { name: 'Asistencia y pago' }).first().click();
-  const modal = page.getByRole('dialog');
-  await expect(modal.getByText('Monto de la sesión')).toBeVisible();
-  await expect(modal.getByText('Saldo')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await page.getByRole('tab', { name: 'Liquidaciones' }).click();
-  await expect(page.getByRole('heading', { name: 'Arriendos de box' })).toBeVisible();
-});
-
 test('Configuracion (ADMIN): politicas versionadas y plantillas de mensaje', async ({ page }) => {
   await ingresarAdmin(page);
   await page.goto('/admin/configuracion');
@@ -106,9 +90,8 @@ test('Configuracion (ADMIN): politicas versionadas y plantillas de mensaje', asy
   await page.getByRole('button', { name: /^Cita cancelada, equipo · correo/ }).click();
   await expect(page.getByRole('complementary', { name: 'Editar plantilla' })).toContainText('Equipo · correo');
   await expect(page.getByRole('button', { name: 'Restaurar ejemplo' })).toBeVisible();
-  await secciones.getByRole('link', { name: /^Cobros y acuerdos/ }).click();
-  await expect(page.getByLabel('Cargo por inasistencia')).toBeVisible();
-  await expect(page.getByRole('radio', { name: /Cobra el centro/ })).toBeChecked();
+  // MVP sin COBROS: sin secciones de finanzas en Configuracion.
+  await expect(secciones.getByRole('link', { name: /Cobros|Medios de pago/ })).toHaveCount(0);
   // El buscador filtra el submenu.
   await page.getByLabel('Buscar un ajuste').fill('feriado');
   await expect(secciones.getByRole('link')).toHaveText([/Horario y feriados/]);
@@ -238,15 +221,13 @@ test('Mi perfil del profesional (diseño "Moderno A"): lienzo editable con inspe
   );
   await page.getByRole('button', { name: 'Volver a editar' }).click();
 
-  // Mi cuenta: lo privado, con mis pacientes y el pago.
+  // Mi cuenta: lo privado, con mis pacientes (sin pagos: MVP sin COBROS).
   await page.getByRole('link', { name: 'Mi cuenta' }).click();
   await expect(page).toHaveURL(/\/admin\/perfil\/cuenta/);
   const secciones = page.getByRole('navigation', { name: 'Secciones de la cuenta' });
   await secciones.getByRole('link', { name: 'Mis pacientes' }).click();
   await expect(page.getByRole('link', { name: /Paciente Prueba/ }).first()).toBeVisible();
-  await secciones.getByRole('link', { name: 'Pagos y liquidaciones' }).click();
-  await expect(page.getByRole('heading', { name: 'Mi acuerdo con el centro' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Datos para pagos' })).toBeVisible();
+  await expect(secciones.getByRole('link', { name: 'Pagos y liquidaciones' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Volver a mi perfil público' }).click();
   await expect(page).toHaveURL(/\/admin\/perfil$/);
 });
