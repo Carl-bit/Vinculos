@@ -61,7 +61,11 @@ const ESTADO_SEMANA: Partial<Record<CitaVista['estado'], { texto: string; tono: 
  * clinico. Sin tarjetas de modulos (repetian el menu) ni calificacion (esta
  * en "Mi perfil").
  */
-export function InicioPanel({ rol }: { rol: Rol }) {
+/**
+ * `orden`: estado de "Personalizar" cuando la pagina pone sus botones en el
+ * encabezado (una fila menos en notebooks). Sin el, el panel muestra los suyos.
+ */
+export function InicioPanel({ rol, orden: externo }: { rol: Rol; orden?: OrdenBloques }) {
   const reporte = useDashboard();
   const admin = esAdministracion(rol);
   const { profesionalId } = useEquipoActivo();
@@ -79,7 +83,8 @@ export function InicioPanel({ rol }: { rol: Rol }) {
   const lista = [...(citas.data ?? [])].filter(agendada).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const deHoy = lista.filter((c) => c.inicio >= hoyChile().desde && c.inicio < hoyChile().hasta);
 
-  const orden = useOrdenBloques(rol);
+  const propio = useOrdenBloques(rol);
+  const orden = externo ?? propio;
   // MVP sin finanzas: sin el modulo COBROS no se muestran pendientes de pagos, transferencias ni deudas.
   const cobros = !!useModulos().data?.activos.includes('COBROS');
   return (
@@ -209,19 +214,11 @@ export function InicioPanel({ rol }: { rol: Rol }) {
         );
         return (
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {orden.editando && (
-                <span className="mr-auto text-[13px] font-semibold text-neutral-800">Arrastra los bloques o usa las flechas. Se guarda solo para ti.</span>
-              )}
-              {orden.editando && (
-                <Button variant="ghost" onClick={orden.restablecer} className="!py-2 !text-[13px]">
-                  Volver al orden original
-                </Button>
-              )}
-              <Button variant="secondary" icon={orden.editando ? 'check' : 'tune'} onClick={orden.alternar} className="!py-2 !text-[13px]">
-                {orden.editando ? 'Listo' : 'Personalizar'}
-              </Button>
-            </div>
+            {!externo && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <ControlesInicio orden={orden} />
+              </div>
+            )}
             <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
               {columna('izquierda')}
               {columna('derecha')}
@@ -245,7 +242,28 @@ const BOTON_ORDEN =
  * Preferencia de quien mira: localStorage por rol (nunca datos); si el
  * almacen no esta disponible, vuelve al orden original.
  */
-function useOrdenBloques(rol: Rol) {
+/** Botones de "Personalizar" el inicio (y la ayuda mientras se edita). */
+export function ControlesInicio({ orden }: { orden: OrdenBloques }) {
+  return (
+    <>
+      {orden.editando && (
+        <span className="mr-auto text-[13px] font-semibold text-neutral-800">Arrastra los bloques o usa las flechas. Se guarda solo para ti.</span>
+      )}
+      {orden.editando && (
+        <Button variant="ghost" onClick={orden.restablecer} className="!py-2 !text-[13px]">
+          Volver al orden original
+        </Button>
+      )}
+      <Button variant="secondary" icon={orden.editando ? 'check' : 'tune'} onClick={orden.alternar} className="!py-2 !text-[13px]">
+        {orden.editando ? 'Listo' : 'Personalizar'}
+      </Button>
+    </>
+  );
+}
+
+export type OrdenBloques = ReturnType<typeof useOrdenBloques>;
+
+export function useOrdenBloques(rol: Rol) {
   const clave = `inicio:bloques:${rol}`;
   const [columnas, setColumnas] = useState<Record<Lado, IdBloque[]>>(ORDEN_INICIAL);
   const [editando, setEditando] = useState(false);

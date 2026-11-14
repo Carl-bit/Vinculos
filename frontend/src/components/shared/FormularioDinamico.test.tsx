@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { elegirOpcion } from '@/components/ui/elegirOpcion';
+
 import { ADVERTENCIA_TEXTO_LIBRE, faltantes, FormularioDinamico, type CampoPlantilla, type ValoresPlantilla } from './FormularioDinamico';
 
 const campo = (c: Partial<CampoPlantilla> & Pick<CampoPlantilla, 'clave' | 'etiqueta' | 'tipo'>): CampoPlantilla => ({
@@ -45,8 +47,9 @@ describe('FormularioDinamico', () => {
       .map((e) => e.textContent?.replace(' *', ''));
     expect(etiquetas).toEqual(['Motivo', 'Sesiones previas', 'Inicio de síntomas', 'Modalidad', 'Áreas', 'Notas', 'Riesgo']);
     expect(screen.getByLabelText(/Motivo/)).toBeRequired();
-    expect(screen.getByLabelText('Sesiones previas')).toHaveAttribute('type', 'number');
-    expect(screen.getByLabelText('Inicio de síntomas')).toHaveAttribute('type', 'date');
+    // Numero y fecha usan los selectores propios (sin popups nativos).
+    expect(screen.getByLabelText('Sesiones previas')).toHaveAttribute('role', 'spinbutton');
+    expect(screen.getByLabelText('Inicio de síntomas')).toHaveAttribute('aria-haspopup', 'dialog');
     expect(screen.getByLabelText('Notas')).toHaveAccessibleDescription(ADVERTENCIA_TEXTO_LIBRE);
     expect(screen.getByRole('group', { name: /Áreas/ })).toBeInTheDocument();
   });
@@ -58,7 +61,7 @@ describe('FormularioDinamico', () => {
 
     await usuario.type(screen.getByLabelText(/Motivo/), 'Insomnio');
     await usuario.type(screen.getByLabelText('Sesiones previas'), '3');
-    await usuario.selectOptions(screen.getByLabelText('Modalidad'), 'Online');
+    await elegirOpcion(usuario, screen.getByLabelText('Modalidad'), 'Online');
     await usuario.click(screen.getByLabelText('Sueño'));
     await usuario.click(screen.getByLabelText('Ansiedad'));
     await usuario.click(screen.getByLabelText('No'));

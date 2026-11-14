@@ -214,17 +214,20 @@ export function FichaValidacion({
         )}
       </Panel>
 
-      <div className="flex flex-wrap items-start gap-4">
-        {/* Izquierda: perfil, cuenta (junto a Administrativo) y calificaciones; derecha: trabajo, administrativo y tarifas. */}
-        <div className="flex min-w-0 flex-[999_1_380px] flex-col gap-4">
-          <PerfilPublico miembro={miembro} admin={admin} profesional={profesional} />
-          {admin && cuenta && <CuentaIntegrante cuenta={cuenta} propia={cuenta.id === yo.data?.id} />}
-          {profesional && <ResenasPublicas profesionalId={miembro.id} />}
-        </div>
-        <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-4 lg:max-w-[360px]">
-          <TrabajoPacientes miembro={miembro} />
-          <Administrativo miembro={miembro} cuenta={cuenta} admin={admin} bajaEn={bajaEn} />
-          {profesional && <HistorialTarifas profesionalId={miembro.id} />}
+      {/* Columnas segun el ancho real del detalle (container query): en un notebook (1280 px) el detalle mide ~620 px. */}
+      <div className="@container">
+        <div className="grid items-start gap-4 @[600px]:grid-cols-[minmax(0,1fr)_clamp(250px,38cqw,360px)]">
+          {/* Izquierda: perfil, cuenta (junto a Administrativo) y calificaciones; derecha: trabajo, administrativo y tarifas. */}
+          <div className="flex min-w-0 flex-col gap-4">
+            <PerfilPublico miembro={miembro} admin={admin} profesional={profesional} />
+            {admin && cuenta && <CuentaIntegrante cuenta={cuenta} propia={cuenta.id === yo.data?.id} />}
+            {profesional && <ResenasPublicas profesionalId={miembro.id} />}
+          </div>
+          <div className="flex min-w-0 flex-col gap-4">
+            <TrabajoPacientes miembro={miembro} />
+            <Administrativo miembro={miembro} cuenta={cuenta} admin={admin} bajaEn={bajaEn} />
+            {profesional && <HistorialTarifas profesionalId={miembro.id} />}
+          </div>
         </div>
       </div>
 

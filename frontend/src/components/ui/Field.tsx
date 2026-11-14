@@ -2,6 +2,8 @@
 
 import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
+import { CampoFecha, CampoHora, CampoNumero, ListaSeleccion } from './Selectores';
+
 /** Control de texto del diseño: pildora (input/select) o caja redondeada (textarea). */
 const CONTROL =
   'control w-full font-body text-[15px] text-text bg-bg border-[1.5px] border-neutral-400 px-[18px] py-3.5 placeholder:text-neutral-700 focus-visible:border-accent-500 data-[cambiado=true]:border-arcilla data-[cambiado=true]:bg-papel aria-[invalid=true]:border-accent-700 disabled:opacity-60';
@@ -47,8 +49,16 @@ export function Field({ label, hint, error, required, aside, cambiado, children 
   );
 }
 
-export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`${CONTROL} rounded-full ${className}`} {...props} />;
+/**
+ * Fecha, hora y numero usan los selectores propios (Selectores.tsx), nunca el
+ * popup nativo del navegador; misma API (`value`, `onChange(e)`).
+ */
+export function Input({ className = '', type, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  const p = props as Parameters<typeof CampoFecha>[0];
+  if (type === 'date') return <CampoFecha {...p} className={className} />;
+  if (type === 'time') return <CampoHora {...p} className={className} />;
+  if (type === 'number') return <CampoNumero {...p} className={className} />;
+  return <input type={type} className={`${CONTROL} rounded-full ${className}`} {...props} />;
 }
 
 /**
@@ -71,6 +81,7 @@ export function Textarea({ className = '', enterEnvia = false, onKeyDown, ...pro
   );
 }
 
+/** Lista propia con la API de <select> (hijos <option>, `value`, `onChange(e)`). Sin el popup nativo. */
 export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={`${CONTROL} rounded-full ${className}`} {...props} />;
+  return <ListaSeleccion {...(props as Parameters<typeof ListaSeleccion>[0])} className={className} />;
 }

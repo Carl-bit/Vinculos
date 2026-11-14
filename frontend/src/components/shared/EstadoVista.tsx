@@ -46,7 +46,7 @@ export function EstadoVista({ estado, titulo, mensaje, accion }: EstadoVistaProp
   const tono =
     estado === 'vacio' ? 'bg-accent-2-100 text-accent-2-700' : estado === 'error' ? 'bg-accent-100 text-accent-700' : 'bg-neutral-200 text-neutral-700';
   return (
-    <div role={estado === 'error' ? 'alert' : 'status'} aria-live="polite" className="entrada flex flex-col items-center gap-3 px-6 py-12 text-center">
+    <div role={estado === 'error' ? 'alert' : 'status'} aria-live="polite" className="entrada flex flex-col items-center gap-3 px-6 py-12 text-center [@media(max-height:860px)]:py-6">
       <span aria-hidden="true" className={`relative mb-1 grid size-[72px] place-items-center rounded-full ${tono}`}>
         <span className="absolute inset-[-8px] rounded-full border border-dashed border-current opacity-30" />
         <Icon name={base.icono} size={32} />

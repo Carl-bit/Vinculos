@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Icon } from './Icon';
+import { ListaSeleccion } from './Selectores';
 
 /** Tamaños de pagina: minimo 10 (punto 45: tablas de 10 que se recorren por pagina, sin scroll infinito). */
 export const TAMANOS_PAGINA = [10, 20, 50] as const;
@@ -89,17 +90,13 @@ export function Paginador({
         </span>
         <label className="flex items-center gap-1.5">
           Mostrar
-          <select
-            value={porPagina}
-            onChange={(e) => setPorPagina(Number(e.target.value))}
-            className="min-h-9 cursor-pointer rounded-full border border-divider bg-bg px-2.5 text-[12.5px] font-bold text-text"
-          >
+          <ListaSeleccion compacto aria-label={`Cuántos ${etiqueta} mostrar`} value={porPagina} onChange={(e) => setPorPagina(Number(e.target.value))}>
             {TAMANOS_PAGINA.map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
             ))}
-          </select>
+          </ListaSeleccion>
           {etiqueta}
         </label>
       </div>

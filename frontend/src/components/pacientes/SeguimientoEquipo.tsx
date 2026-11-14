@@ -458,163 +458,183 @@ export function SeguimientoEquipo({ rol }: { rol: Rol }) {
 
       <EstadoConsulta consulta={equipo} vacio={() => lista.length === 0} textoVacio="Todavía no hay profesionales en el centro">
         {() => (
-          <div className="flex flex-wrap items-start gap-4">
-            <section
-              aria-labelledby="t-equipo"
-              className="flex w-full flex-col gap-1 rounded-md border border-divider bg-neutral-200 px-2.5 py-3.5 lg:max-w-[270px] lg:flex-[1_1_240px]"
-            >
-              <div className="flex items-baseline gap-2 px-1.5 pb-1.5">
-                <h2 id="t-equipo" className="m-0 text-[16px] font-black">
-                  Equipo
-                </h2>
-                <span className="text-[12px] font-semibold text-neutral-700">
-                  {foco
-                    ? `${lista.filter((x) => tiene(x.items, foco)).length} con este pendiente`
-                    : `${lista.length - nPracticantes} profesionales${nPracticantes ? ` · ${nPracticantes} ${nPracticantes === 1 ? 'practicante' : 'practicantes'}` : ''}`}
-                </span>
-              </div>
-              {lista.map(({ m, items }) => {
-                const on = actual?.m.id === m.id;
-                const coincide = !foco || tiene(items, foco);
-                const hoy = hoyDe(m.id);
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => {
-                      setElegido(on ? undefined : m.id);
-                      setItemElegido(undefined);
-                    }}
-                    className={`flex min-h-[58px] w-full cursor-pointer items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left transition-[opacity,background-color] duration-200 ${
-                      on ? 'border-2 border-accent-700 bg-papel' : 'border border-transparent hover:bg-lienzo'
-                    } ${coincide ? '' : 'opacity-50'}`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`grid size-[34px] flex-none place-items-center rounded-full text-[12px] font-black ${
-                        practicante(m) ? 'bg-online-100 text-online-900' : 'bg-accent-2-200 text-accent-2-900'
-                      }`}
-                    >
-                      {iniciales(m.nombre ?? '?')}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-[13px] font-extrabold">
-                        {m.roles.includes('ADMIN') && <span className="sr-only">Cuenta madre: </span>}
-                        {m.nombre ?? 'Sin nombre'}
-                      </span>
-                      <span className="text-[11.5px] font-semibold text-neutral-800">
-                        {practicante(m)
-                          ? `Practicante · supervisa ${nombre.get(supervisionesVigentes.find((s) => s.practicanteId === m.id)?.supervisorId ?? '') ?? 'sin asignar'}`
-                          : `${carga(m.id)} pac. · ${hoy ? `${hoy} hoy` : 'sin sesiones hoy'} · al día ${alDia(m.id)}`}
-                      </span>
-                    </span>
-                    {items.length > 0 && (
-                      <span className="grid h-[22px] min-w-[22px] flex-none place-items-center rounded-full bg-accent-200 px-1 text-[11px] font-black text-accent-900">
-                        <span className="sr-only">Pendientes: </span>
-                        {items.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </section>
-
-            {actual && (
-              <section aria-labelledby="t-prof" className="flex min-w-0 flex-[999_1_440px] flex-col gap-3.5">
-                <Profesional
-                  miembro={actual.m}
-                  rol={rol}
-                  pacientes={carga(actual.m.id)}
-                  hoy={hoyDe(actual.m.id)}
-                  alDia={alDia(actual.m.id)}
-                  items={actual.items}
-                  pacientesLista={pacientes.data ?? []}
-                />
-                <div className="flex flex-col gap-3 rounded-md border border-divider bg-bg p-4">
-                  <div className="flex flex-wrap items-baseline gap-x-2.5">
-                    <h3 className="m-0 text-[17px] font-black">Trabajo pendiente</h3>
-                    <span className="text-[12.5px] font-semibold text-neutral-700">Toca un punto para intervenir o preguntar</span>
-                  </div>
-                  {visibles.length === 0 ? (
-                    <p className="m-0 rounded-sm bg-accent-2-200 p-4 text-[13.5px] font-bold text-accent-2-900">
-                      {foco ? 'Sin pendientes de este tipo.' : 'Sin pendientes. Fichas al día, consentimientos vigentes y sin derivaciones abiertas.'}
-                    </p>
-                  ) : (
-                    GRUPOS.map((g) => {
-                      const del = mostrados.filter((i) => i.grupo === g.g);
-                      if (!del.length) return null;
-                      return (
-                        <div key={g.g} className="flex flex-col gap-1.5">
-                          <p className="m-0 flex flex-wrap items-center gap-2">
-                            <span className={`text-[11px] font-extrabold tracking-[0.1em] uppercase ${g.color}`}>{g.titulo}</span>
-                            {g.nota && <span className="text-[11.5px] font-semibold text-neutral-700">{g.nota}</span>}
-                          </p>
-                          {del.map((i) => {
-                            const on = item?.key === i.key;
-                            return (
-                              <button
-                                key={i.key}
-                                type="button"
-                                aria-pressed={on}
-                                onClick={() => setItemElegido(i.key)}
-                                className={`flex min-h-[50px] w-full cursor-pointer flex-wrap items-center gap-3 rounded-sm px-3 py-1.5 text-left ${
-                                  on ? 'border-2 border-accent-700 bg-accent-100' : 'border border-divider bg-bg hover:border-accent-500'
-                                }`}
-                              >
-                                <span className="flex-none rounded-[8px] bg-neutral-200 px-2 py-0.5 font-mono text-[12px] font-bold text-neutral-800">
-                                  {i.code}
-                                </span>
-                                <span className="flex min-w-[160px] flex-1 flex-col">
-                                  <strong className="text-[13px]">{i.titulo}</strong>
-                                  <span className="text-[12px] font-semibold text-neutral-700">{i.detalle}</span>
-                                </span>
-                                <span className={`flex-none rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${CHIP[i.plazo.tono]}`}>{i.plazo.texto}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      );
-                    })
-                  )}
-                  <Paginador {...paginas} etiqueta="pendientes" />
-                </div>
-              </section>
-            )}
-
-            {!actual && (
-              <div className="min-w-0 flex-[999_1_440px]">
-                <EstadoVista
-                  estado="vacio"
-                  titulo="Elige un profesional"
-                  mensaje="Su trabajo pendiente aparece aquí. Vuelve a tocarlo en la lista para ocultarlo."
-                />
-              </div>
-            )}
-
-            {actual && (
-              <aside
-                aria-label="Intervención"
-                className="flex w-full flex-col gap-3 rounded-md border border-neutral-400 bg-bg p-[18px] shadow-lg lg:sticky lg:top-4 lg:max-w-[360px] lg:flex-[1_1_300px]"
+          // Grilla segun el ancho real del contenido (container query), no de la ventana: en un notebook
+          // (1280 px, ~950 px de contenido) entran las tres columnas y la intervencion queda a la derecha.
+          <div className="@container">
+            <div className="grid items-start gap-4 @[720px]:grid-cols-[clamp(200px,24cqw,270px)_minmax(0,1fr)] @[900px]:grid-cols-[clamp(200px,22cqw,270px)_minmax(0,1fr)_clamp(260px,27cqw,360px)]">
+              <section
+                aria-labelledby="t-equipo"
+                className="flex w-full flex-col gap-1 rounded-md border border-divider bg-neutral-200 px-2.5 py-3.5 @[720px]:row-span-2 @[900px]:row-span-1"
               >
-                {item ? (
-                  <Intervencion key={item.key} det={item.det} para={actual.m} />
-                ) : (
-                  <>
-                    <span className="text-[11px] font-extrabold tracking-[0.1em] text-accent-700 uppercase">Sin pendientes</span>
-                    <h2 className="m-0 text-[20px] leading-tight font-black">Nada que intervenir</h2>
-                    <p className="m-0 text-[13px] font-semibold text-neutral-800">
-                      Fichas al día: {alDia(actual.m.id)}. Elige otro profesional o una tarjeta de arriba.
-                    </p>
-                    <Intervencion
-                      det={{ tipo: '', titulo: '', datos: [], mensaje: { asunto: 'Coordinación', texto: '' }, acciones: null, regla: '' }}
-                      para={actual.m}
-                      soloMensaje
-                    />
-                  </>
-                )}
-              </aside>
-            )}
+                <div className="flex items-baseline gap-2 px-1.5 pb-1.5">
+                  <h2 id="t-equipo" className="m-0 text-[16px] font-black">
+                    Equipo
+                  </h2>
+                  <span className="text-[12px] font-semibold text-neutral-700">
+                    {foco
+                      ? `${lista.filter((x) => tiene(x.items, foco)).length} con este pendiente`
+                      : `${lista.length - nPracticantes} profesionales${nPracticantes ? ` · ${nPracticantes} ${nPracticantes === 1 ? 'practicante' : 'practicantes'}` : ''}`}
+                  </span>
+                </div>
+                {lista.map(({ m, items }) => {
+                  const on = actual?.m.id === m.id;
+                  const coincide = !foco || tiene(items, foco);
+                  const hoy = hoyDe(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => {
+                        setElegido(on ? undefined : m.id);
+                        setItemElegido(undefined);
+                      }}
+                      className={`flex min-h-[58px] w-full cursor-pointer items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-left transition-[opacity,background-color] duration-200 ${
+                        on ? 'border-2 border-accent-700 bg-papel' : 'border border-transparent hover:bg-lienzo'
+                      } ${coincide ? '' : 'opacity-50'}`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`grid size-[34px] flex-none place-items-center rounded-full text-[12px] font-black ${
+                          practicante(m) ? 'bg-online-100 text-online-900' : 'bg-accent-2-200 text-accent-2-900'
+                        }`}
+                      >
+                        {iniciales(m.nombre ?? '?')}
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="truncate text-[13px] font-extrabold">
+                          {m.roles.includes('ADMIN') && <span className="sr-only">Cuenta madre: </span>}
+                          {m.nombre ?? 'Sin nombre'}
+                        </span>
+                        <span className="text-[11.5px] font-semibold text-neutral-800">
+                          {practicante(m)
+                            ? `Practicante · supervisa ${nombre.get(supervisionesVigentes.find((s) => s.practicanteId === m.id)?.supervisorId ?? '') ?? 'sin asignar'}`
+                            : `${carga(m.id)} pac. · ${hoy ? `${hoy} hoy` : 'sin sesiones hoy'} · al día ${alDia(m.id)}`}
+                        </span>
+                      </span>
+                      {items.length > 0 && (
+                        <span className="grid h-[22px] min-w-[22px] flex-none place-items-center rounded-full bg-accent-200 px-1 text-[11px] font-black text-accent-900">
+                          <span className="sr-only">Pendientes: </span>
+                          {items.length}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </section>
+
+              {actual && (
+                <section aria-labelledby="t-prof" className="@container flex min-w-0 flex-col gap-3.5">
+                  <Profesional
+                    miembro={actual.m}
+                    rol={rol}
+                    pacientes={carga(actual.m.id)}
+                    hoy={hoyDe(actual.m.id)}
+                    alDia={alDia(actual.m.id)}
+                    items={actual.items}
+                    pacientesLista={pacientes.data ?? []}
+                  />
+                  <div className="flex flex-col gap-3 rounded-md border border-divider bg-bg p-4">
+                    <div className="flex flex-wrap items-baseline gap-x-2.5">
+                      <h3 className="m-0 text-[17px] font-black">Trabajo pendiente</h3>
+                      <span className="text-[12.5px] font-semibold text-neutral-700">Toca un punto para intervenir o preguntar</span>
+                    </div>
+                    {visibles.length === 0 ? (
+                      <p className="m-0 rounded-sm bg-accent-2-200 p-4 text-[13.5px] font-bold text-accent-2-900">
+                        {foco ? 'Sin pendientes de este tipo.' : 'Sin pendientes. Fichas al día, consentimientos vigentes y sin derivaciones abiertas.'}
+                      </p>
+                    ) : (
+                      GRUPOS.map((g) => {
+                        const del = mostrados.filter((i) => i.grupo === g.g);
+                        if (!del.length) return null;
+                        return (
+                          <div key={g.g} className="flex flex-col gap-1.5">
+                            <p className="m-0 flex flex-wrap items-center gap-2">
+                              <span className={`text-[11px] font-extrabold tracking-[0.1em] uppercase ${g.color}`}>{g.titulo}</span>
+                              {g.nota && <span className="text-[11.5px] font-semibold text-neutral-700">{g.nota}</span>}
+                            </p>
+                            {del.map((i) => {
+                              const on = item?.key === i.key;
+                              return (
+                                <button
+                                  key={i.key}
+                                  type="button"
+                                  aria-pressed={on}
+                                  onClick={() => {
+                                    setItemElegido(i.key);
+                                    // Si la intervencion quedo fuera de la vista (columna unica o lista larga), se lleva a ella.
+                                    requestAnimationFrame(() => {
+                                      const a = document.getElementById('intervencion');
+                                      const r = a?.getBoundingClientRect();
+                                      if (a && r && (r.top > window.innerHeight - 80 || r.bottom < 80)) {
+                                        a.scrollIntoView({
+                                          behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                                          block: 'start',
+                                        });
+                                      }
+                                    });
+                                  }}
+                                  className={`flex min-h-[50px] w-full cursor-pointer flex-wrap items-center gap-3 rounded-sm px-3 py-1.5 text-left ${
+                                    on ? 'border-2 border-accent-700 bg-accent-100' : 'border border-divider bg-bg hover:border-accent-500'
+                                  }`}
+                                >
+                                  <span className="flex-none rounded-[8px] bg-neutral-200 px-2 py-0.5 font-mono text-[12px] font-bold text-neutral-800">
+                                    {i.code}
+                                  </span>
+                                  <span className="flex min-w-[160px] flex-1 flex-col">
+                                    <strong className="text-[13px]">{i.titulo}</strong>
+                                    <span className="text-[12px] font-semibold text-neutral-700">{i.detalle}</span>
+                                  </span>
+                                  <span className={`flex-none rounded-full px-2.5 py-0.5 text-[11px] font-extrabold ${CHIP[i.plazo.tono]}`}>
+                                    {i.plazo.texto}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })
+                    )}
+                    <Paginador {...paginas} etiqueta="pendientes" />
+                  </div>
+                </section>
+              )}
+
+              {!actual && (
+                <div className="min-w-0 @[900px]:col-span-2">
+                  <EstadoVista
+                    estado="vacio"
+                    titulo="Elige un profesional"
+                    mensaje="Su trabajo pendiente aparece aquí. Vuelve a tocarlo en la lista para ocultarlo."
+                  />
+                </div>
+              )}
+
+              {actual && (
+                <aside
+                  id="intervencion"
+                  aria-label="Intervención"
+                  className="flex w-full min-w-0 scroll-mt-4 flex-col gap-3 rounded-md border border-neutral-400 bg-bg p-[18px] shadow-lg @[720px]:col-start-2 @[900px]:col-start-3 @[900px]:row-start-1 @[900px]:sticky @[900px]:top-4 @[900px]:max-h-[calc(100dvh-32px)] @[900px]:overflow-y-auto"
+                >
+                  {item ? (
+                    <Intervencion key={item.key} det={item.det} para={actual.m} />
+                  ) : (
+                    <>
+                      <span className="text-[11px] font-extrabold tracking-[0.1em] text-accent-700 uppercase">Sin pendientes</span>
+                      <h2 className="m-0 text-[20px] leading-tight font-black">Nada que intervenir</h2>
+                      <p className="m-0 text-[13px] font-semibold text-neutral-800">
+                        Fichas al día: {alDia(actual.m.id)}. Elige otro profesional o una tarjeta de arriba.
+                      </p>
+                      <Intervencion
+                        det={{ tipo: '', titulo: '', datos: [], mensaje: { asunto: 'Coordinación', texto: '' }, acciones: null, regla: '' }}
+                        para={actual.m}
+                        soloMensaje
+                      />
+                    </>
+                  )}
+                </aside>
+              )}
+            </div>
           </div>
         )}
       </EstadoConsulta>
@@ -703,7 +723,7 @@ function Profesional({
           ) : null}
         </div>
       </div>
-      <dl className="m-0 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+      <dl className="m-0 grid grid-cols-2 gap-2 @[420px]:grid-cols-3 @[620px]:grid-cols-5">
         {kpis.map((k) => (
           <div key={k.l} className="flex flex-col gap-0.5 rounded-sm border border-divider bg-bg px-3 py-2.5">
             <dt className="text-[11px] font-extrabold text-neutral-700">{k.l}</dt>

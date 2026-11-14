@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Badge } from '@/components/ui/Badge';
+import { Badge, type TonoBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Field, Textarea } from '@/components/ui/Field';
 import { api, datos } from '@/lib/api/cliente';
@@ -17,12 +17,25 @@ type Accion = components['schemas']['AccionModulo'];
 
 const ABIERTAS = ['PENDIENTE', 'APROBADA'];
 
-export const ESTADO_SOLICITUD: Record<SolicitudModulo['estado'], { texto: string; tono: 'neutro' | 'positivo' | 'atencion' }> = {
-  PENDIENTE: { texto: 'Solicitud enviada', tono: 'atencion' },
-  APROBADA: { texto: 'Aprobada, en preparación', tono: 'positivo' },
-  RECHAZADA: { texto: 'No aprobada', tono: 'neutro' },
-  APLICADA: { texto: 'Aplicada', tono: 'positivo' },
-};
+/**
+ * Texto y tono de una solicitud segun su estado y lo que pide. Mientras esta
+ * en curso (enviada o aprobada) va en amarillo (`pendiente`): el modulo aun no
+ * cambia. Al aplicarse, el modulo queda activo o desactivado y se puede volver
+ * a pedir lo contrario.
+ */
+export function estadoSolicitud(s: Pick<SolicitudModulo, 'estado' | 'accion'>): { texto: string; tono: TonoBadge } {
+  const activar = s.accion === 'ACTIVAR';
+  switch (s.estado) {
+    case 'PENDIENTE':
+      return { texto: activar ? 'Activación solicitada' : 'Desactivación solicitada', tono: 'pendiente' };
+    case 'APROBADA':
+      return { texto: activar ? 'Activación en proceso' : 'Desactivación en proceso', tono: 'pendiente' };
+    case 'RECHAZADA':
+      return { texto: 'No aprobada', tono: 'neutro' };
+    case 'APLICADA':
+      return activar ? { texto: 'Activado', tono: 'positivo' } : { texto: 'Desactivado', tono: 'neutro' };
+  }
+}
 
 /** Tarea 31: solicitudes del centro (las aplica Vinculos; la consulta se refresca con el polling global). */
 export function useSolicitudesModulo() {
@@ -79,8 +92,8 @@ export function AccionSolicitud({
   });
 
   if (abierta) {
-    const e = ESTADO_SOLICITUD[abierta.estado];
-    return <Badge tono={e.tono}>{`${e.texto}${abierta.accion === 'DESACTIVAR' ? ' (desactivar)' : ''}`}</Badge>;
+    const e = estadoSolicitud(abierta);
+    return <Badge tono={e.tono}>{e.texto}</Badge>;
   }
   const bloqueo = bloqueoSolicitud(modulo, accion, activos);
   if (!abiertoForm) {
@@ -129,7 +142,7 @@ export function HistorialSolicitudes({ lista, nombre }: { lista: SolicitudModulo
       <p className="m-0 text-[12px] font-extrabold tracking-[0.08em] text-neutral-700 uppercase">Solicitudes recientes</p>
       <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
         {lista.slice(0, 6).map((s) => {
-          const e = ESTADO_SOLICITUD[s.estado];
+          const e = estadoSolicitud(s);
           return (
             <li key={s.id} className="flex flex-wrap items-center gap-2 text-[13px]">
               <strong>{`${s.accion === 'ACTIVAR' ? 'Activar' : 'Desactivar'} ${nombre(s.modulo)}`}</strong>

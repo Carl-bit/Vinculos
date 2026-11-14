@@ -79,7 +79,8 @@ export function EquipoCentro({ rol }: { rol: Rol }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-[18px]">
-      <div className="mx-auto flex w-full max-w-[1240px] flex-wrap items-center gap-3.5">
+      {/* @container: en una fila angosta (notebook a 1280 px) "Nueva cuenta" queda solo con su icono y no salta de linea. */}
+      <div className="@container mx-auto flex w-full max-w-[1240px] flex-wrap items-center gap-3.5">
         <div className="flex max-w-full flex-wrap items-center gap-1.5 rounded-[28px] border border-divider bg-bg py-2 pr-2 pl-4 shadow-lg">
           <h1 className="m-0 pr-1.5 text-[15px] font-black">Equipo del centro</h1>
           <Pestanas
@@ -93,8 +94,8 @@ export function EquipoCentro({ rol }: { rol: Rol }) {
           />
         </div>
         {admin && (
-          <Button variant="team" size="lg" icon="person_add" onClick={() => ir({ nuevo: '1' })} className="ml-auto">
-            Nueva cuenta
+          <Button variant="team" size="lg" icon="person_add" onClick={() => ir({ nuevo: '1' })} aria-label="Nueva cuenta" title="Nueva cuenta" className="ml-auto @max-[999px]:!px-4">
+            <span className="hidden @[1000px]:inline">Nueva cuenta</span>
           </Button>
         )}
       </div>
@@ -235,7 +236,7 @@ function Integrantes({
           <div className="flex flex-wrap items-start gap-5">
             <section
               aria-labelledby="t-integrantes"
-              className="translucida flex w-full flex-col gap-2 rounded-panel border border-borde p-3.5 text-tinta shadow-flotante lg:sticky lg:top-5 lg:w-[300px] lg:flex-none"
+              className="translucida flex w-full flex-col gap-2 rounded-panel border border-borde p-3.5 text-tinta shadow-flotante lg:sticky lg:top-5 lg:w-[clamp(300px,26vw,380px)] lg:flex-none"
             >
               <h2 id="t-integrantes" className="m-0 px-1.5 pt-1 text-[17px] font-black">
                 Integrantes

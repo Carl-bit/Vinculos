@@ -31,12 +31,12 @@ export function InicioPedirHora({ match }: { match: boolean }) {
   if (vista === 'paciente') return <YaSoyPaciente titulo={titulo} onVolver={() => setVista('inicio')} />;
 
   return (
-    <div key={vista} className="entrada max-w-[760px] py-[clamp(32px,6vw,80px)]">
+    <div key={vista} className="entrada max-w-[760px] py-[clamp(32px,6vw,80px)] [@media(max-height:860px)]:py-6">
       <Eyebrow>Pedir una hora</Eyebrow>
       <h1
         ref={titulo}
         tabIndex={-1}
-        className="m-0 mb-[18px] text-[clamp(34px,5vw,56px)] leading-none font-black tracking-[-0.035em] text-balance outline-none"
+        className="m-0 mb-[18px] text-[clamp(34px,5vw,56px)] [@media(max-height:860px)]:text-[clamp(28px,6vh,44px)] leading-none font-black tracking-[-0.035em] text-balance outline-none"
       >
         {vista === 'inicio' ? '¿Es tu primera vez pidiendo una hora en el centro?' : '¿Cómo quieres elegir a tu profesional?'}
       </h1>

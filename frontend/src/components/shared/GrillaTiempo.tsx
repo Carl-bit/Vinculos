@@ -69,7 +69,8 @@ export function GrillaTiempo<E extends EventoGrilla>({
 }) {
   const horas = Array.from({ length: 24 - desdeHora }, (_, i) => desdeHora + i);
   const pct = (h: number) => `${((h - desdeHora) / horas.length) * 100}%`;
-  const plantilla = { gridTemplateColumns: `56px repeat(${columnas.length}, minmax(140px, 1fr))` };
+  // Semana (7 o mas columnas): 84 px minimo para que entre completa en un notebook (1280 px); pocas columnas, 120.
+  const plantilla = { gridTemplateColumns: `56px repeat(${columnas.length}, minmax(${columnas.length >= 7 ? 84 : 120}px, 1fr))` };
   const minutoAhora = minutosChile(new Date(ahora));
   const citasDe = (eventos: E[]) => eventos.flatMap((e: EventoGrilla) => (e.tipo === 'cita' ? [e.cita] : []));
   return (

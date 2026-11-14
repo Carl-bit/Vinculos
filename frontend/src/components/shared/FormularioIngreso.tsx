@@ -172,7 +172,7 @@ export function FormularioIngreso() {
       {/* Presentacion del perfil (columna izquierda del diseño). */}
       <div className="entrada flex max-w-[440px] flex-[1_1_360px] flex-col gap-3.5">
         <span className={`text-xs font-bold tracking-[0.14em] uppercase ${color}`}>{t.eyebrow}</span>
-        <h1 className="m-0 text-[clamp(40px,5.4vw,64px)] leading-[0.98] font-black tracking-[-0.01em]">{t.titulo}</h1>
+        <h1 className="m-0 text-[clamp(40px,5.4vw,64px)] [@media(max-height:860px)]:text-[clamp(28px,6vh,44px)] leading-[0.98] font-black tracking-[-0.01em]">{t.titulo}</h1>
         <p className="m-0 text-[17px] text-pretty text-neutral-800">{t.bajada}</p>
         <ul className="m-0 flex list-none flex-col gap-2.5 p-0 pt-1.5">
           {t.puntos

@@ -35,8 +35,6 @@ import {
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
-import { PanelAgenda, type FiltroModalidad } from './PanelAgenda';
-
 export type VistaAgenda = 'dia' | 'semana' | 'mes';
 
 /** Preferencia sin datos sensibles: la ultima vista (dia, semana o mes). */
@@ -70,6 +68,8 @@ const mediodia = (d: string) => new Date(`${d}T12:00:00Z`);
  * Fondo de la grilla (sin paciente ni quien): libre del box, disponible (hora sin sesion dentro de lo apartado por el
  * profesional), sesion ajena (ocupado), resto apartado por otro, apartado propio ya pasado o reservando.
  */
+type FiltroModalidad = 'todas' | 'PRESENCIAL' | 'ONLINE';
+
 type ClaseFondo = 'libre' | 'disponible' | 'ocupado' | 'apartado' | 'propio' | 'reservando';
 const TEXTO_FONDO: Record<ClaseFondo, string> = {
   libre: 'Libre',
@@ -89,14 +89,15 @@ type Evento =
 type Columna = ColumnaGrilla<Evento>;
 
 /**
- * Calendario de la agenda (Opcion A, 2026-11-03): una sola vista con las
- * sesiones presenciales y online, mas un panel lateral (modalidad, boxes y
- * horas por confirmar). Dia | Semana | Mes en una grilla de tiempo real que va
- * de la apertura del centro (08:00 sin horario) a las 24:00.
+ * Calendario de la agenda (Opcion A, 2026-11-03; sin panel lateral desde
+ * 2026-11-14): una sola vista con las sesiones presenciales y online y, en la
+ * barra, los filtros de profesional, box y modalidad. Dia | Semana | Mes en una
+ * grilla de tiempo real que va de la apertura del centro (08:00 sin horario) a
+ * las 24:00. Las horas por confirmar estan en la pestaña Pendientes.
  *
  * - Sesiones con el color de su modalidad (presencial / online / pago
  *   pendiente). ADMIN y GESTION ven todo el equipo o un profesional.
- * - Box elegido en el panel: encima las sesiones (del profesional; sin
+ * - Box elegido en "Ver box": encima las sesiones (del profesional; sin
  *   profesional elegido, las de ese box) y de fondo sus horas libres, lo
  *   apartado y cada sesion ajena como "Ocupado" (sesiones_espacios(), sin
  *   quien entre profesionales; ADMIN/GESTION con el nombre, desde los
@@ -107,19 +108,7 @@ type Columna = ColumnaGrilla<Evento>;
  *
  * Se refresca cada 2 minutos con la pestaña visible (estandar_polling.md).
  */
-export function CalendarioAgenda({
-  rol,
-  onElegir,
-  onAgendar,
-  onElegirHora,
-  onVerPendientes,
-}: {
-  rol: Rol;
-  onElegir: (c: CitaVista) => void;
-  onAgendar: () => void;
-  onElegirHora: (h: HoraElegida) => void;
-  onVerPendientes: () => void;
-}) {
+export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; onElegir: (c: CitaVista) => void; onElegirHora: (h: HoraElegida) => void }) {
   const admin = esAdministracion(rol);
   const clinico = rol === 'PROFESIONAL' || rol === 'PRACTICANTE';
   const [vista, setVistaEstado] = useState<VistaAgenda>(() => {
@@ -127,8 +116,8 @@ export function CalendarioAgenda({
     return v === 'mes' || v === 'dia' ? v : 'semana';
   });
   const [desplazamiento, setDesplazamiento] = useState(0);
-  const [boxId, setBoxId] = useState<string | null>(null);
   const [modalidad, setModalidad] = useState<FiltroModalidad>('todas');
+  const [boxId, setBoxId] = useState<string | null>(null);
   const { profesionalId, setProfesionalId } = useEquipoActivo();
   const cuenta = useMiCuenta();
   const modulos = useModulos();
@@ -153,18 +142,21 @@ export function CalendarioAgenda({
   const equipo = useEquipoAgenda();
   const espacios = useEspacios();
   const pacientes = usePacientes();
-  // Boxes del panel: horario libre, lo apartado y lo ocupado (sin quien); el profesional distingue lo que aparto el.
+  // Box elegido en "Ver box": horario libre, lo apartado y lo ocupado (sin quien); el profesional distingue lo que aparto el.
   const ocupacion = useQuery({
     queryKey: ['panel', 'espacios', 'ocupacion', rango.desde, rango.hasta],
     queryFn: () => datos(api.GET('/api/espacios/ocupacion', { params: { query: rango } })),
+    enabled: !!box,
   });
   const sesionesBox = useQuery({
     queryKey: ['panel', 'espacios', 'sesiones', rango.desde, rango.hasta],
     queryFn: () => datos(api.GET('/api/espacios/sesiones', { params: { query: rango } })),
+    enabled: !!box,
   });
   const libres = useQuery({
     queryKey: ['panel', 'espacios', 'disponibilidad', rango.desde, rango.hasta],
     queryFn: () => datos(api.GET('/api/espacios/disponibilidad', { params: { query: rango } })),
+    enabled: !!box,
   });
   const propios = useQuery({
     queryKey: ['panel', 'bloques', cuenta.data?.id, rango.desde, rango.hasta],
@@ -196,8 +188,8 @@ export function CalendarioAgenda({
 
   const nombres = nombresPacientes(pacientes.data);
   const nombreProfesional = new Map((equipo.data ?? []).map((m) => [m.id, m.nombre ?? 'Profesional']));
-  const activos = (espacios.data ?? []).filter((e) => e.activo);
   const nombreBox = new Map((espacios.data ?? []).map((e) => [e.id, e.nombre]));
+  const activos = (espacios.data ?? []).filter((e) => e.activo);
   const conEvolucion = new Set(evolucion.data ?? []);
   const inasistencias = new Set((cobros.data ?? []).filter((c) => c.inasistencia).map((c) => c.cita_id));
 
@@ -290,12 +282,10 @@ export function CalendarioAgenda({
         ? `${diaMes.format(mediodia(semana.dias[0]!))} – ${diaMes.format(mediodia(semana.dias[6]!))}`
         : mesTitulo.format(mediodia(mes.primero));
   const unidad = vista === 'dia' ? 'Día' : vista === 'semana' ? 'Semana' : 'Mes';
-  const etiquetaRango = vista === 'dia' ? 'En el día' : vista === 'semana' ? 'En la semana' : 'En el mes';
   const conteo = {
     presencial: visibles.filter((c) => c.modalidad === 'PRESENCIAL').length,
     online: visibles.filter((c) => c.modalidad === 'ONLINE').length,
   };
-  const rangoConAhora = ms(rango.desde) <= ahora && ahora < ms(rango.hasta);
 
   const estadosPresentes = [...new Set(sesiones.map(estadoDe).filter((e): e is EstadoVisual => !!e))];
   const fondosPresentes = [...new Set(fondo.flatMap((f) => (f.tipo === 'fondo' && f.clase !== 'libre' ? [f.clase] : [])))];
@@ -306,6 +296,7 @@ export function CalendarioAgenda({
         <ControlSegmentado
           etiqueta="Vista de la agenda"
           tono="team"
+          compacto
           valor={vista}
           onChange={setVista}
           opciones={[
@@ -316,7 +307,7 @@ export function CalendarioAgenda({
         />
         <div className="flex items-center gap-1">
           <BotonIcono etiqueta={`${unidad} anterior`} icono="chevron_left" onClick={() => setDesplazamiento((n) => n - 1)} />
-          <Button variant="secondary" disabled={desplazamiento === 0} onClick={() => setDesplazamiento(0)} className="!min-h-10 !px-4 !py-2 !text-[13px]">
+          <Button variant="secondary" disabled={desplazamiento === 0} onClick={() => setDesplazamiento(0)} className="!min-h-9 !px-4 !py-1.5 !text-[13px]">
             Hoy
           </Button>
           <BotonIcono etiqueta={`${unidad} siguiente`} icono="chevron_right" onClick={() => setDesplazamiento((n) => n + 1)} />
@@ -330,7 +321,7 @@ export function CalendarioAgenda({
             aria-label="Profesional de la agenda"
             value={profesionalId ?? ''}
             onChange={(e) => setProfesionalId(e.target.value || null)}
-            className="!min-h-10 !w-auto !py-1.5 !text-[13px]"
+            className="!min-h-9 !w-auto !py-1 !text-[13px]"
           >
             <option value="">Todo el equipo</option>
             {(equipo.data ?? []).map((m) => (
@@ -340,22 +331,59 @@ export function CalendarioAgenda({
             ))}
           </Select>
         )}
-        <Button variant="team" icon="event" onClick={onAgendar} className="ml-auto">
-          Agendar sesión
-        </Button>
       </div>
 
-      <Leyenda
-        estados={estadosPresentes}
-        fondos={fondosPresentes}
-        clinico={clinico}
-        box={box ? (nombreBox.get(box) ?? 'Box') : null}
-        ayuda={
-          conOnline ? (box ? 'Toca una hora vacía para agendar online o una libre del box para presencial' : 'Toca una hora vacía para agendar online') : null
-        }
-      />
+      {/* Fila de filtros (2026-11-14): leyenda a la izquierda; Ver box y modalidad a la derecha. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <div className="min-w-0 flex-1">
+          <Leyenda
+            estados={estadosPresentes}
+            fondos={fondosPresentes}
+            clinico={clinico}
+            box={box ? (nombreBox.get(box) ?? 'Box') : null}
+            ayuda={
+              conOnline
+                ? box
+                  ? 'Toca una hora vacía para agendar online o una libre del box para presencial'
+                  : 'Toca una hora vacía para agendar online; para presencial, elige un box en "Ver box"'
+                : null
+            }
+          />
+        </div>
+        <div role="toolbar" aria-label="Filtros de la agenda" className="flex flex-wrap items-center gap-2.5">
+          {activos.length > 0 && (
+            // Ver box (2026-11-14): sus horas libres, lo apartado y lo ocupado de fondo; una hora libre agenda presencial.
+            <Select
+              aria-label="Ver box"
+              value={box ?? ''}
+              onChange={(e) => setBoxId(e.target.value || null)}
+              className="!min-h-9 !w-auto !max-w-[220px] !py-1 !text-[13px]"
+            >
+              <option value="">Ver box: ninguno</option>
+              {activos.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {`Ver ${e.nombre}`}
+                </option>
+              ))}
+            </Select>
+          )}
+          <ControlSegmentado
+            etiqueta="Modalidad de las sesiones"
+            tono="team"
+            compacto
+            valor={modalidad}
+            onChange={setModalidad}
+            opciones={[
+              { valor: 'todas', etiqueta: `Todas · ${conteo.presencial + conteo.online}` },
+              { valor: 'PRESENCIAL', etiqueta: `Presencial · ${conteo.presencial}` },
+              { valor: 'ONLINE', etiqueta: `Online · ${conteo.online}` },
+            ]}
+          />
+        </div>
+      </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+      {/* Sin panel lateral: el calendario usa todo el ancho y su alto lo pone la ventana (scroll interno). */}
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <EstadoConsulta consulta={citas}>
             {() =>
@@ -408,24 +436,6 @@ export function CalendarioAgenda({
             }
           </EstadoConsulta>
         </div>
-        <PanelAgenda
-          etiquetaRango={etiquetaRango}
-          modalidad={modalidad}
-          onModalidad={setModalidad}
-          conteo={conteo}
-          espacios={activos}
-          libres={libres.data ?? []}
-          ocupacion={ocupacion.data ?? []}
-          sesionesBox={sesionesBox.data ?? []}
-          boxId={box}
-          onBox={setBoxId}
-          ahora={ahora}
-          rangoConAhora={rangoConAhora}
-          profesionalId={filtro}
-          nombres={nombres}
-          onElegir={onElegir}
-          onVerPendientes={onVerPendientes}
-        />
       </div>
     </div>
   );

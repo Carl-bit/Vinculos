@@ -31,7 +31,7 @@ export function EquipoPublico({ perfiles, atencion, agenda, match }: { perfiles:
     <>
       <section className="entrada pt-[clamp(18px,3vw,38px)] pb-[clamp(24px,3vw,34px)]">
         <Eyebrow>Conoce a nuestro equipo</Eyebrow>
-        <h1 className="m-0 mb-[18px] max-w-[24ch] text-[clamp(34px,5vw,58px)] leading-[0.99] font-black tracking-[-0.035em] text-balance">
+        <h1 className="m-0 mb-[18px] max-w-[24ch] text-[clamp(34px,5vw,58px)] [@media(max-height:860px)]:text-[clamp(28px,6vh,44px)] leading-[0.99] font-black tracking-[-0.035em] text-balance">
           Quiénes somos y con quién puedes atenderte
         </h1>
         <p className="m-0 max-w-[56ch] text-[17.5px] leading-relaxed text-pretty text-neutral-700">

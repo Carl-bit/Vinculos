@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { semanaChile } from '@/lib/panel';
 import type { Rol } from '@/lib/sesion';
 
+import { elegirOpcion } from '@/components/ui/elegirOpcion';
+
 import { CalendarioAgenda } from './CalendarioAgenda';
 
 /** Consulta resuelta con datos (forma minima que usa EstadoConsulta). */
@@ -61,10 +63,11 @@ vi.mock('@/lib/panel', async (original) => ({
 
 const elegirHora = vi.fn();
 function Agenda({ rol }: { rol: Rol }) {
-  return <CalendarioAgenda rol={rol} onElegir={vi.fn()} onAgendar={vi.fn()} onElegirHora={elegirHora} onVerPendientes={vi.fn()} />;
+  return <CalendarioAgenda rol={rol} onElegir={vi.fn()} onElegirHora={elegirHora} />;
 }
-/** Elige un box en el panel lateral (reemplaza la pestaña "Por box"). */
-const elegirBox = (nombre: string) => userEvent.click(screen.getByRole('button', { name: new RegExp(`^${nombre}`) }));
+/** Elige un box en "Ver box" de la barra (null = ninguno). */
+const elegirBox = (nombre: string | null) =>
+  elegirOpcion(userEvent, screen.getByRole('combobox', { name: 'Ver box' }), nombre ? `Ver ${nombre}` : 'Ver box: ninguno');
 const conCliente = (ui: ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
 
 /** La agenda abre en la semana actual: vuelve a la semana del martes de prueba. */
@@ -116,7 +119,7 @@ describe('CalendarioAgenda (03b-4.2)', () => {
     expect(screen.queryByRole('button', { name: /Reservando/ })).toBeNull();
   });
 
-  it('Box elegido en el panel (PROFESIONAL): su horario libre y ocupado (sin quien), sus sesiones encima y elevadas', async () => {
+  it('Box elegido en "Ver box" (PROFESIONAL): su horario libre y ocupado (sin quien), sus sesiones encima y elevadas', async () => {
     citas = [cita('c1', '10:00', '10:50')];
     respuestas['/api/espacios/disponibilidad'] = [{ espacioId: 'b1', inicio: enChile('14:00'), fin: enChile('16:00') }];
     respuestas['/api/espacios/ocupacion'] = [
@@ -146,8 +149,8 @@ describe('CalendarioAgenda (03b-4.2)', () => {
     expect(ocupados[0]!.parentElement!.textContent).not.toMatch(/Ana|Profesional/);
     const propia = screen.getByRole('button', { name: /10:00 Ana Demo/ });
     expect(propia.className).toMatch(/shadow-md/);
-    // Otro clic en el box lo suelta.
-    await elegirBox('Box 1');
+    // "Ver box: ninguno" lo suelta.
+    await elegirBox(null);
     expect(screen.queryByText('Ocupado')).toBeNull();
   });
 
@@ -228,8 +231,9 @@ describe('CalendarioAgenda (03b-4.2)', () => {
     expect(screen.queryAllByRole('button', { name: 'Agendar sesión online a las 10:00' })).toHaveLength(4);
     await userEvent.click(screen.getAllByRole('button', { name: 'Agendar sesión online a las 16:00' })[0]!);
     expect(elegirHora).toHaveBeenLastCalledWith(expect.objectContaining({ espacioId: null, nombreBox: 'Online', profesionalId: 'p1', apartar: false }));
-    expect(screen.getByText(/En la semana: 1 presencial · 1 online/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Presencial', pressed: false }));
+    // El filtro de modalidad esta en la barra, con el conteo del rango.
+    expect(screen.getByRole('radio', { name: 'Online · 1' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('radio', { name: 'Presencial · 1' }));
     expect(screen.queryByRole('button', { name: /12:00 Ana Demo/ })).toBeNull();
     expect(screen.queryAllByRole('button', { name: /Agendar sesión online/ })).toHaveLength(0);
   });

@@ -10,7 +10,7 @@ export function Bienvenida({ tone }: { tone: 'team' | 'patient' }) {
   const nombre = cuenta.data?.nombre?.split(' ')[0];
   const fecha = formatoFechaLarga(new Date());
   return (
-    <div className="mb-[30px]">
+    <div className="mb-[30px] [@media(max-height:860px)]:mb-5">
       <Eyebrow tone={tone}>{fecha.charAt(0).toUpperCase() + fecha.slice(1)}</Eyebrow>
       <h1 className="m-0 flex items-center gap-3 text-[34px] leading-[1.05] font-black tracking-[-0.03em]">
         {nombre ? `Hola, ${nombre}` : 'Hola'}

@@ -245,12 +245,15 @@ export function ConfiguracionCentro({ acuerdosProfesionales }: { acuerdosProfesi
           {seccion === 'marca' && <MarcaCentro />}
           {seccion === 'horario' && <AvisoSinHorario />}
           {seccion === 'horario' && (
-            <div className="flex flex-col items-start gap-[18px] xl:flex-row">
-              <div className="w-full min-w-0 flex-1">
-                <HorarioCentroEditor />
-              </div>
-              <div className="w-full min-w-0 xl:w-[360px] xl:flex-none">
-                <FeriadosCentro />
+            // Dos columnas solo si la seccion es ancha (container query): en un notebook el horario va a todo el ancho.
+            <div className="@container">
+              <div className="flex flex-col items-start gap-[18px] @[900px]:flex-row">
+                <div className="w-full min-w-0 flex-1">
+                  <HorarioCentroEditor />
+                </div>
+                <div className="w-full min-w-0 @[900px]:w-[340px] @[900px]:flex-none">
+                  <FeriadosCentro />
+                </div>
               </div>
             </div>
           )}

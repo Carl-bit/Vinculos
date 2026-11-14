@@ -30,7 +30,8 @@ export function BarraGuardado({
   // Tras guardar, `cambiado` puede seguir en true hasta la proxima edicion: ahi ya no hay nada que perder.
   const guarda = useGuardaCambios(cambiado && !guardado);
   return (
-    <div className="translucida sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-panel border border-borde px-[18px] py-3.5 text-tinta shadow-flotante">
+    // @container: angosta (columna de un notebook) deja solo los botones; el texto explicativo se oculta.
+    <div className="translucida @container sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-panel border border-borde px-[18px] py-3.5 text-tinta shadow-flotante [@media(max-height:860px)]:bottom-2 [@media(max-height:860px)]:py-2.5">
       <DialogoDescartar seccion={seccion} {...guarda.dialogo} />
       {error ? (
         <p role="alert" className="m-0 min-w-0 flex-1 basis-60 text-[13px] font-bold text-accent-700">
@@ -41,7 +42,7 @@ export function BarraGuardado({
           Cambios guardados.
         </p>
       ) : (
-        <p className="m-0 min-w-0 flex-1 basis-60 text-[13px] font-semibold text-neutral-800">
+        <p className="m-0 min-w-0 flex-1 basis-60 text-[13px] font-semibold text-neutral-800 @max-[560px]:hidden">
           Los cambios de «{seccion}» se guardan juntos y quedan en la auditoría.
         </p>
       )}

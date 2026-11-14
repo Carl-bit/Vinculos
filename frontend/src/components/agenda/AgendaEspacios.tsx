@@ -79,15 +79,15 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
 
   return (
     // lg+: la agenda llena la ventana (alto menos el padding del main) y la grilla hace su propio scroll.
-    <div className={`flex flex-col gap-2.5 ${calendario ? 'lg:h-[calc(100dvh-92px)]' : ''}`}>
+    <div className={`flex flex-col gap-2.5 ${calendario ? 'lg:h-[calc(100dvh_-_clamp(14px,3.2vh,30px)_-_56px)]' : ''}`}>
       {/* Una sola linea (titulo, secciones y accion): la grilla gana alto sin achicar los botones. */}
       <header className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <div className="min-w-0">
+        <div className="min-w-[240px] flex-1">
           <h1 className="m-0 text-[22px] leading-tight font-black tracking-[-0.03em]">{admin ? 'Coordinación del centro' : 'Mi agenda'}</h1>
           <p className="m-0 text-[12.5px] font-semibold text-neutral-800">
             {admin
-              ? 'Las sesiones presenciales y online del equipo, con la disponibilidad de los boxes'
-              : 'Tus sesiones presenciales y online, con la disponibilidad de los boxes'}
+              ? 'Las sesiones presenciales y online del equipo; con «Ver box», la disponibilidad de cada box.'
+              : 'Tus sesiones presenciales y online; con «Ver box», la disponibilidad de cada box.'}
           </p>
         </div>
         {vista !== 'horarios' && (
@@ -100,10 +100,15 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
             panelId="agenda-panel"
           />
         )}
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="ml-auto flex flex-none flex-wrap gap-2 lg:ml-0">
           <Button variant="ghost" icon="schedule" onClick={() => ir({ vista: vista === 'horarios' ? null : 'horarios' })} className="!py-2 !text-[13px]">
             {vista === 'horarios' ? 'Volver a la agenda' : 'Horarios y boxes'}
           </Button>
+          {vista !== 'horarios' && (
+            <Button variant="team" icon="event" onClick={() => ir({ nueva: '1' })} className="!py-2 !text-[13px]">
+              Agendar sesión
+            </Button>
+          )}
           {admin && vista === 'espacios' && (
             <Button variant="secondary" icon="add" onClick={() => setNuevoBox(true)} className="!py-2 !text-[13px]">
               Agregar espacio
@@ -112,15 +117,7 @@ export function AgendaEspacios({ rol }: { rol: Rol }) {
         </div>
       </header>
       <div id="agenda-panel" role="tabpanel" className={calendario ? 'flex min-h-0 flex-1 flex-col' : ''}>
-        {calendario && (
-          <CalendarioAgenda
-            rol={rol}
-            onElegir={setElegida}
-            onAgendar={() => ir({ nueva: '1' })}
-            onElegirHora={setHora}
-            onVerPendientes={() => ir({ vista: 'pendientes' })}
-          />
-        )}
+        {calendario && <CalendarioAgenda rol={rol} onElegir={setElegida} onElegirHora={setHora} />}
         {vista === 'espacios' && <EspaciosAgenda puedeEditar={admin} nuevo={nuevoBox} onNuevoCerrado={() => setNuevoBox(false)} />}
         {vista === 'pendientes' && <PendientesAgenda rol={rol} onElegir={setElegida} />}
         {vista === 'horarios' && <HorariosEquipo rol={rol} />}

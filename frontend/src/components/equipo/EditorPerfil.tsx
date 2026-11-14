@@ -212,18 +212,18 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
             </button>
           ))}
         </div>
-        <Button variant={paciente ? 'primary' : 'team'} aria-pressed={paciente} onClick={() => pedir({ tipo: 'paciente' })} className="!min-h-10 !py-2">
+        <Button variant={paciente ? 'primary' : 'team'} aria-pressed={paciente} onClick={() => pedir({ tipo: 'paciente' })} className="!min-h-9 !px-4 !py-1.5 !text-[13px]">
           {paciente ? 'Volver a editar' : 'Ver cómo me ven los pacientes'}
         </Button>
         {agenda && (
-          <ButtonLink href="/admin/agenda" variant="ghost" className="!min-h-10 !py-2">
+          <ButtonLink href="/admin/agenda" variant="ghost" className="!min-h-9 !px-3 !py-1.5 !text-[13px]">
             Ver mi agenda
           </ButtonLink>
         )}
-        <ButtonLink href="/equipo" target="_blank" rel="noopener" variant="ghost" className="!min-h-10 !py-2">
+        <ButtonLink href="/equipo" target="_blank" rel="noopener" variant="ghost" className="!min-h-9 !px-3 !py-1.5 !text-[13px]">
           Ver el equipo
         </ButtonLink>
-        <ButtonLink href="/admin/perfil/cuenta" variant="secondary" icon="lock" className="!min-h-10 !py-2">
+        <ButtonLink href="/admin/perfil/cuenta" variant="secondary" icon="lock" className="!min-h-9 !px-3.5 !py-1.5 !text-[13px]">
           Mi cuenta
         </ButtonLink>
       </BarraFlotante>

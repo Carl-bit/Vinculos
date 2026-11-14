@@ -32,14 +32,14 @@ function Enlace({ item, activo }: { item: ItemMenu; activo: boolean }) {
       href={item.href}
       aria-current={activo ? 'page' : undefined}
       {...(item.pestanaNueva ? { target: '_blank', rel: 'noopener' } : {})}
-      className={`group relative flex min-h-10 items-center gap-[11px] rounded-[10px] px-2.5 py-[9px] text-sm transition-[background-color,color] duration-200 ease-out ${
+      className={`group relative flex min-h-10 items-center gap-[11px] rounded-[10px] px-2.5 py-[9px] text-sm [@media(max-height:860px)]:min-h-9 [@media(max-height:860px)]:py-[6px] transition-[background-color,color] duration-200 ease-out ${
         activo ? 'bg-accent-2-200 font-extrabold text-accent-2-700 hover:text-accent-2-700' : 'font-semibold text-text hover:bg-accent-200 hover:text-text'
       }`}
     >
       {/* Indicador del item activo: pastilla a la izquierda (ui-ux-pro-max: estado activo visible). */}
       <span
         aria-hidden="true"
-        className={`absolute top-1/2 -left-4 h-5 w-1 -translate-y-1/2 rounded-r-full bg-accent-2-600 transition-transform duration-200 ease-out ${activo ? 'scale-y-100' : 'scale-y-0'}`}
+        className={`absolute top-1/2 -left-3 h-5 w-1 -translate-y-1/2 rounded-r-full bg-accent-2-600 transition-transform duration-200 ease-out ${activo ? 'scale-y-100' : 'scale-y-0'}`}
       />
       <Icon name={item.icono} size={19} className="transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
       <span className="flex-1">{item.etiqueta}</span>
@@ -71,8 +71,8 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
   return (
     <ProveedorEquipoActivo key={sesion.rol} habilitado={esAdministracion(sesion.rol)}>
       <MarcaZona zona="panel" principal={centro?.color_panel} fondo={centro?.color_fondo_panel} />
-      <div className="min-h-screen bg-neutral-300 md:grid md:grid-cols-[246px_1fr]">
-        <aside className="z-[2] flex flex-col gap-[26px] border-r border-divider bg-bg px-4 pt-[22px] pb-6 shadow-md md:sticky md:top-0 md:h-screen md:overflow-y-auto">
+      <div className="min-h-screen bg-neutral-300 md:grid md:grid-cols-[clamp(220px,15vw,248px)_1fr]">
+        <aside className="z-[2] flex flex-col gap-5 border-r border-divider bg-bg px-3 pt-[18px] pb-5 [@media(max-height:860px)]:gap-3.5 [@media(max-height:860px)]:pt-3.5 [@media(max-height:860px)]:pb-3.5 shadow-md md:sticky md:top-0 md:h-screen md:overflow-y-auto md:[scrollbar-width:thin]">
           <div className="flex items-center justify-between gap-3 px-2">
             <Marca href="/admin" size="sm" />
             <div className="flex items-center gap-2 md:hidden">
@@ -92,8 +92,8 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
               </button>
             </div>
           </div>
-          <div id="menu-panel" className={`${menuAbierto ? 'flex' : 'hidden'} flex-1 flex-col gap-[26px] md:flex`}>
-            <nav aria-label="Menú principal" className="flex flex-col gap-[26px]">
+          <div id="menu-panel" className={`${menuAbierto ? 'flex' : 'hidden'} flex-1 flex-col gap-5 md:flex [@media(max-height:860px)]:gap-3.5`}>
+            <nav aria-label="Menú principal" className="flex flex-col gap-5 [@media(max-height:860px)]:gap-3">
               {GRUPOS.map(({ id, titulo }) => {
                 const delGrupo = items.filter((i) => i.grupo === id);
                 if (delGrupo.length === 0) return null;
@@ -131,7 +131,7 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
           id="contenido"
           tabIndex={-1}
           key={`${ruta}|${sesion.rol}`}
-          className={`entrada min-w-0 outline-none px-[clamp(24px,3.4vw,48px)] pt-[30px] pb-14 trama`}
+          className={`entrada min-w-0 outline-none px-[clamp(20px,3vw,48px)] pt-[clamp(14px,3.2vh,30px)] pb-14 trama`}
         >
           {rutaPermitida('admin', sesion.rol, ruta) ? <CargaModulo>{children}</CargaModulo> : <EstadoVista estado="sin-permiso" />}
           <AvisoInactividad />

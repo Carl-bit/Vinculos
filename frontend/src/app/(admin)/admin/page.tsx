@@ -1,6 +1,6 @@
 'use client';
 
-import { InicioPanel } from '@/components/nucleo/InicioPanel';
+import { ControlesInicio, InicioPanel, useOrdenBloques } from '@/components/nucleo/InicioPanel';
 import { NuevoPaciente } from '@/components/pacientes/NuevoPaciente';
 import { Bienvenida } from '@/components/shared/Bienvenida';
 import { ButtonLink } from '@/components/ui/ButtonLink';
@@ -10,6 +10,7 @@ import { useModulos, useSesion } from '@/lib/consultas';
 export default function InicioAdmin() {
   const sesion = useSesion();
   const activos = useModulos().data?.activos ?? [];
+  const orden = useOrdenBloques(sesion.tipo === 'activa' ? sesion.sesion.rol : 'ADMIN');
   if (sesion.tipo !== 'activa') return null;
   const rol = sesion.sesion.rol;
   const clinico = rol !== 'PRACTICANTE';
@@ -17,7 +18,8 @@ export default function InicioAdmin() {
     <>
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <Bienvenida tone="team" />
-        <div className="mb-[30px] flex flex-wrap gap-2.5">
+        <div className="mb-[30px] flex flex-wrap items-center gap-2.5 [@media(max-height:860px)]:mb-5">
+          <ControlesInicio orden={orden} />
           {clinico && rol !== 'ADMIN' && activos.includes('FICHAS') && <NuevoPaciente rol={rol} />}
           {activos.includes('AGENDA') && (
             <ButtonLink href="/admin/agenda?nueva=1" variant="primary" icon="event">
@@ -26,7 +28,7 @@ export default function InicioAdmin() {
           )}
         </div>
       </div>
-      <InicioPanel rol={rol} />
+      <InicioPanel rol={rol} orden={orden} />
     </>
   );
 }

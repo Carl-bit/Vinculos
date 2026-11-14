@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { DocumentoTributarioVista } from '@/lib/cobros';
 
+import { opcionesDe } from '@/components/ui/elegirOpcion';
+
 import { DocumentosTributarios } from './DocumentosTributarios';
 
 const envolver = (ui: ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);
@@ -29,9 +31,10 @@ describe('DocumentosTributarios', () => {
   it('cobra el centro: GESTION registra; el tipo honorarios no se ofrece', async () => {
     envolver(<DocumentosTributarios citaId="c1" documentos={[]} emiteProfesional={false} pagadoSinDocumentar={30000} rol="GESTION" />);
     await userEvent.click(screen.getByRole('button', { name: /Registrar boleta emitida/ }));
-    const tipos = screen.getByLabelText(/Tipo de documento/);
-    expect(tipos).toHaveTextContent('Boleta electrónica');
-    expect(tipos).not.toHaveTextContent('Boleta de honorarios');
+    const tipos = await opcionesDe(userEvent, screen.getByLabelText(/Tipo de documento/));
+    expect(tipos.join(' | ')).toContain('Boleta electrónica');
+    expect(tipos.join(' | ')).not.toContain('Boleta de honorarios');
+    await userEvent.keyboard('{Escape}');
     expect(screen.getByLabelText(/Monto/)).toHaveValue('30000');
   });
 
@@ -45,7 +48,7 @@ describe('DocumentosTributarios', () => {
   it('cobro directo: el profesional registra con honorarios por defecto; folio con letras no pasa', async () => {
     envolver(<DocumentosTributarios citaId="c1" documentos={[]} emiteProfesional pagadoSinDocumentar={20000} rol="PROFESIONAL" />);
     await userEvent.click(screen.getByRole('button', { name: /Registrar boleta emitida/ }));
-    expect(screen.getByLabelText(/Tipo de documento/)).toHaveValue('BOLETA_HONORARIOS');
+    expect(screen.getByLabelText(/Tipo de documento/)).toHaveAttribute('data-valor', 'BOLETA_HONORARIOS');
     await userEvent.type(screen.getByLabelText(/Folio/), '12ab');
     expect(screen.getByLabelText(/Folio/)).toHaveValue('12');
   });

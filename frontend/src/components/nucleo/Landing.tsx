@@ -39,7 +39,7 @@ export async function Portada({ centro, perfiles }: { centro: CentroPublico; per
         <Badge tono="positivo" className="!border-transparent !text-xs !tracking-[0.12em]">
           {centro.nombre_centro}
         </Badge>
-        <h1 className="m-0 text-[clamp(40px,5.4vw,64px)] leading-none font-black tracking-[-0.02em] text-balance">
+        <h1 className="m-0 text-[clamp(40px,5.4vw,64px)] [@media(max-height:860px)]:text-[clamp(28px,6vh,44px)] leading-none font-black tracking-[-0.02em] text-balance">
           {centro.hero_titulo ?? centro.nombre_centro}
         </h1>
         {centro.hero_texto && <p className="m-0 max-w-[560px] text-lg text-pretty text-neutral-800">{centro.hero_texto}</p>}

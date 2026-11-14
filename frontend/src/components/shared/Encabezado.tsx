@@ -20,10 +20,11 @@ export function Encabezado({
   accion?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pt-[clamp(16px,3vw,32px)] pb-[26px]">
+    // Notebooks (1280 px y pantallas bajas): titulo y aire vertical menores, para que el contenido quede a la vista.
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pt-[clamp(16px,3vw,32px)] pb-[26px] [@media(max-height:860px)]:pt-2 [@media(max-height:860px)]:pb-[18px]">
       <div className="max-w-[640px]">
         {sobretitulo && <Eyebrow tone={tono}>{sobretitulo}</Eyebrow>}
-        <h1 className="m-0 mb-3 text-[clamp(30px,4vw,44px)] leading-none font-black tracking-[-0.035em] text-balance">{titulo}</h1>
+        <h1 className="m-0 mb-3 text-[clamp(28px,2.9vw,44px)] leading-none font-black tracking-[-0.035em] text-balance [@media(max-height:860px)]:mb-2 [@media(max-height:860px)]:text-[clamp(26px,2.4vw,36px)]">{titulo}</h1>
         {bajada && <p className="m-0 text-[16px] leading-relaxed text-pretty text-neutral-800">{bajada}</p>}
       </div>
       {accion}

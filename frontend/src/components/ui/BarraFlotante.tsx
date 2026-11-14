@@ -14,7 +14,7 @@ export function BarraFlotante({ etiqueta, children, variante = 'organic' }: { et
     <div
       role="toolbar"
       aria-label={etiqueta}
-      className={`z-20 mx-auto md:sticky md:top-3 flex w-fit max-w-full flex-wrap items-center gap-2 border py-2 pr-2 pl-[18px] ${piel}`}
+      className={`z-20 mx-auto md:sticky md:top-3 flex w-fit max-w-full flex-wrap items-center gap-1.5 border py-2 pr-2 pl-[14px] ${piel}`}
     >
       {children}
     </div>
