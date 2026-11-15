@@ -6,7 +6,7 @@
 set -e
 RAIZ=$(cd "$(dirname "$0")/../.." && (pwd -W 2>/dev/null || pwd))
 ENV_SILO="$RAIZ/infra/stress/stress.env"
-dc() { docker compose -f "$RAIZ/infra/docker-compose.yml" -f "$RAIZ/infra/stress/docker-compose.stress.yml" --env-file "$ENV_SILO" "$@"; }
+dc() { docker compose -f "$RAIZ/infra/docker-compose.yml" -f "$RAIZ/infra/docker-compose.build.yml" -f "$RAIZ/infra/stress/docker-compose.stress.yml" --env-file "$ENV_SILO" "$@"; }
 export MSYS_NO_PATHCONV=1
 
 echo "1/4 BD y migraciones (imagen del backend)"

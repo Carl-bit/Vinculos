@@ -1,0 +1,30 @@
+# Override de construccion local (R1): se usa SOBRE infra/docker-compose.yml en
+# desarrollo y en los silos de prueba (servidor.sh, stress). Construye las
+# imagenes comunes desde el codigo en vez de bajarlas por digest del registro.
+# Nunca en el silo de un cliente: ahi corre solo lo publicado por
+# infra/scripts/imagenes/publicar.sh (docs/operacion/imagenes.md).
+#
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.build.yml \
+#     --env-file infra/.env up -d --build
+
+services:
+  migrate:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: vinculos-api:${VINCULOS_VERSION:-dev}
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: vinculos-api:${VINCULOS_VERSION:-dev}
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        # Igual en todos los silos: el alias api-silo existe en cada red `silo`.
+        API_URL: http://api-silo:3001
+    image: vinculos-web:${VINCULOS_VERSION:-dev}

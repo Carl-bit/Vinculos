@@ -74,3 +74,6 @@ backend/test/bd/.entorno-test.json
 02_apis.md
 03_front.md
 04_pruebas.md
+
+# Digests publicados por infra/scripts/imagenes/publicar.sh (estado del host B, R1).
+infra/imagenes/

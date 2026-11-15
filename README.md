@@ -113,10 +113,16 @@ Paso a paso (Cloudflare Tunnel, llaves, reinicio del demo, k6):
 ```bash
 docker network create proxy                                   # una vez por host
 docker compose -f infra/traefik/docker-compose.yml up -d      # una vez por host (CF_DNS_API_TOKEN, ACME_EMAIL)
+sh infra/scripts/imagenes/publicar.sh                         # por version (R1): sube y anota digests
 cp infra/.env.example infra/.env                              # uno por cliente
-docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
+cat infra/imagenes/<version>.env >> infra/.env                # REGISTRO, API_DIGEST, WEB_DIGEST
+docker compose -f infra/docker-compose.yml --env-file infra/.env up -d
 docker network connect erp-<slug>_borde <contenedor-traefik>  # Traefik entra a la red de borde del silo
 ```
+
+Un silo real no construye: corre `vinculos-api` y `vinculos-web` por digest
+del registro privado del host B (R1, [`docs/operacion/imagenes.md`](docs/operacion/imagenes.md)).
+En desarrollo se construye con el override `infra/docker-compose.build.yml`.
 
 `CLIENTE_SLUG`, `DOMINIO`, las contraseñas de Postgres (`POSTGRES_PASSWORD`,
 `OWNER_DB_PASSWORD`, `APP_DB_PASSWORD`) y `JWT_SECRET` son distintos por silo,

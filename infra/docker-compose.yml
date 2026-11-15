@@ -26,6 +26,14 @@
 #     (prisma/scripts/identidad_silo.js).
 # Traefik se une a erp-<slug>_borde despues del `up` (servidor.sh, o el
 # ejecutor del plano de control): sin esa union el silo no recibe trafico.
+#
+# Imagenes por digest (R1, 2026-11-15): migrate, backend y frontend corren
+# ${REGISTRO}/vinculos-api@${API_DIGEST} y ${REGISTRO}/vinculos-web@${WEB_DIGEST},
+# sin `build`: corre exactamente lo publicado. Las publica
+# infra/scripts/imagenes/publicar.sh (tag inmutable; deja los digests en
+# infra/imagenes/<version>.env). VINCULOS_VERSION es el tag de esos digests
+# (label informativa). Desarrollo y silos de prueba construyen en local con el
+# override infra/docker-compose.build.yml (docs/operacion/imagenes.md).
 
 name: erp-${CLIENTE_SLUG}
 
@@ -84,12 +92,8 @@ services:
   # Corre y termina: migraciones + contraseña de app_user. Idempotente, corre
   # en cada `up`. Unico servicio con credenciales del dueño.
   migrate:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    # Imagen comun a todos los silos (R11). Con el registro (R1) pasa a
-    # <registro>/vinculos-api@sha256:... sin `build`.
-    image: vinculos-api:${VINCULOS_VERSION:-dev}
+    # Imagen comun a todos los silos (R11), fijada por digest (R1).
+    image: ${REGISTRO}/vinculos-api@${API_DIGEST}
     restart: 'no'
     depends_on:
       db:
@@ -113,10 +117,7 @@ services:
       - interna
 
   backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    image: vinculos-api:${VINCULOS_VERSION:-dev}
+    image: ${REGISTRO}/vinculos-api@${API_DIGEST}
     restart: unless-stopped
     mem_limit: 256m
     cpus: 1.0
@@ -196,14 +197,9 @@ services:
       - traefik.http.services.${CLIENTE_SLUG}-api.loadbalancer.server.port=3001
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-      args:
-        # Igual en todos los silos: el alias api-silo existe en cada red `silo`.
-        API_URL: http://api-silo:3001
-    # Imagen comun (R11): nombre, tema y dominio del centro entran en runtime.
-    image: vinculos-web:${VINCULOS_VERSION:-dev}
+    # Imagen comun (R11), fijada por digest (R1): nombre, tema y dominio del
+    # centro entran en runtime.
+    image: ${REGISTRO}/vinculos-web@${WEB_DIGEST}
     restart: unless-stopped
     mem_limit: 256m
     cpus: 1.0

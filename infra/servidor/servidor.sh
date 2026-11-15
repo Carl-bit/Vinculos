@@ -24,7 +24,7 @@ SECRETOS="$RAIZ/infra/secrets/$SLUG"
 INTERNOS="$RAIZ/infra/servidor/internos"
 export MSYS_NO_PATHCONV=1
 
-dc() { docker compose -f "$RAIZ/infra/docker-compose.yml" -f "$RAIZ/infra/servidor/docker-compose.servidor.yml" --env-file "$ENV_SILO" "$@"; }
+dc() { docker compose -f "$RAIZ/infra/docker-compose.yml" -f "$RAIZ/infra/docker-compose.build.yml" -f "$RAIZ/infra/servidor/docker-compose.servidor.yml" --env-file "$ENV_SILO" "$@"; }
 plano() { docker compose -f "$RAIZ/docker-compose.yml" "$@"; }
 BORDE="erp-${SLUG}_borde"
 azar() { openssl rand -hex "$1"; }
@@ -43,6 +43,10 @@ CENTRO_NOMBRE="$NOMBRE"
 DOMINIO=$DOMINIO
 # Estilo visual: moderno o cuaderno (app/temas/ del front). Cambiarlo: editar y volver a levantar.
 TEMA=${TEMA:-moderno}
+# Silo de prueba: imagenes construidas en local (infra/docker-compose.build.yml), sin registro (R1).
+REGISTRO=
+API_DIGEST=
+WEB_DIGEST=
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$(azar 24)
 POSTGRES_DB=app
