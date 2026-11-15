@@ -110,3 +110,34 @@ pestaña, reserva vencida, consentimiento por token; `portal.spec.ts`: pide
 hora con su tratante; `apoyo.ts`: `elegirMedio` y el alta de paciente nuevo)
 contra el flujo sin cobros (verificar correo -> SOLICITADA -> aprueba el
 profesional). Requieren el stack y el seed levantados.
+
+## Recuperacion de contraseña y enlace de acceso sin revelar cuentas (2026-11-15)
+
+Problema reportado: al pedir recuperar la contraseña con un correo que no
+tiene cuenta, la pantalla decia que se envio el enlace pero no llegaba nada.
+Se decidio **no** mostrar "el correo no existe" (revelaria que una persona es
+paciente o equipo del centro: dato sensible, Ley 21.719, y permitiria
+enumerar cuentas). En su lugar:
+
+- **Siempre sale un correo.** Con cuenta: el enlace de siempre. Sin cuenta:
+  un aviso sin enlace ("no hay ninguna cuenta del centro asociada a esta
+  direccion; si fuiste tu, prueba con otro correo o consulta con el centro").
+  Solo lo lee quien controla la casilla. En el enlace de acceso, el aviso
+  dice que no hay una cuenta de paciente (el equipo entra con contraseña).
+  Textos en `AVISO_SIN_CUENTA` (`core/auth/auth.service.ts`).
+- **Mismo tiempo de respuesta.** `POST /auth/recuperacion` y
+  `/auth/enlace-acceso` tardan siempre `CUENTA_RESPUESTA_MS` (1200 por
+  defecto); la consulta y el correo corren en segundo plano. Antes, con
+  cuenta la respuesta esperaba el envio del correo y tardaba mas: el tiempo
+  revelaba si el correo existia.
+- **Tope por direccion:** 3 correos por hora por direccion, exista o no la
+  cuenta (`LimitePorCorreo`, en memoria, solo el sha256 de la direccion),
+  ademas del limite por IP del throttler `login`. La respuesta no cambia al
+  pasar el tope.
+- **Front** (`PedirEnlaceCorreo`): el boton sigue bloqueado mientras la API
+  responde (ahora ~1,2 s); el resultado dice que se envio un correo, que trae
+  el enlace si la direccion tiene cuenta o explica que hacer si no, y ofrece
+  "Probar con otro correo".
+- Pruebas: unitarias de `LimitePorCorreo`; e2e en `03a-alineacion` (tiempo
+  parejo, aviso sin enlace, tope de 3 por hora) y ajuste de `03a2` (el
+  correo sale en segundo plano).

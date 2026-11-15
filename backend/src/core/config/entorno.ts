@@ -76,6 +76,16 @@ export class Entorno {
   @Min(1)
   LOGIN_LIMITE_POR_MINUTO: number = 10;
 
+  /**
+   * Recuperacion de contraseña y enlace de acceso: la API tarda siempre esto
+   * (ms), exista o no la cuenta; el correo sale en segundo plano. Asi el
+   * tiempo de respuesta no revela si el correo esta registrado.
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  CUENTA_RESPUESTA_MS: number = 1200;
+
   /** Consultas por minuto e IP a los endpoints publicos (perfiles, disponibilidad). */
   @IsOptional()
   @IsInt()

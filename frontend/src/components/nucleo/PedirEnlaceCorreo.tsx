@@ -12,8 +12,10 @@ import { ResultadoCuenta } from './ResultadoCuenta';
 
 /**
  * Pide un enlace por correo (recuperar contraseña o acceso sin contraseña).
- * La API responde igual exista o no la cuenta: el texto final tampoco lo
- * revela.
+ * La API responde igual y en el mismo tiempo exista o no la cuenta, y siempre
+ * envia un correo (el enlace, o el aviso de que no hay cuenta con esa
+ * direccion): el texto final no revela cual. El boton queda bloqueado
+ * mientras la API responde.
  */
 export function PedirEnlaceCorreo({
   pedir,
@@ -61,13 +63,27 @@ export function PedirEnlaceCorreo({
         icono="mark_email_read"
         titulo="Revisa tu correo."
         accion={
-          <Link href={volver} className="flex min-h-10 items-center text-[13.5px] font-extrabold">
-            Volver a iniciar sesión
-          </Link>
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={() => {
+                setEnviado(false);
+                setEmail('');
+              }}
+            >
+              Probar con otro correo
+            </Button>
+            <Link href={volver} className="flex min-h-10 items-center text-[13.5px] font-extrabold">
+              Volver a iniciar sesión
+            </Link>
+          </>
         }
       >
-        Si <strong className="text-text">{email.trim().toLowerCase()}</strong> tiene una cuenta en el centro, te llegará un enlace de un solo uso que vence en{' '}
-        {vence}. Si no lo ves en unos minutos, revisa la carpeta de spam.
+        Enviamos un correo a <strong className="text-text">{email.trim().toLowerCase()}</strong>. Si esa dirección tiene una cuenta en el centro, trae un enlace de un
+        solo uso que vence en {vence}; si no, te explica qué hacer. Si no lo ves en 5 minutos, revisa la carpeta de spam o prueba con el correo que registraste en el
+        centro.
       </ResultadoCuenta>
     );
   }

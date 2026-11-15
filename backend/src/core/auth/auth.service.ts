@@ -12,6 +12,7 @@ import { esSqlstate } from '../errores/sqlstate';
 import { CorreosCuenta } from '../notificaciones/correos-cuenta';
 import type { DesafioSegundoFactor, Tokens } from './auth.dto';
 import { enmascararCorreo, esCodigoRespaldo, ESPERA_REENVIO_SEGUNDOS, hashCodigo, nuevoCodigoCorreo, nuevosCodigosRespaldo } from './segundo-factor';
+import { LimitePorCorreo } from './limite-correo';
 import { HORA, hashToken, nuevoTokenCorreo } from './tokens-correo';
 import { nuevoSecretoTotp, uriTotp, verificarTotp } from './totp';
 
@@ -25,6 +26,24 @@ interface Credenciales {
 
 const NO_AUTORIZADO = 'Credenciales invalidas o cuenta sin acceso';
 const COSTO_BCRYPT = 12;
+
+/**
+ * Aviso cuando piden recuperar o entrar con un correo sin cuenta en el centro.
+ * Solo lo recibe quien controla esa casilla: le dice la verdad sin revelarla a
+ * quien escribio el correo en el formulario. Sin enlace ni datos de nadie.
+ */
+const AVISO_SIN_CUENTA = {
+  recuperacion: {
+    asunto: 'Solicitud de recuperación de contraseña',
+    texto:
+      'Alguien pidió recuperar la contraseña de una cuenta con este correo, pero no hay ninguna cuenta del centro asociada a esta dirección.\n\nSi fuiste tú, puede que te hayas registrado con otro correo: pruébalo o consulta con el centro. Si no fuiste tú, ignora este mensaje; nadie puede entrar con esta dirección.',
+  },
+  acceso: {
+    asunto: 'Solicitud de enlace de acceso',
+    texto:
+      'Alguien pidió un enlace de acceso con este correo, pero no hay una cuenta de paciente del centro asociada a esta dirección.\n\nSi eres del equipo del centro, entra con tu correo y contraseña. Si eres paciente, puede que te hayas registrado con otro correo: pruébalo o consulta con el centro. Si no fuiste tú, ignora este mensaje.',
+  },
+} as const;
 /** Cubre los 10 minutos del codigo por correo y un reenvio. */
 const DESAFIO_MINUTOS = 15;
 const CODIGO_INVALIDO = 'El código no es válido o venció. Puedes pedir uno nuevo.';
@@ -67,6 +86,9 @@ export class AuthService {
 
   /** Hash de relleno: el tiempo de respuesta no revela si el email existe. */
   private readonly hashRelleno = bcrypt.hashSync('relleno-sin-usuario', 10);
+
+  /** Correos de recuperacion y de enlace de acceso por direccion, existan o no: 3 por hora. */
+  private readonly correosPorDireccion = new LimitePorCorreo(3, HORA);
 
   constructor(
     private readonly bd: ContextoBd,
@@ -268,15 +290,33 @@ export class AuthService {
     await this.bd.sinContexto('login').$executeRaw`SELECT revocar_sesion(${this.hash(refreshToken)})`;
   }
 
-  /** Recuperacion: misma respuesta exista o no la cuenta; el correo sale solo si existe. */
+  /**
+   * Recuperacion: misma respuesta y mismo tiempo exista o no la cuenta. Siempre
+   * sale un correo: con la cuenta, el enlace; sin ella, el aviso de que no hay
+   * cuenta con esa direccion (solo lo lee quien controla la casilla, asi que
+   * no revela nada a quien escribio el correo). Tope de 3 por hora por direccion.
+   */
   async pedirRecuperacion(email: string): Promise<void> {
-    const { token, hash } = nuevoTokenCorreo();
-    const vence = new Date(Date.now() + HORA);
-    const [{ ok }] = await this.bd.sinContexto('login').$queryRaw<[{ ok: boolean }]>`
-      SELECT crear_token_recuperacion(${email}, ${hash}, ${vence}) AS ok`;
-    if (ok) {
-      await this.correos.enviar('RECUPERACION', email, token, vence);
-    }
+    await this.responderParejo('recuperacion', async () => {
+      if (!this.correosPorDireccion.permitir(email)) return;
+      const { token, hash } = nuevoTokenCorreo();
+      const vence = new Date(Date.now() + HORA);
+      const [{ ok }] = await this.bd.sinContexto('login').$queryRaw<[{ ok: boolean }]>`
+        SELECT crear_token_recuperacion(${email}, ${hash}, ${vence}) AS ok`;
+      if (ok) await this.correos.enviar('RECUPERACION', email, token, vence);
+      else await this.correos.enviarAviso(email, AVISO_SIN_CUENTA.recuperacion.asunto, AVISO_SIN_CUENTA.recuperacion.texto);
+    });
+  }
+
+  /**
+   * La respuesta tarda siempre CUENTA_RESPUESTA_MS: el trabajo (consulta y
+   * correo) corre en segundo plano y no cambia el tiempo ni la respuesta. Sus
+   * errores se registran sin el correo.
+   */
+  private async responderParejo(que: string, trabajo: () => Promise<void>): Promise<void> {
+    const espera = new Promise((r) => setTimeout(r, this.config.get<number>('CUENTA_RESPUESTA_MS') ?? 1200));
+    void trabajo().catch(() => this.logger.warn(`No se pudo procesar la solicitud de ${que}`));
+    await espera;
   }
 
   async confirmarRecuperacion(token: string, password: string): Promise<void> {
@@ -284,15 +324,21 @@ export class AuthService {
       SELECT usar_token_recuperacion(${hashToken(token)}, ${await bcrypt.hash(password, COSTO_BCRYPT)})`;
   }
 
-  /** Acceso sin contraseña (C-6): solo pacientes y adultos responsables; misma respuesta exista o no. */
+  /**
+   * Acceso sin contraseña (C-6): solo pacientes y adultos responsables. Igual
+   * que la recuperacion: mismo tiempo y siempre un correo (enlace, o aviso de
+   * que no hay una cuenta de paciente con esa direccion).
+   */
   async pedirEnlaceAcceso(email: string): Promise<void> {
-    const { token, hash } = nuevoTokenCorreo();
-    const vence = new Date(Date.now() + 15 * 60_000);
-    const [{ ok }] = await this.bd.sinContexto('login').$queryRaw<[{ ok: boolean }]>`
-      SELECT crear_token_acceso(${email}, ${hash}, ${vence}) AS ok`;
-    if (ok) {
-      await this.correos.enviar('ACCESO', email, token, vence);
-    }
+    await this.responderParejo('enlace de acceso', async () => {
+      if (!this.correosPorDireccion.permitir(email)) return;
+      const { token, hash } = nuevoTokenCorreo();
+      const vence = new Date(Date.now() + 15 * 60_000);
+      const [{ ok }] = await this.bd.sinContexto('login').$queryRaw<[{ ok: boolean }]>`
+        SELECT crear_token_acceso(${email}, ${hash}, ${vence}) AS ok`;
+      if (ok) await this.correos.enviar('ACCESO', email, token, vence);
+      else await this.correos.enviarAviso(email, AVISO_SIN_CUENTA.acceso.asunto, AVISO_SIN_CUENTA.acceso.texto);
+    });
   }
 
   async usarEnlaceAcceso(token: string, dispositivo: string | null): Promise<Tokens | DesafioSegundoFactor> {

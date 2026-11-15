@@ -186,13 +186,26 @@ describe('03a alineacion con el diseño', () => {
       expect(baja.status).toBe(201);
     });
 
-    it('recuperar contraseña: misma respuesta exista o no la cuenta; enlace de un solo uso', async () => {
+    it('recuperar contraseña: misma respuesta y mismo tiempo exista o no la cuenta; aviso sin cuenta; enlace de un solo uso', async () => {
       const u = await t.datos.usuario('GESTION');
       correos().length = 0;
+      const t0 = Date.now();
       expect((await t.http().post('/api/auth/recuperacion').send({ email: 'nadie@test.cl' })).status).toBe(204);
+      const t1 = Date.now();
       expect((await t.http().post('/api/auth/recuperacion').send({ email: u.email })).status).toBe(204);
-      await new Promise((r) => setTimeout(r, 50));
-      expect(correos().map((c) => c.para)).toEqual([u.email]);
+      const t2 = Date.now();
+      // Tiempo fijo (CUENTA_RESPUESTA_MS) en los dos casos: el correo sale en segundo plano.
+      expect(t1 - t0).toBeGreaterThanOrEqual(1100);
+      expect(Math.abs(t2 - t1 - (t1 - t0))).toBeLessThan(400);
+      await new Promise((r) => setTimeout(r, 200));
+      expect(
+        correos()
+          .map((c) => c.para)
+          .sort(),
+      ).toEqual(['nadie@test.cl', u.email].sort());
+      // Sin cuenta: aviso sin enlace; con cuenta: enlace.
+      expect(ultimoA('nadie@test.cl')?.texto).toMatch(/no hay ninguna cuenta del centro asociada/);
+      expect(tokenDe(ultimoA('nadie@test.cl'))).toBe('');
       const token = tokenDe(ultimoA(u.email));
       expect((await t.http().post('/api/auth/recuperacion/confirmacion').send({ token, password: 'nueva-clave-segura' })).status).toBe(204);
       expect((await t.http().post('/api/auth/recuperacion/confirmacion').send({ token, password: 'otra-clave-segura' })).status).toBe(409);
@@ -203,12 +216,23 @@ describe('03a alineacion con el diseño', () => {
       correos().length = 0;
       expect((await t.http().post('/api/auth/enlace-acceso').send({ email: prof.email })).status).toBe(204);
       expect((await t.http().post('/api/auth/enlace-acceso').send({ email: paciente.email })).status).toBe(204);
-      expect(correos().map((c) => c.para)).toEqual([paciente.email]);
+      await new Promise((r) => setTimeout(r, 200));
+      // El profesional recibe el aviso (sin enlace): el acceso por enlace es solo de pacientes.
+      expect(tokenDe(ultimoA(prof.email))).toBe('');
+      expect(ultimoA(prof.email)?.texto).toMatch(/no hay una cuenta de paciente/);
       const token = tokenDe(ultimoA(paciente.email));
       const r = await t.http().post('/api/auth/enlace-acceso/confirmacion').send({ token });
       expect(r.status).toBe(200);
       expect(r.body.rol).toBe('PACIENTE');
       expect((await t.http().post('/api/auth/enlace-acceso/confirmacion').send({ token })).status).toBe(409);
+    });
+
+    it('correos de cuenta: maximo 3 por hora por direccion, exista o no la cuenta (la respuesta no cambia)', async () => {
+      correos().length = 0;
+      const email = `tope-${Date.now()}@test.cl`;
+      for (let i = 0; i < 4; i++) expect((await t.http().post('/api/auth/recuperacion').send({ email })).status).toBe(204);
+      await new Promise((r) => setTimeout(r, 200));
+      expect(correos().filter((c) => c.para === email)).toHaveLength(3);
     });
 
     it('alta de equipo con invitacion (ADMIN) y de paciente con invitacion (ADMIN/GESTION)', async () => {

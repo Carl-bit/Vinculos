@@ -787,6 +787,8 @@ describe('03a-2 plantillas clinicas y mensajeria interna', () => {
       });
       correo().fallar = true;
       expect((await t.http().post('/api/auth/recuperacion').send({ email })).status).toBe(204);
+      // El correo sale en segundo plano (tiempo de respuesta fijo): esperar a que termine antes de soltar la falla.
+      await new Promise((r) => setTimeout(r, 300));
       correo().fallar = false;
       const pendientes = await t.dueno.correoCuentaPendiente.findMany();
       expect(pendientes).toHaveLength(1);
