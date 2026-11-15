@@ -15,7 +15,9 @@
 # Programar con cron del host (docs/cumplimiento/continuidad.md).
 set -eu
 
-RAIZ=$(cd "$(dirname "$0")/../../.." && pwd)
+# pwd -W: ruta de Windows en Git Bash (docker y openssl nativos no entienden /c/...); en Linux, pwd.
+# Igual que llaves/comun.sh (hallado 2026-11-15 al respaldar un silo en un host B con Windows).
+RAIZ=$(cd "$(dirname "$0")/../../.." && (pwd -W 2>/dev/null || pwd))
 : "${CLIENTE_SLUG:?CLIENTE_SLUG es obligatoria}"
 SECRETOS="$RAIZ/infra/secrets/$CLIENTE_SLUG"
 LLAVE="$SECRETOS/respaldo.key"
