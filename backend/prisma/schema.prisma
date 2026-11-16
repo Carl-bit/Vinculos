@@ -125,6 +125,15 @@ model IdentidadSilo {
   @@map("identidad_silo")
 }
 
+/// R6: notas de version para el ADMIN (las entrega el plano de control; solo ADMIN las lee por RLS).
+model NotaVersion {
+  version    String   @id
+  notas      String
+  recibidaEn DateTime @default(now()) @map("recibida_en") @db.Timestamptz(6)
+
+  @@map("notas_version")
+}
+
 /// R12: bitacora de solo lectura del silo (lo escribe solo salida_interna(); solo se agrega).
 model EventoSalida {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

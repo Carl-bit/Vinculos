@@ -31,6 +31,7 @@ import {
 import { AdminInicialService } from './admin-inicial.service';
 import { ConfigInternaService } from './config-interna.service';
 import { ExportacionesInternasController } from './exportaciones-internas.controller';
+import { NotasVersionController, NotasVersionInternaController } from './notas-version.controller';
 import { SalidaInternaController } from './salida-interna.controller';
 import {
   AdminInicialInternoController,
@@ -52,6 +53,9 @@ import { UsuariosService } from './usuarios.service';
     ConfigInternaController,
     ExportacionesInternasController,
     SalidaInternaController,
+    NotasVersionInternaController,
+    // Antes de ConfiguracionController: ruta fija configuracion/notas-version (R6).
+    NotasVersionController,
     UsuariosController,
     ConfiguracionController,
     CentroController,

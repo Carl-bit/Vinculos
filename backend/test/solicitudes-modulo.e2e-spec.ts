@@ -26,6 +26,7 @@ describe('Solicitudes de modulos (tarea 31) y /api/internal (R2, R3)', () => {
   });
 
   afterAll(async () => {
+    await t.dueno.$executeRaw`DELETE FROM notas_version`;
     await t.dueno.$executeRaw`UPDATE identidad_silo SET solo_lectura_desde = NULL, fecha_corte = NULL`;
     await t.dueno.$executeRaw`DELETE FROM solicitudes_modulo`;
     await t.dueno.$executeRaw`UPDATE configuracion_centro SET modulos_activos = ${modulosAntes}::modulo_centro[]`;
@@ -318,5 +319,35 @@ describe('Solicitudes de modulos (tarea 31) y /api/internal (R2, R3)', () => {
           .send({})
       ).status,
     ).not.toBe(423);
+  });
+
+  it('R6 notas de version: el agente las entrega con el token; solo ADMIN las lee', async () => {
+    const cuerpo = { version: '0.1.1', notas: 'Agenda: filtro por box.' };
+    expect((await t.http().post('/api/internal/notas-version').send(cuerpo)).status).toBe(401);
+    expect(
+      (
+        await t
+          .http()
+          .post('/api/internal/notas-version')
+          .set(interno())
+          .send({ ...cuerpo, version: 'v1' })
+      ).status,
+    ).toBe(400);
+    expect((await t.http().post('/api/internal/notas-version').set(interno()).send(cuerpo)).body).toEqual({ resultado: 'REGISTRADA' });
+    expect((await t.http().post('/api/internal/notas-version').set(interno()).send(cuerpo)).body).toEqual({ resultado: 'SIN_CAMBIOS' });
+    const lista = await t
+      .http()
+      .get('/api/configuracion/notas-version')
+      .set(await tk(admin));
+    expect(lista.status).toBe(200);
+    expect(lista.body).toEqual([expect.objectContaining({ version: '0.1.1', notas: 'Agenda: filtro por box.' })]);
+    expect(
+      (
+        await t
+          .http()
+          .get('/api/configuracion/notas-version')
+          .set(await tk(profesional))
+      ).status,
+    ).toBe(403);
   });
 });

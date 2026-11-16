@@ -11,6 +11,7 @@ import { useConfiguracionCentro, useContenidoPublico, useDirectorioEquipo, useHo
 
 import { AuditoriaAccesos } from './AuditoriaAccesos';
 import { ContratoCentroPanel } from './ContratoCentro';
+import { NotasVersion } from './NotasVersion';
 import { DatosCentro } from './DatosCentro';
 import { MarcaCentro } from './MarcaCentro';
 import { ExportacionCentro } from './ExportacionCentro';
@@ -240,6 +241,7 @@ export function ConfiguracionCentro() {
           )}
           {seccion === 'vinculos' && (
             <>
+              <NotasVersion />
               <ContratoCentroPanel />
               <SoporteCentro />
             </>

@@ -6264,5 +6264,42 @@ DO $$ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 
+\echo 181 R6 notas de version: solo el token del silo y sin contexto; idempotente; solo ADMIN las lee
+\connect :app_url
+DO $$ DECLARE t text := 'token-interno-de-prueba-de-32-caracteres-o-mas'; BEGIN
+  BEGIN
+    PERFORM registrar_notas_version('otro-token-de-prueba-de-32-caracteres-o-mas', '0.1.1', 'Notas');
+    RAISE EXCEPTION 'caso 181: con otro token debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM registrar_notas_version(t, 'v1', 'Notas');
+    RAISE EXCEPTION 'caso 181: version invalida debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    PERFORM registrar_notas_version(t, '0.1.1', '   ');
+    RAISE EXCEPTION 'caso 181: notas vacias debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  ASSERT registrar_notas_version(t, '0.1.1', ' Agenda: filtro por box. ') = 'REGISTRADA', 'caso 181: registrada';
+  ASSERT registrar_notas_version(t, '0.1.1', 'Agenda: filtro por box.') = 'SIN_CAMBIOS', 'caso 181: idempotente';
+  ASSERT registrar_notas_version(t, '0.1.1', 'Agenda: filtro por box y sala.') = 'REGISTRADA', 'caso 181: corregidas';
+  PERFORM test.ctx('a1', 'ADMIN');
+  ASSERT (SELECT notas FROM notas_version WHERE version = '0.1.1') = 'Agenda: filtro por box y sala.', 'caso 181: ADMIN las lee';
+  BEGIN
+    PERFORM registrar_notas_version(t, '0.1.2', 'Notas');
+    RAISE EXCEPTION 'caso 181: con contexto de usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    INSERT INTO notas_version (version, notas) VALUES ('0.1.3', 'x');
+    RAISE EXCEPTION 'caso 181: la API no escribe directo';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+\connect :app_url
+DO $$ BEGIN
+  PERFORM test.ctx('b1', 'PROFESIONAL');
+  ASSERT (SELECT count(*) = 0 FROM notas_version), 'caso 181: PROFESIONAL no las ve';
+END $$;
+\connect :owner_url
+DELETE FROM notas_version;
+
 DROP SCHEMA test CASCADE;
 \echo TODOS LOS CASOS OK

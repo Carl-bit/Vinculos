@@ -216,3 +216,13 @@ enumerar cuentas). En su lugar:
   y `/api/internal`. Las tareas programadas siguen.
 - `GET /api/modulos` informa `soloLectura` y `fechaCorte`; el panel y el portal
   muestran el aviso "Plataforma en solo lectura".
+
+## R6: notas de version para el ADMIN (2026-11-16)
+
+- `POST /api/internal/notas-version` `{ version, notas }` (token del silo, sin
+  contexto): `registrar_notas_version` idempotente; notas nuevas para la misma
+  version las reemplazan. Tabla `notas_version` (migracion `20261116000500`),
+  RLS + FORCE, solo ADMIN la lee; la API no la escribe directo. Caso 181 y e2e.
+- Las escribe el operador de Vinculos en la consola (Releases) y el agente las
+  entrega al actualizar el silo. El ADMIN las ve en Configuracion > Vinculos >
+  "Novedades de la plataforma" (texto plano, saltos de linea respetados).
