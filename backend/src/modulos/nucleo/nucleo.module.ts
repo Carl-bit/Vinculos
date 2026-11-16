@@ -30,6 +30,7 @@ import {
 } from './nucleo.controller';
 import { AdminInicialService } from './admin-inicial.service';
 import { ConfigInternaService } from './config-interna.service';
+import { ExportacionesInternasController } from './exportaciones-internas.controller';
 import {
   AdminInicialInternoController,
   ConfigInternaController,
@@ -48,6 +49,7 @@ import { UsuariosService } from './usuarios.service';
     SolicitudesInternasController,
     AdminInicialInternoController,
     ConfigInternaController,
+    ExportacionesInternasController,
     UsuariosController,
     ConfiguracionController,
     CentroController,

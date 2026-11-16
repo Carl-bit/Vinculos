@@ -6198,5 +6198,31 @@ DO $$ BEGIN
     'caso 178: reglas aplicadas con su tipo';
 END $$;
 
+\echo 179 R13 exportaciones internas: token del silo y sin contexto; solo metadatos, sin clave ni quien la pidio
+\connect :owner_url
+INSERT INTO exportaciones_centro (solicitada_por_id, estado, tablas_total, bytes, huella, clave_publica, sal, iniciada_en)
+SELECT id, 'EN_PROCESO', 10, 2048, repeat('e', 64), decode(repeat('01', 32), 'hex'), decode(repeat('02', 16), 'hex'), now() FROM usuarios ORDER BY created_at LIMIT 1;
+\connect :app_url
+DO $$ DECLARE t text := 'token-interno-de-prueba-de-32-caracteres-o-mas'; BEGIN
+  BEGIN
+    PERFORM * FROM exportaciones_internas('otro-token-de-prueba-de-32-caracteres-o-mas');
+    RAISE EXCEPTION 'caso 179: con otro token debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  ASSERT (SELECT count(*) = 1 FROM exportaciones_internas(t) WHERE estado = 'EN_PROCESO' AND bytes = 2048 AND huella = repeat('e', 64)),
+    'caso 179: entrega estado, tamano y huella';
+  -- Solo las columnas acordadas: nada de clave_publica, sal ni solicitada_por_id.
+  ASSERT (SELECT array_agg(a ORDER BY a) FROM unnest(ARRAY(
+            SELECT unnest(proargnames) FROM pg_proc WHERE proname = 'exportaciones_internas')) a)
+         = ARRAY['bytes', 'creada_en', 'estado', 'huella', 'id', 'p_token', 'terminada_en', 'vence_en'],
+    'caso 179: columnas de salida cerradas';
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM * FROM exportaciones_internas(t);
+    RAISE EXCEPTION 'caso 179: con contexto de usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+\connect :owner_url
+DELETE FROM exportaciones_centro WHERE huella = repeat('e', 64);
+
 DROP SCHEMA test CASCADE;
 \echo TODOS LOS CASOS OK

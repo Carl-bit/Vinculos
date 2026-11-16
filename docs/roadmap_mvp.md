@@ -189,3 +189,14 @@ enumerar cuentas). En su lugar:
 - Pruebas: unitarias de `LimitePorCorreo`; e2e en `03a-alineacion` (tiempo
   parejo, aviso sin enlace, tope de 3 por hora) y ajuste de `03a2` (el
   correo sale en segundo plano).
+
+## R13: estado de las exportaciones para Vinculos Control (2026-11-16)
+
+- `GET /api/internal/exportaciones` (token del silo, sin contexto de usuario):
+  las 20 exportaciones del centro mas recientes con id, estado, fechas
+  (creada, terminada, vence), bytes y huella SHA-256. Nunca la clave publica,
+  la sal, quien la pidio ni el archivo. Funcion SECURITY DEFINER
+  `exportaciones_internas` (migracion `20261116000300`), caso 179 de
+  `seguridad_bd.sql` y e2e en `solicitudes-modulo.e2e-spec.ts`.
+- El plano de control no actualiza un silo con un exporte PENDIENTE o
+  EN_PROCESO y llena la huella del acta de recepcion (S3) con estos datos.

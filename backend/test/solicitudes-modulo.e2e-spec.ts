@@ -211,4 +211,22 @@ describe('Solicitudes de modulos (tarea 31) y /api/internal (R2, R3)', () => {
     expect(atras.status).toBe(409);
     expect(atras.body.mensaje).toMatch(/no es posterior/);
   });
+
+  it('R13 exportaciones internas: sin token 401; con el JWT de una cuenta 401; solo metadatos', async () => {
+    expect((await t.http().get('/api/internal/exportaciones')).status).toBe(401);
+    expect(
+      (
+        await t
+          .http()
+          .get('/api/internal/exportaciones')
+          .set(await tk(admin))
+      ).status,
+    ).toBe(401);
+    const r = await t.http().get('/api/internal/exportaciones').set(interno());
+    expect(r.status).toBe(200);
+    expect(Array.isArray(r.body.exportaciones)).toBe(true);
+    for (const e of r.body.exportaciones) {
+      expect(Object.keys(e).sort()).toEqual(['bytes', 'creadaEn', 'estado', 'huella', 'id', 'terminadaEn', 'venceEn']);
+    }
+  });
 });
