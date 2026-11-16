@@ -91,9 +91,17 @@ describe('cifrado de aplicacion', () => {
     expect(claves.some((c) => c.endsWith('_hmac'))).toBe(false);
   });
 
-  it('AUD-01: una tabla renombrada conserva el AAD con que se cifro (comprobantes_pago = boletas)', () => {
-    const c = CAMPOS_CIFRADOS.find((x) => x.tabla === 'comprobantes_pago' && x.columna === 'emisor_rut')!;
-    expect(aadDe(c, 'id-1')).toBe('boletas:emisor_rut:id-1');
+  it('AUD-01: una tabla renombrada conserva el AAD con que se cifro (aadTabla)', () => {
+    const renombrada = {
+      modelo: 'Ejemplo',
+      campo: 'rut',
+      tabla: 'tabla_nueva',
+      columna: 'rut',
+      categoria: 'IDENTIFICACION',
+      id: 'id',
+      aadTabla: 'tabla_anterior',
+    } as const;
+    expect(aadDe(renombrada, 'id-1')).toBe('tabla_anterior:rut:id-1');
     const sinRenombre = CAMPOS_CIFRADOS.find((x) => x.tabla === 'pacientes' && x.columna === 'rut')!;
     expect(aadDe(sinRenombre, 'id-1')).toBe('pacientes:rut:id-1');
   });

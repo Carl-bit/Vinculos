@@ -30,7 +30,7 @@ const TEXTOS: Record<TipoCorreoCuenta, { ruta: string; asunto: string; cuerpo: s
     ruta: '/pedir-hora/verificar',
     asunto: 'Confirme su correo para reservar la hora',
     cuerpo:
-      'Le guardamos la hora que eligió con pago en el centro. Para reservarla a su nombre, confirme su correo con este enlace antes de que venza el plazo; después la hora queda disponible para otras personas y el enlace solo sirve si nadie la tomó:',
+      'Le guardamos la hora que eligió. Para reservarla a su nombre, confirme su correo con este enlace antes de que venza el plazo; después la hora queda disponible para otras personas y el enlace solo sirve si nadie la tomó:',
   },
   VERIFICACION_CORREO: {
     ruta: '/cuenta/correo',

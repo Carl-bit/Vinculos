@@ -25,27 +25,6 @@ import {
 
 import { IsRut, NormalizarRut, Recortar } from '../../../core/validacion/validadores';
 
-/** Bancos aceptados para datos de transferencia (la BD no valida lo cifrado). */
-export const BANCOS = [
-  'Banco de Chile',
-  'BancoEstado',
-  'Santander',
-  'BCI',
-  'Scotiabank',
-  'Itau',
-  'BICE',
-  'Security',
-  'Falabella',
-  'Ripley',
-  'Consorcio',
-  'Internacional',
-  'Coopeuch',
-  'Tenpo',
-  'Mercado Pago',
-  'MACH',
-] as const;
-export const TIPOS_CUENTA = ['CORRIENTE', 'VISTA', 'AHORRO', 'CUENTA_RUT'] as const;
-
 /** Mi perfil: nombre publico, bio y frase aceptan null para quitarlos (undefined = sin cambio). */
 export class PerfilDto {
   @Recortar()
@@ -83,11 +62,6 @@ export class PerfilDto {
   @IsOptional()
   @IsBoolean()
   perfilPublico?: boolean;
-
-  /** Solo cuenta con modelo de cobro MIXTO. */
-  @IsOptional()
-  @IsBoolean()
-  cobroDirecto?: boolean;
 
   /** D-7: emite boleta reembolsable (isapre o seguro complementario). */
   @IsOptional()
@@ -154,10 +128,6 @@ export class EditarPerfilDto {
   @IsOptional()
   @IsBoolean()
   perfilPublico?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  cobroDirecto?: boolean;
 
   /** D-7: emite boleta reembolsable (isapre o seguro complementario). */
   @IsOptional()
@@ -288,24 +258,6 @@ export class DatosPrivadosDto {
   @NormalizarRut()
   @IsRut()
   rut?: string;
-
-  @IsOptional()
-  @IsIn(BANCOS)
-  banco?: string;
-
-  @IsOptional()
-  @IsIn(TIPOS_CUENTA)
-  tipoCuenta?: string;
-
-  @IsOptional()
-  @Matches(/^\d{4,20}$/, { message: 'numeroCuenta: solo digitos (4 a 20)' })
-  numeroCuenta?: string;
-
-  @IsOptional()
-  @Recortar()
-  @IsString()
-  @Length(2, 120)
-  titular?: string;
 }
 
 export class TarifaDto {

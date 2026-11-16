@@ -1,8 +1,7 @@
 /**
- * Estado de una reserva sin cuenta (pedir hora desde el sitio). MVP sin
- * COBROS (decision 2026-11-11): la hora queda RETENIDA hasta verificar el
- * correo, luego SOLICITADA hasta que la apruebe su profesional (o proponga
- * otras horas). El token de la reserva vive solo en memoria de la pestana,
+ * Estado de una reserva sin cuenta (pedir hora desde el sitio): la hora
+ * queda RETENIDA hasta verificar el correo, luego SOLICITADA hasta que la
+ * apruebe su profesional (o proponga otras horas). El token de la reserva vive solo en memoria de la pestana,
  * nunca en storage ni en la URL.
  */
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, datos } from './api/cliente';
 import type { components } from './api/esquema';
 
-export type EstadoReserva = components['schemas']['EstadoConfirmacion'];
+export type EstadoReserva = components['schemas']['EstadoReserva'];
 
 /** Estados en que ya no hay nada que esperar: el sondeo se detiene. */
 const FINALES: ReadonlySet<EstadoReserva['estado']> = new Set(['CONFIRMADA', 'LIBERADA', 'CANCELADA', 'POR_REPROGRAMAR']);

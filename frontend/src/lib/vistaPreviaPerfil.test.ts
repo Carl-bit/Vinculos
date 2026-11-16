@@ -45,7 +45,6 @@ const base: DatosVistaPrevia = {
     idiomas: [],
     convenios: [],
     perfilPublico: false,
-    cobroDirecto: false,
     boletaReembolsable: false,
     margenTrasladoMin: null,
     perfilPublicoConsentidoEn: null,

@@ -240,6 +240,13 @@ export class TokenPublicoDto {
   token!: string;
 }
 
+/** Token opaco de la reserva sin cuenta (en el cuerpo, nunca en la URL ni en logs). */
+export class ReservaDto {
+  @IsString()
+  @Length(20, 100)
+  reserva!: string;
+}
+
 export class ResponderConsentimientoTokenDto extends TokenPublicoDto {
   @IsBoolean()
   acepta!: boolean;

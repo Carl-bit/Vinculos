@@ -50,6 +50,7 @@ import {
   ResponderConsentimientoTokenDto,
   SolicitarEpicrisisDto,
   SolicitudHoraDto,
+  ReservaDto,
   TokenPublicoDto,
 } from './dto/match.dto';
 import {
@@ -60,6 +61,7 @@ import {
   PoliticaPublica,
   ResenaPublica,
   ResultadoMatch,
+  EstadoReserva,
   SolicitudCreada,
   SolicitudVerificada,
   MatchOpcionVista,
@@ -74,7 +76,6 @@ import {
   AceptacionPortal,
   CitaPortal,
   ConsultaConsentimiento,
-  DatosPagoPortal,
   EstadoConsentimientoAtencion,
   MensajePortal,
   MisDatosActualizados,
@@ -183,7 +184,7 @@ export class PublicoController {
     return this.match.match(dto);
   }
 
-  /** Pedir hora sin cuenta: retiene la hora (cita RETENIDA) y entrega el token de la reserva para pagar; correo solo si se paga en el centro. */
+  /** Pedir hora sin cuenta: retiene la hora (cita RETENIDA), entrega el token de la reserva y envia el enlace para verificar el correo. */
   @Post('solicitudes')
   @HttpCode(202)
   @Modulo('AGENDA')
@@ -191,12 +192,19 @@ export class PublicoController {
     return this.solicitudes.crear(dto);
   }
 
-  /** El enlace del correo (pago en el centro) confirma la hora y, si corresponde, invita a crear la cuenta. */
+  /** El enlace del correo pasa la hora a su profesional (SOLICITADA) y, si corresponde, invita a crear la cuenta. */
   @Post('solicitudes/verificacion')
   @HttpCode(200)
   @Modulo('AGENDA')
   verificar(@Body() dto: TokenPublicoDto): Promise<SolicitudVerificada> {
     return this.solicitudes.verificar(dto.token);
+  }
+
+  /** Estado de la reserva sin cuenta (token opaco en el cuerpo). La pestaña lo consulta cada pocos segundos. */
+  @Post('reservas/estado')
+  @HttpCode(200)
+  estadoReserva(@Body() dto: ReservaDto): Promise<EstadoReserva> {
+    return this.solicitudes.estadoReserva(dto.reserva);
   }
 
   /** Pagina del enlace de consentimiento (no lo consume). */
@@ -310,12 +318,6 @@ export class PortalController {
   @Roles(...PORTAL)
   responderAusencia(@Param('id', Uuid) id: string, @Body() dto: RespuestaAusenciaDto): Promise<RespuestaAusencia> {
     return this.portal.responderAusencia(id, dto.opcion);
-  }
-
-  @Get('citas/:id/datos-pago')
-  @Roles(...PORTAL)
-  datosPago(@Param('id', Uuid) id: string): Promise<DatosPagoPortal> {
-    return this.portal.datosPago(id);
   }
 
   @Post('mensajes')

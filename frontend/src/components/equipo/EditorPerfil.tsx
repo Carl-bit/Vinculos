@@ -119,7 +119,7 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
   const t = sel && !paciente ? draft : base.current;
   const vista = vistaPreviaPerfil({
     perfil: {
-      ...(perfil ?? { usuarioId, fotoUrl: null, perfilPublico: false, cobroDirecto: false, margenTrasladoMin: null, perfilPublicoConsentidoEn: null }),
+      ...(perfil ?? { usuarioId, fotoUrl: null, perfilPublico: false, margenTrasladoMin: null, perfilPublicoConsentidoEn: null }),
       nombrePublico: t.nombrePublico || null,
       especialidad: t.especialidad || 'Tu especialidad',
       modalidad: t.modalidad,
@@ -151,7 +151,6 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
     idiomas: lista(x.idiomas),
     convenios: lista(x.convenios),
     boletaReembolsable: x.boletaReembolsable,
-    cobroDirecto: perfil?.cobroDirecto ?? false,
     perfilPublico: publico,
   });
   const guardarPerfil = useMutation({

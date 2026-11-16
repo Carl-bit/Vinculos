@@ -31,8 +31,8 @@ export async function registrarAcceso(
 }
 
 /**
- * AUD-01 (E1.5): descarga o exportacion que no es de un paciente (PDF de
- * cobros y liquidaciones, exportacion del centro). Misma transaccion; solo
+ * AUD-01 (E1.5): descarga o exportacion que no es de un paciente (exportacion
+ * del centro, datos privados de un profesional). Misma transaccion; solo
  * ADMIN lo lee (createMany por la misma razon que registrarAcceso).
  */
 export async function registrarExportacion(

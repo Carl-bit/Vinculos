@@ -48,18 +48,8 @@ const NOMBRES: Record<string, string> = {
 };
 const nombreEvento = (e: string) => NOMBRES[e] ?? evento(e);
 
-/** Eventos del modulo COBROS (pago vencido = "hora liberada"): MVP sin COBROS (2026-11-11), nunca se muestran (punto 34). */
-const EVENTOS_COBROS = new Set([
-  'HORA_LIBERADA',
-  'INSTRUCCIONES_TRANSFERENCIA',
-  'COMPROBANTE_RECIBIDO',
-  'PAGO_VALIDADO',
-  'PAGO_RECHAZADO',
-  'PAGO_PENDIENTE',
-  'PAGO_REGISTRADO',
-  'COMPROBANTE_EMITIDO',
-  'DEUDA_PENDIENTE',
-]);
+/** Eventos que no le llegan a nadie en el MVP (punto 34): la hora retenida que vence no tiene paciente con cuenta. */
+const EVENTOS_OCULTOS = new Set(['HORA_LIBERADA']);
 
 const GRUPOS: { titulo: string; eventos: string[] }[] = [
   {
@@ -125,7 +115,7 @@ export function PlantillasMensaje() {
   const lista = useQuery({
     queryKey: ['configuracion', 'plantillas'],
     queryFn: () => datos(api.GET('/api/plantillas-mensaje')),
-    select: (l) => l.filter((p) => !EVENTOS_COBROS.has(p.evento)),
+    select: (l) => l.filter((p) => !EVENTOS_OCULTOS.has(p.evento)),
   });
   const [filtro, setFiltro] = useState<string>('Todos');
   const [elegida, setElegida] = useState<string | null>(null);

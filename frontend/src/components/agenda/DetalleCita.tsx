@@ -114,8 +114,9 @@ export function DetalleCita({
 
         {cita.estado === 'RETENIDA' && (
           <Aviso tono="info" titulo="Reserva en curso">
-            Alguien pidió esta hora desde el sitio y está verificando su correo{cita.pagoVenceEn ? ` (plazo: ${formatoFechaHora(cita.pagoVenceEn)})` : ''}. Al
-            verificarlo, la solicitud pasa a su profesional; si no lo verifica a tiempo, la hora se libera sola.
+            Alguien pidió esta hora desde el sitio y está verificando su correo
+            {cita.retencionVenceEn ? ` (plazo: ${formatoFechaHora(cita.retencionVenceEn)})` : ''}. Al verificarlo, la solicitud pasa a su profesional; si no lo
+            verifica a tiempo, la hora se libera sola.
           </Aviso>
         )}
         {cita.estado === 'SOLICITADA' && (

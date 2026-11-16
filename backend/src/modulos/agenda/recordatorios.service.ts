@@ -62,7 +62,6 @@ export class RecordatoriosService {
         vigente: boolean;
         a_tiempo: boolean;
         plazo_aviso_horas: number;
-        penalizacion_porcentaje: string;
       }[]
     >`SELECT * FROM consultar_recordatorio(${sha256(token)})`;
     const c = encontrado(r, 'Recordatorio');
@@ -73,19 +72,19 @@ export class RecordatoriosService {
       profesional: c.profesional,
       respuesta: c.respuesta,
       vigente: c.vigente,
-      /** Si cancela ahora: a tiempo (sin cargo) o tardia (penalizacion sobre lo pagado). */
-      cancelacion: { aTiempo: c.a_tiempo, plazoAvisoHoras: c.plazo_aviso_horas, penalizacionPorcentaje: Number(c.penalizacion_porcentaje) },
+      /** Si cancela ahora: a tiempo (dentro del plazo de aviso) o tardia. */
+      cancelacion: { aTiempo: c.a_tiempo, plazoAvisoHoras: c.plazo_aviso_horas },
     };
   }
 
   /** Un solo uso: segunda respuesta, enlace vencido o cita ya cambiada -> 409. */
   async responder(token: string, respuesta: RespuestaRecordatorio) {
     const [r] = await this.bd.sinContexto('publico').$queryRaw<
-      { respuesta: RespuestaRecordatorio; a_tiempo: boolean | null; penalizacion_porcentaje: string }[]
+      { respuesta: RespuestaRecordatorio; a_tiempo: boolean | null }[]
     >`SELECT * FROM responder_recordatorio(${sha256(token)}, ${respuesta}::respuesta_recordatorio)`;
     return {
       respuesta: r.respuesta,
-      ...(r.a_tiempo === null ? {} : { cancelacion: { aTiempo: r.a_tiempo, penalizacionPorcentaje: Number(r.penalizacion_porcentaje) } }),
+      ...(r.a_tiempo === null ? {} : { cancelacion: { aTiempo: r.a_tiempo } }),
     };
   }
 }

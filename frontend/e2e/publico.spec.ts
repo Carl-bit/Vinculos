@@ -1,13 +1,13 @@
 import { expect, test } from './prueba';
 
-import { elegirMedio, enlaceDelCorreo, ingresar, pacienteNuevo, pedirHora, sqlPrueba } from './apoyo';
+import { aprobarHora, citaDeReserva, enlaceDelCorreo, ingresar, pacienteNuevo, pedirHora, sqlPrueba } from './apoyo';
 
 /**
  * Sitio publico (03b-2) contra la API local, el seed demo y Mailpit
  * (npm run dev en la raiz). Cada prueba usa un correo nuevo: la BD limita a
- * dos reservas en curso por correo. 03b-3.2: el seed habilita pago en el
- * centro, transferencia y pasarela simulada: la hora se confirma con el pago
- * (o con el enlace del correo si se paga en el centro).
+ * dos reservas en curso por correo. MVP sin COBROS (2026-11-11): sin paso
+ * de pago; la hora queda retenida hasta verificar el correo, luego llega al
+ * profesional (SOLICITADA) y queda confirmada cuando el la aprueba.
  */
 
 test('landing y equipo: contenido del ADMIN, filtro por atención, perfil con reseñas y sin practicantes', async ({ page }) => {
@@ -77,20 +77,28 @@ test('match: paso a paso, aviso de riesgo, resultado explicado y lleva a pedir h
   await expect(page.getByRole('heading', { name: 'Elige el horario de tu sesión' })).toBeVisible();
 });
 
-test('pedir hora sin cuenta con pago en el centro: retiene, correo y confirmación al verificar', async ({ page }) => {
+test('pedir hora sin cuenta: retiene, verifica el correo, llega al profesional y queda confirmada al aprobarla', async ({ page, context }) => {
   await page.goto('/equipo');
   await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
   await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
   const email = await pedirHora(page, 'confirmada');
-  await elegirMedio(page, /^Pago en el centro/);
-  await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
-  await page.goto(await enlaceDelCorreo(email));
-  await page.getByRole('button', { name: 'Confirmar mi hora' }).click();
-  await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible();
+  const citaId = citaDeReserva(email);
+  expect(sqlPrueba(`SELECT estado FROM citas WHERE id = '${citaId}'`)).toBe('RETENIDA');
+
+  const enlace = await context.newPage();
+  await enlace.goto(await enlaceDelCorreo(email));
+  await enlace.getByRole('button', { name: 'Confirmar mi hora' }).click();
+  await expect(enlace.getByRole('heading', { name: 'Enviamos tu solicitud' })).toBeVisible();
   // El enlace es de un solo uso.
-  await page.reload();
-  await page.getByRole('button', { name: 'Confirmar mi hora' }).click();
-  await expect(page.getByRole('heading', { name: 'Este enlace ya no sirve' })).toBeVisible();
+  await enlace.reload();
+  await enlace.getByRole('button', { name: 'Confirmar mi hora' }).click();
+  await expect(enlace.getByRole('heading', { name: 'Este enlace ya no sirve' })).toBeVisible();
+
+  // La pestaña original pasa sola a "llegó a su profesional" y, al aprobarla, a confirmada.
+  await expect(page.getByRole('heading', { name: /^Tu solicitud llegó a / })).toBeVisible({ timeout: 20_000 });
+  expect(sqlPrueba(`SELECT estado FROM citas WHERE id = '${citaId}'`)).toBe('SOLICITADA');
+  await aprobarHora(page, citaId);
+  await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible({ timeout: 20_000 });
 });
 
 test('03b-6: verificar en otra pestaña hace avanzar sola a la original', async ({ page, context }) => {
@@ -98,14 +106,12 @@ test('03b-6: verificar en otra pestaña hace avanzar sola a la original', async 
   await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
   await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
   const email = await pedirHora(page, 'otra-pestana');
-  await elegirMedio(page, /^Pago en el centro/);
-  await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
   const otra = await context.newPage();
   await otra.goto(await enlaceDelCorreo(email));
   await otra.getByRole('button', { name: 'Confirmar mi hora' }).click();
-  await expect(otra.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible();
+  await expect(otra.getByRole('heading', { name: 'Enviamos tu solicitud' })).toBeVisible();
   // La pestaña original consulta el estado cada pocos segundos y avanza sin recargar.
-  await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: /^Tu solicitud llegó a / })).toBeVisible({ timeout: 20_000 });
 });
 
 test('03b-6: reserva sin verificar vence, la hora se libera y se ofrece otra conservando los datos', async ({ page }) => {
@@ -114,10 +120,8 @@ test('03b-6: reserva sin verificar vence, la hora se libera y se ofrece otra con
   await page.getByRole('link', { name: /Ver perfil completo de Ps\. Profesional Uno/ }).click();
   await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
   const email = await pedirHora(page, 'vence');
-  await elegirMedio(page, /^Pago en el centro/);
-  await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
   // Simula los 30 minutos: el plazo queda vencido y el job (cada minuto) libera la hora.
-  sqlPrueba(`UPDATE citas SET pago_vence_en = now() - interval '1 second' WHERE id = (SELECT cita_id FROM solicitudes_hora WHERE email = '${email}')`);
+  sqlPrueba(`UPDATE citas SET retencion_vence_en = now() - interval '1 second' WHERE id = (SELECT cita_id FROM solicitudes_hora WHERE email = '${email}')`);
   await expect(page.getByRole('heading', { name: 'La hora se liberó' })).toBeVisible({ timeout: 120_000 });
   await expect(page.getByText('Venció el plazo y la hora quedó disponible para otras personas.')).toBeVisible();
   // La pantalla puede adelantarse al job (el estado ya ve el plazo vencido); la solicitud expira con el job.
@@ -136,7 +140,7 @@ test('ya soy paciente: solo pide el correo y responde siempre igual', async ({ p
 });
 
 test('03b-6: consentimiento por token: recepción lo envía, el paciente responde desde el correo y el enlace es de un uso', async ({ page, browser }) => {
-  // Paciente nuevo: nace al verificar una reserva con pago en el centro.
+  // Paciente nuevo: reserva verificada y aprobada por su profesional.
   const { email, pacienteId } = await pacienteNuevo(page, 'consentimiento');
 
   const equipo = await (await browser.newContext()).newPage();

@@ -524,7 +524,6 @@ function EncabezadoPaciente({
               {e.estado && (
                 <Badge tono={e.estado.alta_en ? 'neutro' : 'positivo'}>{e.estado.alta_en ? `Alta ${formatoFecha(e.estado.alta_en)}` : 'Activo'}</Badge>
               )}
-              {p.traidoPorCentro && <Badge>Llegó por el centro</Badge>}
             </div>
             <p className="m-0 mt-1.5 text-[14.5px] font-semibold text-neutral-800">
               {e.edad} años · {p.rut ? `RUT ${formatoRut(p.rut)}` : 'Sin RUT'} · {e.realizadas === 1 ? '1 sesión' : `${e.realizadas} sesiones`}

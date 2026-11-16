@@ -43,12 +43,10 @@ export const tonoDe = (orden: string[], id: string): Tono => TONOS[Math.max(0, o
 
 export const NOMBRE_ESTADO_CITA: Record<CitaVista['estado'], string> = {
   CONFIRMADA: 'Confirmada',
-  // MVP sin cobros: la hora que pidio el paciente espera la aprobacion de su profesional.
+  // La hora que pidio el paciente espera la aprobacion de su profesional.
   SOLICITADA: 'Por aprobar',
   POR_REPROGRAMAR: 'Por reprogramar',
   CANCELADA: 'Cancelada',
-  // Estado del modulo COBROS (apagado en el MVP): no ocurre; texto neutro por completitud del tipo.
-  PENDIENTE_PAGO: 'Por confirmar',
   LIBERADA: 'Liberada (plazo vencido)',
   RETENIDA: 'Hora retenida (reserva en curso)',
   // Punto 7 (2026-11-11): hora que propuso el profesional; espera que el paciente la elija.

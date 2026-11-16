@@ -11,7 +11,7 @@ import { ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notif
 import { llaveParaDescifrar, publicaDesdeClave } from '../src/modulos/nucleo/cifrado-exportacion';
 import { ExportacionCentroService } from '../src/modulos/nucleo/exportacion-centro.service';
 import { dvRut } from '../src/core/validacion/validadores';
-import { auth, crearApp, procesarMensajes, type AppPrueba, type UsuarioPrueba } from './apoyo';
+import { auth, crearApp, procesarMensajes, rutUnico, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
 const HORA = 3_600_000;
 let minuto = 0;
@@ -44,7 +44,6 @@ describe('AUD-01 cumplimiento', () => {
 
   afterAll(async () => {
     await t.dueno.contenidoPublico.update({ where: { id: true }, data: { contactoCorreo: null } });
-    await t.dueno.configuracionCentro.update({ where: { id: true }, data: { modeloCobro: 'CENTRO', mediosPagoHabilitados: ['PAGO_EN_CENTRO'] } });
     await t.cerrar();
   });
 
@@ -80,120 +79,8 @@ describe('AUD-01 cumplimiento', () => {
     });
   });
 
-  describe('E1.3 Pasarela solo del centro', () => {
-    it('ADMIN: con PASARELA habilitada no puede pasar a cobro DIRECTO (422 con mensaje) ni habilitarla con DIRECTO; con CENTRO si', async () => {
-      const patch = async (body: Record<string, unknown>) =>
-        t
-          .http()
-          .patch('/api/configuracion')
-          .set(await tk(admin))
-          .send(body);
-      expect((await patch({ modeloCobro: 'CENTRO', mediosPagoHabilitados: ['PAGO_EN_CENTRO', 'PASARELA'] })).status).toBe(200);
-      const directo = await patch({ modeloCobro: 'DIRECTO' });
-      expect(directo.status).toBe(422);
-      expect(directo.body.mensaje).toContain('propia pasarela de pago');
-      expect((await patch({ mediosPagoHabilitados: ['PAGO_EN_CENTRO'] })).status).toBe(200);
-      expect((await patch({ modeloCobro: 'DIRECTO' })).status).toBe(200);
-      const habilitar = await patch({ mediosPagoHabilitados: ['PAGO_EN_CENTRO', 'PASARELA'] });
-      expect(habilitar.status).toBe(422);
-      expect(habilitar.body.restriccion).toBe('configuracion_centro_pasarela_cobro_directo');
-    });
-  });
-
-  describe('E1.4 Comprobante de pago y documento tributario', () => {
-    const hoy = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
-    const nuevaCitaPagada = async (p: UsuarioPrueba, pacienteId: string, horas: number, cobra: UsuarioPrueba) => {
-      if ((await t.dueno.tarifa.count({ where: { profesionalId: p.id } })) === 0) {
-        await t.dueno.tarifa.create({ data: { profesionalId: p.id, monto: 30000 } });
-      }
-      const r = await t
-        .http()
-        .post('/api/citas')
-        .set(await tk(gestion))
-        .send({ pacienteId, profesionalId: p.id, modalidad: 'ONLINE', ...en(horas) });
-      expect(r.status).toBe(201);
-      const monto = (await t.dueno.cita.findUniqueOrThrow({ where: { id: r.body.id } })).monto!;
-      const pago = await t
-        .http()
-        .post(`/api/cobros/citas/${r.body.id}/pagos`)
-        .set(await tk(cobra))
-        .send({ monto, medioPago: 'EFECTIVO' });
-      expect([pago.status, pago.body.mensaje ?? pago.body.message]).toEqual([201, undefined]);
-      return { id: r.body.id as string, monto, detalle: pago.body };
-    };
-    const registrar = async (u: UsuarioPrueba, citaId: string, body: Record<string, unknown>) =>
-      t
-        .http()
-        .post(`/api/cobros/citas/${citaId}/documentos-tributarios`)
-        .set(await tk(u))
-        .send(body);
-
-    it('cobra el centro: comprobante CP- (no tributario) y aviso COMPROBANTE_EMITIDO; GESTION registra la boleta del SII, el profesional no; anular con motivo', async () => {
-      await t.dueno.configuracionCentro.update({ where: { id: true }, data: { modeloCobro: 'CENTRO' } });
-      const p = await t.datos.usuario('PROFESIONAL');
-      await t.datos.disponibleSiempre(p.id);
-      const pac = await t.datos.usuarioPaciente(p.id);
-      const c = await nuevaCitaPagada(p, pac.pacienteId, 60, gestion);
-      expect(c.detalle.comprobante).toEqual(expect.objectContaining({ numero: expect.stringMatching(/^CP-\d{8}$/), monto: c.monto }));
-      expect(c.detalle.documentosTributarios).toEqual([]);
-      const avisos = await t.dueno.notificacion.findMany({ where: { tipo: 'COMPROBANTE_EMITIDO', pacienteId: pac.pacienteId } });
-      expect(avisos.length).toBeGreaterThan(0);
-
-      expect((await registrar(p, c.id, { tipo: 'BOLETA_ELECTRONICA', folio: '1001', fechaEmision: hoy(), monto: c.monto })).status).toBe(403);
-      expect((await registrar(gestion, c.id, { tipo: 'BOLETA_ELECTRONICA', folio: '10-01', fechaEmision: hoy(), monto: c.monto })).status).toBe(400);
-      const honorarios = await registrar(gestion, c.id, { tipo: 'BOLETA_HONORARIOS', folio: '1001', fechaEmision: hoy(), monto: c.monto });
-      expect(honorarios.status).toBe(422);
-      const ok = await registrar(gestion, c.id, { tipo: 'BOLETA_ELECTRONICA', folio: '1001', fechaEmision: hoy(), monto: c.monto });
-      expect(ok.status).toBe(201);
-      expect(ok.body.documentosTributarios).toEqual([
-        expect.objectContaining({ tipo: 'BOLETA_ELECTRONICA', folio: '1001', emisor: 'CENTRO', fechaEmision: hoy(), monto: c.monto, estado: 'REGISTRADO' }),
-      ]);
-      const doc = ok.body.documentosTributarios[0].id as string;
-      const anular = async (u: UsuarioPrueba, motivo: string) =>
-        t
-          .http()
-          .post(`/api/cobros/documentos-tributarios/${doc}/anulacion`)
-          .set(await tk(u))
-          .send({ motivo });
-      expect((await anular(p, 'no es mio')).status).toBe(403);
-      const anulado = await anular(admin, 'Folio mal digitado');
-      expect(anulado.status).toBe(200);
-      expect(anulado.body.documentosTributarios[0]).toEqual(expect.objectContaining({ estado: 'ANULADO', motivoAnulacion: 'Folio mal digitado' }));
-
-      // El paciente ve su comprobante y el registro del SII en el detalle de su cita.
-      const suyo = await t
-        .http()
-        .get(`/api/cobros/citas/${c.id}`)
-        .set(await tk(pac));
-      expect(suyo.status).toBe(200);
-      expect(suyo.body.comprobante.numero).toBe(c.detalle.comprobante.numero);
-      expect(suyo.body.documentosTributarios).toHaveLength(1);
-    });
-
-    it('cobro directo: el profesional registra su boleta de honorarios; GESTION no', async () => {
-      const p = await t.datos.usuario('PROFESIONAL');
-      await t.datos.disponibleSiempre(p.id);
-      const pac = await t.datos.usuarioPaciente(p.id);
-      await t.dueno.configuracionCentro.update({ where: { id: true }, data: { modeloCobro: 'MIXTO' } });
-      try {
-        await t.dueno.profesional.upsert({
-          where: { usuarioId: p.id },
-          create: { usuarioId: p.id, especialidad: 'Psicologia', modalidad: 'MIXTA', cobroDirecto: true },
-          update: { cobroDirecto: true },
-        });
-        const c = await nuevaCitaPagada(p, pac.pacienteId, 62, p);
-        expect((await registrar(gestion, c.id, { tipo: 'BOLETA_HONORARIOS', folio: '55', fechaEmision: hoy(), monto: c.monto })).status).toBe(403);
-        const r = await registrar(p, c.id, { tipo: 'BOLETA_HONORARIOS', folio: '55', fechaEmision: hoy(), monto: c.monto });
-        expect(r.status).toBe(201);
-        expect(r.body.documentosTributarios[0]).toEqual(expect.objectContaining({ emisor: 'PROFESIONAL', tipo: 'BOLETA_HONORARIOS' }));
-      } finally {
-        await t.dueno.configuracionCentro.update({ where: { id: true }, data: { modeloCobro: 'CENTRO' } });
-      }
-    });
-  });
-
   describe('E1.5 Trazabilidad', () => {
-    it('editar datos del paciente queda con usuario, rol activo y campos (sin valores); el PDF de cobros queda como descarga; solo ADMIN ve la auditoria', async () => {
+    it('editar datos del paciente queda con usuario, rol activo y campos (sin valores); leer datos privados de un profesional queda como descarga; solo ADMIN ve la auditoria', async () => {
       const p = await t.datos.usuario('PROFESIONAL');
       const pac = await t.datos.paciente(p.id);
       const editar = await t
@@ -202,12 +89,16 @@ describe('AUD-01 cumplimiento', () => {
         .set(await tk(gestion))
         .send({ telefono: '+56911112222' });
       expect(editar.status).toBe(200);
-      const pdf = await t
+      await t
         .http()
-        .get('/api/cobros/reporte/pdf')
-        .query({ desde: '2026-01-01', hasta: '2026-02-01' })
+        .put('/api/profesionales/yo/datos-privados')
+        .set(await tk(p))
+        .send({ rut: rutUnico() });
+      const privados = await t
+        .http()
+        .get(`/api/profesionales/${p.id}/datos-privados`)
         .set(await tk(gestion));
-      expect(pdf.status).toBe(200);
+      expect(privados.status).toBe(200);
 
       expect(
         (
@@ -241,7 +132,7 @@ describe('AUD-01 cumplimiento', () => {
         .query({ usuarioId: gestion.id, accion: 'DESCARGA' })
         .set(await tk(admin));
       expect(descargas.body.items).toEqual(
-        expect.arrayContaining([expect.objectContaining({ origen: 'EXPORTACION', recurso: 'reporte_cobros', pacienteId: null, rol: 'GESTION' })]),
+        expect.arrayContaining([expect.objectContaining({ origen: 'EXPORTACION', recurso: 'profesional_datos_privados', pacienteId: null, rol: 'GESTION' })]),
       );
     });
   });

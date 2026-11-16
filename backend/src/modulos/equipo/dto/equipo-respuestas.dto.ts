@@ -34,7 +34,6 @@ export class PerfilProfesionalVista {
   enfoques!: string[];
   @ApiProperty({ enum: Modalidad, enumName: 'Modalidad' })
   modalidad!: Modalidad;
-  cobroDirecto!: boolean;
   @ApiProperty({ type: Number, nullable: true, description: 'Minutos; nulo = el del centro' })
   margenTrasladoMin!: number | null;
   @ApiProperty({ type: String, nullable: true })
@@ -153,19 +152,11 @@ export class SolicitudCorreccion {
   solicitudes!: number;
 }
 
-/** Datos privados descifrados (RUT y cuenta bancaria): solo el propio y ADMIN/GESTION. */
+/** Datos privados descifrados (RUT): solo el propio y ADMIN/GESTION. */
 export class DatosPrivadosVista {
   usuarioId!: string;
   @ApiProperty({ type: String, nullable: true })
   rut!: string | null;
-  @ApiProperty({ type: String, nullable: true })
-  banco!: string | null;
-  @ApiProperty({ type: String, nullable: true })
-  tipoCuenta!: string | null;
-  @ApiProperty({ type: String, nullable: true })
-  numeroCuenta!: string | null;
-  @ApiProperty({ type: String, nullable: true })
-  titular!: string | null;
   updatedAt!: Date;
 }
 

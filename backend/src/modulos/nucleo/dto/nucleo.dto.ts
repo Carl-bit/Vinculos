@@ -5,19 +5,14 @@ import {
   CanalSolicitudDerecho,
   EstadoSolicitudDerecho,
   TipoDerecho,
-  MedioConfirmacion,
-  ModeloCobro,
   ModuloCentro,
   Rol,
   TipoAlerta,
-  TipoComisionDerivacion,
   TipoPolitica,
 } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
-  ArrayMinSize,
-  ArrayUnique,
   IsArray,
   IsBoolean,
   IsHexColor,
@@ -27,7 +22,6 @@ import {
   IsEnum,
   IsInt,
   IsISO8601,
-  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -160,10 +154,6 @@ export class EditarConfiguracionDto {
   plazoRespuestaDerivacionHoras?: number;
 
   @IsOptional()
-  @IsEnum(ModeloCobro)
-  modeloCobro?: ModeloCobro;
-
-  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(720)
@@ -187,7 +177,7 @@ export class EditarConfiguracionDto {
   @Max(600)
   margenTrasladoMin?: number;
 
-  /** Remitente visible de los correos y emisor de boletas del modelo CENTRO. */
+  /** Remitente visible de los correos. */
   @IsOptional()
   @Recortar()
   @IsString()
@@ -199,45 +189,12 @@ export class EditarConfiguracionDto {
   @NormalizarRut()
   rutCentro?: string;
 
-  /** Politica de cancelacion (Cobros). Los porcentajes se definen con el caso de estudio. */
+  /** Politica de cancelacion: horas de anticipacion para cancelar a tiempo (sin cargos: MVP sin cobros). */
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(720)
   plazoAvisoCancelacionHoras?: number;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(100)
-  penalizacionCancelacionPorcentaje?: number;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(100)
-  cobroInasistenciaPorcentaje?: number;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(100)
-  comisionCentroPorcentaje?: number;
-
-  /**
-   * 03b-4.2 (C-10): comision de las sesiones de pacientes traidos por el
-   * centro. GENERAL = el porcentaje general; PORCENTAJE (0 a 100) o
-   * MONTO_FIJO en CLP por sesion (entero, tope: lo cobrado de la sesion).
-   */
-  @IsOptional()
-  @IsEnum(TipoComisionDerivacion)
-  comisionDerivacionTipo?: TipoComisionDerivacion;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(1_000_000)
-  comisionDerivacionValor?: number;
 
   /** Recordatorio de citas (02i): horas antes del inicio; 0 = desactivado. */
   @IsOptional()
@@ -245,16 +202,6 @@ export class EditarConfiguracionDto {
   @Min(0)
   @Max(168)
   recordatorioHorasAntes?: number;
-
-  /** 03a (C-11): liquidar solo citas realizadas con evolucion registrada. */
-  @IsOptional()
-  @IsBoolean()
-  liquidarExigeEvolucion?: boolean;
-
-  /** C-11: los cargos por inasistencia y cancelacion tardia se liquidan al profesional. */
-  @IsOptional()
-  @IsBoolean()
-  liquidarCargosAProfesional?: boolean;
 
   /** 03a: el match ofrece "prefiero filtrar yo mismo". */
   @IsOptional()
@@ -295,47 +242,6 @@ export class EditarConfiguracionDto {
   @Min(30)
   @Max(3650)
   retencionMensajesDias?: number;
-
-  /** 03b-3.1: medios con que el paciente confirma su hora (PASARELA exige un adaptador configurado). */
-  @IsOptional()
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayUnique()
-  @IsEnum(MedioConfirmacion, { each: true })
-  mediosPagoHabilitados?: MedioConfirmacion[];
-
-  /** 03b-3.1: horas para pagar o validar la transferencia (siempre antes del inicio). */
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(168)
-  plazoValidacionTransferenciaHoras?: number;
-
-  /** 03b-3.1: porcentaje del monto que se paga para confirmar. */
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  porcentajePagoConfirmacion?: number;
-
-  /** 03b-3.3: horas antes de la sesion en que vence el pago previo de la hora que agenda el equipo (0 a 168). */
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(168)
-  horasPlazoPagoEquipo?: number;
-
-  /** 03b-3.3: dias tras la sesion antes de contar el saldo como deuda (0 a 90). */
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(90)
-  diasGraciaMorosidad?: number;
-
-  /** 03b-3.3: un paciente con deuda no agenda (ADMIN/GESTION autorizan con motivo). */
-  @IsOptional()
-  @IsBoolean()
-  bloquearAgendaMorosos?: boolean;
 }
 
 export class OtorgarAccesoDto {
@@ -565,11 +471,6 @@ export class ProximaSesionDashboard {
 
 /** Pendientes de administracion (conteos, sin datos clinicos). */
 export class PendientesDashboard {
-  /** 03b-3.2: citas pendientes de pago (el pago validado las confirma). */
-  pagos_pendientes!: number;
-  /** 03b-3.3: pacientes con sesiones terminadas impagas. */
-  pacientes_con_deuda!: number;
-  transferencias_por_validar!: number;
   ruts_faltantes!: number;
   posibles_duplicados!: number;
   consentimientos_pendientes!: number;
@@ -593,7 +494,7 @@ export class ReporteDashboard {
   pacientes_activos!: number;
   @ApiProperty({ required: false, description: 'ADMIN/GESTION' })
   pacientes_nuevos_mes?: number;
-  @ApiProperty({ required: false, description: 'ADMIN/GESTION: pagos pendientes y recordatorios sin respuesta en 48 h' })
+  @ApiProperty({ required: false, description: 'ADMIN/GESTION: horas por aprobar y recordatorios sin respuesta en 48 h' })
   por_confirmar?: number;
   @ApiProperty({ required: false, description: 'ADMIN/GESTION: % de horas apartadas sobre el horario de boxes (muestra)' })
   ocupacion_boxes_hoy?: number;
@@ -612,10 +513,6 @@ export class ReporteDashboard {
   fichas_sin_cerrar?: number;
   @ApiProperty({ required: false })
   borradores?: number;
-  @ApiProperty({ required: false, description: 'PROFESIONAL/PRACTICANTE: sus citas pendientes de pago' })
-  pagos_pendientes?: number;
-  @ApiProperty({ type: Number, nullable: true, required: false, description: 'PROFESIONAL: pacientes con deuda en sus citas (PRACTICANTE: null)' })
-  pacientes_con_deuda?: number | null;
   @ApiProperty({ required: false })
   mensajes_sin_leer?: number;
   @ApiProperty({ type: Number, nullable: true, required: false })
@@ -628,14 +525,12 @@ export class ReporteDashboard {
   modulos!: ModuloCentro[];
 }
 
-/** configuracion_centro (fila unica). Los porcentajes son Decimal: llegan como texto. */
+/** configuracion_centro (fila unica). */
 export class ConfiguracionCentroVista {
   rolGestionHabilitado!: boolean;
   @ApiProperty({ type: Number, nullable: true, description: 'Maximo de cuentas madre activas; null = sin limite' })
   maxCuentasMadre!: number | null;
   plazoRespuestaDerivacionHoras!: number;
-  @ApiProperty({ enum: ModeloCobro, enumName: 'ModeloCobro' })
-  modeloCobro!: ModeloCobro;
   plazoConsentimientoHoras!: number;
   plazoOposicionHoras!: number;
   diasGraciaCierre!: number;
@@ -644,36 +539,15 @@ export class ConfiguracionCentroVista {
   @ApiProperty({ type: String, nullable: true })
   rutCentro!: string | null;
   plazoAvisoCancelacionHoras!: number;
-  @ApiProperty({ type: String, description: 'Decimal (0 a 100)' })
-  penalizacionCancelacionPorcentaje!: unknown;
-  @ApiProperty({ type: String, description: 'Decimal (0 a 100)' })
-  cobroInasistenciaPorcentaje!: unknown;
-  @ApiProperty({ type: String, description: 'Decimal (0 a 100): comision del centro sobre lo cobrado en la liquidacion' })
-  comisionCentroPorcentaje!: unknown;
-  @ApiProperty({ enum: TipoComisionDerivacion, enumName: 'TipoComisionDerivacion' })
-  comisionDerivacionTipo!: TipoComisionDerivacion;
-  @ApiProperty({ type: String, description: 'Decimal: porcentaje (PORCENTAJE) o CLP por sesion (MONTO_FIJO); sin uso con GENERAL' })
-  comisionDerivacionValor!: unknown;
   recordatorioHorasAntes!: number;
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
   modulosActivos!: ModuloCentro[];
-  liquidarExigeEvolucion!: boolean;
-  liquidarCargosAProfesional!: boolean;
   matchFiltroDirecto!: boolean;
   diasRetencionRespuestasMatch!: number;
   minutosRetencionSolicitud!: number;
   horasAprobacionSolicitud!: number;
   retencionMensajesDias!: number;
   edadMinimaCuenta!: number;
-  @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', isArray: true })
-  mediosPagoHabilitados!: MedioConfirmacion[];
-  plazoValidacionTransferenciaHoras!: number;
-  porcentajePagoConfirmacion!: number;
-  horasPlazoPagoEquipo!: number;
-  diasGraciaMorosidad!: number;
-  bloquearAgendaMorosos!: boolean;
-  /** Solo cuentan como deuda las sesiones terminadas despues de esta fecha (la fija la migracion). */
-  morosidadDesde!: Date;
   updatedAt!: Date;
 }
 

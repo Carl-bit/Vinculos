@@ -104,12 +104,47 @@ informativo (perfil, match, solicitud de hora), igual que la boleta reembolsable
 - Pruebas: vitest 142/142, typecheck y lint limpios. E2E: se quitaron los
   casos de cobros y las rutas borradas.
 
-**Pendiente:** reescribir y correr los e2e de pedir hora que pasaban por el
-paso de pago (`publico.spec.ts`: pedir hora sin cuenta, verificar en otra
-pestaña, reserva vencida, consentimiento por token; `portal.spec.ts`: pide
-hora con su tratante; `apoyo.ts`: `elegirMedio` y el alta de paciente nuevo)
-contra el flujo sin cobros (verificar correo -> SOLICITADA -> aprueba el
-profesional). Requieren el stack y el seed levantados.
+**Hecho 2026-11-16:** los e2e de pedir hora (`publico.spec.ts`, `portal.spec.ts`,
+`apoyo.ts`) siguen el flujo sin cobros: verificar correo -> SOLICITADA ->
+aprueba el profesional (`aprobarHora`) -> CONFIRMADA. Pasan los 6 de pedir hora
+sin cuenta y el del portal. `E2E_NAVEGADOR=chrome` usa el navegador del equipo.
+
+## MVP sin pagos ni finanzas: eliminacion completa (2026-11-16)
+
+Decision del usuario: nada de pagos ni finanzas en el MVP (reemplaza la de
+2026-11-11, que dejaba el backend dormido). Se quedan como dato informativo
+las tarifas, FONASA y la boleta reembolsable.
+
+- BD: migracion `20261116000000_mvp_sin_cobros`. Fuera las tablas pagos,
+  transferencias, cobros_pasarela, comprobantes_pago, documentos_tributarios,
+  liquidaciones, acuerdos_profesional, cuenta_bancaria_centro,
+  excepciones_morosidad, arriendos y resoluciones_cita; la vista
+  estado_pago_citas; 85 funciones; 14 tipos; las columnas de cobros de
+  configuracion_centro, citas (monto, medios, avisos de pago,
+  agendada_por_equipo), profesionales (cobro_directo), profesional_datos_privados
+  (cuenta bancaria), pacientes (traido_por_centro) y preferencias_aviso_equipo;
+  los valores PENDIENTE_PAGO, COBROS, PAGO_CITA y los avisos de pago (los enums
+  se recrean con funciones y permisos). `pago_vence_en` pasa a
+  `retencion_vence_en`. Lo que no era de cobros en los triggers que salieron
+  queda en `fijar_cancelada_en` y `proteger_estado_cita`. Las funciones
+  compartidas se reescriben (reserva sin cuenta siempre con correo, portal
+  SOLICITADA, recordatorio sin penalizacion, exportacion, tablero, R4 sin
+  reglas de cobros). Verificado: `seguridad_bd.sql` TODOS LOS CASOS OK,
+  `migrate diff` vacio, registro de cifrado = columnas bytea (49).
+- Backend: sin modulo cobros, pasarela, endpoints de pago, jobs de avisos de
+  pago y deudas, comision ni origen del paciente. El estado de la reserva
+  (`POST /publico/reservas/estado`) pasa a match. 88 unitarios; e2e 225 de 226
+  (`roles-flexibles` falla solo en la corrida completa: cuenta las cuentas
+  ADMIN que dejan las otras suites y pasa de 10; pasa sola, no es de cobros).
+- Front: sin estado PENDIENTE_PAGO, cobro directo, origen del paciente ni
+  penalizacion en el recordatorio. Vitest 142/142, lint limpio.
+- Seed demo: sin pagos, acuerdos, comisiones ni moroso (Rodrigo queda como
+  paciente online, `rodrigo@`).
+- La llave FINANCIERO queda sin columnas que cifrar: no se toca (solo los
+  scripts de llaves).
+- Pendiente aparte (no es de cobros): 5 Playwright de UI desactualizados
+  (contacto de emergencia en Mi cuenta, selector del adulto responsable,
+  reseña en el perfil, match paso a paso, landing y equipo).
 
 ## Recuperacion de contraseña y enlace de acceso sin revelar cuentas (2026-11-15)
 

@@ -274,7 +274,7 @@ export class CitasController {
     return this.citas.verificar(dto);
   }
 
-  /** Paciente con deuda: 422 citas_paciente_moroso, salvo `motivoAutorizacionDeuda` de ADMIN/GESTION (03b-3.3). */
+  /** Agenda una cita CONFIRMADA (equipo de agenda) y avisa al paciente. */
   @Post()
   @Roles(...EQUIPO_AGENDA)
   crear(@Body() dto: CrearCitaDto): Promise<CitaVista> {
@@ -307,7 +307,7 @@ export class CitasController {
     return this.citas.responderPropuesta(id, dto);
   }
 
-  /** 03b-3.3: libera a mano una hora retenida (reserva sin cuenta). Con comprobante por validar: 409. */
+  /** 03b-3.3: libera a mano una hora retenida (reserva sin cuenta), con motivo. */
   @Patch(':id/liberacion')
   @Roles('ADMIN', 'GESTION')
   liberar(@Param('id', Uuid) id: string, @Body() dto: LiberarHoraDto): Promise<CitaVista> {

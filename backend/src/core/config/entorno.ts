@@ -7,7 +7,7 @@
  * secret en produccion), nunca la llave en una variable.
  */
 import { plainToInstance, Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, MinLength, validateSync } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, MinLength, validateSync } from 'class-validator';
 
 // Se lee el valor original: la conversion implicita haria Boolean('false') = true.
 const aBooleano = ({ obj, key }: { obj: Record<string, unknown>; key: string }) =>
@@ -191,23 +191,6 @@ export class Entorno {
   EXPORTACIONES_DIR: string = '';
 
   /**
-   * 03b-3.1: pasarela de pago (integraciones.md). 'simulada' = modo
-   * demostracion, no cobra; vacio = sin pasarela (el centro no puede habilitar
-   * el medio PASARELA). Sin valor: 'simulada' fuera de produccion. En
-   * produccion la simulada no se acepta: hace falta un adaptador real con sus
-   * credenciales.
-   */
-  @IsOptional()
-  @IsIn(['', 'simulada'])
-  PASARELA_PROVEEDOR?: string;
-
-  /** Secreto con que la pasarela simulada firma su webhook (sin valor: uno al azar por arranque). */
-  @IsOptional()
-  @IsString()
-  @MinLength(32)
-  PASARELA_SECRETO_WEBHOOK?: string;
-
-  /**
    * 03b-4.2: apikey de la API de prestadores de la Superintendencia de Salud
    * (convenio con la Intendencia de Prestadores). Sin valor: verificacion
    * SIMULADA y la API arranca igual (aviso en el log); el ADMIN verifica a mano.
@@ -229,12 +212,8 @@ export function validarEntorno(config: Record<string, unknown>): Entorno {
     throw new Error(`Variables de entorno invalidas: ${detalle}`);
   }
   const produccion = config.NODE_ENV === 'production';
-  entorno.PASARELA_PROVEEDOR ??= produccion ? '' : 'simulada';
   if (produccion && entorno.JOBS_MANUALES) {
     throw new Error('Variables de entorno invalidas: JOBS_MANUALES no se permite en produccion (es solo para desarrollo y tests)');
-  }
-  if (produccion && entorno.PASARELA_PROVEEDOR === 'simulada') {
-    throw new Error('Variables de entorno invalidas: PASARELA_PROVEEDOR=simulada no se permite en produccion (falta un adaptador real con credenciales)');
   }
   return entorno;
 }

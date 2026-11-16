@@ -20,7 +20,7 @@ import {
 
 const Uuid = new ParseUUIDPipe();
 const PREFERENCIAS = { recordatorios: true, avisosOperativos: true, whatsapp: true, whatsappConsentidoEn: true } as const;
-const PREFERENCIAS_EQUIPO = { agenda: true, cobros: true, derivaciones: true, mensajes: true } as const;
+const PREFERENCIAS_EQUIPO = { agenda: true, derivaciones: true, mensajes: true } as const;
 
 /**
  * Mensajeria (02i). Registro (metadatos): ADMIN/GESTION todos; cada
@@ -104,7 +104,6 @@ export class NotificacionesController {
     return (
       (await this.bd.tx().preferenciaAvisoEquipo.findUnique({ where: { usuarioId: actor.id }, select: PREFERENCIAS_EQUIPO })) ?? {
         agenda: true,
-        cobros: true,
         derivaciones: true,
         mensajes: true,
       }

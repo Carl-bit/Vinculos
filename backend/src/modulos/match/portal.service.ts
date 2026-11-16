@@ -16,14 +16,13 @@ import type { MisDatosDto, ReservaPortalDto } from './dto/match.dto';
 import type { ReservaPortal } from './dto/portal-respuestas.dto';
 
 /**
- * Portal del paciente: su equipo tratante, sus citas, datos de pago (cobro
- * directo), mensajes al profesional (asimetricos: el profesional responde
+ * Portal del paciente: su equipo tratante, sus citas, mensajes al profesional (asimetricos: el profesional responde
  * por canales externos) y solicitudes de epicrisis. Consentimientos y avisos
  * estan en /consentimientos y /avisos-consentimiento (la RLS ya filtra).
  *
  * 03a (D-4): el adulto responsable (RESPONSABLE) opera por sus menores
  * indicando pacienteId; el adolescente (14-17) tiene cuenta restringida: sus
- * citas, recordatorios y mensajes (la RLS le oculta pagos, documentos y
+ * citas, recordatorios y mensajes (la RLS le oculta documentos y
  * epicrisis). C-9: el paciente edita solo su telefono y su correo.
  */
 @Injectable()
@@ -51,7 +50,7 @@ export class PortalService {
     const filas = await this.bd.tx().cita.findMany({
       where: {
         pacienteId,
-        ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'PENDIENTE_PAGO', 'SOLICITADA', 'PROPUESTA'] }, fin: { gt: new Date() } }),
+        ...(todas ? {} : { estado: { in: ['CONFIRMADA', 'POR_REPROGRAMAR', 'SOLICITADA', 'PROPUESTA'] }, fin: { gt: new Date() } }),
       },
       select: {
         id: true,
@@ -63,11 +62,8 @@ export class PortalService {
         inicio: true,
         fin: true,
         estado: true,
-        medioConfirmacion: true,
-        pagoVenceEn: true,
         aprobacionVenceEn: true,
         propuestaDeId: true,
-        agendadaPorEquipo: true,
       },
       orderBy: { inicio: todas ? 'desc' : 'asc' },
     });
@@ -80,38 +76,6 @@ export class PortalService {
       espacioNombre: espacio?.nombre ?? null,
       realizada: c.estado === 'CONFIRMADA' && c.fin <= ahora,
     }));
-  }
-
-  /**
-   * Datos de transferencia del profesional de SU cita, solo con cobro directo
-   * y cita CONFIRMADA con saldo > 0 ("pago pendiente" de Cobros, 02h).
-   * 0 filas = no corresponde: { aplica: false }.
-   */
-  async datosPago(citaId: string) {
-    const [f] = await this.bd.tx().$queryRaw<
-      {
-        profesional_id: string;
-        rut: Uint8Array | null;
-        banco: Uint8Array | null;
-        tipo_cuenta: Uint8Array | null;
-        numero_cuenta: Uint8Array | null;
-        titular: Uint8Array | null;
-      }[]
-    >`SELECT * FROM datos_pago_profesional(${citaId}::uuid)`;
-    if (!f) {
-      return { aplica: false as const };
-    }
-    const d = (col: 'rut' | 'banco' | 'tipo_cuenta' | 'numero_cuenta' | 'titular') =>
-      this.llavero.descifrarCampo(f[col], 'profesional_datos_privados', col, f.profesional_id);
-    return {
-      aplica: true as const,
-      profesionalId: f.profesional_id,
-      rut: d('rut'),
-      banco: d('banco'),
-      tipoCuenta: d('tipo_cuenta'),
-      numeroCuenta: d('numero_cuenta'),
-      titular: d('titular'),
-    };
   }
 
   /** Horas libres del tratante (disponibilidad_publica con el contexto del paciente: sirve aunque no tenga perfil publico). */

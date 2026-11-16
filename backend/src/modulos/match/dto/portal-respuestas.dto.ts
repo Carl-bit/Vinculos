@@ -5,7 +5,7 @@
  * propias y datos de contacto.
  */
 import { ApiProperty } from '@nestjs/swagger';
-import { CanalAceptacion, EstadoCita, EstadoEpicrisis, EstadoResena, MedioConfirmacion, ModalidadAtencion, MostrarResena } from '@prisma/client';
+import { CanalAceptacion, EstadoCita, EstadoEpicrisis, EstadoResena, ModalidadAtencion, MostrarResena } from '@prisma/client';
 
 /** mi_equipo_tratante() o supervisores_portal(): solo id y nombre. */
 export class PersonaPortal {
@@ -42,38 +42,14 @@ export class CitaPortal {
   fin!: Date;
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
   estado!: EstadoCita;
-  /** CONFIRMADA y ya terminada (la inasistencia se resuelve en Cobros). */
+  /** CONFIRMADA y ya terminada. */
   realizada!: boolean;
-  /** 03b-3.1: medio elegido para confirmar y plazo de pago (PENDIENTE_PAGO). */
-  @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', nullable: true })
-  medioConfirmacion!: MedioConfirmacion | null;
-  @ApiProperty({ type: String, format: 'date-time', nullable: true })
-  pagoVenceEn!: Date | null;
-  /** 03b-3.3: la agendo el equipo: si vence el plazo sin pago, la hora se mantiene y se paga en el centro (la propia se libera). */
-  agendadaPorEquipo!: boolean;
   /** MVP sin COBROS: plazo de la hora por confirmar (SOLICITADA) o para elegir una hora propuesta (PROPUESTA). */
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   aprobacionVenceEn!: Date | null;
   /** Punto 7 (2026-11-11): solicitud que el profesional no acepto; las PROPUESTA con el mismo valor son un grupo. */
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   propuestaDeId!: string | null;
-}
-
-/** Datos de transferencia del profesional: solo con cobro directo y saldo pendiente. */
-export class DatosPagoPortal {
-  aplica!: boolean;
-  @ApiProperty({ type: String, required: false })
-  profesionalId?: string;
-  @ApiProperty({ type: String, nullable: true, required: false })
-  rut?: string | null;
-  @ApiProperty({ type: String, nullable: true, required: false })
-  banco?: string | null;
-  @ApiProperty({ type: String, nullable: true, required: false })
-  tipoCuenta?: string | null;
-  @ApiProperty({ type: String, nullable: true, required: false })
-  numeroCuenta?: string | null;
-  @ApiProperty({ type: String, nullable: true, required: false })
-  titular?: string | null;
 }
 
 /** Mensaje al profesional. El paciente ve los de su registro; el adulto responsable, los que el escribio. */
@@ -216,7 +192,7 @@ export class EstadoConsentimientoAtencion {
   aceptada!: AceptacionVigentePortal | null;
 }
 
-/** Hora reservada desde la cuenta: PENDIENTE_PAGO (03b-3.2: se confirma con el pago) o CONFIRMADA (pago en el centro o nada que cobrar). */
+/** Hora reservada desde la cuenta: SOLICITADA hasta que la aprueba su profesional (MVP sin cobros). */
 export class ReservaPortal {
   citaId!: string;
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })

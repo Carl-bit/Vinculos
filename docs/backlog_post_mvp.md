@@ -7,8 +7,7 @@ indica de donde salio. Se mueve al plan activo cuando se decida retomarlo.
 
 | Item | Origen | Nota |
 |---|---|---|
-| Cobros: reglas de negocio completas, PDF de reporte y de liquidacion fuera de la peticion, indice `pagos (estado, fecha)` y paginacion de `/cobros/citas` (181 KB hoy) | AUD-02 (BD-03, BD-05, API-03); decision 2026-11-06 | Cuando el usuario cierre las reglas de finanzas |
-| Pasarela de pago real (conexion directa, Vinculos no recibe dinero) con clave de idempotencia por intento | Orden MVP 2026-10-30; AUD-02 EXT-02 | Hoy solo la simulada |
+| Cobros y finanzas: modulo nuevo a disenar desde cero (el anterior se borro el 2026-11-16, migracion `20261116000000_mvp_sin_cobros`; su diseno queda en `docs/api/propuesta_02h_cobros.md` y en el historial de git). Pasarela real conectada directo al centro (Vinculos no recibe dinero) | Decision 2026-11-16 | Cuando el usuario cierre las reglas de finanzas |
 | RNPI automatico (Superintendencia) | AUD-02, 2026-11-06 | Hoy manual: numero SIS + documento y verificacion del ADMIN. Con la apikey, sacar la consulta de la transaccion de la peticion antes de activarla |
 | TOTP (app autenticadora) | 03b-4.1 | Apagado (`TOTP_HABILITADO=false`); el segundo factor es por correo |
 | Lista de espera | 03b-3.2 | Retirada; si vuelve, LIBERADA es el punto donde avisar |

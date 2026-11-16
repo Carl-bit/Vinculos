@@ -16,9 +16,8 @@ export interface CampoCifrado {
   /** Columna de la fila usada como id en el AAD. */
   id: string;
   /**
-   * Nombre de la tabla con que se cifro, si la tabla se renombro despues
-   * (AUD-01: boletas -> comprobantes_pago). El AAD queda fijo: renombrar no
-   * obliga a recifrar.
+   * Nombre de la tabla con que se cifro, si la tabla se renombro despues. El
+   * AAD queda fijo: renombrar no obliga a recifrar.
    */
   aadTabla?: string;
 }
@@ -46,43 +45,7 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'Derivacion', campo: 'detalle', tabla: 'derivaciones', columna: 'detalle', categoria: 'CLINICO', id: 'id' },
   // citas conserva DEFAULT de id: el enlace se genera con la cita ya creada (id conocido).
   { modelo: 'Cita', campo: 'enlaceOnline', tabla: 'citas', columna: 'enlace_online', categoria: 'CLINICO', id: 'id' },
-  {
-    modelo: 'ComprobantePago',
-    campo: 'emisorNombre',
-    tabla: 'comprobantes_pago',
-    columna: 'emisor_nombre',
-    categoria: 'IDENTIFICACION',
-    id: 'id',
-    aadTabla: 'boletas',
-  },
-  {
-    modelo: 'ComprobantePago',
-    campo: 'emisorRut',
-    tabla: 'comprobantes_pago',
-    columna: 'emisor_rut',
-    categoria: 'IDENTIFICACION',
-    id: 'id',
-    aadTabla: 'boletas',
-  },
   { modelo: 'ProfesionalDatosPrivados', campo: 'rut', tabla: 'profesional_datos_privados', columna: 'rut', categoria: 'IDENTIFICACION', id: 'usuario_id' },
-  { modelo: 'ProfesionalDatosPrivados', campo: 'banco', tabla: 'profesional_datos_privados', columna: 'banco', categoria: 'FINANCIERO', id: 'usuario_id' },
-  {
-    modelo: 'ProfesionalDatosPrivados',
-    campo: 'tipoCuenta',
-    tabla: 'profesional_datos_privados',
-    columna: 'tipo_cuenta',
-    categoria: 'FINANCIERO',
-    id: 'usuario_id',
-  },
-  {
-    modelo: 'ProfesionalDatosPrivados',
-    campo: 'numeroCuenta',
-    tabla: 'profesional_datos_privados',
-    columna: 'numero_cuenta',
-    categoria: 'FINANCIERO',
-    id: 'usuario_id',
-  },
-  { modelo: 'ProfesionalDatosPrivados', campo: 'titular', tabla: 'profesional_datos_privados', columna: 'titular', categoria: 'FINANCIERO', id: 'usuario_id' },
   // 02g: portal del paciente (texto libre del paciente: puede traer datos de salud).
   { modelo: 'MensajePaciente', campo: 'contenido', tabla: 'mensajes_paciente', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
   { modelo: 'SolicitudEpicrisis', campo: 'motivo', tabla: 'solicitudes_epicrisis', columna: 'motivo', categoria: 'CLINICO', id: 'id' },
@@ -133,13 +96,6 @@ export const CAMPOS_CIFRADOS: readonly CampoCifrado[] = [
   { modelo: 'MensajeInterno', campo: 'contenido', tabla: 'mensajes_internos', columna: 'contenido', categoria: 'CLINICO', id: 'id' },
   { modelo: 'CorreoCuentaPendiente', campo: 'email', tabla: 'correos_cuenta_pendientes', columna: 'email', categoria: 'IDENTIFICACION', id: 'id' },
   { modelo: 'CorreoCuentaPendiente', campo: 'cuerpo', tabla: 'correos_cuenta_pendientes', columna: 'cuerpo', categoria: 'IDENTIFICACION', id: 'id' },
-  // 03b-3.1: cuenta del centro para transferencias y comprobante de la transferencia de una cita.
-  { modelo: 'CuentaBancariaCentro', campo: 'rut', tabla: 'cuenta_bancaria_centro', columna: 'rut', categoria: 'IDENTIFICACION', id: 'id' },
-  { modelo: 'CuentaBancariaCentro', campo: 'banco', tabla: 'cuenta_bancaria_centro', columna: 'banco', categoria: 'FINANCIERO', id: 'id' },
-  { modelo: 'CuentaBancariaCentro', campo: 'tipoCuenta', tabla: 'cuenta_bancaria_centro', columna: 'tipo_cuenta', categoria: 'FINANCIERO', id: 'id' },
-  { modelo: 'CuentaBancariaCentro', campo: 'numeroCuenta', tabla: 'cuenta_bancaria_centro', columna: 'numero_cuenta', categoria: 'FINANCIERO', id: 'id' },
-  { modelo: 'CuentaBancariaCentro', campo: 'titular', tabla: 'cuenta_bancaria_centro', columna: 'titular', categoria: 'FINANCIERO', id: 'id' },
-  { modelo: 'Transferencia', campo: 'comprobante', tabla: 'transferencias', columna: 'comprobante', categoria: 'FINANCIERO', id: 'id' },
   // AUD-01 (E2.3a): solicitudes de derechos (pueden traer datos de salud).
   { modelo: 'SolicitudDerecho', campo: 'detalle', tabla: 'solicitudes_derechos', columna: 'detalle', categoria: 'CLINICO', id: 'id' },
   { modelo: 'SolicitudDerecho', campo: 'respuesta', tabla: 'solicitudes_derechos', columna: 'respuesta', categoria: 'CLINICO', id: 'id' },

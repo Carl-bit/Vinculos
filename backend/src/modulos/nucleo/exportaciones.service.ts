@@ -239,9 +239,6 @@ export function textoLegible(d: Tablas): string {
   };
   lista('ADULTOS RESPONSABLES', d.adultos_responsables, (a) => `- ${f(a.nombre)} (${f(a.parentesco)})`);
   lista('CITAS', d.citas, (c) => `- ${f(c.inicio)} · ${f(c.modalidad)} · ${f(c.estado)}`);
-  lista('PAGOS', d.pagos, (x) => `- ${f(x.fecha)} · $${f(x.monto)} · ${f(x.medio_pago)} · ${f(x.estado)}`);
-  lista('COMPROBANTES DE PAGO', d.comprobantes_pago, (x) => `- ${f(x.numero)} · $${f(x.monto)}`);
-  lista('DOCUMENTOS TRIBUTARIOS', d.documentos_tributarios, (x) => `- ${f(x.tipo)} folio ${f(x.folio)} · $${f(x.monto)} · ${f(x.estado)}`);
   lista('POLITICAS Y CONSENTIMIENTOS ACEPTADOS', d.aceptaciones_politica, (x) => `- ${f(x.aceptada_en)} · ${f(x.canal)}`);
   lista('SOLICITUDES SOBRE TUS DATOS', d.solicitudes_derechos, (x) => `- ${f(x.recibida_en)} · ${f(x.tipo)} · ${f(x.estado)}`);
   lista('INGRESO A LA FICHA', d.ingresos_ficha, (x) => `- ${f(x.created_at)}`);

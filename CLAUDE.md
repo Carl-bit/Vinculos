@@ -48,8 +48,7 @@ naming especificos de Kibou. Proyecto de titulo, desarrollador unico.
    relativo entre ellos.
 3. Match Terapeutico: depende de Equipo (requerido) y Agenda y Espacios
    (opcional, para mostrar disponibilidad real).
-4. Cobros: depende de Agenda y Espacios (requerido) y Match Terapeutico
-   (opcional, solo si se factura por derivacion).
+Sin modulo de Cobros (decision 2026-11-16): ver "Fuera de alcance".
 
 ## Fuera de alcance ahora (no implementar salvo pedido explicito)
 - Onboarding self-service automatizado. El alta de un cliente nuevo es
@@ -61,10 +60,14 @@ naming especificos de Kibou. Proyecto de titulo, desarrollador unico.
   otro cliente real viene despues de validar el producto con el tenant de
   prueba, no antes.
 - Websockets/Redis para tiempo real: se resuelve con polling + soft-lock TTL.
-- Cobros/finanzas en el MVP (decision 2026-11-11): el modulo COBROS queda
-  apagado en todos los centros y no se muestra (tablas y funciones quedan
-  dormidas para la implementacion futura; sus tests lo encienden). Sin
-  COBROS, la hora que pide el paciente queda SOLICITADA y la aprueba su
+- Pagos y finanzas (decision 2026-11-16, reemplaza la de 2026-11-11 que los
+  dejaba dormidos): no existen en el MVP. La migracion
+  `20261116000000_mvp_sin_cobros` borro el modulo COBROS (enum, tablas,
+  funciones, columnas, estado PENDIENTE_PAGO, avisos de pago, cuenta bancaria,
+  morosidad, comisiones, liquidaciones, penalizacion por cancelar) y el backend
+  y el front no tienen nada de cobros. Quedan como dato informativo las tarifas
+  de los profesionales, FONASA y la boleta reembolsable. Volver a tener cobros
+  es disenar un modulo nuevo. La hora que pide el paciente queda SOLICITADA y la aprueba su
   profesional (`aprobar_cita` / `rechazar_cita`; el job vence el plazo de 24 h,
   que corre desde que se verifica el correo; sin verificar, la hora se retiene
   solo `minutos_retencion_solicitud`). Si no la acepta, puede

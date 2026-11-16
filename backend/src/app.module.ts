@@ -2,7 +2,6 @@ import { DynamicModule, Module } from '@nestjs/common';
 
 import { CoreModule, type OpcionesCore } from './core/core.module';
 import { AgendaModule } from './modulos/agenda/agenda.module';
-import { CobrosModule } from './modulos/cobros/cobros.module';
 import { DerivacionesModule } from './modulos/derivaciones/derivaciones.module';
 import { EquipoModule } from './modulos/equipo/equipo.module';
 import { FichasModule } from './modulos/fichas/fichas.module';
@@ -20,9 +19,9 @@ import { NucleoModule } from './modulos/nucleo/nucleo.module';
  *     1. Nucleo (usuarios, roles, RLS)
  *     2. Fichas y Pacientes | Agenda y Espacios | Equipo | Derivaciones
  *     3. Match Terapeutico  (depende de Equipo)
- *     4. Cobros             (depende de Agenda y Espacios)
+ * MVP sin cobros ni finanzas (2026-11-16): no hay modulo de Cobros.
  */
-export const MODULOS: DynamicModule['imports'] = [NucleoModule, FichasModule, AgendaModule, EquipoModule, DerivacionesModule, MatchModule, CobrosModule];
+export const MODULOS: DynamicModule['imports'] = [NucleoModule, FichasModule, AgendaModule, EquipoModule, DerivacionesModule, MatchModule];
 
 @Module({})
 export class AppModule {

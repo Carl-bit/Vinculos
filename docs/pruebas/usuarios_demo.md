@@ -28,7 +28,7 @@ Centro de demostración para pruebas manuales y Playwright. Solo desarrollo:
 |---|---|---|---|
 | `admin` | ADMIN + PROFESIONAL | — | cuenta madre; selector de rol activo (03b-4.1); perfil profesional sin publicar (Mi perfil muestra su perfil profesional) |
 | `directora` | ADMIN + PROFESIONAL | — | cambio de rol activo (prueba de roles) |
-| `gestion` | GESTION | — | agenda, cobros, consentimientos, selector de equipo |
+| `gestion` | GESTION | — | agenda, consentimientos, selector de equipo |
 | `profesional1` | PROFESIONAL | 12.345.678-5 | tratante de Paciente Prueba y Diego; perfil completo (FONASA, boleta, idiomas, formación verificada, reseña) |
 | `profesional2` | PROFESIONAL | — | supervisor del practicante; tratante de Sofía y Tomás |
 | `profesional3` | PROFESIONAL | — | candidato de la derivación en curso; tratante de Ignacio; solo presencial lun/mié/vie |
@@ -47,27 +47,27 @@ los filtros del equipo, el presupuesto por tramos y el match.
 
 | Usuario | Rol | RUT | Para qué |
 |---|---|---|---|
-| `paciente` | PACIENTE adulto | 11.111.111-1 | Paciente Prueba: horas, pagos, documentos, mensajes, reseña |
+| `paciente` | PACIENTE adulto | 11.111.111-1 | Paciente Prueba: horas, documentos, mensajes, reseña |
 | `paciente2` | PACIENTE | 22.222.222-2 | Camila, atendida por el practicante |
 | `paciente3` | PACIENTE | 33.333.333-3 | Diego, derivación en curso |
-| `moroso` | PACIENTE | 21.111.111-9 | Rodrigo, llegó por el centro; moroso (sesión realizada impaga), hora siguiente autorizada por GESTION con motivo |
+| `rodrigo` | PACIENTE | 21.111.111-9 | Rodrigo, atención online con Profesional Uno: una sesión realizada sin cerrar y la próxima en 9 días hábiles |
 | `adolescente` | PACIENTE 16 años | 25.555.555-3 | cuenta restringida (horas, recordatorios, mensajes) |
 | `madre.demo` | RESPONSABLE | 15.555.555-6 | adulta responsable de Sofía (12 años) |
 
 Pacientes sin cuenta: Sofía (24.444.444-K), Andrés (26.666.666-7, de
 Profesional Cuatro), Valentina (15 años, 27.777.777-0, de Profesional Cinco,
 con su madre como responsable) y Rocío (28.888.888-4, de Profesional Seis);
-cada profesional nuevo tiene dos horas agendadas. Reservas sin cuenta en
-cada estado de pago (retenida, pago en el centro, transferencia por validar,
-pagada en línea, liberada): ver `guion_manual.md` 0.5.
+cada profesional nuevo tiene dos horas agendadas. Reserva sin cuenta: la hora
+queda retenida hasta verificar el correo y luego por aprobar (Sara Demo
+Solicitud, para Profesional Uno).
 
 ## Verificación
 
 `docs/pruebas/verificacion_roles.md` (Playwright `e2e/roles.spec.ts`) recorre
 los usuarios por rol.
 
-Carga del centro: cada profesional atiende entre 10 y 50 pacientes (cuenta madre y directora incluidas, con rol PROFESIONAL), con horario fijo semanal o quincenal, de seis semanas atrás a cuatro adelante, en seis boxes. Las sesiones pasadas están pagadas y casi todas con evolución; algunas de los últimos días quedan sin cerrar. Las horas siguientes a las de mañana quedan sin pagar: con el paso de los días esos pacientes pasan a morosos, así que conviene `npm run demo:reset`. `seed:demo` tarda varios minutos más. En Box 1 y Box 4 Profesional Uno y Dos dejan libre de 13:00 a 15:00: esas horas se ven como libres en "Por box".
+Carga del centro: cada profesional atiende entre 10 y 50 pacientes (cuenta madre y directora incluidas, con rol PROFESIONAL), con horario fijo semanal o quincenal, de seis semanas atrás a cuatro adelante, en seis boxes. Las sesiones pasadas tienen casi todas su evolución; algunas de los últimos días quedan sin cerrar. `seed:demo` tarda varios minutos más. En Box 1 y Box 4 Profesional Uno y Dos dejan libre de 13:00 a 15:00: esas horas se ven como libres en "Por box".
 
-Agenda del seed (03b-4.1): todos los profesionales y el practicante tienen horas hoy y el próximo día hábil, si caen en los días de sus bloques; las de hoy que ya empezaron quedan sin evolución ("fichas por cerrar"). La morosidad cuenta desde la hora del seed y el centro bloquea a morosos, así que las horas de hoy y del próximo día hábil quedan pagadas en el centro (también las que terminan después del seed): solo Rodrigo queda moroso. La siguiente hora impaga del seed es a 2 días hábiles; si pasó ese plazo, `npm run demo:reset` antes de las pruebas que agendan.
+Agenda del seed (03b-4.1): todos los profesionales y el practicante tienen horas hoy y el próximo día hábil, si caen en los días de sus bloques; las de hoy que ya empezaron quedan sin evolución ("fichas por cerrar").
 
-Moroso y protocolo (03b-4.2): las sesiones de hoy que ya terminaron al correr el seed quedan pagadas en el centro y `morosidad_desde` se adelanta a justo antes de la sesión impaga de Rodrigo, así que él es el único moroso. Protocolo del centro: profesional1 lo marcó leído (el resto del equipo figura pendiente en Configuración > Políticas) y Paciente Prueba acusó el de pacientes. Comisión: 20 % general y $5.000 por sesión de pacientes que llegaron por el centro (Rodrigo y las reservas pagadas del sitio).
+Protocolo (03b-4.2): profesional1 lo marcó leído (el resto del equipo figura pendiente en Configuración > Políticas) y Paciente Prueba acusó el de pacientes. MVP sin cobros (2026-11-16): el demo no carga pagos, acuerdos, comisiones ni morosos; una BD cargada antes conserva al paciente `moroso@` como paciente común.

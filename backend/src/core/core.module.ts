@@ -1,5 +1,3 @@
-import { randomBytes } from 'node:crypto';
-
 import { DynamicModule, Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -22,7 +20,6 @@ import { CryptoModule } from './crypto/crypto.module';
 import { FiltroErrores } from './errores/filtro-errores';
 import { JobsService } from './jobs/jobs.service';
 import { CalendarioIcs, ProveedorCalendario } from './integraciones/calendario';
-import { PasarelaNoConfigurada, PasarelaSimulada, ProveedorPasarela } from './integraciones/pasarela';
 import { VerificadorPrestadores, VerificadorSimulado, VerificadorSuperSalud } from './integraciones/verificador-prestadores';
 import { ProveedorVideollamada, ProveedorVideollamadaPorProfesional, ProveedorVideollamadaSimulado } from './integraciones/videollamada';
 import { ProveedorCorreo, ProveedorCorreoSimulado, ProveedorCorreoSmtp } from './notificaciones/correo';
@@ -116,17 +113,6 @@ export class CoreModule {
         },
         { provide: ProveedorCalendario, useClass: CalendarioIcs },
         {
-          provide: ProveedorPasarela,
-          inject: [ConfigService],
-          useFactory: (config: ConfigService) =>
-            config.get<string>('PASARELA_PROVEEDOR') === 'simulada'
-              ? new PasarelaSimulada(
-                  config.get<string>('PASARELA_SECRETO_WEBHOOK') ?? randomBytes(32).toString('hex'),
-                  config.getOrThrow<string>('FRONTEND_URL'),
-                )
-              : new PasarelaNoConfigurada(),
-        },
-        {
           provide: VerificadorPrestadores,
           inject: [ConfigService],
           useFactory: (config: ConfigService) => {
@@ -148,7 +134,6 @@ export class CoreModule {
         ProveedorCorreo,
         ProveedorVideollamada,
         ProveedorCalendario,
-        ProveedorPasarela,
         VerificadorPrestadores,
         CorreosCuenta,
         ConcrecionReserva,

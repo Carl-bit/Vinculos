@@ -290,16 +290,16 @@ describe('02e equipo y practicantes', () => {
   describe('datos privados', () => {
     it('cifrados; solo el propio escribe; leen el propio y ADMIN/GESTION; RUT unico', async () => {
       const rut = rutNuevo();
-      const datos = { rut, banco: 'BancoEstado', tipoCuenta: 'CUENTA_RUT', numeroCuenta: '12345678', titular: 'Prof Prueba' };
+      const datos = { rut };
       const r = await t
         .http()
         .put('/api/profesionales/yo/datos-privados')
         .set(await tk(profesional))
         .send(datos);
       expect(r.status).toBe(200);
-      expect(r.body).toEqual(expect.objectContaining({ banco: 'BancoEstado', numeroCuenta: '12345678', rut: rut.replace('-', '') }));
+      expect(r.body).toEqual(expect.objectContaining({ rut: rut.replace('-', '') }));
       const fila = await t.dueno.profesionalDatosPrivados.findUniqueOrThrow({ where: { usuarioId: profesional.id } });
-      expect(Buffer.from(fila.numeroCuenta!).toString('latin1')).not.toContain('12345678');
+      expect(Buffer.from(fila.rut!).toString('latin1')).not.toContain(rut.replace('-', ''));
       for (const u of [admin, gestion, profesional]) {
         expect(
           (
@@ -307,8 +307,8 @@ describe('02e equipo y practicantes', () => {
               .http()
               .get(`/api/profesionales/${profesional.id}/datos-privados`)
               .set(await tk(u))
-          ).body.numeroCuenta,
-        ).toBe('12345678');
+          ).body.rut,
+        ).toBe(rut.replace('-', ''));
       }
       // Leer los datos de otro queda auditado; el propio no (2026-11-05).
       const lecturas = await t.dueno.registroExportacion.findMany({ where: { recurso: 'profesional_datos_privados', referenciaId: profesional.id } });
@@ -335,7 +335,7 @@ describe('02e equipo y practicantes', () => {
             .http()
             .put('/api/profesionales/yo/datos-privados')
             .set(await tk(otroProfesional))
-            .send({ banco: 'Banco Inventado' })
+            .send({ rut: '11.111.111-2' })
         ).status,
       ).toBe(400);
       const dup = await t

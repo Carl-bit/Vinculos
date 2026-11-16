@@ -26,10 +26,6 @@ import type {
 const VISTA_PRIVADOS = {
   usuarioId: true,
   rut: true,
-  banco: true,
-  tipoCuenta: true,
-  numeroCuenta: true,
-  titular: true,
   updatedAt: true,
 } satisfies Prisma.ProfesionalDatosPrivadosSelect;
 
@@ -58,10 +54,6 @@ const CON_RESPALDOS = {
 const vistaPrivados = (d: Privados) => ({
   usuarioId: d.usuarioId,
   rut: texto(d.rut),
-  banco: texto(d.banco),
-  tipoCuenta: texto(d.tipoCuenta),
-  numeroCuenta: texto(d.numeroCuenta),
-  titular: texto(d.titular),
   updatedAt: d.updatedAt,
 });
 
@@ -289,10 +281,6 @@ export class EquipoService {
     const datos = {
       rut: claro(dto.rut),
       rutHmac: dto.rut ? this.llavero.hmacRut(dto.rut) : undefined,
-      banco: claro(dto.banco),
-      tipoCuenta: claro(dto.tipoCuenta),
-      numeroCuenta: claro(dto.numeroCuenta),
-      titular: claro(dto.titular),
     };
     const fila = await this.bd
       .tx()

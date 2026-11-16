@@ -3,7 +3,7 @@
  * (roles por cuenta, TOTP, recuperacion, enlace de acceso, invitaciones),
  * centro (modulos, contenido, politicas, horario, dashboard), match por
  * reglas, solicitud de hora sin cuenta, acceso temporal,
- * borradores, alta, reseñas, portal (menores y adulto responsable) y cobros.
+ * borradores, alta, reseñas y portal (menores y adulto responsable).
  */
 import { randomUUID } from 'node:crypto';
 
@@ -305,13 +305,13 @@ describe('03a alineacion con el diseño', () => {
         .http()
         .get('/api/modulos')
         .set(await tk(paciente));
-      expect(r.body.activos).toEqual(expect.arrayContaining(['FICHAS', 'AGENDA', 'COBROS']));
-      await t.dueno.$executeRaw`UPDATE configuracion_centro SET modulos_activos = ARRAY['PAGINA_PUBLICA','FICHAS','AGENDA','EQUIPO','MATCH']::modulo_centro[]`;
+      expect(r.body.activos).toEqual(expect.arrayContaining(['FICHAS', 'AGENDA', 'MATCH']));
+      await t.dueno.$executeRaw`UPDATE configuracion_centro SET modulos_activos = ARRAY['PAGINA_PUBLICA','FICHAS','AGENDA','EQUIPO']::modulo_centro[]`;
       t.app.get(ModulosGuard).olvidar();
       try {
         const c = await t
           .http()
-          .get('/api/cobros/citas')
+          .get('/api/match/preguntas')
           .set(await tk(admin));
         expect(c.status).toBe(403);
         expect(c.body.restriccion).toBe('modulo_inactivo');
@@ -325,7 +325,7 @@ describe('03a alineacion con el diseño', () => {
         ).toBe(200);
       } finally {
         await t.dueno
-          .$executeRaw`UPDATE configuracion_centro SET modulos_activos = ARRAY['PAGINA_PUBLICA','FICHAS','AGENDA','EQUIPO','MATCH','COBROS']::modulo_centro[]`;
+          .$executeRaw`UPDATE configuracion_centro SET modulos_activos = ARRAY['PAGINA_PUBLICA','FICHAS','AGENDA','EQUIPO','MATCH']::modulo_centro[]`;
         t.app.get(ModulosGuard).olvidar();
       }
     });
@@ -583,7 +583,7 @@ describe('03a alineacion con el diseño', () => {
         .post('/api/publico/solicitudes/verificacion')
         .send({ token: tokenDe(ultimoA(email)) });
       expect(v.status).toBe(200);
-      expect(v.body).toEqual(expect.objectContaining({ estado: 'CONFIRMADA', invitacionEnviada: true }));
+      expect(v.body).toEqual(expect.objectContaining({ estado: 'SOLICITADA', invitacionEnviada: true }));
       expect(
         (
           await t
@@ -1020,7 +1020,7 @@ describe('03a alineacion con el diseño', () => {
       expect(aceptaciones.body.map((a: { canal: string }) => a.canal)).toEqual(expect.arrayContaining(['PORTAL', 'TOKEN']));
     });
 
-    it('menores (D-4): el adolescente no ve montos; el adulto responsable ve citas y estado de pago de su menor, no sus mensajes', async () => {
+    it('menores (D-4): el adolescente ve sus citas; el adulto responsable ve las de su menor, no sus mensajes', async () => {
       const teen = await t.datos.usuarioPaciente(prof.id, { fechaNacimiento: new Date(Date.now() - 15.5 * 365.25 * DIA) });
       const adulto = await t.dueno.adultoResponsable.create({
         data: { id: randomUUID(), pacienteId: teen.pacienteId, nombre: 'Paula', email: 'paula@test.cl' },
@@ -1041,15 +1041,6 @@ describe('03a alineacion con el diseño', () => {
             .set(await tk(teen))
         ).body.map((c: { id: string }) => c.id),
       ).toContain(cita.body.id);
-      // Cuenta restringida: la ruta responde, pero la RLS no le muestra montos.
-      expect(
-        (
-          await t
-            .http()
-            .get('/api/cobros/citas')
-            .set(await tk(teen))
-        ).body,
-      ).toEqual([]);
       await t
         .http()
         .post('/api/portal/mensajes')
@@ -1071,14 +1062,6 @@ describe('03a alineacion con el diseño', () => {
             .query({ pacienteId: teen.pacienteId })
             .set(await tk(responsable))
         ).body.map((c: { id: string }) => c.id),
-      ).toContain(cita.body.id);
-      expect(
-        (
-          await t
-            .http()
-            .get('/api/cobros/citas')
-            .set(await tk(responsable))
-        ).body.map((c: { cita_id: string }) => c.cita_id),
       ).toContain(cita.body.id);
       expect(
         (
@@ -1114,61 +1097,6 @@ describe('03a alineacion con el diseño', () => {
             .set(await tk(responsable))
         ).status,
       ).toBe(403);
-    });
-  });
-
-  describe('cobros', () => {
-    it('reporte por profesional y PDF (sin datos clinicos); PDF de liquidacion', async () => {
-      const desde = new Date(Date.now() - 30 * DIA).toISOString().slice(0, 10);
-      const hasta = new Date(Date.now() + 30 * DIA).toISOString().slice(0, 10);
-      const r = await t
-        .http()
-        .get('/api/cobros/reporte')
-        .query({ desde, hasta })
-        .set(await tk(gestion));
-      expect(r.status).toBe(200);
-      expect(r.body).toEqual(expect.objectContaining({ profesionales: expect.any(Array), medios: expect.any(Array) }));
-      const propio = await t
-        .http()
-        .get('/api/cobros/reporte')
-        .query({ desde, hasta })
-        .set(await tk(prof));
-      expect(propio.body.profesionales.every((p: { profesional_id: string }) => p.profesional_id === prof.id)).toBe(true);
-      expect(
-        (
-          await t
-            .http()
-            .get('/api/cobros/reporte')
-            .query({ desde, hasta })
-            .set(await tk(paciente))
-        ).status,
-      ).toBe(403);
-      const pdf = await t
-        .http()
-        .get('/api/cobros/reporte/pdf')
-        .query({ desde, hasta })
-        .set(await tk(gestion))
-        .buffer(true)
-        .parse(binario);
-      expect(pdf.headers['content-type']).toBe('application/pdf');
-      expect((pdf.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
-      const liq = await t
-        .http()
-        .post('/api/cobros/liquidaciones')
-        .set(await tk(gestion))
-        .send({
-          profesionalId: otroProf.id,
-          desde: new Date(Date.now() - 400 * DIA).toISOString().slice(0, 10),
-          hasta: new Date(Date.now() - 390 * DIA).toISOString().slice(0, 10),
-        });
-      expect(liq.status).toBe(201);
-      const lp = await t
-        .http()
-        .get(`/api/cobros/liquidaciones/${liq.body.id}/pdf`)
-        .set(await tk(gestion))
-        .buffer(true)
-        .parse(binario);
-      expect(lp.headers['content-type']).toBe('application/pdf');
     });
   });
 });

@@ -4,7 +4,7 @@
  * front lo tome del esquema generado.
  */
 import { ApiProperty } from '@nestjs/swagger';
-import { EstadoCita, MedioConfirmacion, ModalidadAtencion, MotivoBloqueoAgenda, RespuestaRecordatorio } from '@prisma/client';
+import { EstadoCita, ModalidadAtencion, MotivoBloqueoAgenda, RespuestaRecordatorio } from '@prisma/client';
 
 /** Horas de box apartadas por un profesional (su agenda). */
 export class BloqueAtencionVista {
@@ -27,12 +27,11 @@ export class BloquesLiberados {
   eliminados!: number;
 }
 
-/** Si cancela ahora: a tiempo (sin cargo) o tardia (penalizacion sobre lo pagado). */
+/** Si cancela ahora: a tiempo (dentro del plazo de aviso) o tardia. Sin cargos (MVP sin cobros). */
 export class CancelacionRecordatorio {
   aTiempo!: boolean;
   @ApiProperty({ required: false })
   plazoAvisoHoras?: number;
-  penalizacionPorcentaje!: number;
 }
 
 /** Pagina del recordatorio (sin sesion, no consume el enlace). */
@@ -73,29 +72,24 @@ export class CitaVista {
   modalidad!: ModalidadAtencion;
   margenTrasladoMin!: number;
   profesionalId!: string;
-  /** 03b-3.2: nulo solo en RETENIDA (reserva sin cuenta en curso: el paciente nace con el pago). */
+  /** 03b-3.2: nulo solo en RETENIDA (reserva sin cuenta en curso: el paciente nace al verificar el correo). */
   @ApiProperty({ type: String, nullable: true })
   pacienteId!: string | null;
   inicio!: Date;
   fin!: Date;
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
   estado!: EstadoCita;
-  @ApiProperty({ type: Number, nullable: true, description: 'Fijado por la BD al confirmar' })
-  monto!: number | null;
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   canceladaEn!: Date | null;
-  /** 03b-3.2: plazo de pago (PENDIENTE_PAGO o RETENIDA); la agendada por el equipo, hasta las horas configuradas antes (12 por defecto). */
+  /** RETENIDA: plazo para verificar el correo (si no, la hora se libera sola). */
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
-  pagoVenceEn!: Date | null;
+  retencionVenceEn!: Date | null;
   /** MVP sin COBROS: plazo para que el profesional apruebe la hora SOLICITADA (despues el job la cancela). */
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   aprobacionVenceEn!: Date | null;
   /** Punto 7: solicitud original de la que sale una hora PROPUESTA (el plazo para elegir es aprobacionVenceEn). */
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   propuestaDeId!: string | null;
-  /** PAGO_EN_CENTRO en una cita del equipo sin plazo para el cobro previo, o cuyo plazo vencio sin pago (03b-3.3). */
-  @ApiProperty({ enum: MedioConfirmacion, enumName: 'MedioConfirmacion', nullable: true })
-  medioConfirmacion!: MedioConfirmacion | null;
   /** 03b-3.3: hora retenida liberada a mano por ADMIN/GESTION (LIBERADA). */
   @ApiProperty({ type: String, nullable: true })
   motivoLiberacion!: string | null;

@@ -31,7 +31,7 @@ function diaYMinuto(fecha: Date): { dia: number; minuto: number } {
 
 /**
  * Portal publico (sin autenticacion, sin contexto RLS: funciones diseñadas
- * para eso) y Match terapeutico. Nunca RUT, datos bancarios ni contacto.
+ * para eso) y Match terapeutico. Nunca RUT ni contacto.
  */
 @Injectable()
 export class MatchService {

@@ -30,7 +30,7 @@ describe('Perfiles de rol', () => {
     }
   });
 
-  it('ADMIN crea "Recepcion" sobre Gestion sin agenda de cobros (no acepta modulos fuera del MVP); GESTION no crea', async () => {
+  it('ADMIN crea "Recepcion" sobre Gestion (no acepta modulos fuera del MVP); GESTION no crea', async () => {
     expect(
       (
         await t
@@ -46,7 +46,7 @@ describe('Perfiles de rol', () => {
           .http()
           .post('/api/perfiles')
           .set(await tk(admin))
-          .send({ nombre: 'Finanzas', rolBase: 'GESTION', restricciones: ['COBROS'] })
+          .send({ nombre: 'Mensajeria', rolBase: 'GESTION', restricciones: ['WHATSAPP'] })
       ).status,
     ).toBe(400);
     const p = await t

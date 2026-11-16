@@ -69,7 +69,6 @@ export function FormularioPerfil({
   const [f, setF] = useState(inicial.current);
   const opcionesIniciales = useRef({
     perfilPublico: perfil?.perfilPublico ?? false,
-    cobroDirecto: perfil?.cobroDirecto ?? false,
     boletaReembolsable: perfil?.boletaReembolsable ?? false,
   });
   const [opciones, setOpciones] = useState(opcionesIniciales.current);
@@ -122,7 +121,6 @@ export function FormularioPerfil({
         enfoques: lista(f.enfoques),
         idiomas: lista(f.idiomas),
         convenios: lista(f.convenios),
-        cobroDirecto: opciones.cobroDirecto,
         boletaReembolsable: opciones.boletaReembolsable,
       };
       return modo === 'propio'

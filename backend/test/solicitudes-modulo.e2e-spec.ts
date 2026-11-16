@@ -56,14 +56,14 @@ describe('Solicitudes de modulos (tarea 31) y /api/internal (R2, R3)', () => {
       .set(await tk(admin))
       .send({ modulo: 'AGENDA', accion: 'ACTIVAR' });
     expect(yaActivo.status).toBe(422);
-    const cobros = await t
+    const whatsapp = await t
       .http()
       .post('/api/configuracion/solicitudes-modulo')
       .set(await tk(admin))
-      .send({ modulo: 'COBROS', accion: 'ACTIVAR' });
-    expect(cobros.status).toBe(422);
+      .send({ modulo: 'WHATSAPP', accion: 'ACTIVAR' });
+    expect(whatsapp.status).toBe(422);
     // Mensaje propio de la regla (core/errores/sqlstate.ts), no el generico.
-    expect(cobros.body.mensaje).toMatch(/no está disponible/);
+    expect(whatsapp.body.mensaje).toMatch(/no está disponible/);
     expect(yaActivo.body.mensaje).toMatch(/ya está en ese estado/);
 
     const ok = await t

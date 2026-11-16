@@ -66,9 +66,9 @@ describe('03b-4 previos: reserva y descarga desde el portal', () => {
     expect((libres.body as { inicio: string; fin: string }[]).some((x) => x.inicio <= h.inicio && x.fin >= h.fin)).toBe(true);
     const r = await reservar(paciente, h);
     expect(r.status).toBe(201);
-    expect(r.body).toEqual({ citaId: expect.any(String), estado: 'CONFIRMADA', profesionalId: tratante.id });
+    expect(r.body).toEqual({ citaId: expect.any(String), estado: 'SOLICITADA', profesionalId: tratante.id });
     const cita = await t.dueno.cita.findUniqueOrThrow({ where: { id: r.body.citaId } });
-    expect(cita).toEqual(expect.objectContaining({ pacienteId: paciente.pacienteId, estado: 'CONFIRMADA' }));
+    expect(cita).toEqual(expect.objectContaining({ pacienteId: paciente.pacienteId, estado: 'SOLICITADA' }));
     expect(cita.espacioId).not.toBeNull();
     expect(await t.dueno.aceptacionPolitica.count({ where: { pacienteId: paciente.pacienteId, canal: 'PORTAL' } })).toBe(2);
 
@@ -76,7 +76,7 @@ describe('03b-4 previos: reserva y descarga desde el portal', () => {
     const otro = await t.datos.usuarioPaciente(tratante.id);
     const choque = await reservar(otro, h);
     expect(choque.status).toBe(409);
-    expect(await t.dueno.cita.count({ where: { profesionalId: tratante.id, inicio: new Date(h.inicio), estado: 'CONFIRMADA' } })).toBe(1);
+    expect(await t.dueno.cita.count({ where: { profesionalId: tratante.id, inicio: new Date(h.inicio), estado: 'SOLICITADA' } })).toBe(1);
 
     // Otra hora: no repite las aceptaciones de la misma version.
     expect((await reservar(paciente, hora())).status).toBe(201);

@@ -1,6 +1,6 @@
 /**
  * Cierre hacia el MVP: revocar un acceso temporal, avisos del equipo por
- * correo, bloques del centro para administracion y regla C-11 de cargos. Por rol.
+ * correo y bloques del centro para administracion. Por rol.
  */
 import { auth, crearApp, type AppPrueba, type UsuarioPrueba } from './apoyo';
 
@@ -25,7 +25,6 @@ describe('MVP cierre', () => {
   });
 
   afterAll(async () => {
-    await t.dueno.configuracionCentro.update({ where: { id: true }, data: { liquidarCargosAProfesional: false } });
     await t.cerrar();
   });
 
@@ -84,19 +83,18 @@ describe('MVP cierre', () => {
     const h = await tk(tratante);
     expect((await t.http().get('/api/notificaciones/preferencias-equipo').set(h)).body).toEqual({
       agenda: true,
-      cobros: true,
       derivaciones: true,
       mensajes: true,
     });
-    const r = await t.http().put('/api/notificaciones/preferencias-equipo').set(h).send({ cobros: false });
+    const r = await t.http().put('/api/notificaciones/preferencias-equipo').set(h).send({ mensajes: false });
     expect(r.status).toBe(200);
-    expect(r.body).toEqual({ agenda: true, cobros: false, derivaciones: true, mensajes: true });
+    expect(r.body).toEqual({ agenda: true, derivaciones: true, mensajes: false });
     expect((await t.http().put('/api/notificaciones/preferencias-equipo').set(h).send({ legales: false })).status).toBe(400);
     const ajeno = await t
       .http()
       .get('/api/notificaciones/preferencias-equipo')
       .set(await tk(otro));
-    expect(ajeno.body.cobros).toBe(true);
+    expect(ajeno.body.mensajes).toBe(true);
 
     const paciente = await t.datos.usuarioPaciente(tratante.id);
     expect(
@@ -129,23 +127,5 @@ describe('MVP cierre', () => {
       .set(await tk(tratante));
     expect(ocupacion.status).toBe(200);
     for (const o of ocupacion.body as Record<string, unknown>[]) expect(o).not.toHaveProperty('profesional_id');
-  });
-
-  it('C-11: la regla de cargos la cambia ADMIN, GESTION no; apagada por defecto', async () => {
-    const cambio = { liquidarCargosAProfesional: true };
-    const h = await tk(admin);
-    expect((await t.http().get('/api/configuracion').set(h)).body.liquidarCargosAProfesional).toBe(false);
-    expect(
-      (
-        await t
-          .http()
-          .patch('/api/configuracion')
-          .set(await tk(gestion))
-          .send(cambio)
-      ).status,
-    ).toBe(403);
-    const r = await t.http().patch('/api/configuracion').set(h).send(cambio);
-    expect(r.status).toBe(200);
-    expect(r.body.liquidarCargosAProfesional).toBe(true);
   });
 });

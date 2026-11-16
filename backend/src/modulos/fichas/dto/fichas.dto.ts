@@ -133,7 +133,7 @@ export class EditarPacienteDto {
 
 const booleano = () => Transform(({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value));
 
-/** Mapa id -> nombre del panel (agenda, cobros, avisos): todos los que el rol ve, sin columnas cifradas. */
+/** Mapa id -> nombre del panel (agenda, avisos): todos los que el rol ve, sin columnas cifradas. */
 export class FiltroResumenPacientesDto {
   @IsOptional()
   @IsUUID()
@@ -616,12 +616,6 @@ export class CrearIngresoDto {
 }
 
 /** Resolucion de un posible duplicado (solo administracion). */
-/** 03b-4.2 (C-10): el paciente llego por el centro (sitio publico o alta por administracion). */
-export class OrigenPacienteDto {
-  @IsBoolean()
-  traidoPorCentro!: boolean;
-}
-
 export class ResolverDuplicadoDto {
   @IsIn(['DISTINTO', 'MISMO_PACIENTE'])
   resolucion!: 'DISTINTO' | 'MISMO_PACIENTE';
@@ -663,8 +657,6 @@ export class PacienteVista {
   contactoEmergencia!: string | null;
   creadoPorSolicitud!: boolean;
   posibleDuplicado!: boolean;
-  /** 03b-4.2 (C-10): llego por el centro; sus sesiones usan la regla de comision por derivacion. */
-  traidoPorCentro!: boolean;
   /** AUD-01 (E2.3c): bloqueo del tratamiento por solicitud del titular; impide gestiones nuevas. */
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   bloqueoDesde!: Date | null;

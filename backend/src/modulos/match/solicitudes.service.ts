@@ -10,7 +10,7 @@ import { esSqlstate } from '../../core/errores/sqlstate';
 import { CorreosCuenta } from '../../core/notificaciones/correos-cuenta';
 import { ConcrecionReserva, type DatosSolicitud } from '../../core/reservas/concrecion-reserva';
 import type { SolicitudHoraDto } from './dto/match.dto';
-import type { SolicitudCreada, SolicitudVerificada } from './dto/publico-respuestas.dto';
+import type { EstadoReserva, SolicitudCreada, SolicitudVerificada } from './dto/publico-respuestas.dto';
 
 interface FilaSolicitud extends DatosSolicitud {
   adulto_nombre: string | null;
@@ -31,14 +31,14 @@ const MAX_RESPUESTAS = 8000;
  * 1. crear: valida y retiene la hora (03b-3.2: cita RETENIDA sin paciente,
  *    protegida por el EXCLUDE, por los minutos de retencion); guarda datos y
  *    respuestas del match cifrados con el id de la solicitud y entrega el
- *    token opaco de la reserva. El siguiente paso es pagar (Cobros); el
- *    enlace al correo sale solo si se paga en el centro (unico medio, nada
- *    que cobrar, o elegido despues en la reserva). Rate limit por IP
- *    (publico), maximo de reservas en curso por correo (BD) y trampa para bots.
- * 2. verificar: el enlace del correo concreta la reserva con pago en el
- *    centro (ConcrecionReserva: paciente con su ficha, cita CONFIRMADA,
- *    aceptaciones) e invita a crear la cuenta. Con la retencion vencida vale
+ *    token opaco de la reserva; sale el enlace para verificar el correo.
+ *    Rate limit por IP (publico), maximo de reservas en curso por correo (BD)
+ *    y trampa para bots.
+ * 2. verificar: el enlace del correo concreta la reserva (ConcrecionReserva:
+ *    paciente con su ficha, aceptaciones, cita SOLICITADA para su
+ *    profesional) e invita a crear la cuenta. Con la retencion vencida vale
  *    si la hora sigue libre; si no, 409 con horas cercanas.
+ * 3. estado: la pestaña consulta el estado de la reserva con su token.
  */
 @Injectable()
 export class SolicitudesService {
@@ -57,7 +57,7 @@ export class SolicitudesService {
     if (dto.sitioWeb) {
       // Bot: misma respuesta, sin efectos.
       this.logger.warn('Solicitud descartada por la trampa para bots');
-      return { expiraEn: new Date(Date.now() + 30 * 60_000), verificacionEnviada: false, reserva: reserva.token };
+      return { expiraEn: new Date(Date.now() + 30 * 60_000), reserva: reserva.token };
     }
     if (dto.fin <= dto.inicio) {
       throw new BadRequestException('fin debe ser posterior a inicio');
@@ -69,8 +69,8 @@ export class SolicitudesService {
     const id = randomUUID();
     const c = (valor: string | undefined, columna: string) => (valor ? this.llavero.cifrarCampo(valor, 'solicitudes_hora', columna, id) : null);
     const { token, hash } = nuevoTokenCorreo();
-    const [{ expira, verificar_correo }] = await this.bd.sinContexto('publico').$queryRaw<[{ expira: Date; verificar_correo: boolean }]>`
-      SELECT expira, verificar_correo FROM crear_solicitud_hora(
+    const [{ expira }] = await this.bd.sinContexto('publico').$queryRaw<[{ expira: Date }]>`
+      SELECT expira FROM crear_solicitud_hora(
         ${id}::uuid, ${dto.profesionalId}::uuid, ${dto.modalidad}::modalidad_atencion, ${dto.inicio}, ${dto.fin},
         ${dto.nombre}, ${dto.apellido}, ${dto.fechaNacimiento}::date, ${dto.email}, ${c(dto.telefono, 'telefono')},
         ${c(dto.rut, 'rut')}, ${dto.rut ? Buffer.from(this.llavero.hmacRut(dto.rut)) : null}, ${dto.adultoNombre ?? null},
@@ -80,10 +80,16 @@ export class SolicitudesService {
     if (dto.aceptaWhatsapp) {
       await this.bd.sinContexto('publico').$executeRaw`SELECT consentir_whatsapp_solicitud(${id}::uuid, ${reserva.hash})`;
     }
-    if (verificar_correo) {
-      await this.correos.enviar('VERIFICACION_SOLICITUD', dto.email, token, expira);
-    }
-    return { expiraEn: expira, verificacionEnviada: verificar_correo, reserva: reserva.token };
+    await this.correos.enviar('VERIFICACION_SOLICITUD', dto.email, token, expira);
+    return { expiraEn: expira, reserva: reserva.token };
+  }
+
+  /** Solo estado, vencimiento y siguiente paso (sin datos personales). La pestaña lo consulta cada pocos segundos. */
+  async estadoReserva(reserva: string): Promise<EstadoReserva> {
+    const [f] = await this.bd.sinContexto('publico').$queryRaw<
+      { estado: EstadoReserva['estado']; vence_en: Date | null; siguiente: EstadoReserva['siguiente'] }[]
+    >`SELECT * FROM estado_reserva(${hashToken(reserva)})`;
+    return { estado: f.estado, venceEn: f.vence_en, siguiente: f.siguiente };
   }
 
   async verificar(token: string): Promise<SolicitudVerificada> {

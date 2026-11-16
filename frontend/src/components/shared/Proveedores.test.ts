@@ -16,7 +16,7 @@ describe('Tiempo real por polling', () => {
     expect(intervalo(['panel', 'pacientes'])).toBe(30_000);
     expect(intervalo(['publico', 'profesionales'], 60_000)).toBe(60_000);
     expect(intervalo(['catalogos', 'x'], 10 * 60_000)).toBe(120_000);
-    expect(intervalo(['pago', 'transferencia'], Infinity)).toBe(false);
+    expect(intervalo(['politica', 'vigente'], Infinity)).toBe(false);
   });
 
   it('tras una accion invalida todo menos lo fijo', async () => {

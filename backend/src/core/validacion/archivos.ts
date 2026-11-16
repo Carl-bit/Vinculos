@@ -5,7 +5,7 @@ const FIRMAS: { tipo: string; firma: number[] }[] = [
   { tipo: 'image/jpeg', firma: [0xff, 0xd8, 0xff] },
 ];
 
-/** PDF, PNG o JPEG segun el contenido (adjuntos de la ficha, comprobantes de transferencia). */
+/** PDF, PNG o JPEG segun el contenido (adjuntos de la ficha, respaldos del equipo). */
 export function tipoPorContenido(datos: Buffer): string | undefined {
   return FIRMAS.find((f) => datos.length >= f.firma.length && f.firma.every((b, i) => datos[i] === b))?.tipo;
 }

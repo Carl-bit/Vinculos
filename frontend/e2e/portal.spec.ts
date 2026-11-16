@@ -1,7 +1,7 @@
 import { expect, test } from './prueba';
 import type { Page } from '@playwright/test';
 
-import { ingresarEquipo, sqlPrueba } from './apoyo';
+import { aprobarHora, ingresarEquipo, sqlPrueba } from './apoyo';
 
 /** Seed demo (docs/pruebas/guion_manual.md): pacientes y adulto responsable del portal (03b-3). */
 const PASSWORD = 'dev-password';
@@ -79,8 +79,10 @@ test('recuperar contraseña y enlace de acceso: respuesta identica exista o no l
 });
 
 test('paciente: pide hora con su tratante sin repetir datos y descarga su documento', async ({ page, browser }) => {
+  // Dos ingresos con codigo por correo (paciente y su tratante, que aprueba) y la limpieza como ADMIN.
+  test.setTimeout(120_000);
   await ingresar(page, 'paciente');
-  await page.getByRole('navigation', { name: 'Menú del portal' }).getByRole('link', { name: 'Pedir una hora' }).click();
+  await page.goto('/portal/pedir-hora');
   await expect(page.getByRole('heading', { name: /^Con / })).toBeVisible();
   await page.getByRole('button', { name: 'Reservar esta hora' }).waitFor();
   // Primera hora libre de la grilla.
@@ -93,20 +95,18 @@ test('paciente: pide hora con su tratante sin repetir datos y descarga su docume
   await expect(page.getByText('Para reservar, acepta la política de datos')).toBeVisible();
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Reservar esta hora' }).click();
-  // Seed demo: medios en linea habilitados y 50% para confirmar (03b-3.1): la hora espera el pago (confirmado 2026-10-27).
-  await expect(page.getByRole('heading', { name: 'Falta el pago para confirmar tu hora' })).toBeVisible();
-  await page.getByRole('radio', { name: /^Pago en el centro/ }).check();
-  await page.getByRole('button', { name: 'Continuar' }).click();
-  await expect(page.getByText('Tu hora quedó confirmada')).toBeVisible();
-
-  // Limpieza: confirmada sin pago, al pasar la hora seria deuda y el paciente demo quedaria
-  // moroso (bloquea agendar en otras pruebas). Administracion la anula desde la agenda.
+  // MVP sin COBROS: sin paso de pago; la hora llega a su tratante (SOLICITADA) y el la aprueba.
+  await expect(page.getByRole('heading', { name: 'Enviamos tu solicitud' })).toBeVisible();
   const citaId = sqlPrueba(
     `SELECT c.id FROM citas c JOIN usuarios u ON u.paciente_id = c.paciente_id
-     WHERE u.email = '${correo('paciente')}' AND c.estado = 'CONFIRMADA' ORDER BY c.created_at DESC LIMIT 1`,
+     WHERE u.email = '${correo('paciente')}' AND c.estado = 'SOLICITADA' ORDER BY c.created_at DESC LIMIT 1`,
   );
+  await aprobarHora(page, citaId);
+
+  // Limpieza: la hora confirmada ocuparia la agenda de Profesional Uno en las otras pruebas.
+  // Recepcion (GESTION, un solo rol) la anula desde la agenda.
   const admin = await (await browser.newContext()).newPage();
-  await ingresarEquipo(admin, 'admin');
+  await ingresarEquipo(admin, 'gestion');
   await admin.goto(`/admin/agenda?cita=${citaId}`);
   await admin.getByRole('dialog').getByRole('button', { name: 'Cancelar cita' }).click();
   await admin.getByRole('dialog').getByRole('button', { name: 'Sí, cancelar' }).click();

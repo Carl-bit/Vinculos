@@ -8,7 +8,7 @@
  * prueba a mano. Como dueño (sin RLS) solo lo que la API no permite por
  * diseño: vencer el acceso de un practicante (exige expiracion futura) y las
  * citas pasadas (solo agenda en huecos futuros); la BD aplica igual sus
- * reglas (disponibilidad, EXCLUDE, monto fijado al confirmar).
+ * reglas (disponibilidad, EXCLUDE, menor con adulto responsable).
  *
  * Idempotente: si los usuarios demo ya existen no hace nada. Para volver a
  * cargar desde cero: npm run demo:reset (recrea la BD local). Se niega con
@@ -24,13 +24,11 @@ import { join } from 'node:path';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { type ModalidadAtencion, type ModuloCentro, PrismaClient } from '@prisma/client';
+import { type ModalidadAtencion, PrismaClient } from '@prisma/client';
 
 import { AppModule } from '../src/app.module';
 import { configurarApp } from '../src/configurar-app';
 import { hashToken } from '../src/core/auth/tokens-correo';
-import { JobsService } from '../src/core/jobs/jobs.service';
-import { ModulosGuard } from '../src/core/modulos/modulos';
 import { type Correo, ProveedorCorreo } from '../src/core/notificaciones/correo';
 import { dvRut } from '../src/core/validacion/validadores';
 
@@ -217,23 +215,11 @@ async function main(): Promise<void> {
     return token;
   };
 
-  // MVP (2026-11-11): COBROS viene apagado. El demo carga tambien los datos del modulo dormido (pagos,
-  // acuerdos, un moroso) para la implementacion futura y lo apaga al final: en el MVP no se ven.
-  const modulosMvp: ModuloCentro[] = (await dueno.configuracionCentro.findUniqueOrThrow({ where: { id: true } })).modulosActivos.filter(
-    (m) => m !== 'COBROS',
-  );
-  const conCobros = async (activo: boolean) => {
-    await dueno.configuracionCentro.update({ where: { id: true }, data: { modulosActivos: activo ? [...modulosMvp, 'COBROS'] : modulosMvp } });
-    app.get(ModulosGuard).olvidar();
-  };
-
   try {
-    await conCobros(true);
     // --- Centro y equipo -------------------------------------------------------
     const admin = await login(`admin@${DOMINIO}`);
     await llamar(admin, 'PATCH', '/configuracion', {
       rolGestionHabilitado: true,
-      modeloCobro: 'CENTRO',
       nombreCentro: 'Centro de Prueba Vinculos (DEMO)',
       rutCentro: rut('76111222'),
       plazoAvisoCancelacionHoras: 24,
@@ -505,14 +491,8 @@ async function main(): Promise<void> {
     await apartar(directoraProfesional, directoraId, box6, '09:00', '13:00', [1, 3, 5]);
     await apartar(adminProfesional, adminId, box6, '09:00', '14:00', [2, 4]);
 
-    // Datos para la copia de autoria de las evoluciones y para las liquidaciones (cifrados).
-    await llamar(prof1, 'PUT', '/profesionales/yo/datos-privados', {
-      rut: rut('12345678'),
-      banco: 'BancoEstado',
-      tipoCuenta: 'CUENTA_RUT',
-      numeroCuenta: '12345678',
-      titular: 'Profesional Uno (Demo)',
-    });
+    // RUT para la copia de autoria de las evoluciones (cifrado).
+    await llamar(prof1, 'PUT', '/profesionales/yo/datos-privados', { rut: rut('12345678') });
     // Trayectoria verificada por ADMIN: es la que muestra el perfil publico (titulos y años de experiencia).
     for (const [token, cuerpo] of [
       [prof1, { tipo: 'TITULO', titulo: 'Psicologo (Demo)', institucion: 'Universidad Ficticia', anio: 2015, registroSuperintendencia: '000000' }],
@@ -737,12 +717,11 @@ async function main(): Promise<void> {
     // --- Citas -------------------------------------------------------------------
     const gestion = await login(MARCA);
     const cita = (cuerpo: Cuerpo) => llamar(gestion, 'POST', '/citas', cuerpo);
-    // Pasadas: la API solo agenda en huecos futuros; como dueño, con las mismas reglas de la BD (bloques de box, EXCLUDE,
-    // monto). El box presencial lo pone la BD (el del bloque del profesional).
-    const pasada = await dueno.cita.create({
+    // Pasadas: la API solo agenda en huecos futuros; como dueño, con las mismas reglas de la BD (bloques de box,
+    // EXCLUDE). El box presencial lo pone la BD (el del bloque del profesional).
+    await dueno.cita.create({
       data: { pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(-5, '10:00') },
     });
-    await llamar(gestion, 'POST', `/cobros/citas/${pasada.id}/pagos`, { monto: 35000, medioPago: 'TRANSFERENCIA' });
     // Reseña publicada (perfil publico): el paciente con una sesion realizada la escribe y ADMIN la modera.
     const paciente = await login(`paciente@${DOMINIO}`);
     const resena = await llamar(paciente, 'POST', '/portal/resenas', {
@@ -753,8 +732,7 @@ async function main(): Promise<void> {
     });
     await llamar(admin, 'POST', `/resenas/${resena.id}/moderacion`, { publicar: true });
     await dueno.cita.create({ data: { pacienteId: camila.id, profesionalId: practicanteId, modalidad: 'ONLINE', ...horario(-3, '16:00') } });
-    const parcial = await cita({ pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(4, '10:00') });
-    await llamar(gestion, 'POST', `/cobros/citas/${parcial.id}/pagos`, { monto: 15000, medioPago: 'EFECTIVO' });
+    await cita({ pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'PRESENCIAL', ...horario(4, '10:00') });
     await cita({ pacienteId: pacientePrueba, profesionalId: prof1Id, modalidad: 'ONLINE', ...horario(6, '12:00') });
     await cita({ pacienteId: sofia.id, profesionalId: prof2Id, modalidad: 'PRESENCIAL', ...horario(4, '15:00') });
     await cita({ pacienteId: camila.id, profesionalId: practicanteId, modalidad: 'ONLINE', ...horario(5, '17:00') });
@@ -788,19 +766,11 @@ async function main(): Promise<void> {
     // futuro; la BD aplica igual bloques, EXCLUDE y menor con adulto); quedan sin evolucion. El resto, por la API.
     const hoyChile = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
     const diasCercanos = [...new Set([hoyChile, diaHabil(1)])].filter((f) => diaSemana(f) >= 1 && diaSemana(f) <= 5);
-    // Todas quedan pagadas en el centro, tambien las que terminan despues del seed: morosidad_desde es la hora
-    // del seed y el centro bloquea a morosos, asi que una hora de hoy o mañana impaga volveria moroso al
-    // paciente al terminar y los tests que agendan fallarian sin `demo:reset` (solo Rodrigo debe; ver abajo).
     const horaCercana = async (pacienteId: string, profesionalId: string, modalidad: ModalidadAtencion, fecha: string, hora: string) => {
       const inicio = enChile(fecha, hora);
       const cuerpo = { pacienteId, profesionalId, modalidad, inicio: inicio.toISOString(), fin: new Date(inicio.getTime() + 50 * 60_000).toISOString() };
-      const creada: { id: string; monto: number | null } =
-        inicio.getTime() <= Date.now() + 15 * 60_000
-          ? await dueno.cita.create({ data: cuerpo })
-          : ((await cita(cuerpo)) as unknown as { id: string; monto: number | null });
-      if (creada.monto) {
-        await llamar(gestion, 'POST', `/cobros/citas/${creada.id}/pagos`, { monto: creada.monto, medioPago: 'EFECTIVO' });
-      }
+      if (inicio.getTime() <= Date.now() + 15 * 60_000) await dueno.cita.create({ data: cuerpo });
+      else await cita(cuerpo);
     };
     for (const fecha of diasCercanos) {
       for (const [pacienteId, profesionalId, modalidad, hora] of [
@@ -815,7 +785,7 @@ async function main(): Promise<void> {
       }
     }
     await llamar(prof1, 'PATCH', `/pacientes/${pacientePrueba}`, { contactoEmergencia: 'Contacto Demo (hermana) +56922222222' });
-    // 03b-4.1: un paciente y horas para cada profesional nuevo (agenda, cobros y fichas sin vistas vacias).
+    // 03b-4.1: un paciente y horas para cada profesional nuevo (agenda y fichas sin vistas vacias).
     // n-esimo dia habil desde `desde` que cae en uno de los dias de la semana con horas apartadas.
     const diaCon = (diasSemana: number[], desde: number) => {
       let n = desde;
@@ -885,11 +855,10 @@ async function main(): Promise<void> {
       contenido: 'Mensaje demo de la madre: Sofía llegará 10 minutos tarde el martes.',
     });
 
-    // --- MVP sin cobros (2026-11-11): la hora que pide el paciente la aprueba su profesional ---------------
-    // Con COBROS apagado (como queda el centro), dos solicitudes para "Esta semana" de Profesional Uno: una desde
-    // la cuenta de Paciente Prueba y una de alguien nuevo que verifico su correo (ahi nacen su paciente y su
-    // ficha). Profesional Uno las aprueba o rechaza desde el inicio; si nadie responde, el job las cancela.
-    await conCobros(false);
+    // --- La hora que pide el paciente la aprueba su profesional ------------------------------------------
+    // Dos solicitudes para "Esta semana" de Profesional Uno: una desde la cuenta de Paciente Prueba y una de
+    // alguien nuevo que verifico su correo (ahi nacen su paciente y su ficha). Profesional Uno las aprueba o
+    // rechaza desde el inicio; si nadie responde, el job las cancela.
     const politicaDatos = (await llamar(null, 'GET', '/publico/politicas/POLITICA_DATOS')).id;
     const terminosAgenda = (await llamar(null, 'GET', '/publico/politicas/TERMINOS_AGENDAMIENTO')).id;
     await llamar(paciente, 'POST', '/portal/citas', {
@@ -909,21 +878,12 @@ async function main(): Promise<void> {
         NULL, NULL, NULL, NULL, NULL, ${politicaDatos}::uuid, ${terminosAgenda}::uuid, ${hashToken(correo)},
         ${hashToken(randomBytes(32).toString('base64url'))})`;
     await llamar(null, 'POST', '/publico/solicitudes/verificacion', { token: correo });
-    await conCobros(true);
-
-    // Comision por derivacion: monto fijo por sesion de pacientes traidos por el centro; el resto, 20% general.
-    await llamar(admin, 'PATCH', '/configuracion', {
-      comisionCentroPorcentaje: 20,
-      comisionDerivacionTipo: 'MONTO_FIJO',
-      comisionDerivacionValor: 5000,
-    });
 
     // --- Carga del centro: entre 10 y 50 pacientes por profesional (cuenta madre y directora incluidas) -------
     // Para ver la agenda y los listados con el volumen de un centro real. Cada paciente tiene un horario fijo,
-    // semanal o quincenal, de seis semanas atras a cuatro adelante; va antes del moroso porque morosidad_desde
-    // todavia es la hora del seed. Las citas van como dueño (las pasadas la API no las agenda, y asi las futuras
-    // no generan avisos), saltando las horas ya tomadas. Pasadas y las de mañana quedan pagadas (solo Rodrigo
-    // debe); las pasadas tienen evolucion, salvo algunas de los ultimos dias para "fichas por cerrar".
+    // semanal o quincenal, de seis semanas atras a cuatro adelante. Las citas van como dueño (las pasadas la API
+    // no las agenda, y asi las futuras no generan avisos), saltando las horas ya tomadas. Las pasadas tienen
+    // evolucion, salvo algunas de los ultimos dias para "fichas por cerrar".
     // Las horas online de Rodrigo (abajo) y las contiguas, por el margen de traslado.
     const reservadas = [horario(-2, '09:00'), horario(-2, '10:00'), horario(-2, '11:00'), horario(9, '10:00'), horario(9, '11:00'), horario(9, '12:00')].map(
       (h) => h.inicio,
@@ -1002,9 +962,7 @@ async function main(): Promise<void> {
     ] as { login: () => Promise<string>; id: string; pacientes: number; tipoAtencionId: string; menores: boolean; franjas: [number[], number, number][] }[];
     const semanaDe = (fecha: string) => Math.floor((Date.parse(fecha) / DIA + 3) / 7);
     const ultimaFecha = diaHabil(20);
-    const ultimaPagada = diaHabil(1);
     const cierreReciente = diaHabil(-4);
-    const gestionCarga = await login(MARCA);
     let correlativo = 0;
     for (const p of cargaCentro) {
       const token = await p.login();
@@ -1057,7 +1015,7 @@ async function main(): Promise<void> {
       }
       // Online por dia completo: entre modalidades distintas la BD exige el margen de traslado.
       const modalidadDe = (dia: number): ModalidadAtencion => (p.id === prof4.id ? 'ONLINE' : p.id === prof5.id || dia !== 5 ? 'PRESENCIAL' : 'ONLINE');
-      const citasCarga: { id: string; monto: number | null; fin: Date; fecha: string; fichaId: string; n: number }[] = [];
+      const citasCarga: { id: string; fin: Date; fecha: string; fichaId: string; n: number }[] = [];
       for (const fecha of fechas.filter((f) => f <= ultimaFecha)) {
         for (const c of pacientes) {
           const inicio = enChile(fecha, c.hora);
@@ -1067,7 +1025,7 @@ async function main(): Promise<void> {
           const creada = await dueno.cita
             .create({
               data: { pacienteId: c.pacienteId, profesionalId: p.id, modalidad: modalidadDe(c.dia), inicio, fin: new Date(inicio.getTime() + 50 * 60_000) },
-              select: { id: true, monto: true, fin: true },
+              select: { id: true, fin: true },
             })
             // Junto a una hora fija de otra modalidad no cabe (citas_margen_traslado): esa semana no se agenda.
             .catch((e: unknown) => {
@@ -1078,11 +1036,6 @@ async function main(): Promise<void> {
           citasCarga.push({ ...creada, fecha, fichaId: c.fichaId, n: citasCarga.length });
         }
       }
-      await enParalelo(
-        citasCarga.filter((c) => c.monto && c.fecha <= ultimaPagada),
-        6,
-        (c) => llamar(gestionCarga, 'POST', `/cobros/citas/${c.id}/pagos`, { monto: c.monto, medioPago: c.n % 3 === 0 ? 'EFECTIVO' : 'TRANSFERENCIA' }),
-      );
       const realizadas = citasCarga.filter((c) => c.fin.getTime() <= Date.now() && !(c.fecha >= cierreReciente && c.n % 4 === 0));
       await enParalelo(realizadas, 6, (c) => {
         const [titulo, texto] = NOTAS[c.n % NOTAS.length]!;
@@ -1105,66 +1058,24 @@ async function main(): Promise<void> {
       corrigeAId: corregible.id,
     });
 
-    // --- 03b-4.2: paciente moroso y protocolo del centro ---------------------------
-    // morosidad_desde la fija la migracion (hora del reseed), asi que ninguna sesion anterior cuenta como deuda.
-    // Para dejar un caso registrado, Rodrigo (llego por el centro) tiene una sesion realizada hace 2 dias habiles
-    // sin pagar y morosidad_desde se adelanta (como dueño) a justo antes de esa sesion. Las demas sesiones
-    // terminadas desde entonces estan pagadas, asi que solo Rodrigo queda moroso.
+    // --- 03b-4.2: paciente online y protocolo del centro ------------------------------
+    // Rodrigo atiende online con Profesional Uno: una sesion realizada hace 2 dias habiles (sin evolucion, queda
+    // en "fichas por cerrar") y la proxima en 9 dias habiles.
     const rodrigo = await llamar(prof1, 'POST', '/pacientes', {
       nombre: 'Rodrigo',
-      apellido: 'Demo Moroso',
+      apellido: 'Demo Online',
       rut: rut('21111111'),
       fechaNacimiento: '1987-09-09',
-      email: `moroso@${DOMINIO}`,
+      email: `rodrigo@${DOMINIO}`,
       tipoAtencionId: adultos,
     });
-    await crearUsuario({ email: `moroso@${DOMINIO}`, nombre: 'Rodrigo Demo Moroso', rol: 'PACIENTE', pacienteId: rodrigo.id });
-    await llamar(gestion, 'PUT', `/pacientes/${rodrigo.id}/origen`, { traidoPorCentro: true });
-    const impaga = await dueno.cita.create({ data: { pacienteId: rodrigo.id, profesionalId: prof1Id, modalidad: 'ONLINE', ...horario(-2, '10:00') } });
-    await dueno.configuracionCentro.update({ where: { id: true }, data: { morosidadDesde: new Date(impaga.inicio.getTime() - 60_000) } });
-    // Agendar queda bloqueado: GESTION autoriza con motivo la proxima hora (queda en excepciones_morosidad) y el job
-    // envia el aviso de deuda al paciente y al profesional (Mailpit).
-    await cita({
-      pacienteId: rodrigo.id,
-      profesionalId: prof1Id,
-      modalidad: 'ONLINE',
-      ...horario(9, '11:00'),
-      motivoAutorizacionDeuda: 'Demo: el paciente regulariza la deuda en la proxima sesion',
-    });
-    await app.get(JobsService).avisarDeudas();
+    await crearUsuario({ email: `rodrigo@${DOMINIO}`, nombre: 'Rodrigo Demo Online', rol: 'PACIENTE', pacienteId: rodrigo.id });
+    await dueno.cita.create({ data: { pacienteId: rodrigo.id, profesionalId: prof1Id, modalidad: 'ONLINE', ...horario(-2, '10:00') } });
+    await cita({ pacienteId: rodrigo.id, profesionalId: prof1Id, modalidad: 'ONLINE', ...horario(9, '11:00') });
     // Protocolo del centro (textos iniciales de la migracion): Profesional Uno marca leido el interno y Paciente
     // Prueba acusa el de pacientes en el portal. El resto del equipo figura pendiente para la direccion.
     await llamar(prof1, 'POST', '/protocolo/lectura');
     await llamar(paciente, 'POST', '/portal/protocolo', {});
-    // Acuerdos por profesional (Configuracion > Cobros): B para Profesional Uno y C para la directora desde hoy (cobra el
-    // centro, como el modelo del centro); A para Profesional Dos desde el proximo mes (no cambia los cobros ya cargados).
-    // El resto usa el acuerdo del centro.
-    const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Santiago' });
-    const proximoMes = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
-    const acuerdo = (profesionalId: string, datos: Cuerpo) =>
-      llamar(admin, 'POST', '/cobros/acuerdos', {
-        profesionalId,
-        comisionDerivacionTipo: 'GENERAL',
-        comisionDerivacionValor: 0,
-        cuotaMensual: 0,
-        cargoBoxHora: 0,
-        ivaBox: false,
-        vigenteDesde: hoy,
-        ...datos,
-      });
-    await acuerdo(prof1Id, { modelo: 'CENTRO', cobra: 'CENTRO', comisionPorcentaje: 20, comisionDerivacionTipo: 'MONTO_FIJO', comisionDerivacionValor: 5000 });
-    await acuerdo(prof2Id, {
-      modelo: 'DIRECTO',
-      cobra: 'PROFESIONAL',
-      comisionPorcentaje: 0,
-      comisionDerivacionTipo: 'PORCENTAJE',
-      comisionDerivacionValor: 15,
-      cargoBoxHora: 6800,
-      ivaBox: true,
-      vigenteDesde: proximoMes,
-    });
-    await acuerdo(directoraId, { modelo: 'MIXTO', cobra: 'CENTRO', comisionPorcentaje: 12, cuotaMensual: 90000 });
-
     // Fichas y Pacientes (2026-11-06): consentimiento informado de atencion firmado en el centro (respaldo en papel)
     // para todos menos dos, que quedan pendientes en el seguimiento del equipo y en el "Por hacer" del tratante:
     // Maria Jose Aguilera (adulta, Profesional Uno) y Agustin Aguilera (menor, lo otorga su adulto responsable).
@@ -1181,7 +1092,6 @@ async function main(): Promise<void> {
         adultoResponsableId: adulto?.id,
       });
     }
-    await conCobros(false);
   } finally {
     await app.close();
     await dueno.$disconnect();

@@ -1,7 +1,7 @@
 /**
  * 02i: mensajeria (plantillas, preferencias, cola con backoff), recordatorios
- * con token, .ics con UID/SEQUENCE, documentos (PDF y adjuntos de la ficha) y
- * devolucion sin penalizacion. Por rol.
+ * con token, .ics con UID/SEQUENCE y documentos (PDF y adjuntos de la ficha).
+ * Por rol.
  */
 import { ProveedorCorreo, type ProveedorCorreoSimulado } from '../src/core/notificaciones/correo';
 import { NotificacionesService } from '../src/core/notificaciones/notificaciones.service';
@@ -56,7 +56,7 @@ describe('02i mensajeria, recordatorios y documentos', () => {
     correo().fallar = false;
     await t.dueno.configuracionCentro.update({
       where: { id: true },
-      data: { recordatorioHorasAntes: 48, plazoAvisoCancelacionHoras: 24, penalizacionCancelacionPorcentaje: 0 },
+      data: { recordatorioHorasAntes: 48, plazoAvisoCancelacionHoras: 24 },
     });
     await t.cerrar();
   });
@@ -244,7 +244,7 @@ describe('02i mensajeria, recordatorios y documentos', () => {
       .http()
       .patch('/api/configuracion')
       .set(await tk(admin))
-      .send({ recordatorioHorasAntes: 72, plazoAvisoCancelacionHoras: 24, penalizacionCancelacionPorcentaje: 50 });
+      .send({ recordatorioHorasAntes: 72, plazoAvisoCancelacionHoras: 24 });
     const p = await profesional();
     const pac = await t.datos.usuarioPaciente(p.id);
     const aTiempo = await nuevaCita(p.id, pac.pacienteId, 48);
@@ -268,21 +268,19 @@ describe('02i mensajeria, recordatorios y documentos', () => {
 
     // Antes de confirmar se informa que politica aplicaria; sin datos del paciente.
     const info = await t.http().get(`/api/recordatorios/${tokTardia}`);
-    expect(info.body).toEqual(
-      expect.objectContaining({ vigente: true, modalidad: 'ONLINE', cancelacion: { aTiempo: false, plazoAvisoHoras: 24, penalizacionPorcentaje: 50 } }),
-    );
+    expect(info.body).toEqual(expect.objectContaining({ vigente: true, modalidad: 'ONLINE', cancelacion: { aTiempo: false, plazoAvisoHoras: 24 } }));
     expect(JSON.stringify(info.body)).not.toContain(pac.pacienteId);
     expect((await t.http().get(`/api/recordatorios/${tokATiempo}`)).body.cancelacion.aTiempo).toBe(true);
     expect((await t.http().get('/api/recordatorios/token-inexistente')).status).toBe(404);
 
     const cancelaATiempo = await t.http().post(`/api/recordatorios/${tokATiempo}/cancelacion`);
-    expect([cancelaATiempo.status, cancelaATiempo.body]).toEqual([200, { respuesta: 'CANCELADA', cancelacion: { aTiempo: true, penalizacionPorcentaje: 0 } }]);
+    expect([cancelaATiempo.status, cancelaATiempo.body]).toEqual([200, { respuesta: 'CANCELADA', cancelacion: { aTiempo: true } }]);
     expect((await citaDe(aTiempo.id)).estado).toBe('CANCELADA');
     expect((await t.http().post(`/api/recordatorios/${tokATiempo}/cancelacion`)).status).toBe(409);
     expect((await t.http().post(`/api/recordatorios/${tokATiempo}/confirmacion`)).status).toBe(409);
 
     const cancelaTardia = await t.http().post(`/api/recordatorios/${tokTardia}/cancelacion`);
-    expect(cancelaTardia.body).toEqual({ respuesta: 'CANCELADA', cancelacion: { aTiempo: false, penalizacionPorcentaje: 50 } });
+    expect(cancelaTardia.body).toEqual({ respuesta: 'CANCELADA', cancelacion: { aTiempo: false } });
 
     const confirmada = await t.http().post(`/api/recordatorios/${tokConfirma}/confirmacion`);
     expect([confirmada.status, confirmada.body]).toEqual([200, { respuesta: 'CONFIRMADA' }]);
@@ -525,50 +523,5 @@ describe('02i mensajeria, recordatorios y documentos', () => {
           .send({ recordatorioHorasAntes: 48, plazoAvisoCancelacionHoras: 24 })
       ).status,
     ).toBe(200);
-  });
-
-  it('cobros: cancelacion a tiempo con pagos y sin reagendar = devolucion completa sin penalizacion; el paciente recibe aviso del pago', async () => {
-    await t
-      .http()
-      .patch('/api/configuracion')
-      .set(await tk(admin))
-      .send({ plazoAvisoCancelacionHoras: 24, penalizacionCancelacionPorcentaje: 50 });
-    const p = await profesional();
-    await t
-      .http()
-      .post('/api/profesionales/yo/tarifas')
-      .set(await tk(p))
-      .send({ monto: 30000 });
-    const pac = await t.datos.usuarioPaciente(p.id);
-    const cita = await nuevaCita(p.id, pac.pacienteId, 96);
-    expect(
-      (
-        await t
-          .http()
-          .post(`/api/cobros/citas/${cita.id}/pagos`)
-          .set(await tk(gestion))
-          .send({ monto: 10000, medioPago: 'TRANSFERENCIA' })
-      ).status,
-    ).toBe(201);
-    await t
-      .http()
-      .patch(`/api/citas/${cita.id}/cancelacion`)
-      .set(await tk(gestion));
-    const r = await t
-      .http()
-      .post(`/api/cobros/citas/${cita.id}/resolucion`)
-      .set(await tk(gestion))
-      .send({ decision: 'DEVOLUCION' });
-    expect(r.status).toBe(200);
-    expect(r.body.resolucion).toEqual(expect.objectContaining({ decision: 'DEVOLUCION', aTiempo: true, montoDevolucion: 10000, montoExigible: 0 }));
-    expect(Number(r.body.resolucion.porcentaje)).toBe(0);
-    expect([r.body.estado_pago, r.body.saldo]).toEqual(['SIN_COBRO', 0]);
-
-    await procesarMensajes(t);
-    const bandeja = await t
-      .http()
-      .get('/api/notificaciones/bandeja')
-      .set(await tk(pac));
-    expect(bandeja.body.map((m: { asunto: string }) => m.asunto)).toEqual(expect.arrayContaining(['Pago registrado', 'Cita cancelada']));
   });
 });

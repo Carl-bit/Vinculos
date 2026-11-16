@@ -36,7 +36,6 @@ const VISTA_PACIENTE = {
   contactoEmergencia: true,
   creadoPorSolicitud: true,
   posibleDuplicado: true,
-  traidoPorCentro: true,
   bloqueoDesde: true,
   bloqueoMotivo: true,
   createdAt: true,
@@ -159,7 +158,7 @@ export class PacientesService {
 
   /**
    * Todos los que el rol ve (RLS), sin columnas cifradas: para armar nombres en
-   * agenda, cobros y avisos. ponytail: sin paginar; con miles de pacientes por
+   * agenda y avisos. ponytail: sin paginar; con miles de pacientes por
    * centro, que cada vista reciba el nombre en su propia respuesta.
    */
   resumen(filtro: FiltroResumenPacientesDto = {}) {
@@ -203,13 +202,6 @@ export class PacientesService {
   async duplicadoRevisado(id: string, resolucion: 'DISTINTO' | 'MISMO_PACIENTE') {
     await this.obtener(id);
     await this.bd.tx().$executeRaw`SELECT resolver_posible_duplicado(${id}::uuid, ${resolucion})`;
-    return this.obtener(id);
-  }
-
-  /** 03b-4.2 (C-10): ADMIN/GESTION marcan si el paciente llego por el centro (define la comision de sus sesiones). */
-  async marcarOrigen(id: string, traidoPorCentro: boolean) {
-    await this.obtener(id);
-    await this.bd.tx().$executeRaw`SELECT marcar_origen_paciente(${id}::uuid, ${traidoPorCentro})`;
     return this.obtener(id);
   }
 

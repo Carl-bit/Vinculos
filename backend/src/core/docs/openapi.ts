@@ -80,7 +80,6 @@ export const TAGS = {
   derivaciones: 'Derivaciones y consentimientos',
   publico: 'Match publico',
   portal: 'Portal del paciente',
-  cobros: 'Cobros',
 } as const;
 
 export function documentoOpenApi(app: INestApplication): OpenAPIObject {

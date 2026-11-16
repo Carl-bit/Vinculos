@@ -36,8 +36,8 @@ describe('menuVisible', () => {
     expect(practicante).not.toContain('Match Terapéutico');
   });
 
-  it('MVP sin COBROS: ni Cobros ni Pagos en ningun menu, aunque el modulo llegara activo', () => {
-    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH', 'COBROS'] as const;
+  it('MVP sin cobros: ni Cobros ni Pagos en ningun menu', () => {
+    const todos = ['PAGINA_PUBLICA', 'FICHAS', 'AGENDA', 'EQUIPO', 'MATCH'] as const;
     for (const rol of ['ADMIN', 'GESTION', 'PROFESIONAL'] as const) expect(etiquetas(menuVisible('admin', rol, todos))).not.toContain('Cobros');
     expect(etiquetas(menuVisible('portal', 'PACIENTE', todos))).not.toContain('Pagos');
   });

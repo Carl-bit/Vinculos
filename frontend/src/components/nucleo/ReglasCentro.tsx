@@ -49,7 +49,7 @@ type IdGrupo = 'reservas' | 'clinico' | 'cuentas';
 
 /**
  * Grupos del diseño "Opcion A submenu agrupado": Agenda y plazos (3). MVP sin
- * COBROS (2026-11-11): sin comisiones, cargos, deudas ni parametros tributarios.
+ * cobros ni finanzas.
  */
 const GRUPOS: { id: IdGrupo; titulo: string; bajada: string; campos: Campo[] }[] = [
   {
@@ -121,7 +121,7 @@ export const MODULOS: { id: ConfiguracionCentro['modulosActivos'][number]; nombr
   { id: 'AGENDA', nombre: 'Agenda y Espacios', icono: 'calendar_month', nota: 'Reservas por box y disponibilidad del equipo' },
   { id: 'EQUIPO', nombre: 'Equipo', icono: 'groups', nota: 'Perfiles, especialidades y roles del centro' },
   { id: 'MATCH', nombre: 'Match Terapéutico', icono: 'join', nota: 'Cuestionario público que recomienda profesionales' },
-  // MVP (2026-11-11): Cobros y avisos por WhatsApp fuera para todos los centros; no se muestran (vuelven con la implementacion futura).
+  // Avisos por WhatsApp: fuera de esta version para todos los centros (no se muestra).
 ];
 
 /**

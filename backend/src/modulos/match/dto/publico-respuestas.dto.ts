@@ -4,7 +4,7 @@
  * las funciones de la BD (perfiles_publicos, contenido_publico_centro, ...).
  */
 import { ApiProperty } from '@nestjs/swagger';
-import { CriterioMatch, EstadoCita, Modalidad, ModalidadAtencion, ModeloCobro, ModuloCentro, TipoPreguntaMatch } from '@prisma/client';
+import { CriterioMatch, EstadoCita, Modalidad, ModalidadAtencion, ModuloCentro, TipoPreguntaMatch } from '@prisma/client';
 
 export class ServicioPublico {
   @ApiProperty({ type: String, required: false, description: 'Nombre de un icono Material Symbols' })
@@ -54,10 +54,6 @@ export class CentroPublico {
   modulos!: ModuloCentro[];
   match_filtro_directo!: boolean;
   plazo_aviso_cancelacion_horas!: number;
-  penalizacion_cancelacion_porcentaje!: number;
-  cobro_inasistencia_porcentaje!: number;
-  @ApiProperty({ enum: ModeloCobro, enumName: 'ModeloCobro' })
-  modelo_cobro!: ModeloCobro;
 }
 
 export class PoliticaPublica {
@@ -216,20 +212,40 @@ export class ResultadoMatch {
 }
 
 export class SolicitudCreada {
-  /** Fin de la retencion de la hora (03b-3.2: cita RETENIDA, plazo para pagar). */
+  /** Fin de la retencion de la hora (cita RETENIDA): plazo para verificar el correo. */
   expiraEn!: Date;
-  /** 03b-3.2: true solo si el gatillo es el correo (unico medio: pago en el centro, o nada que cobrar). */
-  verificacionEnviada!: boolean;
   /**
    * 03b-3.1: token opaco de la reserva (sin datos personales). La pestaña lo
-   * guarda solo en memoria y consulta POST /publico/reservas/estado; tambien
-   * elige el medio de pago con el.
+   * guarda solo en memoria y consulta POST /publico/reservas/estado.
    */
   reserva!: string;
 }
 
+export const ESTADOS_RESERVA = ['RETENIDA', 'SOLICITADA', 'CONFIRMADA', 'LIBERADA', 'CANCELADA', 'POR_REPROGRAMAR', 'PROPUESTA'] as const;
+export const SIGUIENTES_PASOS_RESERVA = [
+  'VERIFICAR_CORREO',
+  'NINGUNO',
+  'ELEGIR_OTRA_HORA',
+  // Punto 7 (2026-11-11): el profesional no acepto la hora y propuso otras; se eligen en la cuenta del paciente.
+  'REVISAR_PROPUESTAS',
+] as const;
+
+/**
+ * Estado de la reserva sin cuenta, sin datos personales. RETENIDA: falta
+ * verificar el correo (venceEn = fin de la retencion); SOLICITADA: la tiene
+ * su profesional (venceEn = plazo para aprobarla).
+ */
+export class EstadoReserva {
+  @ApiProperty({ enum: ESTADOS_RESERVA, enumName: 'EstadoReservaSinCuenta' })
+  estado!: (typeof ESTADOS_RESERVA)[number];
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  venceEn!: Date | null;
+  @ApiProperty({ enum: SIGUIENTES_PASOS_RESERVA, enumName: 'SiguientePasoReserva' })
+  siguiente!: (typeof SIGUIENTES_PASOS_RESERVA)[number];
+}
+
 export class SolicitudVerificada {
-  /** MVP sin COBROS: SOLICITADA (la aprueba el profesional). Con COBROS: CONFIRMADA (03b-3.2: el enlace solo concreta reservas con pago en el centro). */
+  /** SOLICITADA: la hora pasa a su profesional, que la aprueba o propone otras. */
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
   estado!: EstadoCita;
   citaId!: string;

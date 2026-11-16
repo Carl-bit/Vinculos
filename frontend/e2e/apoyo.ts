@@ -81,13 +81,12 @@ export async function enlaceDelCorreo(para: string, ruta = '/pedir-hora/verifica
   throw new Error(`Sin correo con ${ruta} para ${para}`);
 }
 
-/** En el paso de pago: elige un medio y continua. */
-export async function elegirMedio(page: Page, medio: RegExp) {
-  await page.getByLabel(medio).check();
-  await page.getByRole('button', { name: 'Continuar' }).click();
+/** Selector propio (`ui/Selectores`: combobox + listbox, sin `<select>` nativo): abre y elige la opcion por su texto. */
+export async function elegirOpcion(page: Page, nombre: string, opcion: string) {
+  await page.getByRole('combobox', { name: nombre, exact: true }).click();
+  await page.getByRole('listbox').getByRole('option', { name: opcion, exact: true }).click();
 }
 
-/** Desde /pedir-hora/<id>: primera hora libre, datos y envio; queda la hora retenida en el paso de pago. Devuelve el correo usado. */
 /** RUT valido al azar (con digito verificador) para pacientes de prueba. */
 export function rutAlAzar(): string {
   const cuerpo = String(10_000_000 + Math.floor(Math.random() * 15_000_000));
@@ -97,6 +96,11 @@ export function rutAlAzar(): string {
   return `${cuerpo}-${r === 11 ? '0' : r === 10 ? 'K' : String(r)}`;
 }
 
+/**
+ * Desde /pedir-hora/<id>: primera hora libre, datos y envio. MVP sin COBROS:
+ * sin paso de pago; la hora queda RETENIDA esperando que se verifique el
+ * correo (cuenta regresiva de 30 minutos). Devuelve el correo usado.
+ */
 export async function pedirHora(page: Page, etiqueta: string, menor = false, rut?: string): Promise<string> {
   const email = correoNuevo(etiqueta);
   await page
@@ -107,12 +111,13 @@ export async function pedirHora(page: Page, etiqueta: string, menor = false, rut
   await expect(page.getByRole('heading', { name: 'Datos del paciente' })).toBeFocused();
   await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Prueba');
   await page.getByLabel('Apellido').fill('E2E');
-  // 03b-4.1: tres desplegables (dia, mes, año).
-  await page.getByLabel('Día').selectOption('10');
-  await page.getByLabel('Mes').selectOption('5');
-  await page.getByLabel('Año').selectOption(menor ? '2012' : '1990');
+  // 03b-4.1: tres desplegables (dia, mes, año), con el selector propio de la plataforma.
+  await elegirOpcion(page, 'Día', '10');
+  await elegirOpcion(page, 'Mes', 'mayo');
+  await elegirOpcion(page, 'Año', menor ? '2012' : '1990');
   await page.getByLabel(/^Correo/).fill(email);
-  if (rut) await page.getByLabel(/^RUT/).fill(rut);
+  // El RUT es obligatorio al pedir hora.
+  await page.getByLabel(/^RUT/).fill(rut ?? rutAlAzar());
   // Sin match: el motivo en sus palabras (opcional; llega cifrado al tratante).
   await page.getByLabel('¿Qué te gustaría trabajar en la sesión?').fill('Me cuesta dormir hace unos meses.');
   if (menor) {
@@ -132,15 +137,45 @@ export async function pedirHora(page: Page, etiqueta: string, menor = false, rut
   await expect(page.getByLabel(/política de datos personales/)).toBeChecked();
   await page.getByLabel(/términos de agendamiento/).check();
   await page.getByRole('button', { name: 'Reservar mi hora' }).click();
-  await expect(page.getByRole('heading', { name: 'Paga para confirmar tu hora' })).toBeVisible();
-  await expect(page.getByText('Te guardamos la hora')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
   await expect(page.getByText(/^(29|30):\d{2}$/)).toBeVisible();
   return email;
 }
 
+/** Usuario del seed demo de cada profesional con perfil publico ("Uno" -> profesional1). */
+const USUARIO_PROFESIONAL: Record<string, string> = {
+  Uno: 'profesional1',
+  Dos: 'profesional2',
+  Tres: 'profesional3',
+  Cuatro: 'profesional4',
+  Cinco: 'profesional5',
+  Seis: 'profesional6',
+};
+
 /**
- * 03b-6: paciente nuevo con ficha, sin tocar los del seed: reserva con pago en
- * el centro y verificacion del correo (asi nace el paciente). Devuelve su id.
+ * MVP sin COBROS: el profesional de la cita aprueba la hora SOLICITADA desde
+ * su agenda (detalle de la cita) y la cita queda CONFIRMADA. Abre su propio
+ * contexto para no tocar la sesion de `page`.
+ */
+export async function aprobarHora(page: Page, citaId: string, profesional = 'Uno') {
+  const contexto = await page.context().browser()!.newContext();
+  const equipo = await contexto.newPage();
+  await ingresarEquipo(equipo, USUARIO_PROFESIONAL[profesional]);
+  await equipo.goto(`/admin/agenda?cita=${citaId}`);
+  const detalle = equipo.getByRole('dialog');
+  await expect(detalle.getByText('Hora por aprobar')).toBeVisible();
+  await detalle.getByRole('button', { name: 'Aprobar' }).click();
+  await expect.poll(() => sqlPrueba(`SELECT estado FROM citas WHERE id = '${citaId}'`)).toBe('CONFIRMADA');
+  await contexto.close();
+}
+
+/** Cita de la reserva sin cuenta hecha con `email`. */
+export const citaDeReserva = (email: string) => sqlPrueba(`SELECT cita_id FROM solicitudes_hora WHERE email = '${email}'`);
+
+/**
+ * 03b-6: paciente nuevo con ficha, sin tocar los del seed. MVP sin COBROS:
+ * reserva, verificacion del correo (la solicitud pasa al profesional) y
+ * aprobacion del profesional (cita CONFIRMADA). Devuelve su id.
  */
 export async function pacienteNuevo(page: Page, etiqueta: string, profesional = 'Uno'): Promise<{ email: string; pacienteId: string }> {
   await page.goto('/equipo');
@@ -148,9 +183,9 @@ export async function pacienteNuevo(page: Page, etiqueta: string, profesional = 
   await page.getByRole('link', { name: 'Ver horas disponibles' }).click();
   // Con RUT: la BD lo exige antes de la primera evolucion.
   const email = await pedirHora(page, etiqueta, false, rutAlAzar());
-  await elegirMedio(page, /^Pago en el centro/);
   await page.goto(await enlaceDelCorreo(email));
   await page.getByRole('button', { name: 'Confirmar mi hora' }).click();
-  await expect(page.getByRole('heading', { name: 'Tu hora quedó confirmada' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Enviamos tu solicitud' })).toBeVisible();
+  await aprobarHora(page, citaDeReserva(email), profesional);
   return { email, pacienteId: sqlPrueba(`SELECT paciente_id FROM solicitudes_hora WHERE email = '${email}'`) };
 }

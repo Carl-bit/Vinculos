@@ -39,12 +39,10 @@ const VISTA = {
   inicio: true,
   fin: true,
   estado: true,
-  monto: true,
   canceladaEn: true,
-  pagoVenceEn: true,
+  retencionVenceEn: true,
   aprobacionVenceEn: true,
   propuestaDeId: true,
-  medioConfirmacion: true,
   motivoLiberacion: true,
   createdAt: true,
   updatedAt: true,
@@ -65,16 +63,8 @@ const MAX_ALTERNATIVAS = 3;
  * Citas: crear, cancelar y reprogramar (UPDATE de estado, nunca DELETE).
  * Fuente de verdad anti-choque = EXCLUDE de la BD (23P01 -> 409).
  *
- * 03b-3.2: la cita que agenda el equipo queda PENDIENTE_PAGO hasta 12 h antes
- * de la sesion (lo decide la BD: trigger citas_pago_previo_equipo) y se avisa
- * al paciente (PAGO_PENDIENTE; recordatorios 48 h / 24 h los manda el job).
- * Confirma directo si solo se paga en el centro, si no hay nada que cobrar o
- * si ya no queda plazo (pago en el centro).
- *
- * 03b-3.3: el plazo son las horas que configura el centro y, vencido sin pago,
- * la cita se mantiene con pago en el centro (el job). Un paciente con deuda no
- * agenda (trigger citas_paciente_moroso, 422) salvo que ADMIN/GESTION lo
- * autoricen con motivo en la misma transaccion.
+ * MVP sin cobros (2026-11-16): la cita que agenda el equipo queda CONFIRMADA
+ * y se avisa al paciente.
  *
  * Opcion C (requisitos_02_apis.md 7): antes de confirmar se verifica con
  * disponibilidad_publica() (bloques de box del profesional menos citas,
@@ -123,9 +113,6 @@ export class CitasService {
     await this.exigirAdultoSiEsMenor(dto.pacienteId);
     await this.soltarHorariosPropios(dto);
     await this.exigirDisponible(dto);
-    if (dto.motivoAutorizacionDeuda) {
-      await tx.$queryRaw`SELECT autorizar_cita_con_deuda(${dto.pacienteId}::uuid, ${dto.motivoAutorizacionDeuda})`;
-    }
     const cita = await tx.cita.create({
       data: {
         pacienteId: dto.pacienteId,
@@ -139,18 +126,7 @@ export class CitasService {
       },
       select: VISTA,
     });
-    const conEnlace = await this.generarEnlace(cita);
-    if (cita.estado === 'PENDIENTE_PAGO') {
-      const evento: NotificacionSolicitada = {
-        actor: this.bd.usuario(),
-        tipo: 'PAGO_PENDIENTE',
-        destino: { pacienteId: dto.pacienteId },
-        referenciaId: cita.id,
-      };
-      this.bd.alConfirmar(() => this.eventos.emitAsync(EVENTOS.NOTIFICACION_SOLICITADA, evento));
-    } else {
-      this.emitirConfirmada(EVENTOS.CITA_CONFIRMADA, cita, conEnlace);
-    }
+    this.emitirConfirmada(EVENTOS.CITA_CONFIRMADA, cita, await this.generarEnlace(cita));
     return cita;
   }
 
@@ -161,10 +137,12 @@ export class CitasService {
       throw new ConflictException('La cita ya esta cancelada');
     }
     if (actual.estado === 'LIBERADA') {
-      throw new ConflictException('La cita ya se libero por vencimiento del pago');
+      throw new ConflictException('La hora ya se libero');
     }
     if (!actual.pacienteId) {
-      throw new ConflictException('La hora esta retenida por una reserva en curso: se libera sola si no se paga a tiempo, o se libera con motivo');
+      throw new ConflictException(
+        'La hora esta retenida por una reserva en curso: se libera sola si no se verifica el correo a tiempo, o se libera con motivo',
+      );
     }
     const cita = await tx.cita.update({ where: { id }, data: { estado: 'CANCELADA', enlaceOnline: null }, select: VISTA });
     const actor = this.bd.usuario();
@@ -228,12 +206,12 @@ export class CitasService {
     if (actual.estado === 'CANCELADA') {
       throw new ConflictException('Una cita cancelada no se reprograma');
     }
-    // 03b-3.1: la hora pendiente de pago (o retenida) se confirma o se libera; la liberada ya no existe.
+    // La hora retenida (reserva sin cuenta en curso) se concreta o se libera; la liberada ya no existe.
     if (actual.estado === 'SOLICITADA') {
       throw new ConflictException('La hora esta por aprobar: apruebala o rechazala antes de moverla');
     }
-    if (actual.estado === 'PENDIENTE_PAGO' || actual.estado === 'RETENIDA' || actual.estado === 'LIBERADA') {
-      throw new ConflictException('La cita no esta confirmada (pago pendiente o vencido): no se reprograma');
+    if (actual.estado === 'RETENIDA' || actual.estado === 'LIBERADA') {
+      throw new ConflictException('La cita no esta confirmada (reserva en curso o liberada): no se reprograma');
     }
     const modalidad = dto.modalidad ?? actual.modalidad;
     const horario: HorarioDto = { profesionalId: actual.profesionalId, modalidad, inicio: dto.inicio, fin: dto.fin };

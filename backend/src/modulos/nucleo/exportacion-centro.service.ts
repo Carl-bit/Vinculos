@@ -21,14 +21,7 @@ import { textoLegible, VERSION_EXPORTACION } from './exportaciones.service';
 
 /** Filas por lote; las tablas con archivos van de a una (un adjunto puede pesar ADJUNTO_MAX_MB). */
 const LOTE = 200;
-const TABLAS_CON_ARCHIVOS = new Set([
-  'adjuntos_ficha',
-  'documentos_clinicos',
-  'imagenes_publicas',
-  'practicante_documentos',
-  'transferencias',
-  'trayectoria_respaldos',
-]);
+const TABLAS_CON_ARCHIVOS = new Set(['adjuntos_ficha', 'documentos_clinicos', 'imagenes_publicas', 'practicante_documentos', 'trayectoria_respaldos']);
 /** La lectura completa corre en una sola transaccion de solo lectura (snapshot consistente). */
 const TIEMPO_MAXIMO_MS = 3 * 60 * 60_000;
 

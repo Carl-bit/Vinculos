@@ -167,8 +167,6 @@ const ESTADO_CITA: Record<CitaVista['estado'], { texto: string; tono: TonoBadge 
   SOLICITADA: { texto: 'Por aprobar', tono: 'atencion' },
   POR_REPROGRAMAR: { texto: 'Por reprogramar', tono: 'atencion' },
   CANCELADA: { texto: 'Cancelada', tono: 'neutro' },
-  // Estado del modulo COBROS (apagado en el MVP): no ocurre; texto neutro por completitud del tipo.
-  PENDIENTE_PAGO: { texto: 'Por confirmar', tono: 'atencion' },
   LIBERADA: { texto: 'Liberada (plazo vencido)', tono: 'neutro' },
   // Sin paciente: nunca aparece en el historial de un paciente.
   RETENIDA: { texto: 'Hora retenida', tono: 'atencion' },

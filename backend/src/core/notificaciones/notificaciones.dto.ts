@@ -51,10 +51,6 @@ export class PreferenciasEquipoDto {
 
   @IsOptional()
   @IsBoolean()
-  cobros?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
   derivaciones?: boolean;
 
   @IsOptional()
@@ -64,7 +60,6 @@ export class PreferenciasEquipoDto {
 
 export class PreferenciasEquipo {
   agenda!: boolean;
-  cobros!: boolean;
   derivaciones!: boolean;
   mensajes!: boolean;
 }

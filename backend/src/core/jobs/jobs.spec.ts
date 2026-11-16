@@ -64,7 +64,6 @@ describe('programacion de jobs (reloj simulado)', () => {
       'avisar_consentimientos_por_vencer',
       'enviar_recordatorios',
       'limpiar_solicitudes',
-      'avisar_pagos_pendientes',
     ]) {
       expect(de(job)).toHaveLength(144);
       expect(de(job).every((d) => d.en.getUTCMinutes() % 10 === 0 && d.en.getUTCSeconds() === 0)).toBe(true);
@@ -76,11 +75,9 @@ describe('programacion de jobs (reloj simulado)', () => {
     expect(de('procesar_bajas').every((d) => d.en.getUTCMinutes() % 5 === 0 && d.en.getUTCSeconds() === 0)).toBe(true);
   });
 
-  it('cada hora: avisar deudas y detectar anomalias (AUD-01)', () => {
-    for (const job of ['avisar_deudas', 'detectar_anomalias']) {
-      expect(de(job)).toHaveLength(24);
-      expect(de(job).every((d) => d.en.getUTCMinutes() === 0)).toBe(true);
-    }
+  it('cada hora: detectar anomalias (AUD-01)', () => {
+    expect(de('detectar_anomalias')).toHaveLength(24);
+    expect(de('detectar_anomalias').every((d) => d.en.getUTCMinutes() === 0)).toBe(true);
   });
 
   it('cada minuto: enviar notificaciones, reintentar correos de cuenta y liberar reservas vencidas', () => {
@@ -137,8 +134,6 @@ describe('programacion de jobs (reloj simulado)', () => {
         'enviar_notificaciones',
         'reintentar_correos_cuenta',
         'liberar_reservas_vencidas',
-        'avisar_pagos_pendientes',
-        'avisar_deudas',
         'purgar_mensajes_internos',
         'purgar_codigos_verificacion',
         'verificar_canarios',

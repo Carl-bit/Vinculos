@@ -43,7 +43,7 @@ describe('MVP aprobacion de horas', () => {
     modulos = (await t.dueno.configuracionCentro.findUniqueOrThrow({ where: { id: true } })).modulosActivos;
     await t.dueno.configuracionCentro.update({
       where: { id: true },
-      data: { rolGestionHabilitado: true, modulosActivos: modulos.filter((m) => m !== 'COBROS') },
+      data: { rolGestionHabilitado: true },
     });
     admin = await t.datos.usuario('ADMIN');
     gestion = await t.datos.usuario('GESTION');

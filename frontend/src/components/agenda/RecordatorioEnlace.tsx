@@ -19,8 +19,8 @@ import { ResultadoEnlace } from './ResultadoEnlace';
 
 /**
  * Pagina del recordatorio por correo (02i), sin sesion: muestra la cita y la
- * politica de cancelacion que aplicaria AHORA (a tiempo sin cargo, o tardia
- * con penalizacion), y deja confirmar o cancelar. Un solo uso.
+ * politica de cancelacion que aplicaria AHORA (a tiempo o con poco aviso; sin
+ * cargos: MVP sin cobros), y deja confirmar o cancelar. Un solo uso.
  */
 export function RecordatorioEnlace() {
   const token = useSearchParams().get('token') ?? '';
@@ -31,7 +31,7 @@ export function RecordatorioEnlace() {
     enabled: !!token,
   });
   const [cancelar, setCancelar] = useState(false);
-  const [resultado, setResultado] = useState<{ respuesta: 'CONFIRMADA' | 'CANCELADA'; aTiempo?: boolean; penalizacion?: number }>();
+  const [resultado, setResultado] = useState<{ respuesta: 'CONFIRMADA' | 'CANCELADA'; aTiempo?: boolean }>();
   const [error, setError] = useState<string>();
   const [enviando, setEnviando] = useState(false);
 
@@ -61,7 +61,7 @@ export function RecordatorioEnlace() {
           ? api.POST('/api/recordatorios/{token}/confirmacion', { params: { path: { token } } })
           : api.POST('/api/recordatorios/{token}/cancelacion', { params: { path: { token } } }),
       );
-      setResultado({ respuesta: res.respuesta, aTiempo: res.cancelacion?.aTiempo, penalizacion: res.cancelacion?.penalizacionPorcentaje });
+      setResultado({ respuesta: res.respuesta, aTiempo: res.cancelacion?.aTiempo });
       setCancelar(false);
     } catch (e) {
       setCancelar(false);
@@ -135,12 +135,12 @@ export function RecordatorioEnlace() {
         <>
           <Aviso
             tono={c.aTiempo ? 'exito' : 'advertencia'}
-            titulo={c.aTiempo ? 'Si cancelas ahora, no tiene cargo' : 'Si cancelas ahora, tiene cargo'}
+            titulo={c.aTiempo ? 'Si cancelas ahora, avisas a tiempo' : 'Si cancelas ahora, es con poco aviso'}
             className="mb-6"
           >
             {c.aTiempo
               ? `Todavía estás dentro del plazo de aviso${c.plazoAvisoHoras ? ` de ${c.plazoAvisoHoras} horas` : ''}.`
-              : `Faltan menos de ${c.plazoAvisoHoras ?? 'las'} horas para la sesión: según la política del centro se cobra el ${c.penalizacionPorcentaje}% del valor.`}
+              : `Faltan menos de ${c.plazoAvisoHoras ?? 'las'} horas para la sesión: según la política del centro, la cancelación queda con poco aviso.`}
           </Aviso>
           {error && (
             <p role="alert" className="m-0 mb-4 text-[14px] font-bold text-accent-700">
@@ -165,8 +165,8 @@ export function RecordatorioEnlace() {
         titulo="¿Cancelar esta hora?"
         descripcion={
           c.aTiempo
-            ? 'La hora queda libre para otra persona. Como avisas dentro del plazo, no tiene cargo.'
-            : `La hora queda libre para otra persona. Como faltan menos de ${c.plazoAvisoHoras ?? 'las'} horas, aplica el ${c.penalizacionPorcentaje}% de cargo.`
+            ? 'La hora queda libre para otra persona. Avisas dentro del plazo.'
+            : `La hora queda libre para otra persona. Faltan menos de ${c.plazoAvisoHoras ?? 'las'} horas: avisa al centro si puedes.`
         }
         acciones={
           <>
