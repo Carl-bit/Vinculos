@@ -67,10 +67,19 @@ FIN
 # Red de borde por silo (R11): Traefik y Mailpit son del plano del host y se
 # unen a erp-<slug>_borde de cada silo; dos silos nunca comparten red. Si
 # Traefik se recrea pierde estas uniones: unir_bordes las repone todas.
+# Se une con el nombre del servicio como alias: el silo busca smtp://mailpit:1025 y
+# `docker network connect` sin --alias solo registra el nombre del contenedor
+# (hallado 2026-11-16: el login de un silo nuevo daba 503 al no poder mandar el codigo).
+# Una union vieja sin el alias se rehace.
 unir() { # <red> <servicio del plano>
   id=$(plano ps -q "$2")
   [ -n "$id" ] || falla "No corre $2 del plano del host"
-  docker inspect -f '{{json .NetworkSettings.Networks}}' "$id" | grep -q "\"$1\"" || docker network connect "$1" "$id"
+  alias=$(docker inspect -f "{{with index .NetworkSettings.Networks \"$1\"}}{{join .Aliases \" \"}} |unida{{end}}" "$id")
+  case " $alias " in
+    *" $2 "*) return 0 ;;
+    *unida*) docker network disconnect "$1" "$id" ;;
+  esac
+  docker network connect --alias "$2" "$1" "$id"
 }
 unir_bordes() {
   for red in $(docker network ls --filter label=cl.vinculos.red=borde --format '{{.Name}}'); do
