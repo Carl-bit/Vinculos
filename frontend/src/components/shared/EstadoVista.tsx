@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import type { Icono } from '@/lib/iconos';
 
-type Estado = 'carga' | 'vacio' | 'error' | 'sin-permiso';
+type Estado = 'carga' | 'vacio' | 'error' | 'sin-permiso' | 'sin-modulo';
 
 const POR_DEFECTO: Record<Estado, { icono: Icono; titulo: string }> = {
   carga: { icono: 'progress_activity', titulo: 'Cargando…' },
   vacio: { icono: 'inbox', titulo: 'Todavía no hay nada aquí' },
   error: { icono: 'error', titulo: 'No pudimos cargar esta información' },
   'sin-permiso': { icono: 'lock', titulo: 'No tienes acceso a esta sección con el rol activo' },
+  'sin-modulo': { icono: 'lock', titulo: 'Esta sección no está activa en tu centro' },
 };
 
 interface EstadoVistaProps {

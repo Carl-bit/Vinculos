@@ -80,8 +80,18 @@ export const conSelectorEquipo = (rol: Rol) => rol === 'GESTION';
  * (detalle de ficha, 404) las decide su pagina.
  */
 export function rutaPermitida(zona: Zona, rol: Rol, ruta: string): boolean {
-  const item = MENU[zona]
+  const item = itemDeRuta(zona, ruta);
+  return !item || item.roles.includes(rol);
+}
+
+/** Item del menu mas especifico que contiene la ruta (sin el inicio de la zona ni la pagina publica). */
+function itemDeRuta(zona: Zona, ruta: string): ItemMenu | undefined {
+  return MENU[zona]
     .filter((i) => i.href !== '/' && i.href !== `/${zona}` && (ruta === i.href || ruta.startsWith(`${i.href}/`)))
     .sort((a, b) => b.href.length - a.href.length)[0];
-  return !item || item.roles.includes(rol);
+}
+
+/** Modulo del que depende una ruta, o undefined (nucleo). Para no mostrar vacia una pagina abierta por URL con su modulo apagado. */
+export function moduloDeRuta(zona: Zona, ruta: string): ModuloCentro | undefined {
+  return itemDeRuta(zona, ruta)?.modulo;
 }

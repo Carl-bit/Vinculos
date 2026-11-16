@@ -8,7 +8,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { terminarCambioRol } from '@/lib/cambioRol';
 import { useCentroPublico, useMiCuenta, useModulos } from '@/lib/consultas';
-import { conSelectorEquipo, menuVisible, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
+import { conSelectorEquipo, menuVisible, moduloDeRuta, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
 import { esAdministracion, NOMBRE_ROL } from '@/lib/roles';
 import type { SesionActiva } from '@/lib/sesion';
 import { BotonSalir } from './BotonSalir';
@@ -60,6 +60,9 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
   const modulos = useModulos();
   const cuenta = useMiCuenta();
   const items = menuVisible('admin', sesion.rol, modulos.data?.activos ?? []);
+  // Pagina de un modulo apagado abierta por URL: se avisa en vez de mostrarla vacia (la API ya responde 403).
+  const moduloRuta = moduloDeRuta('admin', ruta);
+  const moduloApagado = !!moduloRuta && !!modulos.data && !modulos.data.activos.includes(moduloRuta);
   const nombre = cuenta.data?.nombre ?? '';
   const activo = (href: string) => (href === '/admin' ? ruta === href : ruta.startsWith(href) && href !== '/');
   // Movil: el menu se despliega con un boton y se cierra al navegar (en escritorio siempre visible).
@@ -135,7 +138,13 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
           className={`entrada min-w-0 outline-none px-[clamp(20px,3vw,48px)] pt-[clamp(14px,3.2vh,30px)] pb-14 trama`}
         >
           <AvisoSoloLectura />
-          {rutaPermitida('admin', sesion.rol, ruta) ? <CargaModulo>{children}</CargaModulo> : <EstadoVista estado="sin-permiso" />}
+          {!rutaPermitida('admin', sesion.rol, ruta) ? (
+            <EstadoVista estado="sin-permiso" />
+          ) : moduloApagado ? (
+            <EstadoVista estado="sin-modulo" mensaje="El centro no tiene activo este módulo o tu perfil no lo incluye. La cuenta madre puede pedirlo en Configuración > Vinculos." />
+          ) : (
+            <CargaModulo>{children}</CargaModulo>
+          )}
           <AvisoInactividad />
         </main>
       </div>

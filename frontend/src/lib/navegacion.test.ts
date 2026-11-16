@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { conSelectorEquipo, menuVisible, rutaPermitida } from './navegacion';
+import { conSelectorEquipo, menuVisible, rutaPermitida, moduloDeRuta } from './navegacion';
 
 const etiquetas = (items: { etiqueta: string }[]) => items.map((i) => i.etiqueta);
 
@@ -62,5 +62,16 @@ describe('menuVisible', () => {
     expect(plena).toEqual(['Resumen', 'Documentos', 'Consentimientos', 'Mensajes', 'Reseñas', 'Seguridad']);
     const restringida = etiquetas(menuVisible('portal', 'PACIENTE', todos, { restringida: true }).filter((i) => i.grupo === 'secciones'));
     expect(restringida).toEqual(['Resumen', 'Mensajes', 'Seguridad']);
+  });
+});
+
+describe('moduloDeRuta', () => {
+  it('da el modulo de la seccion mas especifica; nucleo sin modulo', () => {
+    expect(moduloDeRuta('admin', '/admin/match')).toBe('MATCH');
+    expect(moduloDeRuta('admin', '/admin/agenda/semana')).toBe('AGENDA');
+    expect(moduloDeRuta('admin', '/admin/configuracion')).toBeUndefined();
+    expect(moduloDeRuta('admin', '/admin')).toBeUndefined();
+    expect(moduloDeRuta('portal', '/portal/documentos')).toBe('FICHAS');
+    expect(moduloDeRuta('portal', '/portal/seguridad')).toBeUndefined();
   });
 });

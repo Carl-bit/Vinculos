@@ -7,10 +7,11 @@ import type { ReactNode } from 'react';
 import { Field, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
 import { useCentroPublico, useModulos } from '@/lib/consultas';
-import { menuVisible } from '@/lib/navegacion';
+import { menuVisible, moduloDeRuta } from '@/lib/navegacion';
 import type { SesionActiva } from '@/lib/sesion';
 import { ProveedorPortal, usePortal } from './ContextoPortal';
 import { AvisoInactividad } from './AvisoInactividad';
+import { EstadoVista } from './EstadoVista';
 import { AvisoSoloLectura } from './AvisoSoloLectura';
 import { CargaModulo } from './CargaModulo';
 import { Marca } from './Marca';
@@ -38,6 +39,9 @@ function Shell({ sesion, cuenta, children }: { sesion: SesionActiva; cuenta: Rea
   const centro = useCentroPublico().data;
   const portal = usePortal();
   const activos = modulos.data?.activos ?? [];
+  // Pagina de un modulo apagado abierta por URL: se avisa en vez de mostrarla vacia.
+  const moduloRuta = moduloDeRuta('portal', ruta);
+  const moduloApagado = !!moduloRuta && !!modulos.data && !activos.includes(moduloRuta);
   // Mientras no se sabe si la cuenta es restringida (adolescente), no se muestran sus secciones vedadas.
   const items = menuVisible('portal', sesion.rol, activos, { restringida: portal.restringida || portal.cargando });
   const secciones = items.filter((i) => i.grupo === 'secciones');
@@ -103,7 +107,7 @@ function Shell({ sesion, cuenta, children }: { sesion: SesionActiva; cuenta: Rea
 
           <main id="contenido" tabIndex={-1} className="entrada outline-none" key={ruta}>
             <AvisoSoloLectura />
-            <CargaModulo>{children}</CargaModulo>
+            {moduloApagado ? <EstadoVista estado="sin-modulo" mensaje="Tu centro no tiene activa esta sección." /> : <CargaModulo>{children}</CargaModulo>}
             <AvisoInactividad />
           </main>
         </div>
