@@ -31,6 +31,7 @@ import {
 import { AdminInicialService } from './admin-inicial.service';
 import { ConfigInternaService } from './config-interna.service';
 import { ExportacionesInternasController } from './exportaciones-internas.controller';
+import { SalidaInternaController } from './salida-interna.controller';
 import {
   AdminInicialInternoController,
   ConfigInternaController,
@@ -50,6 +51,7 @@ import { UsuariosService } from './usuarios.service';
     AdminInicialInternoController,
     ConfigInternaController,
     ExportacionesInternasController,
+    SalidaInternaController,
     UsuariosController,
     ConfiguracionController,
     CentroController,

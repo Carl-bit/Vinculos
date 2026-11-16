@@ -6224,5 +6224,45 @@ END $$;
 \connect :owner_url
 DELETE FROM exportaciones_centro WHERE huella = repeat('e', 64);
 
+\echo 180 R12 salida: solo lectura solo con el token del silo y sin contexto; idempotente; bitacora que solo se agrega
+\connect :app_url
+DO $$ DECLARE t text := 'token-interno-de-prueba-de-32-caracteres-o-mas'; r record; BEGIN
+  ASSERT (SELECT NOT solo_lectura FROM estado_salida_silo()), 'caso 180: parte sin solo lectura';
+  BEGIN
+    PERFORM * FROM salida_interna('otro-token-de-prueba-de-32-caracteres-o-mas', true, '2026-12-31');
+    RAISE EXCEPTION 'caso 180: con otro token debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM * FROM salida_interna(t, true, NULL);
+    RAISE EXCEPTION 'caso 180: solo lectura sin fecha de corte debio fallar';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  SELECT * INTO r FROM salida_interna(t, true, '2026-12-31');
+  ASSERT r.resultado = 'APLICADA' AND r.solo_lectura AND r.desde IS NOT NULL, 'caso 180: aplicada';
+  ASSERT (SELECT resultado FROM salida_interna(t, true, '2026-12-31')) = 'SIN_CAMBIOS', 'caso 180: idempotente';
+  ASSERT (SELECT solo_lectura AND fecha_corte = '2026-12-31' FROM estado_salida_silo()), 'caso 180: estado visible para la API';
+  BEGIN
+    PERFORM * FROM eventos_salida;
+    RAISE EXCEPTION 'caso 180: app_user no lee la bitacora directo';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  PERFORM test.ctx('a1', 'ADMIN');
+  BEGIN
+    PERFORM * FROM salida_interna(t, false, NULL);
+    RAISE EXCEPTION 'caso 180: con contexto de usuario debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+\connect :app_url
+DO $$ DECLARE t text := 'token-interno-de-prueba-de-32-caracteres-o-mas'; BEGIN
+  ASSERT (SELECT resultado FROM salida_interna(t, false, NULL)) = 'APLICADA', 'caso 180: reversion';
+  ASSERT (SELECT NOT solo_lectura AND desde IS NULL AND fecha_corte IS NULL FROM estado_salida_silo()), 'caso 180: vuelve a normal';
+END $$;
+\connect :owner_url
+DO $$ BEGIN
+  ASSERT (SELECT count(*) = 2 FROM eventos_salida), 'caso 180: dos eventos (entrar y salir; el repetido no cuenta)';
+  BEGIN
+    DELETE FROM eventos_salida;
+    RAISE EXCEPTION 'caso 180: la bitacora no se borra';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+
 DROP SCHEMA test CASCADE;
 \echo TODOS LOS CASOS OK

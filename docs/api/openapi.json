@@ -35294,11 +35294,22 @@
             "items": {
               "$ref": "#/components/schemas/ModuloCentro"
             }
+          },
+          "fechaCorte": {
+            "type": "string",
+            "nullable": true,
+            "description": "R12: fecha de corte que el centro avisa (YYYY-MM-DD), o null."
+          },
+          "soloLectura": {
+            "type": "boolean",
+            "description": "R12: el centro esta saliendo de Vinculos; la plataforma esta en solo lectura (lectura, exportes, derechos y cuenta propia siguen)."
           }
         },
         "required": [
           "activos",
-          "restringidos"
+          "restringidos",
+          "fechaCorte",
+          "soloLectura"
         ]
       },
       "ServicioPublicoVista": {

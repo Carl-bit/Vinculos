@@ -13,6 +13,7 @@ import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtGuard, RolesGuard } from './auth/guards';
 import { ModulosGuard } from './modulos/modulos';
+import { SoloLecturaGuard } from './salida/solo-lectura';
 import { CorreosCuenta } from './notificaciones/correos-cuenta';
 import { BdModule } from './bd/bd.module';
 import { validarEntorno } from './config/entorno';
@@ -90,6 +91,7 @@ export class CoreModule {
         CorreosCuenta,
         ConcrecionReserva,
         ModulosGuard,
+        SoloLecturaGuard,
         NotificacionesService,
         // Integraciones: los modulos dependen solo de las interfaces; la
         // implementacion se elige aqui por configuracion (integraciones.md).
@@ -125,6 +127,8 @@ export class CoreModule {
         { provide: APP_GUARD, useClass: JwtGuard },
         { provide: APP_GUARD, useClass: RolesGuard },
         { provide: APP_GUARD, useExisting: ModulosGuard },
+        // R12: despues de modulos; con el silo en salida, solo lectura salvo las rutas permitidas.
+        { provide: APP_GUARD, useExisting: SoloLecturaGuard },
         { provide: APP_INTERCEPTOR, useClass: RlsInterceptor },
         { provide: APP_FILTER, useClass: FiltroErrores },
       ],
@@ -138,6 +142,7 @@ export class CoreModule {
         CorreosCuenta,
         ConcrecionReserva,
         ModulosGuard,
+        SoloLecturaGuard,
       ],
     };
   }

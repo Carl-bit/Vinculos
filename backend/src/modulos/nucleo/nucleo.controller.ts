@@ -106,6 +106,7 @@ import { RecordatoriosPersonalesService } from './recordatorios-personales.servi
 import { AuditoriaService } from './auditoria.service';
 import { SoporteService } from './soporte.service';
 import { EquipoAccesoService } from './equipo-acceso.service';
+import { PermitidaEnSalida } from '../../core/salida/solo-lectura';
 import { UsuariosService } from './usuarios.service';
 
 const TODOS = ['ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE', 'PACIENTE', 'RESPONSABLE'] as const;
@@ -142,6 +143,7 @@ export class UsuariosController {
     return this.usuarios.editarMiCuenta(dto);
   }
 
+  @PermitidaEnSalida()
   @Post('yo/password')
   @HttpCode(204)
   @Roles(...TODOS)
@@ -171,6 +173,7 @@ export class UsuariosController {
    * responsables; el equipo no la desactiva: 422). Al activar devuelve los 10
    * codigos de respaldo.
    */
+  @PermitidaEnSalida()
   @Put('yo/segundo-factor')
   @Roles(...TODOS)
   cambiarSegundoFactor(@Body() dto: CambiarSegundoFactorDto): Promise<CodigosRespaldo> {
@@ -178,6 +181,7 @@ export class UsuariosController {
   }
 
   /** Codigos de respaldo nuevos (anula los anteriores). 422 sin verificacion activa. */
+  @PermitidaEnSalida()
   @Post('yo/segundo-factor/codigos-respaldo')
   @HttpCode(200)
   @Roles(...TODOS)
@@ -563,6 +567,8 @@ export class RecordatoriosController {
 /** AUD-01 (E2.3a): solicitudes de derechos de los titulares, con plazo en dias habiles. Solo ADMIN. */
 @ApiTags(TAGS.nucleo)
 @Controller('derechos')
+// R12: derechos de los pacientes y exportes siguen con el silo en solo lectura.
+@PermitidaEnSalida()
 export class DerechosController {
   constructor(private readonly derechos: DerechosService) {}
 
@@ -615,6 +621,8 @@ export class DerechosController {
 @Publico()
 @UseGuards(ThrottlerGuard)
 @SkipThrottle({ login: true })
+// R12: derechos de los pacientes y exportes siguen con el silo en solo lectura.
+@PermitidaEnSalida()
 export class DerechosPublicoController {
   constructor(private readonly derechos: DerechosService) {}
 
@@ -636,6 +644,8 @@ const archivo = (contenido: Buffer, tipo: string, nombre: string) =>
  */
 @ApiTags(TAGS.nucleo)
 @Controller()
+// R12: derechos de los pacientes y exportes siguen con el silo en solo lectura.
+@PermitidaEnSalida()
 export class ExportacionesController {
   constructor(
     private readonly exportaciones: ExportacionesService,
@@ -711,6 +721,8 @@ export class ExportacionesController {
 @Publico()
 @UseGuards(ThrottlerGuard)
 @SkipThrottle({ login: true })
+// R12: derechos de los pacientes y exportes siguen con el silo en solo lectura.
+@PermitidaEnSalida()
 export class ExportacionPublicaController {
   constructor(private readonly exportaciones: ExportacionesService) {}
 

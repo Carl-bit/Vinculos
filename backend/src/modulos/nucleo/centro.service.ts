@@ -4,6 +4,7 @@ import { Prisma, type TipoPolitica } from '@prisma/client';
 import { ContextoBd } from '../../core/bd/contexto-bd.service';
 import { procesarImagenPublica } from '../../core/imagenes/imagenes';
 import { ModulosGuard } from '../../core/modulos/modulos';
+import { SoloLecturaGuard } from '../../core/salida/solo-lectura';
 import type { BloqueHorarioDto, ContenidoPublicoDto } from './dto/nucleo.dto';
 
 /**
@@ -15,11 +16,13 @@ export class CentroService {
   constructor(
     private readonly bd: ContextoBd,
     private readonly modulosGuard: ModulosGuard,
+    private readonly salida: SoloLecturaGuard,
   ) {}
 
   async modulos() {
     const u = this.bd.usuario();
-    return { activos: await this.modulosGuard.activos(), restringidos: await this.modulosGuard.restringidos(u.id, u.rol) };
+    const { soloLectura, fechaCorte } = await this.salida.estado();
+    return { activos: await this.modulosGuard.activos(), restringidos: await this.modulosGuard.restringidos(u.id, u.rol), soloLectura, fechaCorte };
   }
 
   contenido() {

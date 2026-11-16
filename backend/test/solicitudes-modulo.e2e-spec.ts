@@ -26,6 +26,7 @@ describe('Solicitudes de modulos (tarea 31) y /api/internal (R2, R3)', () => {
   });
 
   afterAll(async () => {
+    await t.dueno.$executeRaw`UPDATE identidad_silo SET solo_lectura_desde = NULL, fecha_corte = NULL`;
     await t.dueno.$executeRaw`DELETE FROM solicitudes_modulo`;
     await t.dueno.$executeRaw`UPDATE configuracion_centro SET modulos_activos = ${modulosAntes}::modulo_centro[]`;
     await t.cerrar();
@@ -228,5 +229,94 @@ describe('Solicitudes de modulos (tarea 31) y /api/internal (R2, R3)', () => {
     for (const e of r.body.exportaciones) {
       expect(Object.keys(e).sort()).toEqual(['bytes', 'creadaEn', 'estado', 'huella', 'id', 'terminadaEn', 'venceEn']);
     }
+  });
+
+  it('R12 salida: solo con el token; en solo lectura las escrituras dan 423 salvo ingreso, cuenta propia, derechos y exportes; la reversion lo quita', async () => {
+    const lectura = { soloLectura: true, fechaCorte: '2026-12-31' };
+    expect((await t.http().post('/api/internal/salida').send(lectura)).status).toBe(401);
+    expect(
+      (
+        await t
+          .http()
+          .post('/api/internal/salida')
+          .set(await tk(admin))
+          .send(lectura)
+      ).status,
+    ).toBe(401);
+    const r = await t.http().post('/api/internal/salida').set(interno()).send(lectura);
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ resultado: 'APLICADA', soloLectura: true, fechaCorte: '2026-12-31' });
+    expect((await t.http().post('/api/internal/salida').set(interno()).send(lectura)).body.resultado).toBe('SIN_CAMBIOS');
+
+    const bloqueada = await t
+      .http()
+      .patch('/api/usuarios/yo')
+      .set(await tk(profesional))
+      .send({});
+    expect(bloqueada.status).toBe(423);
+    expect(bloqueada.body.restriccion).toBe('silo_solo_lectura');
+    expect(bloqueada.body.mensaje).toMatch(/solo lectura hasta el 2026-12-31/);
+    expect(
+      (
+        await t
+          .http()
+          .post('/api/configuracion/solicitudes-modulo')
+          .set(await tk(admin))
+          .send({ modulo: 'MATCH', accion: 'ACTIVAR', motivo: 'x' })
+      ).status,
+    ).toBe(423);
+    // Lectura, cuenta propia, derechos y exportes siguen (llegan a su validacion, no al 423).
+    expect(
+      (
+        await t
+          .http()
+          .get('/api/modulos')
+          .set(await tk(admin))
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await t
+          .http()
+          .post('/api/usuarios/yo/password')
+          .set(await tk(profesional))
+          .send({})
+      ).status,
+    ).not.toBe(423);
+    expect(
+      (
+        await t
+          .http()
+          .post('/api/derechos/solicitudes')
+          .set(await tk(admin))
+          .send({})
+      ).status,
+    ).not.toBe(423);
+    expect(
+      (
+        await t
+          .http()
+          .post('/api/exportacion-centro')
+          .set(await tk(admin))
+          .send({})
+      ).status,
+    ).not.toBe(423);
+    expect((await t.http().post('/api/auth/login').send({ email: 'nadie@ejemplo.cl', password: 'x' })).status).not.toBe(423);
+    expect((await t.http().get('/api/internal/salida').set(interno())).body).toMatchObject({ soloLectura: true, fechaCorte: '2026-12-31' });
+
+    expect((await t.http().post('/api/internal/salida').set(interno()).send({ soloLectura: false })).body).toMatchObject({
+      resultado: 'APLICADA',
+      soloLectura: false,
+      fechaCorte: null,
+    });
+    expect(
+      (
+        await t
+          .http()
+          .patch('/api/usuarios/yo')
+          .set(await tk(profesional))
+          .send({})
+      ).status,
+    ).not.toBe(423);
   });
 });

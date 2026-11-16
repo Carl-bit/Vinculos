@@ -11,6 +11,7 @@ import { menuVisible } from '@/lib/navegacion';
 import type { SesionActiva } from '@/lib/sesion';
 import { ProveedorPortal, usePortal } from './ContextoPortal';
 import { AvisoInactividad } from './AvisoInactividad';
+import { AvisoSoloLectura } from './AvisoSoloLectura';
 import { CargaModulo } from './CargaModulo';
 import { Marca } from './Marca';
 import { MarcaZona } from './MarcaZona';
@@ -101,6 +102,7 @@ function Shell({ sesion, cuenta, children }: { sesion: SesionActiva; cuenta: Rea
           </div>
 
           <main id="contenido" tabIndex={-1} className="entrada outline-none" key={ruta}>
+            <AvisoSoloLectura />
             <CargaModulo>{children}</CargaModulo>
             <AvisoInactividad />
           </main>

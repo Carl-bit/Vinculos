@@ -15,6 +15,7 @@ import { BotonSalir } from './BotonSalir';
 import { ProveedorEquipoActivo, SelectorEquipo } from './EquipoActivo';
 import { EstadoVista } from './EstadoVista';
 import { AvisoInactividad } from './AvisoInactividad';
+import { AvisoSoloLectura } from './AvisoSoloLectura';
 import { CargaModulo } from './CargaModulo';
 import { Marca } from './Marca';
 import { MarcaZona } from './MarcaZona';
@@ -133,6 +134,7 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
           key={`${ruta}|${sesion.rol}`}
           className={`entrada min-w-0 outline-none px-[clamp(20px,3vw,48px)] pt-[clamp(14px,3.2vh,30px)] pb-14 trama`}
         >
+          <AvisoSoloLectura />
           {rutaPermitida('admin', sesion.rol, ruta) ? <CargaModulo>{children}</CargaModulo> : <EstadoVista estado="sin-permiso" />}
           <AvisoInactividad />
         </main>

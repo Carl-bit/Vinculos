@@ -200,3 +200,19 @@ enumerar cuentas). En su lugar:
   `seguridad_bd.sql` y e2e en `solicitudes-modulo.e2e-spec.ts`.
 - El plano de control no actualiza un silo con un exporte PENDIENTE o
   EN_PROCESO y llena la huella del acta de recepcion (S3) con estos datos.
+
+## R12: solo lectura durante la salida del centro (2026-11-16)
+
+- `POST /api/internal/salida` `{ soloLectura, fechaCorte }` y `GET` (token del
+  silo, sin contexto de usuario): funcion SECURITY DEFINER `salida_interna`,
+  idempotente, con bitacora `eventos_salida` (solo se agrega, RLS + FORCE).
+  Columnas `identidad_silo.solo_lectura_desde` y `fecha_corte` (migracion
+  `20261116000400`). Caso 180 de `seguridad_bd.sql` y e2e.
+- `SoloLecturaGuard` (global, despues de modulos): con el silo en solo lectura
+  toda escritura responde 423 (`silo_solo_lectura`), salvo las rutas
+  `@PermitidaEnSalida`: ingreso y sesion (`/auth`), contrasena y segundo
+  factor propios, derechos de los pacientes (Ley 21.719; decision del usuario:
+  siguen abiertos y el centro los responde), exportes del centro y del paciente,
+  y `/api/internal`. Las tareas programadas siguen.
+- `GET /api/modulos` informa `soloLectura` y `fechaCorte`; el panel y el portal
+  muestran el aviso "Plataforma en solo lectura".

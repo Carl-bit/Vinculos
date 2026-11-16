@@ -27,6 +27,7 @@ import { resumirDispositivo } from './dispositivo';
  */
 const TokensODesafio = () => ApiOkResponse({ schema: { oneOf: [{ $ref: getSchemaPath(Tokens) }, { $ref: getSchemaPath(DesafioSegundoFactor) }] } });
 import { Publico } from './decoradores';
+import { PermitidaEnSalida } from '../salida/solo-lectura';
 
 /**
  * Rate limit por IP: throttler 'login' (LOGIN_LIMITE_POR_MINUTO), tambien
@@ -35,6 +36,8 @@ import { Publico } from './decoradores';
  */
 @ApiTags(TAGS.auth)
 @Controller('auth')
+// R12: ingreso, segundo factor y sesion siguen con el silo en solo lectura.
+@PermitidaEnSalida()
 @Publico()
 @UseGuards(ThrottlerGuard)
 @SkipThrottle({ publico: true })

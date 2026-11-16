@@ -152,8 +152,10 @@ describe('MVP aprobacion de horas', () => {
   });
 
   it('punto 7: rechazar proponiendo horas las deja PROPUESTA; el paciente elige una (las otras se sueltan) o rechaza todas', async () => {
+    // Hora fija del dia (10:00 + h): relativo a ahora, de noche la alternativa cruzaba la medianoche y daba 422.
     const hora = (d: number, h: number) => {
-      const inicio = new Date(Date.now() + d * DIA + h * HORA);
+      const inicio = new Date(Date.now() + d * DIA);
+      inicio.setHours(10 + h, 0, 0, 0);
       return { modalidad: 'ONLINE', inicio: inicio.toISOString(), fin: new Date(inicio.getTime() + HORA).toISOString() };
     };
     const id = await solicitada();

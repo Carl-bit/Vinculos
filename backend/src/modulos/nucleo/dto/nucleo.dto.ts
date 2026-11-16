@@ -406,6 +406,11 @@ export class ModulosActivos {
   /** Punto 36: los que el perfil de la cuenta le restringe en el rol activo (el front los oculta). */
   @ApiProperty({ enum: ModuloCentro, enumName: 'ModuloCentro', isArray: true })
   restringidos!: ModuloCentro[];
+  /** R12: el centro esta saliendo de Vinculos; la plataforma esta en solo lectura (lectura, exportes, derechos y cuenta propia siguen). */
+  soloLectura!: boolean;
+  /** R12: fecha de corte que el centro avisa (YYYY-MM-DD), o null. */
+  @ApiProperty({ type: String, nullable: true })
+  fechaCorte!: string | null;
 }
 
 export class RolAdicionalVista {

@@ -117,8 +117,22 @@ model IdentidadSilo {
   hashAplicado       String?   @map("hash_aplicado")
   aplicadaEn         DateTime? @map("aplicada_en") @db.Timestamptz(6)
   creadaEn           DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
+  /// R12: el silo esta en solo lectura desde esta fecha (salida del centro, S2). Null: normal.
+  soloLecturaDesde   DateTime? @map("solo_lectura_desde") @db.Timestamptz(6)
+  /// R12: fecha de corte que el centro avisa a sus pacientes.
+  fechaCorte         DateTime? @map("fecha_corte") @db.Date
 
   @@map("identidad_silo")
+}
+
+/// R12: bitacora de solo lectura del silo (lo escribe solo salida_interna(); solo se agrega).
+model EventoSalida {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  soloLectura Boolean   @map("solo_lectura")
+  fechaCorte  DateTime? @map("fecha_corte") @db.Date
+  ocurridoEn  DateTime  @default(now()) @map("ocurrido_en") @db.Timestamptz(6)
+
+  @@map("eventos_salida")
 }
 
 /// Tarea 31 / R2-R3 (2026-11-13). Categoria A (pedida_por). Solo ADMIN lee;

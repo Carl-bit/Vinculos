@@ -5,6 +5,7 @@ import type { Request } from 'express';
 
 import { Publico } from '../auth/decoradores';
 import { ContextoBd } from '../bd/contexto-bd.service';
+import { PermitidaEnSalida } from '../salida/solo-lectura';
 
 /**
  * /api/internal/* (Vinculos Control, R2 a R5). Lo llama solo el agente del
@@ -43,6 +44,7 @@ export function tokenInterno(req: Request): string | null {
 /**
  * Controlador interno: sin JWT ni roles (Publico), con InternoGuard, sin el
  * limite publico por IP (el agente es uno y llama cada minuto) y fuera del
- * OpenAPI publico del centro.
+ * OpenAPI publico del centro. Sigue abierto con el silo en solo lectura (R12).
  */
-export const Interno = () => applyDecorators(Publico(), UseGuards(InternoGuard), SkipThrottle(), ApiBearerAuth('interno'), ApiExcludeController());
+export const Interno = () =>
+  applyDecorators(Publico(), PermitidaEnSalida(), UseGuards(InternoGuard), SkipThrottle(), ApiBearerAuth('interno'), ApiExcludeController());
