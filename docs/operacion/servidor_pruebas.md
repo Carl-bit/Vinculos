@@ -148,16 +148,31 @@ se recuperan los datos cifrados de ese silo: hay que reiniciarlo. En un silo
 real, las partes se entregan a sus custodios y se corre
 `verificar_respaldo.sh` (`docs/seguridad/runbooks_llaves.md`).
 
-## 5. Reiniciar el demo
+## 5. Mantener vigente o reiniciar el demo
+
+Rutina (R10 B): agenda las proximas horas del demo sin borrar nada ni tocar
+llaves. A cada par profesional-paciente con una sesion confirmada en los
+ultimos 60 dias y sin horas futuras le agenda la siguiente (mismo dia de la
+semana, hora y modalidad) y renueva el acceso del practicante vigente. Lo de los
+visitantes queda como historia. Solo corre en un silo marcado como demo
+(`ES_DEMO=true` en su .env, que `servidor.sh` agrega a todos sus silos; la
+marca queda en `identidad_silo.es_demo` al levantar). Imprime solo conteos.
 
 ```sh
-sh infra/servidor/servidor.sh reiniciar demo   # borra BD y llaves, vuelve a cargar
+sh infra/servidor/servidor.sh resembrar demo
 ```
 
 Por cron (todos los dias a las 04:00):
 
 ```
-0 4 * * * cd /ruta/vinculos && sh infra/servidor/servidor.sh reiniciar demo >> /var/log/vinculos-demo.log 2>&1
+0 4 * * * cd /ruta/vinculos && sh infra/servidor/servidor.sh resembrar demo >> /var/log/vinculos-demo.log 2>&1
+```
+
+Desde cero (borra BD y llaves y vuelve a cargar el seed; para cuando el demo
+pese o se ensucie):
+
+```sh
+sh infra/servidor/servidor.sh reiniciar demo
 ```
 
 Nunca `reiniciar estres` si se quiere conservar lo acumulado.

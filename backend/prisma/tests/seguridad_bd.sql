@@ -6301,5 +6301,13 @@ END $$;
 \connect :owner_url
 DELETE FROM notas_version;
 
+\echo 182 R10 marca de demo: la API no la lee ni la cambia (solo el dueno con ES_DEMO)
+\connect :app_url
+DO $$ BEGIN
+  ASSERT NOT has_column_privilege('app_user', 'identidad_silo', 'es_demo', 'UPDATE'), 'caso 182: app_user no cambia es_demo';
+  ASSERT NOT has_column_privilege('app_user', 'identidad_silo', 'es_demo', 'SELECT'), 'caso 182: app_user no lee es_demo';
+END $$;
+\connect :owner_url
+
 DROP SCHEMA test CASCADE;
 \echo TODOS LOS CASOS OK

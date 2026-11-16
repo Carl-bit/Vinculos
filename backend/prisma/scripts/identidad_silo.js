@@ -9,6 +9,8 @@
 //     frontend no arrancan (depends_on: service_completed_successfully).
 //   - INTERNO_TOKEN_SHA256 (64 hex) presente: lo guarda (rotacion = cambiar el
 //     .env y volver a correr migrate). Ausente: deja el que habia.
+//   - ES_DEMO=true (R10): marca la BD como demo. Nunca la desmarca (un silo de
+//     prueba no se convierte en real; eso es un silo nuevo).
 // Los valores viajan como parametros bind, nunca interpolados.
 const { Logger } = require('@nestjs/common');
 const { PrismaClient } = require('@prisma/client');
@@ -36,6 +38,10 @@ async function main() {
       logger.log(`BD del silo ${slug}; token interno ${fila.interno_token_sha256 ? 'rotado' : 'registrado'}`);
     } else {
       logger.log(`BD del silo ${slug}${fila.interno_token_sha256 || hash ? '' : ' (sin token interno: /api/internal cerrado)'}`);
+    }
+    if ((process.env.ES_DEMO ?? '').trim() === 'true') {
+      const n = await prisma.$executeRaw`UPDATE identidad_silo SET es_demo = true WHERE NOT es_demo`;
+      if (n) logger.log(`BD del silo ${slug} marcada como demo`);
     }
   } finally {
     await prisma.$disconnect();

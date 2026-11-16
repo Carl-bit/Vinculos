@@ -108,6 +108,8 @@ services:
       CLIENTE_SLUG: ${CLIENTE_SLUG}
       # Hash del token de /api/internal/* (plano de control). Vacio: endpoints cerrados.
       INTERNO_TOKEN_SHA256: ${INTERNO_TOKEN_SHA256:-}
+      # R10: solo silos de prueba (servidor.sh). Vacio en un silo real.
+      ES_DEMO: ${ES_DEMO:-}
     command: ['sh', '-c', 'npx prisma migrate deploy && node prisma/scripts/rol_api.js && node prisma/scripts/identidad_silo.js']
     labels:
       - cl.vinculos.silo=${CLIENTE_SLUG}

@@ -9,6 +9,7 @@
 #       Con PERFIL=estres sube el rate limit por IP (k6 sale de una sola IP).
 #   sh infra/servidor/servidor.sh reiniciar <slug>   borra BD y llaves y vuelve a cargar el demo
 #   sh infra/servidor/servidor.sh bajar <slug>       detiene el silo, conserva los datos
+#   sh infra/servidor/servidor.sh resembrar <slug>   R10 B: agenda las proximas horas del demo, sin borrar nada
 #   sh infra/servidor/servidor.sh estado
 #
 # Solo datos ficticios hasta nuevo aviso: las partes de recuperacion de la
@@ -60,6 +61,8 @@ PUBLICO_LIMITE_POR_MINUTO=$PUBLICO
 SMTP_URL=smtp://mailpit:1025
 # Remitente propio: los silos de prueba comparten Mailpit y las mismas cuentas demo; asi se distingue de que centro es cada codigo.
 CORREO_REMITENTE=no-responder@$DOMINIO
+# R10: todo silo de este servidor es de prueba (demo_resembrar.js lo exige).
+ES_DEMO=true
 FIN
   echo "Creado $ENV_SILO"
 }
@@ -122,6 +125,8 @@ levantar() {
   unir_bordes
   [ -f "$ENV_SILO" ] || generar_env "$@"
   token_interno
+  # Silos creados antes de R10: la marca de demo se agrega una vez.
+  grep -q '^ES_DEMO=' "$ENV_SILO" || printf '# R10: silo de prueba (demo_resembrar.js lo exige).\nES_DEMO=true\n' >> "$ENV_SILO"
 
   echo "2/5 BD y migraciones"
   dc up -d --build db migrate
@@ -176,6 +181,11 @@ case "$ACCION" in
     rm -rf "$SECRETOS/kek" "$SECRETOS/recuperacion.pub" "$SECRETOS/partes_entregar" "$SECRETOS/.datos_demo"
     levantar
     ;;
+  resembrar)
+    [ -n "$SLUG" ] || falla "Falta el slug"
+    [ -f "$ENV_SILO" ] || falla "No existe $ENV_SILO"
+    dc run --rm --no-deps migrate node prisma/scripts/demo_resembrar.js
+    ;;
   bajar)
     [ -f "$ENV_SILO" ] || falla "No existe $ENV_SILO"
     soltar_borde
@@ -185,6 +195,6 @@ case "$ACCION" in
     docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.RunningFor}}' --filter name=erp- --filter name=vinculos-servidor
     ;;
   *)
-    falla "Uso: servidor.sh levantar|reiniciar|bajar <slug> | estado"
+    falla "Uso: servidor.sh levantar|reiniciar|resembrar|bajar <slug> | estado"
     ;;
 esac

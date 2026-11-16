@@ -20,6 +20,7 @@
     "openapi:exportar": "nest build && node dist/core/docs/exportar-openapi.js",
     "seed:demo": "node --env-file=.env -r ts-node/register/transpile-only prisma/seed-demo.ts",
     "demo:reset": "sh ../infra/scripts/bd_local.sh recrear --si && npm run seed:demo",
+    "demo:resembrar": "node prisma/scripts/demo_resembrar.js",
     "bd:local": "sh ../infra/scripts/bd_local.sh",
     "lint:fix": "eslint \"{src,test,prisma}/**/*.ts\" --fix",
     "format": "prettier --write \"{src,test,prisma}/**/*.ts\""

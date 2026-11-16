@@ -226,3 +226,17 @@ enumerar cuentas). En su lugar:
 - Las escribe el operador de Vinculos en la consola (Releases) y el agente las
   entrega al actualizar el silo. El ADMIN las ve en Configuracion > Vinculos >
   "Novedades de la plataforma" (texto plano, saltos de linea respetados).
+
+## R10 B: resembrar el demo (2026-11-16)
+
+- Marca `identidad_silo.es_demo` (migracion `20261116000600`): la pone solo el
+  dueno (`identidad_silo.js` con `ES_DEMO=true`, que `servidor.sh` agrega a sus
+  silos); nunca la quita. La API no la lee ni la cambia (caso 182).
+- `prisma/scripts/demo_resembrar.js` (`npm run demo:resembrar`; en un silo:
+  `servidor.sh resembrar <slug>`, que lo corre en el servicio `migrate`, sin
+  KEK). Sin DELETE: agenda la siguiente hora de cada par profesional-paciente
+  con sesiones recientes y sin horas futuras (la BD manda: una hora que choca se
+  salta) y renueva el acceso del practicante vigente. Idempotente; se niega sin
+  la marca. Probado sobre una BD de prueba (agenda 1, la segunda corrida 0).
+- Tambien (mismo dia): `servidor.sh` une Mailpit y Traefik al borde con su
+  alias (el login de un silo nuevo daba 503 al no resolver `mailpit`).

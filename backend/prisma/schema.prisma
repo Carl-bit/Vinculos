@@ -117,6 +117,8 @@ model IdentidadSilo {
   hashAplicado       String?   @map("hash_aplicado")
   aplicadaEn         DateTime? @map("aplicada_en") @db.Timestamptz(6)
   creadaEn           DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
+  /// R10: silo de demostracion (lo marca el dueno con ES_DEMO=true; demo_resembrar.js lo exige).
+  esDemo             Boolean   @default(false) @map("es_demo")
   /// R12: el silo esta en solo lectura desde esta fecha (salida del centro, S2). Null: normal.
   soloLecturaDesde   DateTime? @map("solo_lectura_desde") @db.Timestamptz(6)
   /// R12: fecha de corte que el centro avisa a sus pacientes.
