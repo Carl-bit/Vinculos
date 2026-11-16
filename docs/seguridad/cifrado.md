@@ -20,7 +20,8 @@ Par de recuperacion (RSA-OAEP-4096, SHA-256)
   bytea opacos y DEKs envueltas.
 - **Categorias de DEK**: IDENTIFICACION (RUT, telefonos, copias de autoria),
   CLINICO (notas, comentarios de supervision, motivo/detalle de derivacion),
-  FINANCIERO (datos bancarios), HMAC (indices ciegos).
+  HMAC (indices ciegos). FINANCIERO se retiro el 2026-11-16 (MVP sin cobros:
+  no quedan datos bancarios; migracion 20261116000200_sin_llave_financiero).
 - **Formato de un valor**: `[1 formato][16 id DEK][4 version][12 IV][cifrado][16 tag]`.
   La cabecera tambien se autentica (va al AAD): cambiar la DEK o version que
   declara un valor hace fallar el descifrado. Largo minimo 49 bytes; la BD lo

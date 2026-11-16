@@ -12,8 +12,9 @@
  */
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export type CategoriaLlave = 'IDENTIFICACION' | 'CLINICO' | 'FINANCIERO' | 'HMAC';
-export const CATEGORIAS: readonly CategoriaLlave[] = ['IDENTIFICACION', 'CLINICO', 'FINANCIERO', 'HMAC'];
+export type CategoriaLlave = 'IDENTIFICACION' | 'CLINICO' | 'HMAC';
+/** MVP sin cobros (2026-11-16): sin FINANCIERO (retirada en 20261116000200_sin_llave_financiero). */
+export const CATEGORIAS: readonly CategoriaLlave[] = ['IDENTIFICACION', 'CLINICO', 'HMAC'];
 
 /** Fila de llaves_vigentes() (lo que la API puede leer). */
 export interface FilaLlave {

@@ -81,8 +81,8 @@ describe('cifrado de aplicacion', () => {
     const sanas = CATEGORIAS.map((c) => filaDePrueba(kek, c, 1, true));
     const canario = Buffer.from(sanas[1].canario);
     canario[canario.length - 1] ^= 0x01;
-    expect(() => Llavero.cargar(kek, [sanas[0], { ...sanas[1], canario }, sanas[2], sanas[3]])).toThrow(/Canario invalido/);
-    expect(() => Llavero.cargar(kek, sanas.slice(0, 3))).toThrow(/Sin DEK activa/);
+    expect(() => Llavero.cargar(kek, [sanas[0], { ...sanas[1], canario }, sanas[2]])).toThrow(/Canario invalido/);
+    expect(() => Llavero.cargar(kek, sanas.slice(0, 2))).toThrow(/Sin DEK activa/);
   });
 
   it('el registro de campos cifrados no repite columnas y no incluye HMAC', () => {

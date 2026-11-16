@@ -140,11 +140,24 @@ las tarifas, FONASA y la boleta reembolsable.
   penalizacion en el recordatorio. Vitest 142/142, lint limpio.
 - Seed demo: sin pagos, acuerdos, comisiones ni moroso (Rodrigo queda como
   paciente online, `rodrigo@`).
-- La llave FINANCIERO queda sin columnas que cifrar: no se toca (solo los
-  scripts de llaves).
-- Pendiente aparte (no es de cobros): 5 Playwright de UI desactualizados
-  (contacto de emergencia en Mi cuenta, selector del adulto responsable,
-  reseña en el perfil, match paso a paso, landing y equipo).
+- Llave FINANCIERO retirada (decision del usuario, mismo dia): migraciones
+  `20261116000100_evento_retiro_categoria` (evento RETIRO_CATEGORIA en la
+  bitacora de llaves) y `20261116000200_sin_llave_financiero`. La migracion
+  comprueba en la BD que ninguna columna bytea tenga datos con la cabecera de
+  una DEK FINANCIERO (si hay, falla sin cambios), borra sus DEK, deja el evento
+  y recrea `categoria_llave` (IDENTIFICACION, CLINICO, HMAC). KEK y partes
+  Shamir sin cambios. Codigo y scripts (`cifrado.ts`, `cli-llaves.ts`,
+  `rotar.sh`) con 3 categorias. Verificado: suite de BD OK, copia de la BD de
+  desarrollo migrada y llavero cargado con su KEK, aprovisionar, rotar en dos
+  fases y recuperar con 2 de 3 partes.
+- Playwright al dia con la UI: el ingreso elige el rol en cuentas con mas de
+  uno ("¿Con qué rol entras?"), los datos del paciente estan en Mis datos y
+  seguridad, el selector de cuenta es el propio y el contacto de emergencia es
+  su seccion; el match se omite si el centro lo tiene apagado.
+- R14 hecho: `respaldar.sh` no respalda con la db detenida (sale con 3, sin
+  archivo ni rotacion), falla si pg_dump falla o el cifrado pesa menos de
+  `RESPALDO_MINIMO` (1024) y rota solo tras un respaldo bueno. Probado con un
+  docker simulado (detenida, pg_dump con error, volcado de 32 bytes, bueno).
 
 ## Recuperacion de contraseña y enlace de acceso sin revelar cuentas (2026-11-15)
 

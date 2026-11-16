@@ -38,6 +38,9 @@ test('landing y equipo: contenido del ADMIN, filtro por atención, perfil con re
 });
 
 test('match: paso a paso, aviso de riesgo, resultado explicado y lleva a pedir hora', async ({ page }) => {
+  // El modulo lo activa el operador (plano de control): si este centro lo tiene apagado, no hay match que probar.
+  const centro = (await (await page.request.get('/api/publico/centro')).json()) as { modulos?: string[] };
+  test.skip(!centro.modulos?.includes('MATCH'), 'MATCH apagado en este centro (lo activa el operador)');
   await page.goto('/match');
   await page.getByText('Ansiedad').click();
   await page.getByRole('button', { name: 'Continuar' }).click();

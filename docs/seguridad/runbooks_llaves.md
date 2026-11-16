@@ -43,8 +43,8 @@ corre estos scripts y el unico que lee `custodios_llave` y `eventos_llaves`
 
 ## 2. Rotacion de DEK (anual, o si se sospecha de una DEK)
 
-1. `sh rotar.sh crear` -> version nueva inactiva de IDENTIFICACION, CLINICO
-   y FINANCIERO (HMAC no rota). Se niega si hay otra rotacion pendiente.
+1. `sh rotar.sh crear` -> version nueva inactiva de IDENTIFICACION y CLINICO
+   (HMAC no rota). Se niega si hay otra rotacion pendiente.
 2. Respaldar la BD (las DEK nuevas ya estan en el respaldo).
 3. `verificar_respaldo.sh RESPALDO kek` y `... recuperacion PARTE PARTE`.
 4. `sh rotar.sh activar` -> verifica KEK + canario + envoltura de

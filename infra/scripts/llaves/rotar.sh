@@ -3,7 +3,7 @@
 # retiradas y siguen descifrando sus datos.
 #
 #   rotar.sh crear [CATEGORIAS]  fase 1: version nueva inactiva por categoria
-#                                (por defecto IDENTIFICACION,CLINICO,FINANCIERO;
+#                                (por defecto IDENTIFICACION,CLINICO;
 #                                HMAC no rota: invalidaria los indices ciegos).
 #                                Despues: respaldar la BD y verificar el respaldo.
 #   rotar.sh activar             fase 2: verifica (KEK + canario + envoltura de
@@ -28,7 +28,7 @@
 case "${1:-}" in
   crear)
     cli rotar-crear --kek "$D/kek" --publica "$D/recuperacion.pub" \
-      --categorias "${2:-IDENTIFICACION,CLINICO,FINANCIERO}" --actor "$ACTOR"
+      --categorias "${2:-IDENTIFICACION,CLINICO}" --actor "$ACTOR"
     ;;
   hmac-compromiso)
     cli rotar-crear --kek "$D/kek" --publica "$D/recuperacion.pub" --categorias HMAC --compromiso-hmac si --actor "$ACTOR"

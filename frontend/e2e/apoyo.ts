@@ -27,7 +27,9 @@ export async function codigoCorreo(destino: string, despues: Date): Promise<stri
 /**
  * Ingreso por la pantalla de login con el segundo paso por correo (equipo, y
  * pacientes que lo activaron). Si la cuenta entrega codigos de respaldo (primer
- * ingreso) los confirma. Devuelve cuando la URL es la de la zona.
+ * ingreso) los confirma. Una cuenta con mas de un rol elige con cual entra
+ * ("¿Con qué rol entras?"): se entra con el rol principal (el marcado). Devuelve
+ * cuando la URL es la de la zona.
  */
 export async function ingresar(page: Page, usuario: string, zona: 'admin' | 'portal' = 'admin') {
   await page.goto('/ingreso');
@@ -42,8 +44,13 @@ export async function ingresar(page: Page, usuario: string, zona: 'admin' | 'por
     await codigo.fill(await codigoCorreo(correo(usuario), antes));
     await page.getByRole('button', { name: 'Verificar' }).click();
     const listo = page.getByRole('button', { name: 'Ya los guardé, continuar' });
-    await Promise.race([listo.waitFor(), page.waitForURL(new RegExp(`/${zona}$`))]);
-    if (await listo.isVisible()) await listo.click();
+    const roles = page.getByRole('group', { name: 'Roles de tu cuenta' });
+    await Promise.race([listo.waitFor(), roles.waitFor(), page.waitForURL(new RegExp(`/${zona}$`))]);
+    if (await listo.isVisible()) {
+      await listo.click();
+      await Promise.race([roles.waitFor(), page.waitForURL(new RegExp(`/${zona}$`))]);
+    }
+    if (await roles.isVisible()) await roles.getByRole('button').first().click();
   }
   await expect(page).toHaveURL(new RegExp(`/${zona}$`));
 }

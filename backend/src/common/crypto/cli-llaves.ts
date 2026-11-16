@@ -4,7 +4,7 @@
  * custodios_llave y eventos_llaves no tienen GRANT para app_user.
  *
  *   aprovisionar  --kek F --publica F --partes DIR --custodios "nombre:rol,nombre:rol,nombre:rol" --actor A
- *   rotar-crear   --kek F --publica F --categorias IDENTIFICACION,CLINICO,FINANCIERO --actor A
+ *   rotar-crear   --kek F --publica F --categorias IDENTIFICACION,CLINICO --actor A
  *                 (HMAC solo con --compromiso-hmac si: runbook de compromiso)
  *   rotar-activar --kek F --actor A
  *   rotar-kek     --kek F --kek-nueva F --actor A
@@ -176,9 +176,9 @@ async function main(): Promise<void> {
       }
       case 'rotar-crear': {
         const categorias = uno(args, 'categorias').split(',') as CategoriaLlave[];
-        const rotables = ['IDENTIFICACION', 'CLINICO', 'FINANCIERO', ...(args.has('compromiso-hmac') ? ['HMAC'] : [])];
+        const rotables = ['IDENTIFICACION', 'CLINICO', ...(args.has('compromiso-hmac') ? ['HMAC'] : [])];
         if (categorias.some((c) => !rotables.includes(c))) {
-          throw new ErrorCifrado('Categorias rotables: IDENTIFICACION, CLINICO, FINANCIERO (HMAC solo ante compromiso: --compromiso-hmac)');
+          throw new ErrorCifrado('Categorias rotables: IDENTIFICACION, CLINICO (HMAC solo ante compromiso: --compromiso-hmac)');
         }
         const nuevas = await rotarCrear(leerKek(uno(args, 'kek')), readFileSync(uno(args, 'publica'), 'utf8'), categorias, almacen, actor);
         logger.log(`Fase 1 lista: ${nuevas.map((f) => `${f.categoria} v${f.version}`).join(', ')}. Respaldar la BD y luego rotar-activar.`);

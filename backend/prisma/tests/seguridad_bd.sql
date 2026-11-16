@@ -1538,14 +1538,19 @@ DO $$ DECLARE t text; BEGIN
       RAISE EXCEPTION 'caso 68: app_user lee % debio fallar', t;
     EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   END LOOP;
-  ASSERT (SELECT count(*) FROM llaves_vigentes()) = 4 AND (SELECT count(*) FROM llaves_vigentes() WHERE activa) = 4,
-    'caso 68: 4 DEK aprovisionadas y activas, sin contexto';
+  -- 2026-11-16: sin FINANCIERO (MVP sin cobros): IDENTIFICACION, CLINICO y HMAC.
+  ASSERT (SELECT count(*) FROM llaves_vigentes()) = 3 AND (SELECT count(*) FROM llaves_vigentes() WHERE activa) = 3,
+    'caso 68: 3 DEK aprovisionadas y activas, sin contexto';
   ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'llaves_vigentes')
          = '{id,categoria,version,activa,dek_por_kek,huella_kek,canario}', 'caso 68: sin dek_por_recuperacion';
   PERFORM registrar_evento_llaves('VERIFICACION', 'canarios OK al arrancar');
   BEGIN
     PERFORM registrar_evento_llaves('ROTACION', 'x');
     RAISE EXCEPTION 'caso 68: la API registra ROTACION debio fallar';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    PERFORM registrar_evento_llaves('RETIRO_CATEGORIA', 'x');
+    RAISE EXCEPTION 'caso 68: la API registra RETIRO_CATEGORIA debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 DO $$ BEGIN

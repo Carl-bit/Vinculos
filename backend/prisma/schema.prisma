@@ -376,7 +376,6 @@ model Baja {
 enum CategoriaLlave {
   IDENTIFICACION
   CLINICO
-  FINANCIERO
   HMAC
 
   @@map("categoria_llave")
@@ -391,6 +390,8 @@ enum TipoEventoLlaves {
   SIMULACRO
   CAMBIO_CUSTODIO
   COMPROMISO
+  /// 2026-11-16: retiro de una categoria completa (FINANCIERO, MVP sin cobros).
+  RETIRO_CATEGORIA
 
   @@map("tipo_evento_llaves")
 }

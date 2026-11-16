@@ -88,8 +88,8 @@ describe('contingencia de llaves', () => {
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  it('aprovisiona 4 DEK activas, 3 partes separadas y no deja la privada en disco', async () => {
-    expect(almacen.filas).toHaveLength(4);
+  it('aprovisiona una DEK activa por categoria (3), 3 partes separadas y no deja la privada en disco', async () => {
+    expect(almacen.filas).toHaveLength(3);
     expect(partes).toHaveLength(3);
     expect(readdirSync(dir).sort()).toEqual(['kek', 'partes', 'recuperacion.pub']);
     expect(await verificar(almacen.filas, { kek })).toEqual([]);
@@ -120,7 +120,7 @@ describe('contingencia de llaves', () => {
   it('partes de otro silo no reconstruyen esta llave', async () => {
     const ajenas = await dividirPrivada(generarParRecuperacion().privada);
     const fallos = await verificar(almacen.filas, { partes: [ajenas[0], ajenas[1]] });
-    expect(fallos).toHaveLength(4);
+    expect(fallos).toHaveLength(3);
   });
 
   it('rotacion en dos fases: no destruye versiones y los datos viejos siguen legibles', async () => {
@@ -130,7 +130,7 @@ describe('contingencia de llaves', () => {
 
     await rotarCrear(kek, publica, ['CLINICO'], almacen, 'test');
     await expect(rotarCrear(kek, publica, ['CLINICO'], almacen, 'test')).rejects.toThrow(/rotacion pendiente/);
-    expect(almacen.filas).toHaveLength(5);
+    expect(almacen.filas).toHaveLength(4);
     await rotarActivar(kek, almacen, 'test');
 
     const clinicas = almacen.filas.filter((f) => f.categoria === 'CLINICO');
@@ -143,7 +143,7 @@ describe('contingencia de llaves', () => {
   });
 
   it('una version nueva que no verifica no se activa', async () => {
-    const mala = { ...nuevaDek('FINANCIERO', 99, false, kek, publica) };
+    const mala = { ...nuevaDek('CLINICO', 99, false, kek, publica) };
     mala.canario = Buffer.from(mala.canario);
     mala.canario[mala.canario.length - 1] ^= 0x01;
     const otro = new AlmacenMemoria();

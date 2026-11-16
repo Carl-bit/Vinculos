@@ -22,9 +22,11 @@ test('paciente: Mi cuenta con su profesional, horas, mensajes y datos; contacto 
   await expect(page.getByRole('heading', { name: 'Hola, Paciente.' })).toBeVisible();
   await expect(page.getByText('Mi profesional')).toBeVisible();
   await expect(page.getByRole('tab', { name: /Próximas/ })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByText('Contacto Demo (hermana) +56922222222')).toBeVisible();
+  // Punto 38: el contacto de emergencia es una seccion propia de Mi cuenta (el paciente lo agrega; el equipo lo ve).
+  await expect(page.getByRole('region', { name: 'Contacto de emergencia' })).toBeVisible();
   await expect(page.getByText('Mensaje demo: ¿la sesión del jueves es presencial u online? Gracias.')).toBeVisible();
-  // Editar: solo telefono y correo.
+  // Editar (Mis datos y seguridad > Datos personales): solo telefono y correo.
+  await page.goto('/portal/seguridad?seccion=datos');
   await page.getByRole('button', { name: 'Editar' }).click();
   await expect(page.getByLabel('Teléfono')).toBeEditable();
   await expect(page.getByLabel('Contacto de emergencia')).toHaveCount(0);
@@ -51,10 +53,13 @@ test('adolescente: cuenta restringida sin documentos ni consentimientos', async 
 
 test('adulto responsable: elige al menor y ve sus horas; los mensajes son solo los que el escribio', async ({ page }) => {
   await ingresar(page, 'madre.demo');
-  await expect(page.getByLabel('Estás viendo la cuenta de')).toHaveValue(/.+/);
+  // Selector propio de la plataforma (combobox, no <select>): muestra al menor elegido.
+  await expect(page.getByRole('combobox', { name: 'Estás viendo la cuenta de' })).toHaveText(/Sofia/);
   await expect(page.getByRole('heading', { name: 'Su profesional' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Datos de Sofia/ })).toBeVisible();
   await expect(page.getByText(/Mensaje demo de la madre/)).toBeVisible();
+  // Los datos del menor, en Mis datos y seguridad: el adulto responsable no los edita.
+  await page.goto('/portal/seguridad?seccion=datos');
+  await expect(page.getByRole('heading', { name: /Datos de Sofia/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Editar' })).toHaveCount(0);
 });
 
@@ -104,9 +109,9 @@ test('paciente: pide hora con su tratante sin repetir datos y descarga su docume
   await aprobarHora(page, citaId);
 
   // Limpieza: la hora confirmada ocuparia la agenda de Profesional Uno en las otras pruebas.
-  // Recepcion (GESTION, un solo rol) la anula desde la agenda.
+  // Administracion la anula desde la agenda.
   const admin = await (await browser.newContext()).newPage();
-  await ingresarEquipo(admin, 'gestion');
+  await ingresarEquipo(admin, 'admin');
   await admin.goto(`/admin/agenda?cita=${citaId}`);
   await admin.getByRole('dialog').getByRole('button', { name: 'Cancelar cita' }).click();
   await admin.getByRole('dialog').getByRole('button', { name: 'Sí, cancelar' }).click();
