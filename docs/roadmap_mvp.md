@@ -240,3 +240,16 @@ enumerar cuentas). En su lugar:
   la marca. Probado sobre una BD de prueba (agenda 1, la segunda corrida 0).
 - Tambien (mismo dia): `servidor.sh` une Mailpit y Traefik al borde con su
   alias (el login de un silo nuevo daba 503 al no resolver `mailpit`).
+
+## Demo a medida generado desde Vinculos Control (2026-11-16)
+
+-  (compilado en la imagen comun:
+  , ). Con
+   (1-3),  (1-20) y   (0-300) arma un centro ficticio por la API real: cuentas madre, profesionales
+  con perfil publico validado (registro SIS y titulo), boxes, disponibilidad,
+  pacientes (los tres primeros con cuenta en el portal), horas de tres semanas
+  atras a tres adelante y evoluciones ficticias en las pasadas.
+- Solo con ; idempotente. La contrasena la pone quien lo
+  llama () y nunca se imprime: la salida es una linea
+   con correos, roles y conteos. Corre en el servicio
+  backend del silo con la URL de dueno agregada. Probado: 3/8/120 en 26 s.
