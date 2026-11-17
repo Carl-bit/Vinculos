@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { ingresarEquipo, pacienteNuevo } from './apoyo';
+import { ingresarEquipo, pacienteNuevo, elegir } from './apoyo';
 
 /**
  * 03b-5.2 contra la API local y el seed demo: acceso a fichas ajenas,
@@ -57,6 +57,11 @@ test('Mensajes: conversacion del caso; un mensaje propio se puede retirar dentro
   await expect(page.getByText('Mensaje retirado')).toHaveCount(retirados + 1);
 
   await page.getByRole('tab', { name: 'De pacientes' }).click();
+  // Bandeja en dos columnas: primero se elige la conversacion.
+  await page
+    .getByRole('region', { name: 'Conversaciones con pacientes' })
+    .getByRole('button', { name: /Paciente Prueba/ })
+    .click();
   await expect(page.getByText(/la sesión del jueves/)).toBeVisible();
   await page.getByRole('tab', { name: 'Avisos' }).click();
   await expect(page).toHaveURL(/vista=avisos/);
@@ -74,7 +79,7 @@ test('03b-6: hilo CASO: lo ve quien tiene acceso clínico y desaparece al revoca
   await uno.getByRole('button', { name: 'Otorgar acceso' }).click();
   const otorgar = uno.getByRole('dialog', { name: 'Otorgar acceso clínico temporal' });
   const selector = otorgar.getByRole('combobox', { name: 'Profesional', exact: true });
-  await selector.selectOption((await selector.locator('option', { hasText: 'Profesional Dos' }).getAttribute('value'))!);
+  await elegir(selector, { label: /Profesional Dos/ });
   await otorgar.getByRole('button', { name: 'Otorgar acceso' }).click();
   await expect(otorgar).toBeHidden();
 

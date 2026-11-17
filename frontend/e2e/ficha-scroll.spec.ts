@@ -62,6 +62,11 @@ test('Ficha: scroll con rueda y saltos del indice llegan a su seccion', async ({
 test('Seguimiento: "Ver su agenda" abre la agenda del profesional por semana o mes y deriva a Agenda y Espacios', async ({ page }) => {
   await ingresarEquipo(page, 'admin');
   await page.goto('/admin/fichas');
+  // El seguimiento muestra el detalle (con Ver su agenda) del profesional que se elige en la lista.
+  await page
+    .getByRole('button', { name: /Profesional Uno/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Ver su agenda' }).click();
   const modal = page.getByRole('dialog', { name: /^Agenda de / });
   const vista = modal.getByRole('group', { name: 'Vista de la agenda' });

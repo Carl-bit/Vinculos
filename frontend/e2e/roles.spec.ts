@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ingresar } from './apoyo';
+import { ingresar, cambiarRol, esperarRol } from './apoyo';
 
 /**
  * 03b-4.1 (6.2): verificacion de roles con los usuarios demo
@@ -41,7 +41,7 @@ const MENU_ADMIN = [
 const MENU_GESTION = ['Inicio', 'Mi perfil', 'Mensajes', 'Fichas y Pacientes', 'Agenda y Espacios', 'Equipo'];
 // 2026-10-29: Equipo es solo de ADMIN/GESTION.
 const MENU_CLINICO = MENU_GESTION.filter((m) => m !== 'Equipo');
-const SECCIONES = ['Resumen', 'Documentos', 'Consentimientos', 'Avisos', 'Reseñas', 'Seguridad'];
+const SECCIONES = ['Resumen', 'Documentos', 'Consentimientos', 'Mensajes', 'Reseñas', 'Seguridad'];
 
 const CASOS: Caso[] = [
   {
@@ -92,7 +92,7 @@ const CASOS: Caso[] = [
     zona: 'admin',
     menu: MENU_CLINICO,
     bloqueadas: [{ ruta: '/admin/configuracion', texto: SIN_PERMISO }],
-    api: { metodo: 'GET', ruta: '/api/cobros/liquidaciones' },
+    api: { metodo: 'GET', ruta: '/api/usuarios' },
   },
   {
     nombre: 'PACIENTE adulto',
@@ -106,9 +106,9 @@ const CASOS: Caso[] = [
     nombre: 'PACIENTE adolescente (cuenta restringida)',
     usuario: 'adolescente',
     zona: 'portal',
-    menu: ['Resumen', 'Avisos', 'Seguridad'],
+    menu: ['Resumen', 'Mensajes', 'Seguridad'],
     bloqueadas: [{ ruta: '/portal/documentos', texto: SOLO_RESPONSABLE }],
-    api: { metodo: 'GET', ruta: '/api/cobros/liquidaciones' },
+    api: { metodo: 'GET', ruta: '/api/usuarios' },
   },
   {
     nombre: 'Adulto responsable',
@@ -136,8 +136,8 @@ for (const c of CASOS) {
     const token = capturarToken(page);
     await ingresar(page, c.usuario, c.zona);
     if (c.rol) {
-      await page.getByLabel('Rol activo').selectOption(c.rol);
-      await expect(page.getByLabel('Rol activo')).toHaveValue(c.rol);
+      await cambiarRol(page, c.rol);
+      await esperarRol(page, c.rol);
     }
     const nav = page.getByRole('navigation', { name: c.zona === 'admin' ? 'Menú principal' : 'Secciones de mi cuenta' });
     // El menu termina de armarse cuando llegan los modulos activos.

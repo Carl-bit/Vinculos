@@ -310,6 +310,7 @@ export function ListaSeleccion({ id, value, defaultValue, onChange, children, di
                 key={`${o.valor}-${i}`}
                 id={`${idLista}-${i}`}
                 data-i={i}
+                data-valor={o.valor}
                 role="option"
                 aria-selected={o.valor === valor}
                 aria-disabled={o.disabled || undefined}

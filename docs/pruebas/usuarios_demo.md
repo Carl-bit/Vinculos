@@ -5,6 +5,23 @@ Centro de demostración para pruebas manuales y Playwright. Solo desarrollo:
 `backend/`, en PowerShell). El seed se niega con `NODE_ENV=production`.
 
 - Contraseña de todos: `dev-password` (`SEED_PASSWORD` la cambia).
+
+## Playwright contra una BD desechable (2026-11-17)
+
+Las pruebas crean y cambian datos: conviene una BD propia recién cargada en vez
+de la de desarrollo (que puede ser un silo con llaves que no se recrean). Con un
+Postgres de prueba aparte: crear la BD, migrar, `rol_api.js`, `identidad_silo.js`,
+llaves con `infra/scripts/llaves/aprovisionar.sh` (`CLIENTE_SLUG` propio),
+`npx prisma db seed` y `seed-demo.ts`; levantar `npm run dev` con
+`DATABASE_URL`, `MIGRATION_DATABASE_URL`, `KEK_PATH` y `RECUPERACION_PUBLICA_PATH` de
+esa BD, y correr las pruebas con:
+
+```sh
+E2E_DB_CONTENEDOR=<contenedor postgres> E2E_DB_NOMBRE=<bd> npx playwright test
+```
+
+`E2E_DB_CONTENEDOR` y `E2E_DB_NOMBRE` los usa `sqlPrueba` (lecturas de
+verificacion). `E2E_NAVEGADOR=chrome` usa el Chrome del equipo.
 - Dominio: `@centro-prueba.cl` (por ejemplo `admin@centro-prueba.cl`).
 - Se entra con **correo o RUT** (los que tienen RUT registrado).
 - **Segundo paso**: todo el equipo recibe un código de 6 dígitos por correo

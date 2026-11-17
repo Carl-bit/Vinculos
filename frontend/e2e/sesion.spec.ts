@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { codigoCorreo, correo, ingresar, PASSWORD } from './apoyo';
+import { codigoCorreo, correo, ingresar, PASSWORD, cambiarRol, esperarRol } from './apoyo';
 
 /** Primer paso del login (correo o RUT y contraseña), sin responder el segundo. */
 async function primerPaso(page: Page, usuario: string, perfil: 'paciente' | 'equipo' = 'equipo') {
@@ -31,15 +31,21 @@ test('ADMIN: codigo por correo, menu de su rol, sin tokens en el almacen del nav
   await page.getByLabel('Código de verificación').fill(await codigoCorreo(correo('admin'), antes));
   await page.getByRole('button', { name: 'Verificar' }).click();
   const listo = page.getByRole('button', { name: 'Ya los guardé, continuar' });
-  await Promise.race([listo.waitFor(), page.waitForURL(/\/admin$/)]);
-  if (await listo.isVisible()) await listo.click();
+  const roles = page.getByRole('group', { name: 'Roles de tu cuenta' });
+  await Promise.race([listo.waitFor(), roles.waitFor(), page.waitForURL(/\/admin$/)]);
+  if (await listo.isVisible()) {
+    await listo.click();
+    await Promise.race([roles.waitFor(), page.waitForURL(/\/admin$/)]);
+  }
+  // El admin del demo tambien es profesional: elige con que rol entra.
+  if (await roles.isVisible()) await roles.getByRole('button', { name: /Cuenta madre/ }).click();
   await expect(page).toHaveURL(/\/admin$/);
 
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
   await expect(menu.getByRole('link', { name: 'Configuración' })).toBeVisible();
   await expect(page.getByLabel('Equipo')).toHaveCount(0);
   // El seed demo da ADMIN + PROFESIONAL al admin: el selector de rol aparece.
-  await expect(page.getByLabel('Rol activo')).toHaveValue('ADMIN');
+  await esperarRol(page, 'ADMIN');
 
   // El refresh token nunca llega al JS: cookie httpOnly limitada a /sesion (Secure solo con HTTPS).
   const cookie = (await context.cookies()).find((c) => c.name === 'vinculos_refresh');
@@ -87,8 +93,14 @@ test('PROFESIONAL entra con su RUT (equipo) y ve el menu sin opciones de ADMIN',
   await page.getByLabel('Código de verificación').fill(await codigoCorreo(correo('profesional1'), antes));
   await page.getByRole('button', { name: 'Verificar' }).click();
   const listo = page.getByRole('button', { name: 'Ya los guardé, continuar' });
-  await Promise.race([listo.waitFor(), page.waitForURL(/\/admin$/)]);
-  if (await listo.isVisible()) await listo.click();
+  const roles = page.getByRole('group', { name: 'Roles de tu cuenta' });
+  await Promise.race([listo.waitFor(), roles.waitFor(), page.waitForURL(/\/admin$/)]);
+  if (await listo.isVisible()) {
+    await listo.click();
+    await Promise.race([roles.waitFor(), page.waitForURL(/\/admin$/)]);
+  }
+  // El admin del demo tambien es profesional: elige con que rol entra.
+  if (await roles.isVisible()) await roles.getByRole('button', { name: /Cuenta madre/ }).click();
   await expect(page).toHaveURL(/\/admin$/);
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
   await expect(menu.getByRole('link', { name: 'Fichas y Pacientes' })).toBeVisible();
@@ -100,18 +112,16 @@ test('PROFESIONAL entra con su RUT (equipo) y ve el menu sin opciones de ADMIN',
 test('cuenta con dos roles: cambia el rol activo, recarga permisos y el cambio sobrevive a recargar', async ({ page }) => {
   await ingresar(page, 'directora');
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
-  const selector = page.getByLabel('Rol activo');
-  await expect(selector).toHaveValue('ADMIN');
-  await expect(selector.locator('option:checked')).toHaveText('Cuenta madre');
+  await esperarRol(page, 'ADMIN');
   await expect(menu.getByRole('link', { name: 'Configuración' })).toBeVisible();
 
-  await selector.selectOption('PROFESIONAL');
+  await cambiarRol(page, 'PROFESIONAL');
   await expect(menu.getByRole('link', { name: 'Configuración' })).toHaveCount(0);
   await expect(page.getByLabel('Equipo')).toHaveCount(0);
-  await expect(selector).toHaveValue('PROFESIONAL');
+  await esperarRol(page, 'PROFESIONAL');
 
   await page.reload();
-  await expect(page.getByLabel('Rol activo')).toHaveValue('PROFESIONAL');
+  await esperarRol(page, 'PROFESIONAL');
   await expect(menu.getByRole('link', { name: 'Configuración' })).toHaveCount(0);
 });
 

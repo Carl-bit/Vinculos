@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ingresarEquipo, pacienteNuevo, sqlPrueba } from './apoyo';
+import { ingresarEquipo, pacienteNuevo, sqlPrueba, elegir, esperarRol } from './apoyo';
 
 const ingresarAdmin = (page: Page) => ingresarEquipo(page, 'admin');
 
@@ -9,7 +9,7 @@ test('Agenda: agendar retiene la hora con cuenta regresiva y solo confirma al pu
   await ingresarAdmin(page);
   await page.goto('/admin/agenda?nueva=1');
   const modal = page.getByRole('dialog', { name: 'Agendar sesión' });
-  await modal.getByLabel('Paciente').selectOption({ label: 'Prueba, Paciente' });
+  await elegir(modal.getByLabel('Paciente'), { label: 'Prueba, Paciente' });
   await expect(modal.getByText(/Horas libres de/)).toBeVisible();
 
   // Elegir una hora crea el soft-lock (UX); la cita aun no existe.
@@ -74,7 +74,7 @@ test('Agenda: el detalle de una sesion futura ofrece cubrir sesion y explica la 
   await modal.getByRole('button', { name: 'Cubrir sesión' }).click();
   await expect(modal.getByLabel('Profesional que cubre')).toBeVisible();
   // ADMIN puede otorgar el acceso temporal en el mismo paso.
-  await modal.getByLabel('Profesional que cubre').selectOption({ index: 1 });
+  await elegir(modal.getByLabel('Profesional que cubre'), { index: 1 });
   await expect(modal.getByRole('button', { name: /cubrir/i }).last()).toBeEnabled();
 });
 
@@ -243,16 +243,19 @@ test('Mi perfil de la cuenta madre (punto 22): su perfil profesional con ADMIN a
   await expect(page.getByRole('button', { name: 'Asignar tipos' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Ver mi agenda' }).click();
   await expect(page).toHaveURL(/\/admin\/agenda\?equipo=/);
-  await expect(page.getByRole('status').filter({ hasText: 'Viendo a' })).toContainText('Admin');
+  // El filtro de profesional de la agenda queda en la cuenta madre (reemplaza al antiguo "Viendo a").
+  await expect(page.getByRole('combobox', { name: 'Profesional de la agenda' })).toContainText('Admin');
   await page.goto('/admin/perfil/cuenta?seccion=perfil-profesional');
   await page.getByRole('button', { name: 'Trabajar como Profesional' }).click();
-  await expect(page.getByLabel('Rol activo')).toHaveValue('PROFESIONAL');
+  await esperarRol(page, 'PROFESIONAL');
   await expect(page).toHaveURL(/\/admin\/perfil$/);
   await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Configuración' })).toHaveCount(0);
 });
 
 for (const usuario of ['admin', 'profesional1'] as const) {
-  test(`Agenda 1920x1080 (${usuario}): sin scroll de la pagina, grilla 08-24 entera en la ventana y vistas Día | Semana | Mes`, async ({ page }) => {
+  test(`Agenda 1920x1080 (${usuario}): sin scroll de la pagina, grilla del horario del centro entera en la ventana y vistas Día | Semana | Mes`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await ingresarEquipo(page, usuario);
     await page.goto('/admin/agenda');
@@ -265,9 +268,9 @@ for (const usuario of ['admin', 'profesional1'] as const) {
     await expect(grilla).toBeVisible();
     // Tras la animacion de entrada (desplaza el main unos px al aparecer).
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBeLessThanOrEqual(0);
-    // 08:00 a 24:00 caben enteras: la grilla no necesita scroll vertical.
+    // La grilla va del inicio al fin del horario del centro (demo: 08:00 a 21:00) y cabe entera, sin scroll vertical.
     await expect(grilla.getByText('08:00', { exact: true }).first()).toBeVisible();
-    await expect(grilla.getByText('23:00', { exact: true }).first()).toBeVisible();
+    await expect(grilla.getByText('20:00', { exact: true }).first()).toBeVisible();
     expect(await grilla.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
     await vistas.locator('label').filter({ hasText: /Mes$/ }).click();
     await expect(page.getByRole('region', { name: 'Calendario del mes' })).toBeVisible();
@@ -292,11 +295,23 @@ test('03b-6: cubrir sesión con acceso temporal: ADMIN otorga el acceso y la ses
   const modal = admin.getByRole('dialog');
   await modal.getByRole('button', { name: 'Cubrir sesión' }).click();
   const selector = modal.getByLabel('Profesional que cubre');
-  const otro = await selector.locator('option', { hasText: 'Profesional Dos' }).getAttribute('value');
-  await selector.selectOption(otro!);
-  await expect(modal.getByLabel('Acceso de reemplazo hasta')).toBeVisible();
-  await modal.getByRole('button', { name: 'Otorgar acceso y cubrir' }).click();
-  await expect(modal.getByRole('button', { name: 'Otorgar acceso y cubrir' })).toHaveCount(0);
+  // El seed demo llena las agendas: se prueba con los profesionales del demo hasta uno libre a esa hora.
+  const boton = modal.getByRole('button', { name: 'Otorgar acceso y cubrir' });
+  const choques = admin.getByRole('alert').filter({ hasText: 'ya tiene una cita en ese horario' });
+  let otro: string | null = null;
+  for (const nombre of [/Profesional Dos/, /Profesional Tres/, /Profesional Cuatro/, /Profesional Seis/]) {
+    await elegir(selector, { label: nombre });
+    const candidato = await selector.getAttribute('data-valor');
+    await expect(modal.getByLabel('Acceso de reemplazo hasta')).toBeVisible();
+    const antes = await choques.count();
+    await boton.click();
+    await expect.poll(async () => (await boton.count()) === 0 || (await choques.count()) > antes, { timeout: 10_000 }).toBe(true);
+    if ((await boton.count()) === 0) {
+      otro = candidato;
+      break;
+    }
+  }
+  expect(otro).not.toBeNull();
 
   expect(sqlPrueba(`SELECT profesional_id FROM citas WHERE id = '${citaId}'`)).toBe(otro);
   // El tratante no cambia (eso es una derivacion) y el acceso queda registrado con plazo.

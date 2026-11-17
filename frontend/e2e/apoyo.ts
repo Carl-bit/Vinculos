@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** Seed demo (docs/pruebas/usuarios_demo.md). */
 export const PASSWORD = 'dev-password';
@@ -66,7 +66,10 @@ export const ingresarEquipo = (page: Page, usuario: string) => ingresar(page, us
  */
 export function sqlPrueba(sql: string): string {
   const contenedor = process.env.E2E_DB_CONTENEDOR ?? 'erp-centro-prueba-db-1';
-  return execFileSync('docker', ['exec', contenedor, 'psql', '-U', 'vinculos_owner', '-d', 'app', '-tAc', sql], { encoding: 'utf8' }).trim();
+  // E2E_DB_CONTENEDOR y E2E_DB_NOMBRE: otra BD de pruebas (por ejemplo una desechable con el seed demo recien cargado).
+  return execFileSync('docker', ['exec', contenedor, 'psql', '-U', 'vinculos_owner', '-d', process.env.E2E_DB_NOMBRE ?? 'app', '-tAc', sql], {
+    encoding: 'utf8',
+  }).trim();
 }
 
 const MAILPIT_API = `${MAILPIT}/api/v1`;
@@ -92,6 +95,53 @@ export async function enlaceDelCorreo(para: string, ruta = '/pedir-hora/verifica
 export async function elegirOpcion(page: Page, nombre: string, opcion: string) {
   await page.getByRole('combobox', { name: nombre, exact: true }).click();
   await page.getByRole('listbox').getByRole('option', { name: opcion, exact: true }).click();
+}
+
+/**
+ * Elige una opcion en un selector propio (Selector/ListaSeleccion: combobox +
+ * listbox, no <select> nativo): por valor (data-valor), por posicion o por el
+ * texto visible. Reemplaza a locator.selectOption de los <select> de antes.
+ */
+export async function elegir(control: Locator, opcion: string | { index: number } | { label: string | RegExp }) {
+  await control.click();
+  const lista = control.page().getByRole('listbox');
+  const op =
+    typeof opcion === 'string'
+      ? lista.locator(`[role="option"][data-valor="${opcion}"]`)
+      : 'index' in opcion
+        ? lista.getByRole('option').nth(opcion.index)
+        : lista.getByRole('option', { name: opcion.label });
+  await op.click();
+}
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+/** Elige una fecha (AAAA-MM-DD, hoy o futura) en el CampoFecha propio: abre el calendario, avanza de mes y marca el dia. */
+export async function elegirFecha(control: Locator, fecha: string) {
+  const [a, m, d] = fecha.split('-').map(Number);
+  await control.click();
+  const grilla = control.page().getByRole('grid', { name: `${MESES[m - 1]} ${a}` });
+  for (let i = 0; i < 36 && !(await grilla.isVisible()); i++) await control.page().getByRole('button', { name: 'Mes siguiente' }).click();
+  await grilla.locator(`button[data-dia="${d}"]`).click();
+}
+
+/** Nombres de rol en el selector de rol activo (lib/roles NOMBRE_ROL). */
+const NOMBRE_ROL: Record<string, string> = {
+  ADMIN: 'Cuenta madre',
+  GESTION: 'Gestión',
+  PROFESIONAL: 'Profesional',
+  PRACTICANTE: 'Practicante',
+  PACIENTE: 'Paciente',
+  RESPONSABLE: 'Adulto responsable',
+};
+/** Rol activo: grupo de botones (uno por rol) en el menu del panel. */
+const rolActivo = (page: Page) => page.getByRole('group', { name: 'Rol activo' });
+export async function cambiarRol(page: Page, rol: string) {
+  await rolActivo(page)
+    .getByRole('button', { name: NOMBRE_ROL[rol] ?? rol, exact: true })
+    .click();
+}
+export async function esperarRol(page: Page, rol: string) {
+  await expect(rolActivo(page).getByRole('button', { name: NOMBRE_ROL[rol] ?? rol, exact: true })).toHaveAttribute('aria-pressed', 'true');
 }
 
 /** RUT valido al azar (con digito verificador) para pacientes de prueba. */

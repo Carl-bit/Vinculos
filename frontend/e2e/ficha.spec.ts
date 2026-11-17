@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ingresarEquipo, pacienteNuevo } from './apoyo';
+import { ingresarEquipo, pacienteNuevo, elegir, sqlPrueba } from './apoyo';
 
 /**
  * Ficha clinica 03b-5.1 contra la API local y el seed demo. Idempotentes: la
@@ -86,7 +86,7 @@ test('Ficha: vista previa del PDF antes de emitir (sin emitir nada)', async ({ p
   await page.getByRole('navigation', { name: 'Índice de la ficha' }).getByRole('link', { name: 'Documentos' }).click();
   await page.getByRole('button', { name: 'Emitir documento' }).click();
   const modal = page.getByRole('dialog', { name: 'Emitir documento' });
-  await modal.getByLabel('Tipo de documento').selectOption({ index: 1 });
+  await elegir(modal.getByLabel('Tipo de documento'), { index: 1 });
   await modal.getByLabel('Contenido').fill('Contenido de prueba e2e (ficticio).');
   await expect(modal.getByRole('button', { name: 'Emitir' })).toBeDisabled();
   await modal.getByRole('button', { name: 'Vista previa' }).click();
@@ -97,20 +97,11 @@ test('Ficha: vista previa del PDF antes de emitir (sin emitir nada)', async ({ p
 
 test('Ficha: ADMIN no ve el contenido clinico; administra plantillas, catalogos y retencion', async ({ page }) => {
   await ingresarEquipo(page, 'admin');
-  await page.goto('/admin/fichas?vista=pacientes');
-  // AUD-02: la lista llega de a 50 (orden por apellido); se busca como lo haria administracion.
-  await page.getByLabel('Buscar paciente por nombre o apellido').fill('Paciente');
-  await page
-    .getByRole('link', { name: /Prueba, Paciente|Paciente Prueba/ })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/admin\/fichas\/[^/?]+$/);
-  // 03b-4.2: la antigua /ficha lleva a la vista del paciente; ADMIN no tiene pestañas clinicas.
-  await page.goto(`${page.url()}/ficha`);
-  await expect(page).toHaveURL(/\/admin\/fichas\/[^/]+\?vista=evoluciones/);
-  const indice = page.getByRole('navigation', { name: 'Índice de la ficha' });
-  await expect(indice.getByRole('link', { name: 'Sesiones' })).toBeVisible();
-  await expect(indice.getByRole('link', { name: /Evoluciones/ })).toHaveCount(0);
+  // Punto 20: la cuenta madre no abre perfiles de pacientes (ni por enlace directo): solo el seguimiento por profesional.
+  const pacienteId = sqlPrueba("SELECT paciente_id FROM usuarios WHERE email = 'paciente@centro-prueba.cl'");
+  await page.goto(`/admin/fichas/${pacienteId}?vista=evoluciones`);
+  await expect(page.getByText('La cuenta madre no abre perfiles de pacientes')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Índice de la ficha' })).toHaveCount(0);
 
   await page.goto('/admin/fichas?vista=plantillas');
   await expect(page.getByText('Evolucion psicoterapia (Demo)')).toBeVisible();
@@ -133,7 +124,7 @@ test('03b-6: borrador confirmado al expediente (paciente nuevo, no toca el seed)
 
   await tratante.getByRole('button', { name: 'Confirmar en el expediente' }).click();
   const modal = tratante.getByRole('dialog', { name: 'Confirmar en el expediente' });
-  await modal.getByLabel('Tipo de sesión').selectOption({ index: 1 });
+  await elegir(modal.getByLabel('Tipo de sesión'), { index: 1 });
   await modal.getByRole('radio').first().check();
   await modal.getByRole('button', { name: 'Confirmar' }).click();
   await expect(modal).toBeHidden();

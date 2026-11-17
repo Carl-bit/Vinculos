@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { ingresar, ingresarEquipo } from './apoyo';
+import { ingresar, ingresarEquipo, elegir, elegirFecha } from './apoyo';
 
 /**
  * AUD-01 (docs/cumplimiento/roadmap_aud01.md) contra el seed demo: auditoria
@@ -18,7 +18,7 @@ test('Configuracion (ADMIN): auditoria de accesos con quien, rol activo y accion
   const tabla = page.getByRole('table', { name: 'Registros de auditoría' });
   await expect(tabla).toBeVisible();
   await expect(tabla.getByRole('row').nth(1)).toBeVisible();
-  await page.getByLabel('Acción').selectOption('ESCRITURA');
+  await elegir(page.getByLabel('Acción'), 'ESCRITURA');
   await expect(tabla.getByRole('cell', { name: 'Escritura o edición' }).first()).toBeVisible();
 });
 
@@ -44,7 +44,7 @@ test('Configuracion (ADMIN): contrato con Vinculos aceptado, soporte autorizado 
   await expect(tabla.getByRole('row', { name: /Prueba automatizada de soporte/ }).first()).toContainText('Revocada');
 
   await page.goto('/admin/configuracion?vista=derechos');
-  await page.getByLabel('Derecho').selectOption('OPOSICION');
+  await elegir(page.getByLabel('Derecho'), 'OPOSICION');
   const detalle = `Prueba automatizada ${Date.now()}: no quiere recibir recordatorios`;
   await page.getByLabel(/Detalle/).fill(detalle);
   await page.getByRole('button', { name: 'Registrar solicitud' }).click();
@@ -57,7 +57,7 @@ test('Configuracion (ADMIN): contrato con Vinculos aceptado, soporte autorizado 
 
 test('Portal: sin el modulo WhatsApp (desactivado por defecto) no se ofrece el consentimiento', async ({ page }) => {
   await ingresar(page, 'paciente', 'portal');
-  await page.goto('/portal/avisos');
+  await page.goto('/portal/seguridad?seccion=avisos');
   await expect(page.getByRole('switch', { name: /Recordatorios de horas/ })).toBeVisible();
   await expect(page.getByRole('switch', { name: /Avisos por WhatsApp/ })).toHaveCount(0);
 });
@@ -68,7 +68,7 @@ test('Derechos sin cuenta: desde el pie del sitio, por RUT, con la misma respues
   await expect(page.getByRole('heading', { name: 'Derechos sobre tus datos' })).toBeVisible();
   await expect(page.getByRole('checkbox', { name: /Mi correo cambió/ })).not.toBeChecked();
   await page.getByLabel('Tu RUT').fill('11.111.111-1');
-  await page.getByLabel(/Qué necesitas/).selectOption('ACCESO');
+  await elegir(page.getByLabel(/Qué necesitas/), 'ACCESO');
   await page.getByRole('button', { name: 'Enviar solicitud' }).click();
   await expect(page.getByRole('status')).toContainText('Si el RUT corresponde a un paciente del centro');
 });
@@ -79,9 +79,9 @@ test('Fase 3: ADMIN prepara la copia de datos (espera al tratante), el tratante 
 }) => {
   await ingresarEquipo(page, 'admin');
   await page.goto('/admin/configuracion?vista=derechos');
-  await page.getByLabel('Derecho').selectOption('ACCESO');
+  await elegir(page.getByLabel('Derecho'), 'ACCESO');
   await page.getByLabel('Buscar paciente').fill('Prueba');
-  await page.getByLabel('Paciente', { exact: true }).selectOption({ index: 1 });
+  await elegir(page.getByLabel('Paciente', { exact: true }), { index: 1 });
   const detalle = `Copia automatizada ${Date.now()}`;
   await page.getByLabel(/Detalle/).fill(detalle);
   await page.getByRole('button', { name: 'Registrar solicitud' }).click();
@@ -122,7 +122,7 @@ test('Feriados: los de la ley vienen calculados; ADMIN agrega uno regional y lo 
   if (await fila.count()) {
     await fila.getByRole('button', { name: 'Reponer' }).click();
   } else {
-    await page.getByLabel('Agregar feriado propio').fill(fecha);
+    await elegirFecha(page.getByLabel('Agregar feriado propio'), fecha);
     await page.getByLabel('Nombre del feriado').fill('Feriado regional de prueba');
     await page.getByRole('button', { name: 'Agregar feriado' }).click();
   }
