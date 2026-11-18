@@ -11,3 +11,8 @@ coverage
 !.env.example
 *.pem
 *.key
+
+# Capturas del anexo de tesis (locales, no versionadas)
+comparacion-anexo
+anexo-capturas
+e2e/zz-*anexo*.spec.ts

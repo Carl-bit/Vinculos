@@ -23,3 +23,7 @@ kek.*
 test
 prisma/tests
 **/*.spec.ts
+
+# Capturas del anexo de tesis (locales, no versionadas)
+comparacion-anexo
+anexo-capturas

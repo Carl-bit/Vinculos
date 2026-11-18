@@ -77,3 +77,8 @@ backend/test/bd/.entorno-test.json
 
 # Digests publicados por infra/scripts/imagenes/publicar.sh (estado del host B, R1).
 infra/imagenes/
+
+# Capturas del anexo de tesis: carpetas y specs locales (se generan a mano con CAPTURAS=<carpeta>)
+comparacion-anexo/
+anexo-capturas/
+frontend/e2e/zz-*anexo*.spec.ts
