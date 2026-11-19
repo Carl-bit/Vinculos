@@ -249,7 +249,7 @@ function FormularioResena({
         {opciones.length > 1 && (
           <Field label="Profesional">
             {(p) => (
-              <Select {...p} value={b.profesionalId} onChange={(e) => cambiar({ profesionalId: e.target.value })}>
+              <Select buscable {...p} value={b.profesionalId} onChange={(e) => cambiar({ profesionalId: e.target.value })}>
                 {opciones.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.nombre}

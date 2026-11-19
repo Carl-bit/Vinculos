@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { terminarCambioRol } from '@/lib/cambioRol';
 import { useCentroPublico, useMiCuenta, useModulos } from '@/lib/consultas';
+import { INTERVALO_NO_LEIDOS, useHilos, useMensajesPacientes } from '@/lib/mensajes';
 import { conSelectorEquipo, menuVisible, moduloDeRuta, rutaPermitida, type ItemMenu } from '@/lib/navegacion';
 import { esAdministracion, NOMBRE_ROL } from '@/lib/roles';
 import type { SesionActiva } from '@/lib/sesion';
@@ -27,7 +28,29 @@ const GRUPOS = [
   { id: 'centro', titulo: 'Centro' },
 ] as const;
 
-function Enlace({ item, activo }: { item: ItemMenu; activo: boolean }) {
+/**
+ * Mensajes sin leer junto a "Mensajes" del menu, uno por origen y con su color: del equipo (terracota, tono team)
+ * y de pacientes (verde, tono patient; solo quien atiende los recibe).
+ */
+function NoLeidosMenu({ clinico }: { clinico: boolean }) {
+  const equipo = (useHilos(undefined, INTERVALO_NO_LEIDOS).data ?? []).reduce((s, h) => s + h.noLeidos, 0);
+  const pacientes = (useMensajesPacientes(clinico, INTERVALO_NO_LEIDOS).data ?? []).filter((m) => !m.deProfesional && !m.leidoEn).length;
+  const contador = (n: number, color: string, de: string) =>
+    n > 0 && (
+      <span title={`${n} sin leer ${de}`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] leading-none font-extrabold text-neutral-100 ${color}`}>
+        {n > 99 ? '99+' : n}
+        <span className="sr-only"> sin leer {de}</span>
+      </span>
+    );
+  return (
+    <>
+      {contador(equipo, 'bg-accent-700', 'del equipo')}
+      {clinico && contador(pacientes, 'bg-accent-2-700', 'de pacientes')}
+    </>
+  );
+}
+
+function Enlace({ item, activo, extra }: { item: ItemMenu; activo: boolean; extra?: ReactNode }) {
   return (
     <Link
       href={item.href}
@@ -44,6 +67,7 @@ function Enlace({ item, activo }: { item: ItemMenu; activo: boolean }) {
       />
       <Icon name={item.icono} size={19} className="transition-transform duration-200 ease-out group-hover:translate-x-0.5" />
       <span className="flex-1">{item.etiqueta}</span>
+      {extra}
       {item.pestanaNueva && (
         <>
           <Icon name="open_in_new" size={15} className="text-neutral-700" />
@@ -105,7 +129,12 @@ export function LayoutAdmin({ sesion, children }: { sesion: SesionActiva; childr
                   <div key={id} className="flex flex-col gap-[3px]">
                     {titulo && <span className="px-2 pb-1.5 text-[11px] font-extrabold tracking-[0.14em] text-neutral-700 uppercase">{titulo}</span>}
                     {delGrupo.map((i) => (
-                      <Enlace key={i.href} item={i} activo={activo(i.href)} />
+                      <Enlace
+                        key={i.href}
+                        item={i}
+                        activo={activo(i.href)}
+                        extra={i.href === '/admin/mensajes' && <NoLeidosMenu clinico={sesion.rol === 'PROFESIONAL' || sesion.rol === 'PRACTICANTE'} />}
+                      />
                     ))}
                   </div>
                 );

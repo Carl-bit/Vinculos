@@ -65,7 +65,7 @@ export function SelectorEquipo() {
   return (
     <Field label="Equipo" error={profesionales.error ? 'No pudimos cargar el equipo.' : undefined}>
       {(p) => (
-        <Select
+        <Select buscable
           {...p}
           value={profesionalId ?? ''}
           disabled={profesionales.isPending}

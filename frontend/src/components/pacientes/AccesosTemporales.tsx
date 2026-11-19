@@ -218,7 +218,7 @@ function OtorgarAcceso({ pacienteId, excluir, onListo }: { pacienteId: string; e
     <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
       <Field label="Profesional" required>
         {(p) => (
-          <Select {...p} value={d.profesionalId} onChange={(e) => setD({ ...d, profesionalId: e.target.value })}>
+          <Select buscable {...p} value={d.profesionalId} onChange={(e) => setD({ ...d, profesionalId: e.target.value })}>
             <option value="">Elige un profesional</option>
             {candidatos.map((c) => (
               <option key={c.id} value={c.id}>

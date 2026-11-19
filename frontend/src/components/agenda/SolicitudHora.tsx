@@ -37,6 +37,7 @@ const PASOS = ['Horario', 'Tus datos', 'Solicitud', 'Confirmada'] as const;
 interface Datos {
   nombre: string;
   apellido: string;
+  segundoApellido: string;
   fechaNacimiento: string;
   email: string;
   telefono: string;
@@ -57,6 +58,7 @@ interface Datos {
 const VACIO: Datos = {
   nombre: '',
   apellido: '',
+  segundoApellido: '',
   fechaNacimiento: '',
   email: '',
   telefono: '',
@@ -161,7 +163,7 @@ export function SolicitudHora({
   const validar = (): boolean => {
     const e: typeof errores = {};
     if (!d.nombre.trim()) e.nombre = 'Escribe el nombre del paciente.';
-    if (!d.apellido.trim()) e.apellido = 'Escribe el apellido del paciente.';
+    if (!d.apellido.trim()) e.apellido = 'Escribe el primer apellido del paciente.';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.fechaNacimiento) || new Date(d.fechaNacimiento) > new Date())
       e.fechaNacimiento = 'Indica una fecha de nacimiento válida.';
     if (!CORREO.test(d.email.trim())) e.email = MENSAJE_CORREO;
@@ -199,7 +201,8 @@ export function SolicitudHora({
             inicio: bloque.inicio.toISOString(),
             fin: bloque.fin.toISOString(),
             nombre: d.nombre.trim(),
-            apellido: d.apellido.trim(),
+            // La API guarda un solo campo de apellidos: primero y segundo, en ese orden.
+            apellido: `${d.apellido.trim()} ${d.segundoApellido.trim()}`.trim(),
             fechaNacimiento: d.fechaNacimiento,
             email: d.email.trim(),
             telefono: opcional(d.telefono),
@@ -342,12 +345,21 @@ export function SolicitudHora({
                 />
                 Pido hora para un menor de edad
               </label>
-              <Field label="Nombre" required error={errores.nombre}>
-                {(p) => <Input {...p} autoComplete={d.paraMenor ? 'off' : 'given-name'} value={d.nombre} onChange={(e) => cambiar('nombre', e.target.value)} />}
-              </Field>
-              <Field label="Apellido" required error={errores.apellido}>
+              <div className="sm:col-span-2">
+                <Field label="Nombres" required hint="Todos los nombres, como aparecen en el carnet." error={errores.nombre}>
+                  {(p) => (
+                    <Input {...p} maxLength={120} autoComplete={d.paraMenor ? 'off' : 'given-name'} value={d.nombre} onChange={(e) => cambiar('nombre', e.target.value)} />
+                  )}
+                </Field>
+              </div>
+              <Field label="Primer apellido" required error={errores.apellido}>
                 {(p) => (
-                  <Input {...p} autoComplete={d.paraMenor ? 'off' : 'family-name'} value={d.apellido} onChange={(e) => cambiar('apellido', e.target.value)} />
+                  <Input {...p} maxLength={59} autoComplete={d.paraMenor ? 'off' : 'family-name'} value={d.apellido} onChange={(e) => cambiar('apellido', e.target.value)} />
+                )}
+              </Field>
+              <Field label="Segundo apellido" hint="Si tiene uno solo, déjalo en blanco." error={errores.segundoApellido}>
+                {(p) => (
+                  <Input {...p} maxLength={60} autoComplete="off" value={d.segundoApellido} onChange={(e) => cambiar('segundoApellido', e.target.value)} />
                 )}
               </Field>
               <FechaNacimiento

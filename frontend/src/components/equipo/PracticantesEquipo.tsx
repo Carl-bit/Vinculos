@@ -261,7 +261,7 @@ export function AccionPracticante({
           {(tipo === 'extender' || tipo === 'supervisor') && (
             <Field label={tipo === 'extender' ? 'Nuevo supervisor (solo si su supervisión terminó)' : 'Nuevo supervisor'} required={tipo === 'supervisor'}>
               {(x) => (
-                <Select {...x} value={supervisorId} onChange={(e) => setSupervisorId(e.target.value)}>
+                <Select buscable {...x} value={supervisorId} onChange={(e) => setSupervisorId(e.target.value)}>
                   <option value="">{tipo === 'extender' ? 'Mantener el actual' : 'Elige un profesional'}</option>
                   {profesionales.data?.map((p) => (
                     <option key={p.id} value={p.id}>

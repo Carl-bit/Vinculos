@@ -334,7 +334,7 @@ function CubrirSesion({ cita, rol, abierto, onAbrir, onListo }: { cita: CitaVist
       </p>
       <Field label="Profesional que cubre" required>
         {(p) => (
-          <Select {...p} value={profesionalId} onChange={(e) => setProfesionalId(e.target.value)}>
+          <Select buscable {...p} value={profesionalId} onChange={(e) => setProfesionalId(e.target.value)}>
             <option value="">Elige un profesional</option>
             {candidatos.map((c) => (
               <option key={c.id} value={c.id}>

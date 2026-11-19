@@ -166,8 +166,9 @@ export async function pedirHora(page: Page, etiqueta: string, menor = false, rut
     .click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(page.getByRole('heading', { name: 'Datos del paciente' })).toBeFocused();
-  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Prueba');
-  await page.getByLabel('Apellido').fill('E2E');
+  await page.getByRole('textbox', { name: 'Nombres', exact: true }).fill('Prueba');
+  await page.getByLabel('Primer apellido').fill('E2E');
+  await page.getByLabel('Segundo apellido').fill('Prueba');
   // 03b-4.1: tres desplegables (dia, mes, año), con el selector propio de la plataforma.
   await elegirOpcion(page, 'Día', '10');
   await elegirOpcion(page, 'Mes', 'mayo');

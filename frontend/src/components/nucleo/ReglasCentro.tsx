@@ -401,7 +401,7 @@ function PersonasDelRol({ rol }: { rol: 'ADMIN' | 'GESTION' | 'PROFESIONAL' | 'P
         <div className="flex flex-wrap items-end gap-2">
           <Field label="Agregar a alguien del equipo">
             {(p) => (
-              <Select {...p} value={agregar} onChange={(e) => setAgregar(e.target.value)} className="!py-2 text-[13.5px]">
+              <Select buscable {...p} value={agregar} onChange={(e) => setAgregar(e.target.value)} className="!py-2 text-[13.5px]">
                 <option value="">Elige una persona</option>
                 {candidatas.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -565,7 +565,7 @@ function TarjetaPerfil({ perfil: p, onEditar, onCambio }: { perfil: PerfilRol; o
         <div className="flex flex-wrap items-end gap-2">
           <Field label="Asignar a">
             {(f) => (
-              <Select {...f} value={asignar} onChange={(e) => setAsignar(e.target.value)} className="!py-2 text-[13.5px]">
+              <Select buscable {...f} value={asignar} onChange={(e) => setAsignar(e.target.value)} className="!py-2 text-[13.5px]">
                 <option value="">Elige una persona</option>
                 {candidatas.map((c) => (
                   <option key={c.id} value={c.id}>

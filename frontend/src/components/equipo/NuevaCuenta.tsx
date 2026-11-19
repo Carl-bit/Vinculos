@@ -107,7 +107,7 @@ export function NuevaCuenta({ abierto, onCerrar, onCreada }: { abierto: boolean;
           <>
             <Field label="Supervisor" required>
               {(x) => (
-                <Select {...x} value={f.supervisorId} onChange={cambiar('supervisorId')}>
+                <Select buscable {...x} value={f.supervisorId} onChange={cambiar('supervisorId')}>
                   <option value="">Elige un profesional</option>
                   {profesionales.data?.map((p) => (
                     <option key={p.id} value={p.id}>

@@ -6,7 +6,9 @@ import type { ReactNode } from 'react';
 
 import { Field, Select } from '@/components/ui/Field';
 import { Icon } from '@/components/ui/Icon';
-import { useCentroPublico, useModulos } from '@/lib/consultas';
+import { useCentroPublico, useMiCuenta, useModulos } from '@/lib/consultas';
+import { INTERVALO_NO_LEIDOS } from '@/lib/mensajes';
+import { useMensajesPortal } from '@/lib/portal';
 import { menuVisible, moduloDeRuta } from '@/lib/navegacion';
 import type { SesionActiva } from '@/lib/sesion';
 import { ProveedorPortal, usePortal } from './ContextoPortal';
@@ -16,6 +18,21 @@ import { AvisoSoloLectura } from './AvisoSoloLectura';
 import { CargaModulo } from './CargaModulo';
 import { Marca } from './Marca';
 import { MarcaZona } from './MarcaZona';
+
+/** Respuestas del profesional sin leer junto a "Mensajes" (terracota, el color del equipo; cada 5 s como el panel). */
+function NoLeidosPortal() {
+  const portal = usePortal();
+  const cuenta = useMiCuenta();
+  const n = (useMensajesPortal(INTERVALO_NO_LEIDOS).data ?? []).filter(
+    (m) => m.deProfesional && !m.leidoEn && m.destinatarioId === cuenta.data?.id && (!portal.pacienteId || !m.pacienteId || m.pacienteId === portal.pacienteId),
+  ).length;
+  return n > 0 ? (
+    <span title={`${n} sin leer de tu profesional`} className="grid h-5 min-w-5 place-items-center rounded-full bg-accent-700 px-1.5 text-[11px] leading-none font-extrabold text-neutral-100">
+      {n > 99 ? '99+' : n}
+      <span className="sr-only"> sin leer de tu profesional</span>
+    </span>
+  ) : null;
+}
 
 /**
  * Shell del portal del paciente (diseño "Paciente - Mi Cuenta"): header, menor
@@ -98,6 +115,7 @@ function Shell({ sesion, cuenta, children }: { sesion: SesionActiva; cuenta: Rea
                   >
                     <Icon name={i.icono} size={17} />
                     {i.etiqueta}
+                    {i.href === '/portal/avisos' && <NoLeidosPortal />}
                   </Link>
                 ))}
               </nav>

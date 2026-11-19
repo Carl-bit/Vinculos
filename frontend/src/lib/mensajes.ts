@@ -17,12 +17,14 @@ export type MensajePaciente = components['schemas']['MensajePortal'];
 export type AvisoBandeja = components['schemas']['MensajeBandeja'];
 
 const SEGUNDO = 1000;
+/** Contador de no leidos del menu (pedido 2026-11-18): consulta cada 5 s con la pestaña visible. */
+export const INTERVALO_NO_LEIDOS = 5 * SEGUNDO;
 
-export function useHilos(pacienteId?: string) {
+export function useHilos(pacienteId?: string, intervalo = 30 * SEGUNDO) {
   return useQuery({
     queryKey: ['hilos', pacienteId ?? 'todos'],
     queryFn: () => datos(api.GET('/api/hilos', { params: { query: pacienteId ? { pacienteId } : {} } })),
-    refetchInterval: 30 * SEGUNDO,
+    refetchInterval: intervalo,
   });
 }
 
@@ -36,8 +38,8 @@ export function useMensajesHilo(id: string | null) {
   });
 }
 
-export function useMensajesPacientes(habilitado: boolean) {
-  return useQuery({ queryKey: ['mensajes-pacientes'], queryFn: () => datos(api.GET('/api/mensajes')), enabled: habilitado, refetchInterval: 30 * SEGUNDO });
+export function useMensajesPacientes(habilitado: boolean, intervalo = 30 * SEGUNDO) {
+  return useQuery({ queryKey: ['mensajes-pacientes'], queryFn: () => datos(api.GET('/api/mensajes')), enabled: habilitado, refetchInterval: intervalo });
 }
 
 export function useBandejaAvisos() {

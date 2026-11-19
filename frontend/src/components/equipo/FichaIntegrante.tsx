@@ -736,7 +736,7 @@ export function CuentaIntegrante({ cuenta, propia }: { cuenta: Cuenta; propia: b
                 required
               >
                 {(x) => (
-                  <Select {...x} value={supervisorNuevo} onChange={(e) => setSupervisorNuevo(e.target.value)}>
+                  <Select buscable {...x} value={supervisorNuevo} onChange={(e) => setSupervisorNuevo(e.target.value)}>
                     <option value="">Elige un profesional</option>
                     {(profesionales.data ?? [])
                       .filter((p) => p.id !== cuenta.id)

@@ -85,9 +85,9 @@ export function useContactosEmergencia(pacienteId: string | undefined, habilitad
   });
 }
 
-export function useMensajesPortal() {
+export function useMensajesPortal(intervalo = 30_000) {
   // Puntos 40/44: chat con el profesional; polling (sin websockets, CLAUDE.md).
-  return useQuery({ queryKey: ['portal', 'mensajes'], queryFn: () => datos(api.GET('/api/mensajes')), refetchInterval: 30_000 });
+  return useQuery({ queryKey: ['portal', 'mensajes'], queryFn: () => datos(api.GET('/api/mensajes')), refetchInterval: intervalo });
 }
 
 export function useResenasPortal() {

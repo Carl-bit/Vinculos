@@ -190,7 +190,7 @@ export function FormularioPaciente({ rol, onCreado, onCancelar }: { rol: Rol; on
         {admin && (
           <Field label="Profesional tratante" required error={errores.profesionalId}>
             {(p) => (
-              <Select {...p} value={d.profesionalId} onChange={(e) => cambiar('profesionalId', e.target.value)}>
+              <Select buscable {...p} value={d.profesionalId} onChange={(e) => cambiar('profesionalId', e.target.value)}>
                 <option value="">Elige un profesional</option>
                 {profesionales.data?.map((m) => (
                   <option key={m.id} value={m.id}>

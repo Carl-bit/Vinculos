@@ -107,7 +107,7 @@ export function MensajeProfesional({ vista = 'inicio' }: { vista?: 'inicio' | 'm
           {(equipo.data?.length ?? 0) > 1 && (
             <Field label="Para">
               {(p) => (
-                <Select {...p} value={profesionalId} onChange={(e) => setDestino(e.target.value)}>
+                <Select buscable {...p} value={profesionalId} onChange={(e) => setDestino(e.target.value)}>
                   {equipo.data!.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.nombre ?? 'Profesional del centro'}

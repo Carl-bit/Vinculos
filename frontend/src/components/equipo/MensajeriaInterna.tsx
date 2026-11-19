@@ -311,7 +311,7 @@ function NuevaConversacion({ rol, pacienteInicial, onListo }: { rol: Rol; pacien
       {tipo === 'CASO' ? (
         <Field label="Paciente" required>
           {(p) => (
-            <Select {...p} value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
+            <Select buscable {...p} value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
               <option value="">Elige un paciente</option>
               {(pacientes.data ?? []).map((x) => (
                 <option key={x.id} value={x.id}>

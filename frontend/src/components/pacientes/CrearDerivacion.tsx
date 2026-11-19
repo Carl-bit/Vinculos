@@ -179,7 +179,7 @@ export function CrearDerivacion({
           {tipo && (
             <Field label="Agregar candidato" hint={`Profesionales con "${tipo.nombre}" aprobado.`}>
               {(p) => (
-                <Select {...p} value="" onChange={(e) => e.target.value && setCandidatos((c) => [...c, e.target.value])} disabled={disponibles.length === 0}>
+                <Select buscable {...p} value="" onChange={(e) => e.target.value && setCandidatos((c) => [...c, e.target.value])} disabled={disponibles.length === 0}>
                   <option value="">{disponibles.length ? 'Elige un profesional' : 'No hay más profesionales con ese tipo'}</option>
                   {disponibles.map((p2) => (
                     <option key={p2.id} value={p2.id}>

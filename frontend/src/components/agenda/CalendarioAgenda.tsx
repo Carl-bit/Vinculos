@@ -353,7 +353,7 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
         </h2>
         {admin && (
           // Mismo filtro que "Viendo a" (EquipoActivo): la cuenta madre lo elige aca.
-          <Select
+          <Select buscable
             aria-label="Profesional de la agenda"
             value={profesionalId ?? ''}
             onChange={(e) => setProfesionalId(e.target.value || null)}

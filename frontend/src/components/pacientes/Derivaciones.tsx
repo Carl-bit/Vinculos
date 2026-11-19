@@ -414,7 +414,7 @@ function DetalleDerivacion({ id, admin, onListo }: { id: string; admin: boolean;
                   ))}
                 </ol>
                 <div className="flex flex-wrap gap-2">
-                  <Select aria-label="Agregar candidato" value={nuevo} onChange={(e) => setNuevo(e.target.value)} className="!max-w-[300px] !py-2.5">
+                  <Select buscable aria-label="Agregar candidato" value={nuevo} onChange={(e) => setNuevo(e.target.value)} className="!max-w-[300px] !py-2.5">
                     <option value="">Agregar candidato</option>
                     {profesionales.map((m) => (
                       <option key={m.id} value={m.id}>

@@ -342,7 +342,7 @@ function SolicitarConsentimiento({ rol, onListo }: { rol: Rol; onListo: () => vo
       </p>
       <Field label="Paciente" required>
         {(p) => (
-          <Select {...p} value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
+          <Select buscable {...p} value={pacienteId} onChange={(e) => setPacienteId(e.target.value)}>
             <option value="">{opciones.length ? 'Elige un paciente' : 'Ningún paciente atendido por un practicante que supervises'}</option>
             {opciones.map((o) => (
               <option key={o.id} value={o.id}>
