@@ -442,7 +442,9 @@ Decisiones: `docs/front/brechas.md` (seccion 6). Migraciones
 - **Login en dos pasos**: contraseña -> desafio. Desde 03b-4.1 el segundo
   factor es un codigo por correo para todo el equipo (ADMIN, GESTION,
   PROFESIONAL, PRACTICANTE); TOTP queda apagado (ver "TOTP (03a)" mas abajo y
-  AUD-01, D10). Texto original de 03a: TOTP obligatorio para cuentas con
+  AUD-01, D10). R10 (2026-11-19): un silo de demostracion no lo pide si la
+  API tiene `ES_DEMO=true` y la BD la marca (`silo_es_demo()`); un silo real
+  siempre lo pide. Texto original de 03a: TOTP obligatorio para cuentas con
   acceso clinico, secreto cifrado en `usuarios.totp_secreto`; solo ADMIN
   reinicia un TOTP.
 - **Tokens por correo** (`tokens_correo`): invitacion, verificacion,

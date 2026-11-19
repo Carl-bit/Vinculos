@@ -13,7 +13,12 @@ Archivos del silo (fuera de git, `chmod 700`): `infra/secrets/<slug>/kek`,
 `recuperacion.pub`. Las partes nunca se quedan en el host.
 
 **Reglas que no se rompen**
-- Nada genera llaves automaticamente: solo estos scripts, a mano.
+- Nada genera llaves automaticamente: solo estos scripts, a mano. Unica
+  excepcion (decision 2026-11-19, Vinculos Control): un silo de demostracion
+  (`ES_DEMO=true`, `identidad_silo.es_demo`) recibe sus llaves del ejecutor del
+  host B, que corre esta misma CLI (`cli-llaves.js aprovisionar` en `migrate`,
+  como `MODO=docker`) con custodios de prueba y borra las partes. Un silo real
+  nunca.
 - Ninguna version con datos se destruye. Rotar = version nueva + retirar.
 - Ningun script sobrescribe una llave: si el archivo existe, se detiene.
 - La privada de recuperacion nunca se escribe en disco; solo sus partes.

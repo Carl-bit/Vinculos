@@ -70,6 +70,17 @@ export class Entorno {
   @IsBoolean()
   TOTP_HABILITADO: boolean = false;
 
+  /**
+   * R10 (Vinculos Control, 2026-11-19): silo de demostracion. Con ES_DEMO=true
+   * y la marca de la BD (identidad_silo.es_demo, silo_es_demo()) el login no
+   * pide segundo factor. Vacio o false en un silo real; sin la marca de la BD
+   * no tiene efecto.
+   */
+  @IsOptional()
+  @Transform(aBooleano)
+  @IsBoolean()
+  ES_DEMO: boolean = false;
+
   /** Intentos de login por minuto e IP. */
   @IsOptional()
   @IsInt()

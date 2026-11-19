@@ -6351,5 +6351,17 @@ DO $$ BEGIN
 END $$;
 \connect :owner_url
 
+\echo 183 R10 demo sin segundo factor: la API solo pregunta si el silo es demo (silo_es_demo), sin leer identidad_silo
+\connect :app_url
+DO $$ BEGIN
+  ASSERT has_function_privilege('app_user', 'silo_es_demo()', 'EXECUTE'), 'caso 183: app_user ejecuta silo_es_demo';
+  ASSERT NOT has_function_privilege('public', 'silo_es_demo()', 'EXECUTE'), 'caso 183: PUBLIC no la ejecuta';
+  ASSERT NOT has_table_privilege('app_user', 'identidad_silo', 'SELECT'), 'caso 183: app_user sigue sin leer identidad_silo';
+END $$;
+\connect :owner_url
+DO $$ DECLARE esperado boolean := coalesce((SELECT es_demo FROM identidad_silo LIMIT 1), false); BEGIN
+  ASSERT silo_es_demo() = esperado, 'caso 183: silo_es_demo refleja identidad_silo.es_demo';
+END $$;
+
 DROP SCHEMA test CASCADE;
 \echo TODOS LOS CASOS OK

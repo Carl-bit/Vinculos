@@ -71,7 +71,8 @@ type Metodo = DesafioSegundoFactor['metodo'];
  *
  * 03b-4.1: segundo factor por correo, obligatorio para todo el equipo y
  * opcional para pacientes y responsables; la primera verificacion entrega 10
- * codigos de respaldo. El TOTP de 03a queda tras TOTP_HABILITADO (apagado):
+ * codigos de respaldo. R10 (2026-11-19): un silo de demostracion (ES_DEMO=true
+ * y silo_es_demo() en la BD) no lo pide: cuentas ficticias de un demo de 24 h. El TOTP de 03a queda tras TOTP_HABILITADO (apagado):
  * sus rutas responden 404 y el login nunca lo pide.
  *
  * 2026-11-07 (docs/api/sesion_unica_conexiones.md): una sola sesion por
@@ -141,6 +142,9 @@ export class AuthService {
     const rol = rolPedido ?? roles[0];
     if (!rol || !roles.includes(rol)) {
       throw new UnauthorizedException(NO_AUTORIZADO);
+    }
+    if (await this.esDemo()) {
+      return this.abrirSesion(usuarioId, rol, roles, dispositivo);
     }
     const factor = await this.segundoFactor(usuarioId);
     const metodo: Metodo | null = this.totpHabilitado() && factor.activo ? 'TOTP' : factor.requerido || factor.correo ? 'CORREO' : null;
@@ -403,6 +407,20 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('El ingreso venció. Vuelve a iniciar sesión.');
     }
+  }
+
+  /**
+   * R10: demo sin segundo factor. Exige las dos marcas: ES_DEMO=true en el
+   * entorno (lo escribe el plano de control solo para sus demos) y
+   * identidad_silo.es_demo en la BD (solo el dueno, al crear el silo). Un silo
+   * real nunca tiene la segunda: ahi siempre se pide el codigo.
+   */
+  private async esDemo(): Promise<boolean> {
+    if (this.config.get<boolean>('ES_DEMO') !== true) {
+      return false;
+    }
+    const [f] = await this.bd.sinContexto('login').$queryRaw<{ demo: boolean }[]>`SELECT silo_es_demo() AS demo`;
+    return f?.demo === true;
   }
 
   private totpHabilitado(): boolean {
