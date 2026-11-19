@@ -34,8 +34,6 @@ export class PerfilProfesionalVista {
   enfoques!: string[];
   @ApiProperty({ enum: Modalidad, enumName: 'Modalidad' })
   modalidad!: Modalidad;
-  @ApiProperty({ type: Number, nullable: true, description: 'Minutos; nulo = el del centro' })
-  margenTrasladoMin!: number | null;
   @ApiProperty({ type: String, nullable: true })
   nombrePublico!: string | null;
   @ApiProperty({ type: String, nullable: true })

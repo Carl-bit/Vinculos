@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { AprobarSolicitud } from '@/components/shared/AprobarSolicitud';
+import { EnlaceSesion } from '@/components/shared/EnlaceSesion';
 import { useEquipoActivo } from '@/components/shared/EquipoActivo';
 import { Estadistica } from '@/components/shared/Estadistica';
 import { EstadoConsulta, EstadoVista } from '@/components/shared/EstadoVista';
@@ -397,17 +398,13 @@ function SesionFoco({ lista }: { lista: CitaVista[] }) {
             <p className="m-0 truncate text-[20px] font-black tracking-[-0.02em]">{n.paciente(foco)}</p>
             <p className="m-0 flex items-center gap-1.5 text-[13.5px] font-bold text-neutral-800">
               <Icon name={foco.modalidad === 'ONLINE' ? 'videocam' : 'meeting_room'} size={17} />
-              {foco.modalidad === 'ONLINE' ? 'Online · enlace en el detalle de la sesión' : `Presencial · ${n.lugar(foco)}`}
+              {foco.modalidad === 'ONLINE' ? 'Online · videollamada' : `Presencial · ${n.lugar(foco)}`}
             </p>
           </div>
         </div>
         {foco.pacienteId && (
           <div className="flex flex-wrap gap-2">
-            {foco.modalidad === 'ONLINE' && (
-              <ButtonLink href={`/admin/agenda?cita=${foco.id}`} variant="secondary" icon="videocam">
-                Ver enlace
-              </ButtonLink>
-            )}
+            {foco.modalidad === 'ONLINE' && <EnlaceSesion citaId={foco.id} puedeEditar />}
             <ButtonLink href={`/admin/fichas/${foco.pacienteId}`} variant="secondary" icon="folder_open">
               Abrir ficha
             </ButtonLink>

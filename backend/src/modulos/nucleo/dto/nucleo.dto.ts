@@ -171,12 +171,6 @@ export class EditarConfiguracionDto {
   @Max(365)
   diasGraciaCierre?: number;
 
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(600)
-  margenTrasladoMin?: number;
-
   /** Remitente visible de los correos. */
   @IsOptional()
   @Recortar()
@@ -539,7 +533,6 @@ export class ConfiguracionCentroVista {
   plazoConsentimientoHoras!: number;
   plazoOposicionHoras!: number;
   diasGraciaCierre!: number;
-  margenTrasladoMin!: number;
   nombreCentro!: string;
   @ApiProperty({ type: String, nullable: true })
   rutCentro!: string | null;

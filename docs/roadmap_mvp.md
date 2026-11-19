@@ -254,3 +254,62 @@ enumerar cuentas). En su lugar:
   lo llama (`SEED_PASSWORD`) y nunca se imprime: la salida es una linea
   `DEMO_RESULTADO {json}` con correos, roles y conteos. Corre en el servicio
   backend del silo con la URL de dueno agregada. Probado: 3/8/120 en 26 s.
+
+## Horario del profesional y online sin sala obligatoria (2026-11-18)
+
+Migracion `20261118000000_horario_profesional_online`. El horario del
+profesional (`disponibilidad_profesional`, por dia y modalidad; Agenda >
+Horarios y boxes > Horario habitual) vuelve a decidir la agenda, igual que el
+horario del centro:
+
+- ONLINE: sale de su horario online, sin box. Sin filas online = no atiende
+  online.
+- PRESENCIAL: horas de box apartadas, recortadas a su horario presencial si
+  tiene filas (sin filas = sin recorte, como antes).
+- Todo dentro del horario del centro. `disponibilidad_publica` (sitio publico,
+  portal, match, backoffice) y el trigger `validar_agenda_cita` (nueva
+  restriccion `citas_dentro_de_horario_profesional`, 422) usan la misma regla.
+- Liberar un bloque de box solo lo impiden citas o retenciones presenciales.
+- Agendar online ya no exige sala de videollamada (`videollamada_sin_sala`
+  retirada en la API y en `crear_solicitud_hora` / `reservar_cita_portal`).
+- Migracion `20261118000100_sin_margen_pausa_sesion`: margen de traslado
+  retirado entero (BD, API, front; Vinculos Control puede seguir enviando la
+  regla y se ignora) y `citas.en_centro` de la migracion anterior quitado.
+  Hora clinica: cada sesion ocupa al menos su hora (`rango_hora_clinica` en el
+  EXCLUDE por profesional): los 10 min tras una sesion de 50 son del
+  profesional y no se agendan; online y presencial se alternan sin margen.
+- `PUT /citas/:id/enlace`: el profesional agrega o cambia el enlace de la sala
+  desde "Proxima sesion" del inicio o el detalle de la cita; el paciente recibe
+  el correo ENLACE_ONLINE (plantilla nueva).
+- Front: el calendario solo ofrece horas online que la API da como libres
+  (margen y horario respetados solos). "Horarios y boxes": horario de atencion
+  editable en la tarjeta (dia por dia, Ambas, repetir L-V) y "Apartar horas"
+  como grilla semanal por box (libre, marcada, apartada, en otro box, no
+  disponible; horas seguidas = un bloque).
+
+- Migracion `20261118000200_dias_sin_atencion`: quitar o cambiar un dia del
+  horario deja POR_REPROGRAMAR sus sesiones futuras que quedan fuera y avisa
+  al paciente (CITA_AUSENCIA_PROFESIONAL: pide otra hora con el mismo
+  profesional, cancela o atencion temporal); "Dias sin atencion" (bloqueo)
+  ya no toca sesiones pasadas del mismo dia. Front: confirmacion al quitar un
+  horario; tomar hora en un box aparta la hora clinica completa y la grilla no
+  pinta como libre un resto donde no cabe una sesion (los 10 min).
+- Migracion `20261118000300_dia_activo_motivo_reprogramacion`:
+  `disponibilidad_profesional.activo` (apagar/encender un dia con un clic,
+  conservando su horario; apagar reprograma con aviso) y
+  `citas.motivo_reprogramacion` (DIA_SIN_ATENCION: el detalle de la cita dice
+  que el profesional no atiende ese dia, no "salida, revocacion o baja").
+- ADMIN (cuenta madre) agenda solo a sus pacientes (API 403 si no); las horas
+  de otros las reprograma o cubre. GESTION sigue agendando para todos.
+- "Agendar sesion": la lista de pacientes se filtra escribiendo nombre o
+  apellido (`Select buscable` de `ui/Selectores.tsx`).
+- Sin flujo para mover un bloque apartado a otro box (decision 2026-11-18): el
+  aviso dice que el profesional ya tiene otro box y que agende en ese o elija
+  otra hora.
+- Migraciones `20261118000400_hora_disponible_enum` y
+  `20261118000500_hora_original_disponible`: si el profesional reactiva el dia
+  (o agrega horario, o quita un dia sin atencion) y la hora original de una
+  cita por reprogramar vuelve a estar libre, la cita pasa a motivo
+  HORA_DISPONIBLE y el paciente recibe CITA_HORA_DISPONIBLE (un aviso por
+  cita). En su cuenta la mantiene o, si ya pidio otra con el mismo profesional,
+  elige con cual se queda (`POST /portal/citas/:id/mantener`).

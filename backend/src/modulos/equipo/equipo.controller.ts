@@ -35,7 +35,6 @@ import {
   VerificacionManualSisDto,
   EditarPerfilDto,
   EditarTipoAtencionDto,
-  MargenDto,
   PerfilDto,
   ProponerTipoAtencionDto,
   RevisarTipoAtencionDto,
@@ -168,12 +167,6 @@ export class PerfilesController {
   @Roles('ADMIN')
   corregirCampo(@Param('id', Uuid) id: string, @Body() dto: CorregirCampoDto): Promise<PerfilProfesionalVista> {
     return this.equipo.corregirCampo(id, dto);
-  }
-
-  @Patch(':id/margen')
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL')
-  margen(@Param('id', Uuid) id: string, @Body() dto: MargenDto): Promise<PerfilProfesionalVista> {
-    return this.equipo.margen(id, dto.margenTrasladoMin);
   }
 
   @Get(':id/trayectoria')

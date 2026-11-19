@@ -324,6 +324,13 @@ export class MisDatosDto {
   email?: string;
 }
 
+/** 2026-11-18: mantener la hora original que volvio a estar libre; si ya pidio otra, cual se cancela. */
+export class MantenerHoraDto {
+  @IsOptional()
+  @IsUUID()
+  cancelarCitaId?: string;
+}
+
 /** Punto 9: el paciente decide que hacer con una hora que su profesional no podra atender. */
 export class RespuestaAusenciaDto {
   @IsIn(['CANCELAR', 'ATENCION_TEMPORAL'])

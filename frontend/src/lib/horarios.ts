@@ -12,6 +12,9 @@ export type ModalidadAtencion = components['schemas']['ModalidadAtencion'];
 export const DURACION_SESION_MIN = 50;
 const HORA_MS = 3_600_000;
 
+/** Hora clinica: una sesion ocupa al menos su hora en la agenda del profesional (la BD lo exige: rango_hora_clinica). */
+export const finHoraClinica = (inicio: string, fin: string) => new Date(Math.max(new Date(fin).getTime(), new Date(inicio).getTime() + HORA_MS)).toISOString();
+
 export interface Bloque {
   modalidad: ModalidadAtencion;
   inicio: Date;

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
 
@@ -15,7 +15,6 @@ import {
   BloqueoAgendaVista,
   BloquesLiberados,
   CitaVista,
-  ConflictoMargen,
   DisponibilidadHabitual,
   Eliminados,
   EnlaceCita,
@@ -43,6 +42,7 @@ import {
   HorarioEspacioDto,
   CrearCitaDto,
   CrearDisponibilidadDto,
+  DiaHorarioDto,
   CrearEspacioDto,
   EditarEspacioDto,
   FiltroCitasDto,
@@ -51,6 +51,7 @@ import {
   RangoDto,
   RangoRetencionesDto,
   ReprogramarCitaDto,
+  EnlaceCitaDto,
   SalaDto,
 } from './dto/agenda.dto';
 
@@ -167,6 +168,20 @@ export class AgendaProfesionalController {
     return this.agenda.crearDisponibilidad(id, dto);
   }
 
+  /**
+   * 2026-11-18: activa o desactiva un dia entero del horario (conserva sus horas). Desactivar deja por reprogramar
+   * las sesiones futuras de ese dia y avisa a cada paciente (la BD).
+   */
+  @Patch('disponibilidad/dias/:dia')
+  @Roles(...EQUIPO_AGENDA)
+  activarDia(
+    @Param('profesionalId', Uuid) profesionalId: string,
+    @Param('dia', new ParseIntPipe()) dia: number,
+    @Body() dto: DiaHorarioDto,
+  ): Promise<DisponibilidadHabitual[]> {
+    return this.agenda.activarDia(profesionalId, dia, dto.activo);
+  }
+
   @Delete('disponibilidad/:id')
   @Roles(...EQUIPO_AGENDA)
   eliminarDisponibilidad(@Param('profesionalId', Uuid) profesionalId: string, @Param('id', Uuid) id: string): Promise<Eliminados> {
@@ -196,13 +211,6 @@ export class AgendaProfesionalController {
   @Roles(...TODOS)
   huecos(@Param('profesionalId', Uuid) id: string, @Query() rango: RangoDto): Promise<HuecoAgenda[]> {
     return this.agenda.huecos(id, rango.desde, rango.hasta);
-  }
-
-  /** Citas futuras que no cumplen el margen vigente (no se mueven solas). */
-  @Get('conflictos-margen')
-  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
-  conflictosMargen(@Param('profesionalId', Uuid) id: string): Promise<ConflictoMargen[]> {
-    return this.agenda.citasEnConflictoMargen(id);
   }
 }
 
@@ -266,7 +274,7 @@ export class CitasController {
     return this.citas.avisarPorReprogramar(dto.citas);
   }
 
-  /** Verificacion previa (opcion C): disponibilidad, margen y box, con alternativas. */
+  /** Verificacion previa (opcion C): disponibilidad, hora clinica y box, con alternativas. */
   @Post('verificacion')
   @HttpCode(200)
   @Roles(...EQUIPO_AGENDA)
@@ -324,6 +332,16 @@ export class CitasController {
   @Roles(...TODOS)
   enlace(@Param('id', Uuid) id: string): Promise<EnlaceCita> {
     return this.citas.enlace(id);
+  }
+
+  /**
+   * 2026-11-18: el profesional de la cita (o ADMIN/GESTION) agrega o cambia el enlace de la sala de una cita online
+   * vigente y el paciente recibe el aviso por correo (ENLACE_ONLINE). Presencial 422; terminada o no vigente 409.
+   */
+  @Put(':id/enlace')
+  @Roles('ADMIN', 'GESTION', 'PROFESIONAL', 'PRACTICANTE')
+  guardarEnlace(@Param('id', Uuid) id: string, @Body() dto: EnlaceCitaDto): Promise<EnlaceCita> {
+    return this.citas.guardarEnlace(id, dto.url);
   }
 
   /**

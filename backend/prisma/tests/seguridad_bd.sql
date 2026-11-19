@@ -1674,7 +1674,7 @@ DO $$ BEGIN
       (test.u('e2'), 'PRESENCIAL', test.u('b1'), test.u('0a'), test.dia(10, 10), test.dia(10, 11));
     RAISE EXCEPTION 'caso 72: presencial que choca con la online del mismo profesional debio fallar';
   EXCEPTION WHEN exclusion_violation THEN NULL; END;
-  -- b5 (03b): GESTION le aparta un box de lunes a viernes 09-13 (ambas modalidades).
+  -- b5 (03b): GESTION le aparta un box de lunes a viernes 09-13 (solo presencial: no tiene horario online).
   INSERT INTO espacios (id, nombre) VALUES (test.box_de(test.u('b5')), 'T Box agenda b5');
   INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id)
   SELECT test.u('b5'), test.box_de(test.u('b5')), test.lunes(d, 9), test.lunes(d, 13), test.u('a3') FROM generate_series(0, 4) d;
@@ -1693,7 +1693,7 @@ DO $$ BEGIN
   BEGIN
     INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
       (NULL, 'ONLINE', test.u('b5'), test.u('12'), test.lunes(0, 14), test.lunes(0, 15));
-    RAISE EXCEPTION 'caso 72: online fuera de los bloques debio fallar';
+    RAISE EXCEPTION 'caso 72: online sin horario online debio fallar';
   EXCEPTION WHEN check_violation THEN NULL; END;
   -- GESTION aparta por otro: sabado 10-12.
   INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin, creado_por_id)
@@ -1723,15 +1723,16 @@ DO $$ DECLARE n int; huecos text[]; BEGIN
     RAISE EXCEPTION 'caso 72: editar disponibilidad ajena debio fallar';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   ASSERT (SELECT count(*) FROM bloques_atencion WHERE profesional_id = test.u('b5')) = 0, 'caso 72: bloques ajenos no visibles';
-  -- 03b: cada bloque ofrece ambas modalidades; la online respeta el margen de traslado con la presencial del lunes.
+  -- 2026-11-18: presencial = bloques dentro de su horario presencial (el bloque del sabado queda fuera);
+  -- online = su horario online (b5 no tiene: no atiende online aunque tenga box apartado). Antes de la cita del
+  -- lunes 10:00 el hueco cierra 09:50 (la sesion de 50 min de las 09:00 cierra su hora clinica).
   SELECT array_agg(modalidad::text || ' ' || to_char(inicio AT TIME ZONE 'America/Santiago', 'ID HH24:MI') || '-'
                    || to_char(fin AT TIME ZONE 'America/Santiago', 'HH24:MI') ORDER BY inicio, modalidad::text) INTO huecos
   FROM disponibilidad_publica(test.u('b5'), test.lunes(0, 0), test.lunes(7, 0));
   ASSERT huecos
-         = ARRAY['ONLINE 1 09:00-09:30', 'PRESENCIAL 1 09:00-10:00', 'PRESENCIAL 1 11:00-13:00', 'ONLINE 1 11:30-13:00',
-                 'ONLINE 3 09:00-13:00', 'PRESENCIAL 3 09:00-13:00', 'ONLINE 4 09:00-13:00', 'PRESENCIAL 4 09:00-13:00',
-                 'ONLINE 5 09:00-13:00', 'PRESENCIAL 5 09:00-13:00', 'ONLINE 6 10:00-12:00', 'PRESENCIAL 6 10:00-12:00'],
-    format('caso 72: huecos (sin la cita del lunes ni las vacaciones del martes) %s', huecos);
+         = ARRAY['PRESENCIAL 1 09:00-09:50', 'PRESENCIAL 1 11:00-13:00', 'PRESENCIAL 3 09:00-13:00',
+                 'PRESENCIAL 4 09:00-13:00', 'PRESENCIAL 5 09:00-13:00'],
+    format('caso 72: huecos (sin la cita del lunes, las vacaciones del martes ni el sabado fuera de horario) %s', huecos);
   ASSERT (SELECT proargnames FROM pg_proc WHERE proname = 'disponibilidad_publica')
          = '{p_profesional_id,desde,hasta,modalidad,inicio,fin}', 'caso 72: sin motivos';
   BEGIN
@@ -2198,28 +2199,24 @@ DO $$ BEGIN
   RAISE EXCEPTION 'caso 83: PROFESIONAL revisa debio fallar';
 EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 
-\echo 84 Margen de traslado (30 min): presencial y online del mismo profesional; ambos sentidos; margen 0; huecos; subir el margen; enlace online
+\echo 84 Sin margen de traslado; hora clinica: online y presencial alternadas a la hora; nadie agenda en el resto de la hora; huecos; enlace online
 DO $$ BEGIN
   PERFORM test.ctx('a3', 'GESTION');
-  INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
-    (test.u('e2'), 'PRESENCIAL', test.u('b2'), test.u('0a'), test.dia(20, 10), test.dia(20, 11));
-  ASSERT (SELECT margen_traslado_min FROM citas WHERE profesional_id = test.u('b2') AND inicio = test.dia(20, 10)) = 30,
-    'caso 84: margen fijado al confirmar';
+  -- 2026-11-18: presencial, online, presencial seguidas (sesiones de 50 min a la hora en punto): sin margen.
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
+    ('PRESENCIAL', test.u('b2'), test.u('0a'), test.dia(20, 10), test.dia(20, 10) + interval '50 minutes'),
+    ('ONLINE', test.u('b2'), test.u('0a'), test.dia(20, 11), test.dia(20, 11) + interval '50 minutes'),
+    ('PRESENCIAL', test.u('b2'), test.u('0a'), test.dia(20, 12), test.dia(20, 12) + interval '50 minutes');
   BEGIN
     INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
-      ('ONLINE', test.u('b2'), test.u('0a'), test.dia(20, 11), test.dia(20, 12));
-    RAISE EXCEPTION 'caso 84: online pegada a presencial debio fallar';
+      ('ONLINE', test.u('b2'), test.u('0a'), test.dia(20, 12) + interval '55 minutes', test.dia(20, 13) + interval '45 minutes');
+    RAISE EXCEPTION 'caso 84: cita dentro de la hora de otra debio fallar';
   EXCEPTION WHEN exclusion_violation THEN NULL; END;
-  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
-    ('ONLINE', test.u('b2'), test.u('0a'), test.dia(20, 11) + interval '30 minutes', test.dia(20, 12) + interval '30 minutes'),
-    ('ONLINE', test.u('b2'), test.u('0a'), test.dia(20, 12) + interval '30 minutes', test.dia(20, 13) + interval '30 minutes');
   BEGIN
-    INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
-      (test.u('e2'), 'PRESENCIAL', test.u('b2'), test.u('0a'), test.dia(20, 13) + interval '30 minutes', test.dia(20, 14) + interval '30 minutes');
-    RAISE EXCEPTION 'caso 84: presencial pegada a online debio fallar';
+    INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
+      ('ONLINE', test.u('b2'), test.u('0a'), test.dia(20, 9) + interval '10 minutes', test.dia(20, 10));
+    RAISE EXCEPTION 'caso 84: su hora clinica pisa la cita siguiente debio fallar';
   EXCEPTION WHEN exclusion_violation THEN NULL; END;
-  INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
-    (test.u('e2'), 'PRESENCIAL', test.u('b2'), test.u('0a'), test.dia(20, 14), test.dia(20, 15));
   BEGIN
     INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin, enlace_online) VALUES
       (test.u('e1'), 'PRESENCIAL', test.u('b4'), test.u('0a'), test.dia(21, 10), test.dia(21, 11), test.cif('https://meet.example/x'));
@@ -2234,39 +2231,79 @@ DO $$ BEGIN
     ('ONLINE', test.u('b4'), test.u('0a'), test.dia(21, 10), test.dia(21, 11), test.cif('https://meet.example/x'));
 END $$;
 DO $$ BEGIN
-  PERFORM test.ctx('b1', 'PROFESIONAL');
-  UPDATE profesionales SET margen_traslado_min = 0 WHERE usuario_id = test.u('b1');
-  PERFORM test.ctx('a3', 'GESTION');
-  INSERT INTO citas (espacio_id, modalidad, profesional_id, paciente_id, inicio, fin) VALUES
-    (test.u('e1'), 'PRESENCIAL', test.u('b1'), test.u('0a'), test.dia(22, 10), test.dia(22, 11));
-  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
-    ('ONLINE', test.u('b1'), test.u('0a'), test.dia(22, 11), test.dia(22, 12));
-END $$;
-DO $$ BEGIN
   PERFORM test.ctx('b2', 'PROFESIONAL');
   ASSERT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b2'), test.dia(20, 0), test.dia(21, 0))
-                 WHERE modalidad = 'ONLINE' AND fin = test.dia(20, 9) + interval '30 minutes'),
-    'caso 84: el hueco online termina 30 min antes de la presencial';
+                 WHERE modalidad = 'ONLINE' AND fin = test.dia(20, 9) + interval '50 minutes'),
+    'caso 84: el hueco termina 10 min antes de la sesion siguiente';
   ASSERT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b2'), test.dia(20, 0), test.dia(21, 0))
-                 WHERE modalidad = 'ONLINE' AND inicio = test.dia(20, 15) + interval '30 minutes'),
-    'caso 84: el hueco online empieza 30 min despues de la presencial';
+                 WHERE modalidad = 'ONLINE' AND inicio = test.dia(20, 13)),
+    'caso 84: el hueco empieza al terminar la hora clinica';
   ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b2'), test.dia(20, 0), test.dia(21, 0))
-                     WHERE modalidad = 'PRESENCIAL' AND tstzrange(inicio, fin) && tstzrange(test.dia(20, 13), test.dia(20, 14))),
-    'caso 84: tras una online, presencial recien a los 30 min';
+                     WHERE tstzrange(inicio, fin) && tstzrange(test.dia(20, 10) + interval '50 minutes', test.dia(20, 11))),
+    'caso 84: el resto de la hora no se ofrece';
+  ASSERT NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname IN ('margen_vigente', 'citas_en_conflicto_margen', 'rango_con_margen'))
+         AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE column_name IN ('margen_traslado_min', 'en_centro')),
+    'caso 84: el margen de traslado ya no existe';
 END $$;
-DO $$ BEGIN
-  PERFORM test.ctx('a1', 'ADMIN');
-  UPDATE configuracion_centro SET margen_traslado_min = 90;
-  ASSERT (SELECT count(*) FROM citas WHERE profesional_id = test.u('b2') AND inicio >= test.dia(20, 0) AND estado = 'CONFIRMADA') = 4,
-    'caso 84: subir el margen no rompe ni mueve citas';
-  PERFORM test.ctx('b2', 'PROFESIONAL');
-  ASSERT (SELECT count(*) FROM citas_en_conflicto_margen(test.u('b2'))) = 2, 'caso 84: dos pares bajo el margen nuevo';
-  ASSERT (SELECT array_agg(separacion_min || '/' || margen_min ORDER BY inicio) FROM citas_en_conflicto_margen(test.u('b2')))
-         = ARRAY['30/90', '30/90'], 'caso 84: separacion y margen';
-  PERFORM test.ctx('b1', 'PROFESIONAL');
-  PERFORM citas_en_conflicto_margen(test.u('b2'));
-  RAISE EXCEPTION 'caso 84: otro profesional debio fallar';
-EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
+
+\echo 84b Quitar un dia del horario: sus sesiones futuras de esa modalidad pasan a por reprogramar con aviso; las de otra modalidad no
+DO $$ DECLARE v_online uuid; v_presencial uuid; v_dow int := extract(isodow FROM test.dia(30, 12) AT TIME ZONE 'America/Santiago')::int; BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
+    ('ONLINE', test.u('b2'), test.u('0a'), test.dia(30, 12), test.dia(30, 13)) RETURNING id INTO v_online;
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
+    ('PRESENCIAL', test.u('b2'), test.u('0a'), test.dia(30, 14), test.dia(30, 15)) RETURNING id INTO v_presencial;
+  DELETE FROM disponibilidad_profesional WHERE profesional_id = test.u('b2') AND dia_semana = v_dow AND modalidad = 'ONLINE';
+  ASSERT (SELECT estado FROM citas WHERE id = v_online) = 'POR_REPROGRAMAR', 'caso 84b: la online del dia quitado queda por reprogramar';
+  ASSERT (SELECT estado FROM citas WHERE id = v_presencial) = 'CONFIRMADA', 'caso 84b: la presencial sigue (su horario no cambio)';
+  ASSERT EXISTS (SELECT 1 FROM notificaciones WHERE tipo = 'CITA_AUSENCIA_PROFESIONAL' AND referencia_id = v_online),
+    'caso 84b: aviso al paciente';
+  ASSERT (SELECT motivo_reprogramacion FROM citas WHERE id = v_online) = 'DIA_SIN_ATENCION', 'caso 84b: motivo dia sin atencion';
+  INSERT INTO disponibilidad_profesional (profesional_id, dia_semana, inicio_min, fin_min, modalidad)
+  VALUES (test.u('b2'), v_dow, 0, 1440, 'ONLINE');
+  -- Apagar el dia con un clic (activo = false) conserva el horario y reprograma igual; encenderlo lo devuelve.
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
+    ('ONLINE', test.u('b2'), test.u('0a'), test.dia(30, 16), test.dia(30, 17)) RETURNING id INTO v_online;
+  UPDATE disponibilidad_profesional SET activo = false WHERE profesional_id = test.u('b2') AND dia_semana = v_dow;
+  ASSERT (SELECT estado FROM citas WHERE id = v_online) = 'POR_REPROGRAMAR', 'caso 84b: apagar el dia reprograma';
+  ASSERT (SELECT estado FROM citas WHERE id = v_presencial) = 'POR_REPROGRAMAR', 'caso 84b: el dia apagado reprograma tambien la presencial';
+  ASSERT NOT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b2'), test.dia(30, 0), test.dia(31, 0)) WHERE modalidad = 'ONLINE'),
+    'caso 84b: dia apagado sin horas online';
+  UPDATE disponibilidad_profesional SET activo = true WHERE profesional_id = test.u('b2') AND dia_semana = v_dow;
+  ASSERT EXISTS (SELECT 1 FROM disponibilidad_publica(test.u('b2'), test.dia(30, 0), test.dia(31, 0)) WHERE modalidad = 'ONLINE'),
+    'caso 84b: encender el dia devuelve sus horas';
+  UPDATE citas SET estado = 'CANCELADA' WHERE id = v_online;
+  ASSERT (SELECT motivo_reprogramacion FROM citas WHERE id = v_online) IS NULL, 'caso 84b: el motivo se limpia al salir de por reprogramar';
+END $$;
+
+\echo 84c Reactivar el dia: la hora original libre se avisa (HORA_DISPONIBLE) y el paciente la mantiene; con otra hora pedida, elige
+DO $$ DECLARE v_orig uuid; v_otra uuid; v_dow int := extract(isodow FROM test.dia(32, 12) AT TIME ZONE 'America/Santiago')::int; BEGIN
+  PERFORM test.ctx('a3', 'GESTION');
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
+    ('ONLINE', test.u('b2'), test.u('0a'), test.dia(32, 12), test.dia(32, 13)) RETURNING id INTO v_orig;
+  UPDATE disponibilidad_profesional SET activo = false WHERE profesional_id = test.u('b2') AND dia_semana = v_dow;
+  ASSERT (SELECT motivo_reprogramacion FROM citas WHERE id = v_orig) = 'DIA_SIN_ATENCION', 'caso 84c: por reprogramar';
+  -- Mientras tanto el paciente pidio otra hora (otro dia).
+  INSERT INTO citas (modalidad, profesional_id, paciente_id, inicio, fin) VALUES
+    ('ONLINE', test.u('b2'), test.u('0a'), test.dia(33, 12), test.dia(33, 13)) RETURNING id INTO v_otra;
+  UPDATE disponibilidad_profesional SET activo = true WHERE profesional_id = test.u('b2') AND dia_semana = v_dow;
+  ASSERT (SELECT motivo_reprogramacion FROM citas WHERE id = v_orig) = 'HORA_DISPONIBLE', 'caso 84c: hora original disponible';
+  ASSERT (SELECT count(*) FROM notificaciones WHERE tipo = 'CITA_HORA_DISPONIBLE' AND referencia_id = v_orig AND canal = 'BANDEJA') = 1,
+    'caso 84c: un solo aviso (dos filas del dia reactivadas)';
+  PERFORM test.ctx('a2', 'PACIENTE');
+  BEGIN
+    PERFORM mantener_hora_original(v_orig, test.u('ff'));
+    RAISE EXCEPTION 'caso 84c: cancelar una cita ajena debio fallar';
+  EXCEPTION WHEN no_data_found THEN NULL; END;
+  ASSERT mantener_hora_original(v_orig, v_otra) = 'CONFIRMADA', 'caso 84c: mantiene la original';
+  ASSERT (SELECT estado FROM citas WHERE id = v_orig) = 'CONFIRMADA'
+         AND (SELECT motivo_reprogramacion FROM citas WHERE id = v_orig) IS NULL, 'caso 84c: original confirmada y sin motivo';
+  ASSERT (SELECT estado FROM citas WHERE id = v_otra) = 'CANCELADA', 'caso 84c: la otra se cancela';
+  BEGIN
+    PERFORM mantener_hora_original(v_orig, NULL);
+    RAISE EXCEPTION 'caso 84c: mantener dos veces debio fallar';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL; END;
+END $$;
 
 \connect :owner_url
 \set ON_ERROR_STOP 1
@@ -4851,6 +4888,9 @@ DO $$ DECLARE v uuid; v_cita uuid; v_otra uuid; v_trat uuid; r uuid := gen_rando
   INSERT INTO bloques_atencion (profesional_id, espacio_id, inicio, fin)
   VALUES (test.u('b5'), test.box_de(test.u('b5')), test.dia(46, 0), test.dia(48, 0));
   ALTER TABLE bloques_atencion ENABLE TRIGGER bloques_atencion_validos;
+  -- 2026-11-18: el horario presencial de b5 (L-V 09-13) tambien decide; esos dias, todo el dia (se retira al final).
+  INSERT INTO disponibilidad_profesional (profesional_id, dia_semana, inicio_min, fin_min, modalidad)
+  SELECT test.u('b5'), extract(isodow FROM test.dia(d, 12))::int, 0, 1440, 'PRESENCIAL' FROM generate_series(46, 47) d;
   PERFORM test.ctx('a1', 'ADMIN');
   v_trat := (SELECT profesional_id FROM pacientes WHERE id = test.u('0a'));
   v := otorgar_acceso_temporal(test.u('0a'), test.u('b5'), 'REEMPLAZO', 'LECTURA_ESCRITURA', NULL, now() + interval '60 days');
@@ -4870,6 +4910,8 @@ DO $$ DECLARE v uuid; v_cita uuid; v_otra uuid; v_trat uuid; r uuid := gen_rando
     RAISE EXCEPTION 'caso 155: acceso revocado no cubre sesiones';
   EXCEPTION WHEN check_violation THEN NULL; END;
   UPDATE citas SET estado = 'CANCELADA' WHERE id = v_otra;
+  PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);
+  DELETE FROM disponibilidad_profesional WHERE profesional_id = test.u('b5') AND inicio_min = 0 AND fin_min = 1440;
 
   -- Correo por grupo: apagado no llega, la bandeja si; lo que no tiene grupo llega siempre.
   PERFORM set_config('app.current_usuario_id', '', true), set_config('app.current_rol', '', true);

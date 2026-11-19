@@ -137,7 +137,7 @@ describe('03b-3 portal del paciente', () => {
     const cita = await t
       .http()
       .post('/api/citas')
-      .set(await tk(admin))
+      .set(await tk(origen))
       .send({ pacienteId: paciente.pacienteId, profesionalId: origen.id, modalidad: 'PRESENCIAL', inicio, fin: new Date(inicio.getTime() + HORA) });
     expect(cita.status).toBe(201);
 
@@ -236,7 +236,7 @@ describe('03b-3 portal del paciente', () => {
         await t
           .http()
           .post('/api/citas')
-          .set(await tk(admin))
+          .set(await tk(origen))
           .send({ pacienteId: paciente.pacienteId, profesionalId: origen.id, modalidad: 'ONLINE', inicio, fin: new Date(inicio.getTime() + HORA) })
       ).status,
     ).toBe(201);

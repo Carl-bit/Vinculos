@@ -70,7 +70,6 @@ export class CitaVista {
   espacioId!: string | null;
   @ApiProperty({ enum: ModalidadAtencion, enumName: 'ModalidadAtencion' })
   modalidad!: ModalidadAtencion;
-  margenTrasladoMin!: number;
   profesionalId!: string;
   /** 03b-3.2: nulo solo en RETENIDA (reserva sin cuenta en curso: el paciente nace al verificar el correo). */
   @ApiProperty({ type: String, nullable: true })
@@ -93,6 +92,9 @@ export class CitaVista {
   /** 03b-3.3: hora retenida liberada a mano por ADMIN/GESTION (LIBERADA). */
   @ApiProperty({ type: String, nullable: true })
   motivoLiberacion!: string | null;
+  /** 2026-11-18: POR_REPROGRAMAR porque el profesional no atiende ese dia (dias sin atencion o cambio de horario). */
+  @ApiProperty({ type: String, nullable: true, description: 'DIA_SIN_ATENCION o nulo' })
+  motivoReprogramacion!: string | null;
   createdAt!: Date;
   updatedAt!: Date;
 }
@@ -169,6 +171,8 @@ export class DisponibilidadHabitual {
   finMin!: number;
   @ApiProperty({ enum: ModalidadAtencion, enumName: 'ModalidadAtencion' })
   modalidad!: ModalidadAtencion;
+  /** 2026-11-18: dia desactivado con un clic (la fila se conserva y no decide la agenda). */
+  activo!: boolean;
   /** HH:MM. */
   horaInicio!: string;
   horaFin!: string;
@@ -207,19 +211,10 @@ class AlternativaCita {
 /** Verificacion previa de un horario (no reserva nada). */
 export class VerificacionHorario {
   disponible!: boolean;
-  /** PROFESIONAL_NO_DISPONIBLE: fuera de sus bloques de box, bloqueos, otra cita o margen. */
+  /** PROFESIONAL_NO_DISPONIBLE: fuera de sus bloques de box, bloqueos, otra cita o su pausa. */
   motivos!: string[];
   /** Horarios libres mas cercanos de la misma modalidad y duracion. */
   alternativas!: AlternativaCita[];
-}
-
-/** Cita futura que no cumple el margen de traslado vigente (no se mueve sola). */
-export class ConflictoMargen {
-  cita_id!: string;
-  cita_conflicto_id!: string;
-  inicio!: Date;
-  separacion_min!: number;
-  margen_min!: number;
 }
 
 /** Sala de videollamada propia: enlace propio (cifrado) o sala Jitsi generada por cita. */

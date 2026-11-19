@@ -19,6 +19,7 @@ import { inicioDiaChile, sumarDias, useAccesosTemporales, useEquipoAgenda, useEs
 import { esAdministracion } from '@/lib/roles';
 import type { Rol } from '@/lib/sesion';
 
+import { EnlaceSesion } from '@/components/shared/EnlaceSesion';
 import { NOMBRE_MODALIDAD_CITA } from '@/components/shared/SelectorHorario';
 import { NOMBRE_ESTADO_CITA } from './tonosAgenda';
 
@@ -112,6 +113,11 @@ export function DetalleCita({
           ))}
         </dl>
 
+        {cita.modalidad === 'ONLINE' && !pasada && ['CONFIRMADA', 'SOLICITADA', 'PROPUESTA'].includes(cita.estado) && (
+          <div className="flex flex-wrap gap-2">
+            <EnlaceSesion citaId={cita.id} puedeEditar={esTratante || admin} />
+          </div>
+        )}
         {cita.estado === 'RETENIDA' && (
           <Aviso tono="info" titulo="Reserva en curso">
             Alguien pidió esta hora desde el sitio y está verificando su correo
@@ -128,7 +134,11 @@ export function DetalleCita({
         {esTratante && cita.estado === 'SOLICITADA' && !pasada && <AprobarSolicitud citaId={cita.id} onListo={listo} />}
         {cita.estado === 'POR_REPROGRAMAR' && (
           <Aviso tono="advertencia" titulo="Por reprogramar">
-            El profesional ya no puede atender esta hora (salida, revocación o baja). Reprográmala con el tratante o cúbrela con otro profesional.
+            {cita.motivoReprogramacion === 'HORA_DISPONIBLE'
+              ? `${profesional} volvió a atender ese día y la hora sigue libre. Se avisó al paciente para que la mantenga o elija otra; también puedes reprogramarla aquí.`
+              : cita.motivoReprogramacion === 'DIA_SIN_ATENCION'
+              ? `${profesional} no atiende ese día (días sin atención o cambio de su horario). Ya se avisó al paciente para que elija otra hora; también puedes reprogramarla aquí.`
+              : 'El profesional ya no puede atender esta hora (salida, revocación o baja). Reprográmala con el tratante o cúbrela con otro profesional.'}
           </Aviso>
         )}
 

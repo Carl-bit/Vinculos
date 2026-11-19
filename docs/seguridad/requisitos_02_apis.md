@@ -260,27 +260,24 @@ DTOs (`class-validator`), antes de cifrar:
   BD (`minuto_local(fecha, minuto)`, zona America/Santiago): en los dias de
   cambio de horario el dia dura 23 o 25 h. Mejor pedir los huecos ya
   convertidos a `disponibilidad_publica()` que recalcularlos en TS.
-- **Margen de traslado** (opcion A en BD + C en la API):
-  - BD (fuente de verdad): dos citas CONFIRMADA del mismo profesional en
-    distinta modalidad necesitan su margen entre si (EXCLUDE
-    `citas_margen_traslado`, 23P01 -> 409). El margen se fija al confirmar
-    (`profesionales.margen_traslado_min` o, si es nulo, el del centro).
+- **Hora clinica** (2026-11-18; reemplaza al margen de traslado, retirado):
+  - BD (fuente de verdad): cada sesion ocupa al menos una hora de la agenda de
+    su profesional, en cualquier modalidad (EXCLUDE
+    `citas_no_solapamiento_profesional` sobre `rango_hora_clinica`, 23P01 ->
+    409). Las sesiones son de 50 min a la hora en punto: el resto de la hora es
+    del profesional. Online y presencial se alternan sin margen; el box solo
+    depende de su propia disponibilidad.
   - API/UI (opcion C): antes de confirmar, verificar con
-    `disponibilidad_publica()` (ya descuenta el margen) y, si la hora pedida no
-    esta libre, advertir con alternativas (los huecos mas cercanos de la misma
-    modalidad) en vez de esperar el 409.
-  - Cambiar el margen (centro o profesional) no mueve citas: la API lista
-    `citas_en_conflicto_margen(profesional)` para reprogramar y avisar al
-    paciente.
-  - Editan el margen: el propio profesional y ADMIN/GESTION.
+    `disponibilidad_publica()` (ya descuenta la hora clinica) y, si la hora
+    pedida no esta libre, advertir con alternativas en vez de esperar el 409.
 - **Enlace online**: `citas.enlace_online` solo en citas ONLINE (CHECK) y
   **cifrado** (bytea, CLINICO, en `registro.ts`; AAD `citas:enlace_online:<id>`).
   La API lo genera con la cita ya creada (id conocido), con expiracion, segun
   el modo del profesional (`salas_videollamada`: ENLACE_PROPIO o JITSI, ver
   `docs/api/integraciones.md`), y lo envia al paciente; nunca en presenciales
-  ni en logs.
-- El margen requerido entre dos citas con margenes distintos es el promedio
-  de ambos (cada cita guarda el vigente al confirmarse).
+  ni en logs. Sin sala configurada la cita se agenda sin enlace; el profesional
+  lo agrega despues con `PUT /citas/:id/enlace` (inicio y detalle de la cita) y
+  el paciente recibe el aviso ENLACE_ONLINE.
 - Disponibilidad y bloqueos: los edita el propio y ADMIN/GESTION. El bloqueo
   BAJA lo crea `iniciar_baja_profesional` y la API no lo toca.
 - Huecos libres para agendar o para el portal: `disponibilidad_publica(id,

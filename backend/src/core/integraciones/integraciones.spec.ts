@@ -18,13 +18,13 @@ const sala = (s: Partial<SolicitudSala>): SolicitudSala => ({
 });
 
 describe('videollamada: cada modo genera el enlace esperado', () => {
-  it('ENLACE_PROPIO (default): la sala fija del profesional; sin enlace configurado -> 422', async () => {
+  it('ENLACE_PROPIO (default): la sala fija del profesional; sin enlace configurado -> null (se agenda igual)', async () => {
     const p = new ProveedorVideollamadaPorProfesional(false, 'https://meet.jit.si');
     await expect(p.crearSala(sala({ enlacePropio: 'https://zoom.us/j/123' }))).resolves.toEqual({
       url: 'https://zoom.us/j/123',
       expiraEn: new Date('2026-11-02T16:00:00Z'),
     });
-    await expect(p.crearSala(sala({}))).rejects.toBeInstanceOf(UnprocessableEntityException);
+    await expect(p.crearSala(sala({}))).resolves.toBeNull();
   });
 
   it('JITSI: desactivado por defecto (422); habilitado, sala unica y no adivinable bajo la URL base', async () => {
@@ -34,8 +34,8 @@ describe('videollamada: cada modo genera el enlace esperado', () => {
     const p = new ProveedorVideollamadaPorProfesional(true, 'https://jitsi.centro.cl/');
     const a = await p.crearSala(sala({ modo: 'JITSI' }));
     const b = await p.crearSala(sala({ modo: 'JITSI' }));
-    expect(a.url).toMatch(/^https:\/\/jitsi\.centro\.cl\/vinculos-[0-9a-f]{32}$/);
-    expect(a.url).not.toBe(b.url);
+    expect(a!.url).toMatch(/^https:\/\/jitsi\.centro\.cl\/vinculos-[0-9a-f]{32}$/);
+    expect(a!.url).not.toBe(b!.url);
   });
 
   it('simulado (tests): URL aleatoria local', async () => {

@@ -45,6 +45,7 @@ import {
   ResenaDto,
   ReservaPortalDto,
   RespuestaAusenciaDto,
+  MantenerHoraDto,
   RespuestaMensajeDto,
   ResolverEpicrisisDto,
   ResponderConsentimientoTokenDto,
@@ -88,6 +89,7 @@ import {
   EstadoTratantePortal,
   HorasCanceladas,
   RespuestaAusencia,
+  HoraMantenida,
   RetornoPortal,
   SolicitudEpicrisisPortal,
 } from './dto/portal-respuestas.dto';
@@ -310,6 +312,14 @@ export class PortalController {
   @Roles(...PORTAL)
   pedirVolver(@Body() dto: PacienteDelPortalDto): Promise<void> {
     return this.portal.pedirVolver(dto.pacienteId);
+  }
+
+  /** 2026-11-18: la hora original volvio a estar libre: el paciente la mantiene (y, si pidio otra, cancela esa). Tomada: 409. */
+  @Post('citas/:id/mantener')
+  @HttpCode(200)
+  @Roles(...PORTAL)
+  mantenerHora(@Param('id', Uuid) id: string, @Body() dto: MantenerHoraDto): Promise<HoraMantenida> {
+    return this.portal.mantenerHora(id, dto.cancelarCitaId);
   }
 
   /** Punto 9: hora por reprogramar por ausencia del profesional: cancelarla o pedir atencion con otro mientras tanto. */

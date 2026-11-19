@@ -20,7 +20,7 @@ export function IntegracionesAgenda() {
   const sala = useQuery({ queryKey: ['agenda', 'sala'], queryFn: () => datos(api.GET('/api/profesionales/yo/videollamada')) });
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <Panel titulo="Sala de videollamada" bajada="Para las sesiones online. El enlace llega al paciente con la confirmación.">
+      <Panel titulo="Sala de videollamada" bajada="Opcional. Si está configurada, el enlace llega al paciente con la confirmación; sin ella la sesión online se agenda igual.">
         <div className="mt-4">
           <EstadoConsulta consulta={sala}>{(s) => <Sala key={`${s.modo}-${s.enlace ?? ''}`} modo={s.modo} enlace={s.enlace} />}</EstadoConsulta>
         </div>

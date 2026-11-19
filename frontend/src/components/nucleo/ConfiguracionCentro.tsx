@@ -46,7 +46,7 @@ const SECCIONES: Record<Seccion, { nombre: string; bajada: string; claves: strin
   agenda: {
     nombre: 'Agenda y plazos',
     bajada: 'Reservas, recordatorios y plazos de derivaciones, consentimientos y evoluciones.',
-    claves: 'recordatorio margen retención derivación consentimiento oposición evolución edad mínima mensajes conservación plazo',
+    claves: 'recordatorio retención derivación consentimiento oposición evolución edad mínima mensajes conservación plazo',
   },
   avisos: {
     nombre: 'Avisos al paciente y equipo',

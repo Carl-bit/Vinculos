@@ -25,7 +25,6 @@ import { AccionSolicitud, abiertaDe, HistorialSolicitudes, useSolicitudesModulo 
 type Numerico =
   | 'recordatorioHorasAntes'
   | 'plazoAvisoCancelacionHoras'
-  | 'margenTrasladoMin'
   | 'minutosRetencionSolicitud'
   | 'horasAprobacionSolicitud'
   | 'plazoRespuestaDerivacionHoras'
@@ -73,7 +72,6 @@ const GRUPOS: { id: IdGrupo; titulo: string; bajada: string; campos: Campo[] }[]
         max: 720,
         ayuda: 'Con este aviso o más, la cancelación es a tiempo. El recordatorio sale antes de este plazo.',
       },
-      { k: 'margenTrasladoMin', etiqueta: 'Margen entre sesión presencial y online', unidad: 'min', min: 0, max: 240 },
       { k: 'minutosRetencionSolicitud', etiqueta: 'Retención de la hora mientras se verifica el correo', unidad: 'min', min: 5, max: 120 },
       {
         k: 'horasAprobacionSolicitud',

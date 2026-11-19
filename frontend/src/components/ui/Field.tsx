@@ -82,6 +82,6 @@ export function Textarea({ className = '', enterEnvia = false, onKeyDown, ...pro
 }
 
 /** Lista propia con la API de <select> (hijos <option>, `value`, `onChange(e)`). Sin el popup nativo. */
-export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement> & { buscable?: boolean }) {
   return <ListaSeleccion {...(props as Parameters<typeof ListaSeleccion>[0])} className={className} />;
 }

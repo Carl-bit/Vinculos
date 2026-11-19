@@ -18645,6 +18645,124 @@
         ]
       }
     },
+    "/api/profesionales/{profesionalId}/disponibilidad/dias/{dia}": {
+      "patch": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "AgendaProfesionalController_activarDia",
+        "parameters": [
+          {
+            "name": "profesionalId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dia",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiaHorarioDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DisponibilidadHabitual"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "2026-11-18: activa o desactiva un dia entero del horario (conserva sus horas). Desactivar deja por reprogramar\nlas sesiones futuras de ese dia y avisa a cada paciente (la BD).",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      }
+    },
     "/api/profesionales/{profesionalId}/disponibilidad/{id}": {
       "delete": {
         "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
@@ -19173,106 +19291,6 @@
           }
         ],
         "summary": "Huecos libres por modalidad (max. 62 dias), sin motivos.",
-        "tags": [
-          "Agenda y espacios"
-        ]
-      }
-    },
-    "/api/profesionales/{profesionalId}/conflictos-margen": {
-      "get": {
-        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
-        "operationId": "AgendaProfesionalController_conflictosMargen",
-        "parameters": [
-          {
-            "name": "profesionalId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ConflictoMargen"
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "DTO invalido (class-validator) o campo no declarado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sin token, token vencido o cuenta inactiva/expirada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No existe o no es visible para el usuario (RLS)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Regla de negocio de la BD (23514, 23503)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "jwt": []
-          }
-        ],
-        "summary": "Citas futuras que no cumplen el margen vigente (no se mueven solas).",
         "tags": [
           "Agenda y espacios"
         ]
@@ -20203,7 +20221,7 @@
             "jwt": []
           }
         ],
-        "summary": "Verificacion previa (opcion C): disponibilidad, margen y box, con alternativas.",
+        "summary": "Verificacion previa (opcion C): disponibilidad, hora clinica y box, con alternativas.",
         "tags": [
           "Agenda y espacios"
         ]
@@ -20923,6 +20941,111 @@
           }
         ],
         "summary": "",
+        "tags": [
+          "Agenda y espacios"
+        ]
+      },
+      "put": {
+        "description": "Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE",
+        "operationId": "CitasController_guardarEnlace",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnlaceCitaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnlaceCita"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "2026-11-18: el profesional de la cita (o ADMIN/GESTION) agrega o cambia el enlace de la sala de una cita online\nvigente y el paciente recibe el aviso por correo (ENLACE_ONLINE). Presencial 422; terminada o no vigente 409.",
         "tags": [
           "Agenda y espacios"
         ]
@@ -22811,113 +22934,6 @@
           }
         ],
         "summary": "A la segunda solicitud del mismo campo sin cambios, la cuenta madre lo corrige (422 si no corresponde).",
-        "tags": [
-          "Equipo"
-        ]
-      }
-    },
-    "/api/profesionales/{id}/margen": {
-      "patch": {
-        "description": "Roles: ADMIN, GESTION, PROFESIONAL",
-        "operationId": "PerfilesController_margen",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MargenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PerfilProfesionalVista"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "DTO invalido (class-validator) o campo no declarado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Sin token, token vencido o cuenta inactiva/expirada",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No existe o no es visible para el usuario (RLS)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Regla de negocio de la BD (23514, 23503)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorRespuesta"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "jwt": []
-          }
-        ],
-        "summary": "",
         "tags": [
           "Equipo"
         ]
@@ -31188,6 +31204,113 @@
         ]
       }
     },
+    "/api/portal/citas/{id}/mantener": {
+      "post": {
+        "description": "Roles: PACIENTE, RESPONSABLE",
+        "operationId": "PortalController_mantenerHora",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MantenerHoraDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoraMantenida"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "DTO invalido (class-validator) o campo no declarado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin token, token vencido o cuenta inactiva/expirada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rol no permitido (matriz_permisos.md) o RLS (42501)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o no es visible para el usuario (RLS)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Regla de negocio de la BD (23514, 23503)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "jwt": []
+          }
+        ],
+        "summary": "2026-11-18: la hora original volvio a estar libre: el paciente la mantiene (y, si pidio otra, cancela esa). Tomada: 409.",
+        "tags": [
+          "Portal del paciente"
+        ]
+      }
+    },
     "/api/portal/citas/{id}/ausencia": {
       "post": {
         "description": "Roles: PACIENTE, RESPONSABLE",
@@ -35239,9 +35362,6 @@
           "diasGraciaCierre": {
             "type": "number"
           },
-          "margenTrasladoMin": {
-            "type": "number"
-          },
           "nombreCentro": {
             "type": "string"
           },
@@ -35283,7 +35403,6 @@
           "plazoConsentimientoHoras",
           "plazoOposicionHoras",
           "diasGraciaCierre",
-          "margenTrasladoMin",
           "nombreCentro",
           "plazoAvisoCancelacionHoras",
           "recordatorioHorasAntes",
@@ -35327,11 +35446,6 @@
             "type": "number",
             "minimum": 0,
             "maximum": 365
-          },
-          "margenTrasladoMin": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 600
           },
           "nombreCentro": {
             "type": "string",
@@ -40137,6 +40251,10 @@
           "finMin": {
             "type": "number"
           },
+          "activo": {
+            "type": "boolean",
+            "description": "2026-11-18: dia desactivado con un clic (la fila se conserva y no decide la agenda)."
+          },
           "horaInicio": {
             "type": "string",
             "description": "HH:MM."
@@ -40156,6 +40274,7 @@
           "diaSemana",
           "inicioMin",
           "finMin",
+          "activo",
           "horaInicio",
           "horaFin",
           "createdAt"
@@ -40192,6 +40311,17 @@
           "inicioMin",
           "finMin",
           "modalidad"
+        ]
+      },
+      "DiaHorarioDto": {
+        "type": "object",
+        "properties": {
+          "activo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "activo"
         ]
       },
       "Eliminados": {
@@ -40304,34 +40434,6 @@
           "modalidad",
           "inicio",
           "fin"
-        ]
-      },
-      "ConflictoMargen": {
-        "type": "object",
-        "properties": {
-          "cita_id": {
-            "type": "string"
-          },
-          "cita_conflicto_id": {
-            "type": "string"
-          },
-          "inicio": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "separacion_min": {
-            "type": "number"
-          },
-          "margen_min": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "cita_id",
-          "cita_conflicto_id",
-          "inicio",
-          "separacion_min",
-          "margen_min"
         ]
       },
       "HorarioDto": {
@@ -40506,11 +40608,13 @@
             "nullable": true,
             "description": "03b-3.3: hora retenida liberada a mano por ADMIN/GESTION (LIBERADA)."
           },
+          "motivoReprogramacion": {
+            "type": "string",
+            "nullable": true,
+            "description": "DIA_SIN_ATENCION o nulo"
+          },
           "id": {
             "type": "string"
-          },
-          "margenTrasladoMin": {
-            "type": "number"
           },
           "profesionalId": {
             "type": "string"
@@ -40542,8 +40646,8 @@
           "aprobacionVenceEn",
           "propuestaDeId",
           "motivoLiberacion",
+          "motivoReprogramacion",
           "id",
-          "margenTrasladoMin",
           "profesionalId",
           "inicio",
           "fin",
@@ -40604,7 +40708,7 @@
             "type": "boolean"
           },
           "motivos": {
-            "description": "PROFESIONAL_NO_DISPONIBLE: fuera de sus bloques de box, bloqueos, otra cita o margen.",
+            "description": "PROFESIONAL_NO_DISPONIBLE: fuera de sus bloques de box, bloqueos, otra cita o su pausa.",
             "type": "array",
             "items": {
               "type": "string"
@@ -40764,6 +40868,19 @@
         },
         "required": [
           "expiraEn",
+          "url"
+        ]
+      },
+      "EnlaceCitaDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 500,
+            "format": "uri"
+          }
+        },
+        "required": [
           "url"
         ]
       },
@@ -41133,11 +41250,6 @@
               }
             ]
           },
-          "margenTrasladoMin": {
-            "type": "number",
-            "nullable": true,
-            "description": "Minutos; nulo = el del centro"
-          },
           "nombrePublico": {
             "type": "string",
             "nullable": true
@@ -41200,7 +41312,6 @@
         },
         "required": [
           "modalidad",
-          "margenTrasladoMin",
           "nombrePublico",
           "bio",
           "fotoUrl",
@@ -41498,21 +41609,6 @@
           "campo",
           "valor",
           "motivo"
-        ]
-      },
-      "MargenDto": {
-        "type": "object",
-        "properties": {
-          "margenTrasladoMin": {
-            "type": "number",
-            "nullable": true,
-            "description": "null = usa el margen del centro.",
-            "minimum": 0,
-            "maximum": 600
-          }
-        },
-        "required": [
-          "margenTrasladoMin"
         ]
       },
       "TipoTrayectoria": {
@@ -44537,6 +44633,11 @@
             "description": "Punto 7 (2026-11-11): solicitud que el profesional no acepto; las PROPUESTA con el mismo valor son un grupo.",
             "format": "uuid"
           },
+          "motivoReprogramacion": {
+            "type": "string",
+            "nullable": true,
+            "description": "2026-11-18: POR_REPROGRAMAR por dia sin atencion (DIA_SIN_ATENCION) o con la hora original libre otra vez (HORA_DISPONIBLE)."
+          },
           "id": {
             "type": "string"
           },
@@ -44566,6 +44667,7 @@
           "estado",
           "aprobacionVenceEn",
           "propuestaDeId",
+          "motivoReprogramacion",
           "id",
           "pacienteId",
           "profesionalId",
@@ -44698,6 +44800,33 @@
         },
         "required": [
           "canceladas"
+        ]
+      },
+      "MantenerHoraDto": {
+        "type": "object",
+        "properties": {
+          "cancelarCitaId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "HoraMantenida": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string",
+            "enum": [
+              "CONFIRMADA"
+            ]
+          },
+          "citaId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado",
+          "citaId"
         ]
       },
       "RespuestaAusenciaDto": {

@@ -206,10 +206,17 @@ type PropsLista = {
   title?: string;
   /** Tamaño compacto (barras de filtros, paginador). */
   compacto?: boolean;
+  /** Listas largas (p. ej. pacientes): un campo arriba filtra las opciones mientras se escribe (sin tildes ni mayusculas). */
+  buscable?: boolean;
 };
 
+/** Texto plano de una etiqueta (puede venir partida: {apellido}, {nombre}). */
+const textoDe = (n: ReactNode): string =>
+  typeof n === 'string' || typeof n === 'number' ? String(n) : Array.isArray(n) ? n.map(textoDe).join('') : '';
+const normal = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 /** Lista desplegable propia (reemplaza la de <select>). Teclado: flechas, Inicio/Fin, Enter, Esc y escribir para saltar. */
-export function ListaSeleccion({ id, value, defaultValue, onChange, children, disabled, required, name, className = '', compacto, title, ...aria }: PropsLista) {
+export function ListaSeleccion({ id, value, defaultValue, onChange, children, disabled, required, name, className = '', compacto, title, buscable, ...aria }: PropsLista) {
   const opciones = leerOpciones(children);
   const [interno, setInterno] = useState(String(defaultValue ?? opciones[0]?.valor ?? ''));
   const valor = value !== undefined ? String(value) : interno;
@@ -221,13 +228,17 @@ export function ListaSeleccion({ id, value, defaultValue, onChange, children, di
   const lista = useRef<HTMLUListElement>(null);
   const idLista = useId();
   const busqueda = useRef({ texto: '', hasta: 0 });
+  const [filtro, setFiltro] = useState('');
+  const buscador = useRef<HTMLInputElement>(null);
+  const visibles = opciones.map((_, i) => i).filter((i) => !buscable || !filtro.trim() || normal(textoDe(opciones[i].etiqueta)).includes(normal(filtro.trim())));
 
   useEffect(() => {
     if (abierto) {
       setActiva(Math.max(0, actual));
-      requestAnimationFrame(() => lista.current?.focus());
+      setFiltro('');
+      requestAnimationFrame(() => (buscable ? buscador.current : lista.current)?.focus());
     }
-  }, [abierto, actual]);
+  }, [abierto, actual, buscable]);
   useEffect(() => {
     if (abierto) lista.current?.querySelector(`[data-i="${activa}"]`)?.scrollIntoView?.({ block: 'nearest' });
   }, [activa, abierto]);
@@ -241,22 +252,27 @@ export function ListaSeleccion({ id, value, defaultValue, onChange, children, di
     setAbierto(false);
     boton()?.focus();
   };
+  // Se navega solo entre las opciones visibles (con buscador, las que calzan con lo escrito).
   const saltar = (dir: 1 | -1, desde: number) => {
-    let i = desde;
-    do i += dir;
-    while (i >= 0 && i < opciones.length && opciones[i].disabled);
-    return i >= 0 && i < opciones.length ? i : desde;
+    let k = visibles.indexOf(desde);
+    if (k < 0) k = dir === 1 ? -1 : visibles.length;
+    do k += dir;
+    while (k >= 0 && k < visibles.length && opciones[visibles[k]].disabled);
+    return k >= 0 && k < visibles.length ? visibles[k] : desde;
   };
   const tecla = (e: KeyboardEvent) => {
     if (e.key === 'ArrowDown') setActiva((i) => saltar(1, i));
     else if (e.key === 'ArrowUp') setActiva((i) => saltar(-1, i));
-    else if (e.key === 'Home') setActiva(saltar(1, -1));
-    else if (e.key === 'End') setActiva(saltar(-1, opciones.length));
-    else if (e.key === 'Enter' || e.key === ' ') elegir(activa);
+    else if (e.key === 'Home' && !buscable) setActiva(saltar(1, -1));
+    else if (e.key === 'End' && !buscable) setActiva(saltar(-1, opciones.length));
+    else if (e.key === 'Enter' || (e.key === ' ' && !buscable)) {
+      if (visibles.includes(activa)) elegir(activa);
+    }
     else if (e.key === 'Escape') {
       setAbierto(false);
       boton()?.focus();
     } else if (e.key === 'Tab') return setAbierto(false);
+    else if (buscable) return; // con buscador, lo escrito va al campo
     else if (e.key.length === 1) {
       const b = busqueda.current;
       b.texto = (Date.now() < b.hasta ? b.texto : '') + e.key.toLowerCase();
@@ -302,9 +318,32 @@ export function ListaSeleccion({ id, value, defaultValue, onChange, children, di
       </button>
       {(name || required) && <input className="pointer-events-none absolute inset-x-0 bottom-0 h-px opacity-0" tabIndex={-1} aria-hidden="true" name={name} required={required} value={valor} onChange={() => undefined} />}
       <div ref={panel} popover="manual" style={estilo} className={`${PANEL} max-h-[min(320px,50dvh)] overflow-y-auto`}>
+        {abierto && buscable && (
+          <div className="sticky -top-1.5 z-10 -mx-1.5 -mt-1.5 mb-1 bg-bg p-1.5 pb-1">
+            <input
+              ref={buscador}
+              type="search"
+              value={filtro}
+              onChange={(e) => {
+                const t = e.target.value;
+                setFiltro(t);
+                const primera = opciones.findIndex((o) => !o.disabled && (!t.trim() || normal(textoDe(o.etiqueta)).includes(normal(t.trim()))));
+                if (primera >= 0) setActiva(primera);
+              }}
+              onKeyDown={tecla}
+              placeholder="Escribe para buscar…"
+              aria-label="Buscar en la lista"
+              aria-controls={idLista}
+              aria-activedescendant={visibles.includes(activa) ? `${idLista}-${activa}` : undefined}
+              autoComplete="off"
+              className="w-full rounded-full border-[1.5px] border-neutral-400 bg-bg px-4 py-2 font-body text-[14px] text-text outline-none focus-visible:border-accent-500"
+            />
+          </div>
+        )}
+        {abierto && buscable && visibles.length === 0 && <p className="m-0 px-3.5 py-2.5 text-[13.5px] font-semibold text-neutral-700">Sin resultados</p>}
         {abierto && (
           <ul ref={lista} id={idLista} role="listbox" tabIndex={-1} aria-activedescendant={`${idLista}-${activa}`} onKeyDown={tecla} className="m-0 flex list-none flex-col gap-0.5 p-0 outline-none">
-            {opciones.map((o, i) => (
+            {opciones.map((o, i) => !visibles.includes(i) ? null : (
               // eslint-disable-next-line jsx-a11y/click-events-have-key-events -- patron listbox: el teclado lo maneja la lista (aria-activedescendant)
               <li
                 key={`${o.valor}-${i}`}

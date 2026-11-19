@@ -38,8 +38,8 @@ cifrado en `registro.ts`, casos en `seguridad_bd.sql` y filas en la matriz.
 | core | `POST auth/login`, `auth/refresh`, `auth/logout`; `GET salud`; `GET notificaciones` (registro); 02i: `GET notificaciones/bandeja`, `GET/PUT notificaciones/preferencias`, `plantillas-mensaje` (`:id`, `:id/restauracion`) |
 | nucleo (02b) | `usuarios` (CRUD sin DELETE, `yo`, `yo/password`), `configuracion` (02h: nombre y RUT del centro, politica de cancelacion, comision), `practicantes` (`:id/acceso`, `:id/revocacion`, `:id/historial`), `bajas` (`por-reasignar`), `alertas` (`:id/atendida`), `directorio` (`mi-equipo`) |
 | fichas (02c, 02h) | `pacientes` (busqueda `?rut=`), `pacientes/:id/adultos-responsables`, `pacientes/:id/ficha`, `fichas/:id/evoluciones`, `tipos-sesion`, `intervenciones`, `estados-avance`, `retencion/fichas`, `retencion/revisiones`; 02h: `tipos-documento-clinico`, `documentos-clinicos` (`:id/envios`, `:id/solicitud-adjunto`, `descarga/:token` -> PDF); 02i: `pacientes/:id/adjuntos` (multipart), `adjuntos-ficha/:id` |
-| agenda (02d, 02h) | `espacios` (`ocupacion`), `profesionales/:id/{disponibilidad,bloqueos,huecos,conflictos-margen}`, `agenda/horarios-tomados`, `citas` (`verificacion`, `por-reprogramar`, `:id/cancelacion`, `:id/reprogramacion`, `:id/enlace`); 02h: `profesionales/yo/videollamada`, `profesionales/yo/calendario`, `calendario/:token` (publico); 02i: `recordatorios/:token` (`confirmacion`, `cancelacion`; publico) |
-| equipo (02e, 02h) | `profesionales/yo/{perfil,datos-privados,tarifas,tipos-atencion}`, `profesionales/:id/{perfil,margen,trayectoria,datos-privados,tarifas,tipos-atencion,tipos-atencion/:tipoId}`, `trayectoria`, `tipos-atencion` (`propuestas`), `supervisiones`, `practicantes/:id/supervisor`, `supervision/casos`, `supervision/evoluciones/:id/comentarios`, `evoluciones/:id/comentarios` |
+| agenda (02d, 02h) | `espacios` (`ocupacion`), `profesionales/:id/{disponibilidad,bloqueos,huecos}`, `agenda/horarios-tomados`, `citas` (`verificacion`, `por-reprogramar`, `:id/cancelacion`, `:id/reprogramacion`, `:id/enlace` GET y PUT); 02h: `profesionales/yo/videollamada`, `profesionales/yo/calendario`, `calendario/:token` (publico); 02i: `recordatorios/:token` (`confirmacion`, `cancelacion`; publico) |
+| equipo (02e, 02h) | `profesionales/yo/{perfil,datos-privados,tarifas,tipos-atencion}`, `profesionales/:id/{perfil,trayectoria,datos-privados,tarifas,tipos-atencion,tipos-atencion/:tipoId}`, `trayectoria`, `tipos-atencion` (`propuestas`), `supervisiones`, `practicantes/:id/supervisor`, `supervision/casos`, `supervision/evoluciones/:id/comentarios`, `evoluciones/:id/comentarios` |
 | derivaciones (02f) | `derivaciones` (`pendientes`, `:id/oferta`, `:id/respuesta`, `:id/cancelacion`, `:id/candidatos`, `:id/practicantes`, reintegro), `consentimientos` (`solicitudes`, `:id/respuesta`, `:id/revocacion`), `avisos-consentimiento` |
 | match (02g) | `publico/{profesionales, profesionales/:id/disponibilidad, match}` (anonimo, rate limit), `portal/{equipo,citas,citas/:id/datos-pago,mensajes,epicrisis}`, `mensajes`, `epicrisis` |
 | cobros (02h) | `cobros/citas` (`:id`, `:id/pagos`, `:id/resolucion`), `cobros/pagos/:id/anulacion`, `cobros/arriendos`, `cobros/liquidaciones` (`:id/emision`, `:id/pago`) |
@@ -83,8 +83,8 @@ cifrado en `registro.ts`, casos en `seguridad_bd.sql` y filas en la matriz.
   por derivacion al origen.
 - **Tipos de atencion**: el filtro de candidatos de derivacion es el del
   directorio (solo APROBADOS); la BD no exige que el candidato tenga el tipo.
-- **Videollamada**: sin sala configurada (ENLACE_PROPIO) o con JITSI
-  deshabilitado, la cita online se rechaza (422) en vez de quedar sin enlace.
+- **Videollamada**: con JITSI deshabilitado la cita online se rechaza (422).
+  Sin sala configurada (ENLACE_PROPIO) se agenda igual, sin enlace (2026-11-18).
 - **Body JSON**: 02i lo vuelve a 1 MB (ver abajo).
 
 ## Decisiones de 02i

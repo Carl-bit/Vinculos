@@ -71,8 +71,6 @@ model ConfiguracionCentro {
   plazoConsentimientoHoras      Int            @default(48) @map("plazo_consentimiento_horas")
   plazoOposicionHoras           Int            @default(48) @map("plazo_oposicion_horas")
   diasGraciaCierre              Int            @default(30) @map("dias_gracia_cierre")
-  /// Minutos minimos entre citas de distinta modalidad del mismo profesional.
-  margenTrasladoMin             Int            @default(30) @map("margen_traslado_min")
   /// Remitente visible de los correos.
   nombreCentro                  String         @default("Centro") @map("nombre_centro")
   rutCentro                     String?        @map("rut_centro")
@@ -543,6 +541,8 @@ enum TipoNotificacion {
   CONTACTO_EMERGENCIA_PENDIENTE
   CITA_AUSENCIA_PROFESIONAL
   MENSAJE_PROFESIONAL
+  /// 2026-11-18: la hora original de una cita por reprogramar vuelve a estar libre (el profesional reactivo el dia).
+  CITA_HORA_DISPONIBLE
 
   @@map("tipo_notificacion")
 }
@@ -1409,39 +1409,40 @@ model Espacio {
 /// porque Prisma no soporta tipos range; el EXCLUDE arma el rango con
 /// tstzrange(inicio, fin, '[)'), asi una cita que termina 10:00 no choca con
 /// otra que empieza 10:00. espacio_id solo si es PRESENCIAL (CHECK); el
-/// EXCLUDE por box aplica solo a presenciales, el por profesional a ambas.
+/// EXCLUDE por box aplica solo a presenciales, el por profesional a ambas
+/// (2026-11-18: cada sesion ocupa su hora clinica, rango_hora_clinica; sin margen de traslado).
 /// Trigger: dentro de la disponibilidad de su modalidad y fuera de bloqueos.
 model Cita {
-  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  espacioId         String?           @map("espacio_id") @db.Uuid
-  modalidad         ModalidadAtencion @default(PRESENCIAL)
-  /// Fijado al confirmar (margen vigente del profesional). EXCLUDE
-  /// citas_margen_traslado: distinta modalidad necesita ese margen.
-  margenTrasladoMin Int               @default(0) @map("margen_traslado_min") @db.SmallInt
+  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  espacioId            String?           @map("espacio_id") @db.Uuid
+  modalidad            ModalidadAtencion @default(PRESENCIAL)
   /// cifrado (CLINICO). Solo ONLINE (CHECK). Lo genera la API (02) con la cita ya creada.
-  enlaceOnline      Bytes?            @map("enlace_online")
-  profesionalId     String            @map("profesional_id") @db.Uuid
+  enlaceOnline         Bytes?            @map("enlace_online")
+  profesionalId        String            @map("profesional_id") @db.Uuid
   /// Nulo solo en RETENIDA (o LIBERADA sin concretar): CHECK citas_paciente_segun_estado.
-  pacienteId        String?           @map("paciente_id") @db.Uuid
-  inicio            DateTime          @db.Timestamptz(6)
-  fin               DateTime          @db.Timestamptz(6)
-  estado            EstadoCita        @default(CONFIRMADA)
+  pacienteId           String?           @map("paciente_id") @db.Uuid
+  inicio               DateTime          @db.Timestamptz(6)
+  fin                  DateTime          @db.Timestamptz(6)
+  estado               EstadoCita        @default(CONFIRMADA)
   /// Lo fija la BD al pasar a CANCELADA (plazo de aviso de la politica de cancelacion).
-  canceladaEn       DateTime?         @map("cancelada_en") @db.Timestamptz(6)
+  canceladaEn          DateTime?         @map("cancelada_en") @db.Timestamptz(6)
   /// 02i: SEQUENCE del evento de calendario (UID fijo por cita). La sube la BD
   /// en cada cambio de horario, modalidad, box o estado.
-  secuencia         Int               @default(0)
+  secuencia            Int               @default(0)
   /// Plazo de la hora RETENIDA para verificar el correo (CHECK: RETENIDA lo exige). Antes pago_vence_en.
-  retencionVenceEn  DateTime?         @map("retencion_vence_en") @db.Timestamptz(6)
+  retencionVenceEn     DateTime?         @map("retencion_vence_en") @db.Timestamptz(6)
   /// MVP: plazo para que el profesional apruebe (CHECK: SOLICITADA lo exige). Lo fija el flujo; el job vence.
-  aprobacionVenceEn DateTime?         @map("aprobacion_vence_en") @db.Timestamptz(6)
+  aprobacionVenceEn    DateTime?         @map("aprobacion_vence_en") @db.Timestamptz(6)
   /// Punto 7: solicitud original (CANCELADA) de la que sale esta hora PROPUESTA. Lo fija proponer_cambio_hora.
-  propuestaDeId     String?           @map("propuesta_de_id") @db.Uuid
+  propuestaDeId        String?           @map("propuesta_de_id") @db.Uuid
+  /// 2026-11-18: DIA_SIN_ATENCION = por reprogramar porque el profesional no atiende ese dia (bloqueo o
+  /// cambio de horario). Lo fija la BD y lo limpia al salir de POR_REPROGRAMAR. Categoria C.
+  motivoReprogramacion String?           @map("motivo_reprogramacion")
   /// 03b-3.3: hora retenida liberada a mano (ADMIN/GESTION, con motivo; liberar_hora_retenida).
-  liberadaPorId     String?           @map("liberada_por_id") @db.Uuid
-  motivoLiberacion  String?           @map("motivo_liberacion")
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  liberadaPorId        String?           @map("liberada_por_id") @db.Uuid
+  motivoLiberacion     String?           @map("motivo_liberacion")
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   espacio       Espacio?            @relation(fields: [espacioId], references: [id], onDelete: Restrict)
   profesional   Usuario             @relation("CitaProfesional", fields: [profesionalId], references: [id], onDelete: Restrict)
@@ -1498,6 +1499,8 @@ model DisponibilidadProfesional {
   inicioMin     Int               @map("inicio_min") @db.SmallInt
   finMin        Int               @map("fin_min") @db.SmallInt
   modalidad     ModalidadAtencion
+  /// 2026-11-18: dia desactivado con un clic (se conserva el horario; no decide la agenda). Categoria C.
+  activo        Boolean           @default(true)
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
 
   profesional Usuario @relation(fields: [profesionalId], references: [id], onDelete: Restrict)
@@ -1582,8 +1585,6 @@ model Profesional {
   especialidad              String
   enfoques                  String[]  @default([])
   modalidad                 Modalidad
-  /// Nulo = usa configuracion_centro.margen_traslado_min.
-  margenTrasladoMin         Int?      @map("margen_traslado_min")
   nombrePublico             String?   @map("nombre_publico")
   bio                       String?
   fotoUrl                   String?   @map("foto_url")

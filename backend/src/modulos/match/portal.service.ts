@@ -64,6 +64,7 @@ export class PortalService {
         estado: true,
         aprobacionVenceEn: true,
         propuestaDeId: true,
+        motivoReprogramacion: true,
       },
       orderBy: { inicio: todas ? 'desc' : 'asc' },
     });
@@ -112,8 +113,10 @@ export class PortalService {
         modo: r.sala_modo ?? 'ENLACE_PROPIO',
         enlacePropio: this.llavero.descifrarCampo(r.sala_enlace, 'salas_videollamada', 'enlace', r.profesional_id),
       });
-      const enlace = JSON.stringify({ url: sala.url, expiraEn: sala.expiraEn.toISOString() });
-      await tx.$executeRaw`SELECT guardar_enlace_portal(${r.cita_id}::uuid, ${this.llavero.cifrarCampo(enlace, 'citas', 'enlace_online', r.cita_id)})`;
+      if (sala) {
+        const enlace = JSON.stringify({ url: sala.url, expiraEn: sala.expiraEn.toISOString() });
+        await tx.$executeRaw`SELECT guardar_enlace_portal(${r.cita_id}::uuid, ${this.llavero.cifrarCampo(enlace, 'citas', 'enlace_online', r.cita_id)})`;
+      }
     }
     return { citaId: r.cita_id, estado: r.estado, profesionalId: r.profesional_id };
   }
@@ -342,6 +345,12 @@ export class PortalService {
   async pedirVolver(pacienteDelPortal?: string) {
     const pacienteId = await this.pacienteDelPortal(pacienteDelPortal);
     await this.bd.tx().$executeRaw`SELECT pedir_volver_con_principal(${pacienteId}::uuid)`;
+  }
+
+  /** 2026-11-18: mantener la hora original (vuelve a CONFIRMADA si sigue libre; tomada -> 409). Opcional: cancelar la otra. */
+  async mantenerHora(citaId: string, cancelarCitaId?: string) {
+    await this.bd.tx().$queryRaw`SELECT mantener_hora_original(${citaId}::uuid, ${cancelarCitaId ?? null}::uuid)`;
+    return { citaId, estado: 'CONFIRMADA' as const };
   }
 
   async responderAusencia(citaId: string, opcion: 'CANCELAR' | 'ATENCION_TEMPORAL') {

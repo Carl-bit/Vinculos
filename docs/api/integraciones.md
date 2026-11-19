@@ -215,7 +215,7 @@ Niveles:
 
 | Nivel | Que es | Estado |
 |---|---|---|
-| 1. `ENLACE_PROPIO` | Sala fija del profesional (Zoom, Meet, Jitsi propio...), guardada cifrada; sin enlace configurado la cita online se rechaza (422 `videollamada_sin_sala`) | **Habilitado (unico en uso)** |
+| 1. `ENLACE_PROPIO` | Sala fija del profesional (Zoom, Meet, Jitsi propio...), guardada cifrada; sin enlace configurado la cita online se agenda igual, sin enlace (2026-11-18: las salas vencen y no hay automatizacion; `GET /citas/:id/enlace` responde 404 hasta que haya uno) | **Habilitado (unico en uso)** |
 | 2. `JITSI` | Sala unica por cita: `JITSI_URL_BASE/vinculos-<128 bits hex>` | Implementado, **desactivado** (`JITSI_HABILITADO=false` -> 422 `videollamada_jitsi_deshabilitado`). Para usarlo: servidor Jitsi propio y `JITSI_HABILITADO=true` |
 | 3. Integrada | Salas creadas via API del proveedor (Meet con Google Workspace, Zoom) con OAuth por centro o profesional, sala de espera y control de acceso | Futuro (ver "Por que Google queda pospuesto") |
 

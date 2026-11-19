@@ -2779,6 +2779,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/profesionales/{profesionalId}/disponibilidad/dias/{dia}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 2026-11-18: activa o desactiva un dia entero del horario (conserva sus horas). Desactivar deja por reprogramar
+         *     las sesiones futuras de ese dia y avisa a cada paciente (la BD).
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        patch: operations["AgendaProfesionalController_activarDia"];
+        trace?: never;
+    };
     "/api/profesionales/{profesionalId}/disponibilidad/{id}": {
         parameters: {
             query?: never;
@@ -2843,26 +2864,6 @@ export interface paths {
          * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE
          */
         get: operations["AgendaProfesionalController_huecos"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/profesionales/{profesionalId}/conflictos-margen": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Citas futuras que no cumplen el margen vigente (no se mueven solas).
-         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
-         */
-        get: operations["AgendaProfesionalController_conflictosMargen"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2994,7 +2995,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Verificacion previa (opcion C): disponibilidad, margen y box, con alternativas.
+         * Verificacion previa (opcion C): disponibilidad, hora clinica y box, con alternativas.
          * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
          */
         post: operations["CitasController_verificar"];
@@ -3124,7 +3125,12 @@ export interface paths {
         };
         /** @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE, PACIENTE, RESPONSABLE */
         get: operations["CitasController_enlace"];
-        put?: never;
+        /**
+         * 2026-11-18: el profesional de la cita (o ADMIN/GESTION) agrega o cambia el enlace de la sala de una cita online
+         *     vigente y el paciente recibe el aviso por correo (ENLACE_ONLINE). Presencial 422; terminada o no vigente 409.
+         * @description Roles: ADMIN, GESTION, PROFESIONAL, PRACTICANTE
+         */
+        put: operations["CitasController_guardarEnlace"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3466,23 +3472,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/profesionales/{id}/margen": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** @description Roles: ADMIN, GESTION, PROFESIONAL */
-        patch: operations["PerfilesController_margen"];
         trace?: never;
     };
     "/api/profesionales/{id}/trayectoria": {
@@ -4863,6 +4852,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/portal/citas/{id}/mantener": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 2026-11-18: la hora original volvio a estar libre: el paciente la mantiene (y, si pidio otra, cancela esa). Tomada: 409.
+         * @description Roles: PACIENTE, RESPONSABLE
+         */
+        post: operations["PortalController_mantenerHora"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/portal/citas/{id}/ausencia": {
         parameters: {
             query?: never;
@@ -5637,7 +5646,6 @@ export interface components {
             plazoConsentimientoHoras: number;
             plazoOposicionHoras: number;
             diasGraciaCierre: number;
-            margenTrasladoMin: number;
             nombreCentro: string;
             plazoAvisoCancelacionHoras: number;
             recordatorioHorasAntes: number;
@@ -5658,7 +5666,6 @@ export interface components {
             plazoConsentimientoHoras?: number;
             plazoOposicionHoras?: number;
             diasGraciaCierre?: number;
-            margenTrasladoMin?: number;
             /** @description Remitente visible de los correos. */
             nombreCentro?: string;
             rutCentro?: string;
@@ -7038,6 +7045,8 @@ export interface components {
             diaSemana: number;
             inicioMin: number;
             finMin: number;
+            /** @description 2026-11-18: dia desactivado con un clic (la fila se conserva y no decide la agenda). */
+            activo: boolean;
             /** @description HH:MM. */
             horaInicio: string;
             horaFin: string;
@@ -7050,6 +7059,9 @@ export interface components {
             finMin: number;
             /** @enum {string} */
             modalidad: "PRESENCIAL" | "ONLINE";
+        };
+        DiaHorarioDto: {
+            activo: boolean;
         };
         Eliminados: {
             eliminados: number;
@@ -7090,14 +7102,6 @@ export interface components {
             inicio: string;
             /** Format: date-time */
             fin: string;
-        };
-        ConflictoMargen: {
-            cita_id: string;
-            cita_conflicto_id: string;
-            /** Format: date-time */
-            inicio: string;
-            separacion_min: number;
-            margen_min: number;
         };
         HorarioDto: {
             /** Format: uuid */
@@ -7161,8 +7165,9 @@ export interface components {
             propuestaDeId: string | null;
             /** @description 03b-3.3: hora retenida liberada a mano por ADMIN/GESTION (LIBERADA). */
             motivoLiberacion: string | null;
+            /** @description DIA_SIN_ATENCION o nulo */
+            motivoReprogramacion: string | null;
             id: string;
-            margenTrasladoMin: number;
             profesionalId: string;
             /** Format: date-time */
             inicio: string;
@@ -7188,7 +7193,7 @@ export interface components {
         };
         VerificacionHorario: {
             disponible: boolean;
-            /** @description PROFESIONAL_NO_DISPONIBLE: fuera de sus bloques de box, bloqueos, otra cita o margen. */
+            /** @description PROFESIONAL_NO_DISPONIBLE: fuera de sus bloques de box, bloqueos, otra cita o su pausa. */
             motivos: string[];
             /** @description Horarios libres mas cercanos de la misma modalidad y duracion. */
             alternativas: components["schemas"]["AlternativaCita"][];
@@ -7234,6 +7239,10 @@ export interface components {
         EnlaceCita: {
             /** Format: date-time */
             expiraEn: string;
+            url: string;
+        };
+        EnlaceCitaDto: {
+            /** Format: uri */
             url: string;
         };
         CubrirCitaDto: {
@@ -7335,8 +7344,6 @@ export interface components {
         Modalidad: "PRESENCIAL" | "ONLINE" | "MIXTA";
         PerfilProfesionalVista: {
             modalidad: components["schemas"]["Modalidad"];
-            /** @description Minutos; nulo = el del centro */
-            margenTrasladoMin: number | null;
             nombrePublico: string | null;
             bio: string | null;
             fotoUrl: string | null;
@@ -7420,10 +7427,6 @@ export interface components {
             /** @description Valor nuevo (enfoques separados por coma). Vacio = quitar (no para la especialidad). */
             valor: string;
             motivo: string;
-        };
-        MargenDto: {
-            /** @description null = usa el margen del centro. */
-            margenTrasladoMin: number | null;
         };
         /** @enum {string} */
         TipoTrayectoria: "TITULO" | "POSTITULO" | "DIPLOMADO" | "MAGISTER" | "DOCTORADO" | "OTRO";
@@ -8252,6 +8255,8 @@ export interface components {
              * @description Punto 7 (2026-11-11): solicitud que el profesional no acepto; las PROPUESTA con el mismo valor son un grupo.
              */
             propuestaDeId: string | null;
+            /** @description 2026-11-18: POR_REPROGRAMAR por dia sin atencion (DIA_SIN_ATENCION) o con la hora original libre otra vez (HORA_DISPONIBLE). */
+            motivoReprogramacion: string | null;
             id: string;
             pacienteId: string;
             profesionalId: string;
@@ -8306,6 +8311,15 @@ export interface components {
         };
         HorasCanceladas: {
             canceladas: number;
+        };
+        MantenerHoraDto: {
+            /** Format: uuid */
+            cancelarCitaId?: string;
+        };
+        HoraMantenida: {
+            /** @enum {string} */
+            estado: "CONFIRMADA";
+            citaId: string;
         };
         RespuestaAusenciaDto: {
             /** @enum {string} */
@@ -22801,6 +22815,86 @@ export interface operations {
             };
         };
     };
+    AgendaProfesionalController_activarDia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profesionalId: string;
+                dia: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiaHorarioDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisponibilidadHabitual"][];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
     AgendaProfesionalController_eliminarDisponibilidad: {
         parameters: {
             query?: never;
@@ -23127,81 +23221,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HuecoAgenda"][];
-                };
-            };
-            /** @description DTO invalido (class-validator) o campo no declarado */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Sin token, token vencido o cuenta inactiva/expirada */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description No existe o no es visible para el usuario (RLS) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Regla de negocio de la BD (23514, 23503) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-        };
-    };
-    AgendaProfesionalController_conflictosMargen: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                profesionalId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConflictoMargen"][];
                 };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
@@ -24421,6 +24440,85 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnlaceCita"];
+                };
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    CitasController_guardarEnlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnlaceCitaDto"];
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -25879,85 +25977,6 @@ export interface operations {
         };
         responses: {
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PerfilProfesionalVista"];
-                };
-            };
-            /** @description DTO invalido (class-validator) o campo no declarado */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Sin token, token vencido o cuenta inactiva/expirada */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description No existe o no es visible para el usuario (RLS) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-            /** @description Regla de negocio de la BD (23514, 23503) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorRespuesta"];
-                };
-            };
-        };
-    };
-    PerfilesController_margen: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MargenDto"];
-            };
-        };
-        responses: {
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -32128,6 +32147,85 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description DTO invalido (class-validator) o campo no declarado */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Sin token, token vencido o cuenta inactiva/expirada */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Rol no permitido (matriz_permisos.md) o RLS (42501) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description No existe o no es visible para el usuario (RLS) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Choque de horario (23P01), duplicado (23505) o estado que no permite la accion (55000) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+            /** @description Regla de negocio de la BD (23514, 23503) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRespuesta"];
+                };
+            };
+        };
+    };
+    PortalController_mantenerHora: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MantenerHoraDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HoraMantenida"];
+                };
             };
             /** @description DTO invalido (class-validator) o campo no declarado */
             400: {

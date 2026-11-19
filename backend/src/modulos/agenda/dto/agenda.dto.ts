@@ -87,6 +87,12 @@ export class RangoRetencionesDto extends RangoDto {
   profesionalId?: string;
 }
 
+/** 2026-11-18: activar o desactivar un dia entero del horario (las filas se conservan). */
+export class DiaHorarioDto {
+  @IsBoolean()
+  activo!: boolean;
+}
+
 /** Minutos desde la medianoche de Chile: 0 <= inicio < fin <= 1440 (1440 = fin del dia). */
 export class CrearDisponibilidadDto {
   @IsInt()
@@ -231,6 +237,13 @@ export class FiltroCitasDto {
   @IsOptional()
   @IsEnum(EstadoCita)
   estado?: EstadoCita;
+}
+
+/** 2026-11-18: enlace de la sala de una cita online, que agrega el profesional despues de agendar (https, cifrado). */
+export class EnlaceCitaDto {
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(500)
+  url!: string;
 }
 
 /** Sala de videollamada propia: ENLACE_PROPIO exige su URL https (se guarda cifrada); JITSI no lleva enlace. */

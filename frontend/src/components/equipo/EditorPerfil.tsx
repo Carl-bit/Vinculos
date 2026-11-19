@@ -119,7 +119,7 @@ function Editor({ usuarioId, nombreCuenta, perfil, agenda }: { usuarioId: string
   const t = sel && !paciente ? draft : base.current;
   const vista = vistaPreviaPerfil({
     perfil: {
-      ...(perfil ?? { usuarioId, fotoUrl: null, perfilPublico: false, margenTrasladoMin: null, perfilPublicoConsentidoEn: null }),
+      ...(perfil ?? { usuarioId, fotoUrl: null, perfilPublico: false, perfilPublicoConsentidoEn: null }),
       nombrePublico: t.nombrePublico || null,
       especialidad: t.especialidad || 'Tu especialidad',
       modalidad: t.modalidad,

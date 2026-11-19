@@ -296,7 +296,7 @@ Marcar la casilla con OK o con lo observado.
 | 10.5 | `gestion` | Lo mismo con un profesional sin acceso temporal | Error claro: el acceso lo otorga administración o el tratante | [ ] |
 | 10.6 | `profesional1` | Agenda > sesión propia > Derivar paciente | Abre la ficha con la derivación lista para completar | [ ] |
 | 10.7 | `admin` | Agenda > Espacios > Editar box: cerrar el día en que hay horas apartadas | 409 claro: el horario deja fuera horas ya apartadas | [ ] |
-| 10.8 | `admin` | Agenda > Horarios del equipo > Apartar horas > Sugerir según horario habitual > Apartar | Horas apartadas aparecen en la tarjeta; liberar una con citas da 409 claro | [ ] |
+| 10.8 | `admin` | Agenda > Horarios y boxes > Horario de atención: Agregar (Ambas, repetir L-V) > Apartar horas: elegir box, marcar horas en la grilla o «Sugerir según horario presencial» > Apartar | Horario visible por día; horas seguidas quedan en un bloque; «En otro box» no se puede marcar; liberar una con citas da 409 claro | [ ] |
 | 10.9 | `admin` | Cobros > Asistencia y pago > sesión pendiente > Asistió > Pago total | Saldo $0, estado Pagada y boleta simulada | [ ] |
 | 10.10 | `admin` | Otra sesión > No asistió | Aplica el % de inasistencia de la configuración; la decisión no se deshace | [ ] |
 | 10.11 | `admin` | Cobros > Liquidar un profesional > Emitir > Marcar pagada > PDF | Borrador, emitida y pagada; el PDF descarga | [ ] |

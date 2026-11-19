@@ -30,7 +30,7 @@ describe('02d agenda y espacios', () => {
 
   beforeAll(async () => {
     t = await crearApp();
-    await t.dueno.configuracionCentro.update({ where: { id: true }, data: { rolGestionHabilitado: true, margenTrasladoMin: 30 } });
+    await t.dueno.configuracionCentro.update({ where: { id: true }, data: { rolGestionHabilitado: true } });
     admin = await t.datos.usuario('ADMIN');
     gestion = await t.datos.usuario('GESTION');
     profesional = await t.datos.usuario('PROFESIONAL');
@@ -409,7 +409,7 @@ describe('02d agenda y espacios', () => {
         .set(await tk(gestion))
         .send(cita({ inicio: iso(inicio), fin: iso(inicio + HORA) }));
       expect(r.status).toBe(201);
-      expect(r.body).toEqual(expect.objectContaining({ estado: 'CONFIRMADA', margenTrasladoMin: 30 }));
+      expect(r.body).toEqual(expect.objectContaining({ estado: 'CONFIRMADA' }));
       expect(eventos).toEqual([expect.objectContaining({ citaId: r.body.id, conEnlace: false })]);
       expect(
         (
@@ -485,40 +485,128 @@ describe('02d agenda y espacios', () => {
       expect(eventos).toEqual([]);
     });
 
-    it('margen de traslado: online pegada a una presencial del mismo profesional -> 409', async () => {
+    it('sin margen de traslado: online pegada a presencial -> 201; dentro de la pausa de 10 min -> 409 con alternativas', async () => {
       const inicio = nuevoDia();
+      const MIN = 60_000;
+      const crear = (extra: Record<string, unknown>) => tk(gestion).then((h) => t.http().post('/api/citas').set(h).send(cita(extra)));
+      expect((await crear({ inicio: iso(inicio), fin: iso(inicio + 50 * MIN) })).status).toBe(201);
+      expect((await crear({ modalidad: 'ONLINE', inicio: iso(inicio + HORA), fin: iso(inicio + HORA + 50 * MIN) })).status).toBe(201);
+      const enPausa = await crear({ modalidad: 'ONLINE', inicio: iso(inicio + HORA + 55 * MIN), fin: iso(inicio + 2 * HORA + 45 * MIN) });
+      expect(enPausa.status).toBe(409);
+      expect(enPausa.body.alternativas.every((a: { inicio: string }) => a.inicio >= iso(inicio + 2 * HORA) || a.inicio < iso(inicio))).toBe(true);
+    });
+
+    it('ADMIN agenda solo a sus pacientes (403 con otro profesional); GESTION agenda a cualquiera', async () => {
+      const inicio = nuevoDia();
+      const otro = await t
+        .http()
+        .post('/api/citas')
+        .set(await tk(admin))
+        .send(cita({ inicio: iso(inicio), fin: iso(inicio + HORA) }));
+      expect(otro.status).toBe(403);
       expect(
         (
-          await t
-            .http()
-            .post('/api/citas')
-            .set(await tk(gestion))
-            .send(cita({ inicio: iso(inicio), fin: iso(inicio + HORA) }))
+          await tk(gestion).then((h) =>
+            t
+              .http()
+              .post('/api/citas')
+              .set(h)
+              .send(cita({ inicio: iso(inicio), fin: iso(inicio + HORA) })),
+          )
         ).status,
       ).toBe(201);
+    });
+
+    it('apagar un dia del horario lo conserva, reprograma sus sesiones futuras (motivo DIA_SIN_ATENCION) y encenderlo devuelve las horas', async () => {
+      const inicio = nuevoDia();
+      const r = await t
+        .http()
+        .post('/api/citas')
+        .set(await tk(gestion))
+        .send(cita({ modalidad: 'ONLINE', inicio: iso(inicio), fin: iso(inicio + HORA) }));
+      expect(r.status).toBe(201);
+      const dia =
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(
+          new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/Santiago' }).format(new Date(inicio)),
+        ) + 1;
+      const apagar = (activo: boolean) =>
+        tk(profesional).then((h) => t.http().patch(`/api/profesionales/${profesional.id}/disponibilidad/dias/${dia}`).set(h).send({ activo }));
+      const apagado = await apagar(false);
+      expect(apagado.status).toBe(200);
+      expect(apagado.body.filter((d: { diaSemana: number }) => d.diaSemana === dia).every((d: { activo: boolean }) => !d.activo)).toBe(true);
+      const cita2 = (await tk(gestion).then((h) => t.http().get(`/api/citas/${r.body.id}`).set(h))).body;
+      expect([cita2.estado, cita2.motivoReprogramacion]).toEqual(['POR_REPROGRAMAR', 'DIA_SIN_ATENCION']);
+      expect((await apagar(true)).body.filter((d: { diaSemana: number }) => d.diaSemana === dia).every((d: { activo: boolean }) => d.activo)).toBe(true);
+      expect(
+        (
+          await tk(otroProfesional).then((h) =>
+            t.http().patch(`/api/profesionales/${profesional.id}/disponibilidad/dias/${dia}`).set(h).send({ activo: false }),
+          )
+        ).body,
+      ).toEqual([]);
+    });
+
+    it('enlace de la sala: el profesional de la cita lo agrega y avisa al paciente; presencial 422; otro profesional 404', async () => {
+      const inicio = nuevoDia();
       const online = await t
         .http()
         .post('/api/citas')
         .set(await tk(gestion))
-        .send(cita({ modalidad: 'ONLINE', inicio: iso(inicio + HORA), fin: iso(inicio + 2 * HORA) }));
-      expect(online.status).toBe(409);
-      expect(online.body.alternativas[0].inicio >= iso(inicio + HORA + 30 * 60_000) || online.body.alternativas[0].fin <= iso(inicio - 30 * 60_000)).toBe(true);
+        .send(cita({ modalidad: 'ONLINE', inicio: iso(inicio), fin: iso(inicio + HORA) }));
+      expect(online.status).toBe(201);
+      const avisos: unknown[] = [];
+      const oir = (e: unknown) => avisos.push(e);
+      t.app.get(EventEmitter2).on(EVENTOS.NOTIFICACION_SOLICITADA, oir);
+      const r = await t
+        .http()
+        .put(`/api/citas/${online.body.id}/enlace`)
+        .set(await tk(profesional))
+        .send({ url: 'https://meet.example.com/abc-defg-hij' });
+      t.app.get(EventEmitter2).off(EVENTOS.NOTIFICACION_SOLICITADA, oir);
+      expect(r.status).toBe(200);
+      expect(avisos).toEqual([
+        expect.objectContaining({ tipo: 'ENLACE_ONLINE', destino: { pacienteId: usuarioPaciente.pacienteId }, referenciaId: online.body.id }),
+      ]);
       expect(
         (
           await t
             .http()
-            .get(`/api/profesionales/${profesional.id}/conflictos-margen`)
-            .set(await tk(admin))
-        ).status,
-      ).toBe(200);
+            .get(`/api/citas/${online.body.id}/enlace`)
+            .set(await tk(usuarioPaciente))
+        ).body.url,
+      ).toBe('https://meet.example.com/abc-defg-hij');
       expect(
         (
           await t
             .http()
-            .get(`/api/profesionales/${profesional.id}/conflictos-margen`)
+            .put(`/api/citas/${online.body.id}/enlace`)
             .set(await tk(otroProfesional))
+            .send({ url: 'https://meet.example.com/otro' })
         ).status,
-      ).toBe(403);
+      ).toBe(404); // RLS: la cita ajena no existe para el
+      expect(
+        (
+          await t
+            .http()
+            .put(`/api/citas/${online.body.id}/enlace`)
+            .set(await tk(profesional))
+            .send({ url: 'http://sin-https.example.com' })
+        ).status,
+      ).toBe(400);
+      const presencial = await t
+        .http()
+        .post('/api/citas')
+        .set(await tk(gestion))
+        .send(cita({ inicio: iso(inicio + 2 * HORA), fin: iso(inicio + 3 * HORA) }));
+      expect(
+        (
+          await t
+            .http()
+            .put(`/api/citas/${presencial.body.id}/enlace`)
+            .set(await tk(profesional))
+            .send({ url: 'https://meet.example.com/x' })
+        ).status,
+      ).toBe(422);
     });
 
     it('menor sin adulto responsable -> 422 antes del INSERT; con adulto -> 201', async () => {

@@ -778,7 +778,16 @@ describe('02h ajustes (A1, A2, A3, A6)', () => {
           ).body.url,
         ).toBe('https://zoom.us/j/555');
         const sinConfig = await crear(real, sinSala);
-        expect([sinConfig.r.status, sinConfig.r.body.restriccion]).toEqual([422, 'videollamada_sin_sala']);
+        // 2026-11-18: sin sala configurada la cita online se agenda igual, sin enlace (404 al pedirlo).
+        expect(sinConfig.r.status).toBe(201);
+        expect(
+          (
+            await real
+              .http()
+              .get(`/api/citas/${sinConfig.r.body.id}/enlace`)
+              .set(await tkR(sinConfig.pac))
+          ).status,
+        ).toBe(404);
         const desactivado = await crear(real, jitsi);
         expect([desactivado.r.status, desactivado.r.body.restriccion]).toEqual([422, 'videollamada_jitsi_deshabilitado']);
         const habilitado = await crear(conJitsi, jitsi);

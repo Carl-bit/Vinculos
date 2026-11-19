@@ -884,7 +884,7 @@ async function main(): Promise<void> {
     // semanal o quincenal, de seis semanas atras a cuatro adelante. Las citas van como dueño (las pasadas la API
     // no las agenda, y asi las futuras no generan avisos), saltando las horas ya tomadas. Las pasadas tienen
     // evolucion, salvo algunas de los ultimos dias para "fichas por cerrar".
-    // Las horas online de Rodrigo (abajo) y las contiguas, por el margen de traslado.
+    // Las horas online de Rodrigo (abajo) y las contiguas (se reservan para el demo).
     const reservadas = [horario(-2, '09:00'), horario(-2, '10:00'), horario(-2, '11:00'), horario(9, '10:00'), horario(9, '11:00'), horario(9, '12:00')].map(
       (h) => h.inicio,
     );
@@ -1013,7 +1013,7 @@ async function main(): Promise<void> {
         }
         pacientes.push({ pacienteId: nuevo.id, fichaId: String(nuevo.fichaId), ...lugar, paridad, soloPasadas: false });
       }
-      // Online por dia completo: entre modalidades distintas la BD exige el margen de traslado.
+      // Online por dia completo (modalidad estable por dia; sin margen de traslado desde 2026-11-18).
       const modalidadDe = (dia: number): ModalidadAtencion => (p.id === prof4.id ? 'ONLINE' : p.id === prof5.id || dia !== 5 ? 'PRESENCIAL' : 'ONLINE');
       const citasCarga: { id: string; fin: Date; fecha: string; fichaId: string; n: number }[] = [];
       for (const fecha of fechas.filter((f) => f <= ultimaFecha)) {
@@ -1027,7 +1027,7 @@ async function main(): Promise<void> {
               data: { pacienteId: c.pacienteId, profesionalId: p.id, modalidad: modalidadDe(c.dia), inicio, fin: new Date(inicio.getTime() + 50 * 60_000) },
               select: { id: true, fin: true },
             })
-            // Junto a una hora fija de otra modalidad no cabe (citas_margen_traslado): esa semana no se agenda.
+            // Si choca con otra hora del profesional (hora clinica, 23P01): esa semana no se agenda.
             .catch((e: unknown) => {
               if (String(e).includes('23P01')) return null;
               throw e;

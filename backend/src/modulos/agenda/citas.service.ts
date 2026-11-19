@@ -33,7 +33,6 @@ const VISTA = {
   id: true,
   espacioId: true,
   modalidad: true,
-  margenTrasladoMin: true,
   profesionalId: true,
   pacienteId: true,
   inicio: true,
@@ -44,13 +43,14 @@ const VISTA = {
   aprobacionVenceEn: true,
   propuestaDeId: true,
   motivoLiberacion: true,
+  motivoReprogramacion: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.CitaSelect;
 
 export interface Verificacion {
   disponible: boolean;
-  /** PROFESIONAL_NO_DISPONIBLE (fuera de sus bloques de box, bloqueos, otra cita, margen). */
+  /** PROFESIONAL_NO_DISPONIBLE (fuera de sus bloques de box, bloqueos, otra cita o su hora clinica). */
   motivos: string[];
   /** Huecos mas cercanos de la misma modalidad y duracion. */
   alternativas: { inicio: Date; fin: Date }[];
@@ -68,7 +68,7 @@ const MAX_ALTERNATIVAS = 3;
  *
  * Opcion C (requisitos_02_apis.md 7): antes de confirmar se verifica con
  * disponibilidad_publica() (bloques de box del profesional menos citas,
- * bloqueos, soft-locks y margen de traslado); si la hora no esta libre se
+ * bloqueos, soft-locks y la hora clinica de cada sesion); si la hora no esta libre se
  * responde 409 con alternativas sin intentar el INSERT. El box presencial lo
  * fija la BD (el del bloque, 03b): ya no se verifica aparte. Si dos
  * confirmaciones pasan la verificacion a la vez, la BD rechaza la segunda (409).
@@ -109,6 +109,10 @@ export class CitasService {
 
   async crear(dto: CrearCitaDto) {
     this.validarRango(dto.inicio, dto.fin);
+    // 2026-11-18: la cuenta madre agenda solo a sus pacientes; las de otros las reprograma o cubre (GESTION agenda todas).
+    if (this.bd.usuario().rol === 'ADMIN' && dto.profesionalId !== this.bd.usuario().id) {
+      throw new ForbiddenException('Como administración solo agendas a tus pacientes; las horas de otros profesionales se reprograman o se cubren');
+    }
     const tx = this.bd.tx();
     await this.exigirAdultoSiEsMenor(dto.pacienteId);
     await this.soltarHorariosPropios(dto);
@@ -290,6 +294,31 @@ export class CitasService {
     return enlace;
   }
 
+  /**
+   * 2026-11-18: el profesional agrega (o cambia) el enlace de la sala de una cita online vigente; el paciente recibe
+   * el aviso ENLACE_ONLINE por correo y bandeja. Solo el profesional de la cita o ADMIN/GESTION (y RLS al escribir).
+   */
+  async guardarEnlace(id: string, url: string) {
+    const cita = await this.obtener(id);
+    const actor = this.bd.usuario();
+    if (actor.rol !== 'ADMIN' && actor.rol !== 'GESTION' && cita.profesionalId !== actor.id) {
+      throw new ForbiddenException('Solo el profesional de la cita agrega el enlace de su sala');
+    }
+    if (cita.modalidad !== 'ONLINE') {
+      throw new UnprocessableEntityException({ message: 'Solo las citas online tienen enlace de videollamada', restriccion: 'citas_enlace_solo_online' });
+    }
+    if (!['CONFIRMADA', 'SOLICITADA', 'PROPUESTA'].includes(cita.estado) || cita.fin <= new Date()) {
+      throw new ConflictException('La cita ya termino o no esta vigente: no se le agrega enlace');
+    }
+    const expiraEn = new Date(cita.fin.getTime() + this.config.getOrThrow<number>('ENLACE_ONLINE_HORAS_TRAS_FIN') * 3_600_000);
+    await this.bd.tx().cita.update({ where: { id }, data: { enlaceOnline: claro(JSON.stringify({ url, expiraEn: expiraEn.toISOString() })) }, select: { id: true } });
+    if (cita.pacienteId) {
+      const evento: NotificacionSolicitada = { actor, tipo: 'ENLACE_ONLINE', destino: { pacienteId: cita.pacienteId }, referenciaId: id };
+      this.bd.alConfirmar(() => this.eventos.emitAsync(EVENTOS.NOTIFICACION_SOLICITADA, evento));
+    }
+    return { url, expiraEn: expiraEn.toISOString() };
+  }
+
   private validarRango(inicio: Date, fin: Date) {
     if (fin <= inicio) {
       throw new BadRequestException('fin debe ser posterior a inicio');
@@ -388,6 +417,9 @@ export class CitasService {
       modo: config?.modo ?? 'ENLACE_PROPIO',
       enlacePropio: texto(config?.enlace),
     });
+    if (!sala) {
+      return false;
+    }
     await this.bd.tx().cita.update({
       where: { id: cita.id },
       data: { enlaceOnline: claro(JSON.stringify({ url: sala.url, expiraEn: sala.expiraEn.toISOString() })) },

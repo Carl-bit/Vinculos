@@ -120,15 +120,6 @@ export class EquipoService {
     return filas.map((r) => ({ ...r, texto: texto(r.texto), feedbackPrivado: texto(r.feedbackPrivado) }));
   }
 
-  /**
-   * Margen de traslado (el propio y ADMIN/GESTION). Cambiarlo no mueve citas:
-   * GET /profesionales/:id/conflictos-margen lista las que quedan en conflicto.
-   */
-  async margen(profesionalId: string, margenTrasladoMin: number | null) {
-    await this.perfil(profesionalId);
-    return this.bd.tx().profesional.update({ where: { usuarioId: profesionalId }, data: { margenTrasladoMin } });
-  }
-
   trayectoria(profesionalId: string) {
     return this.bd.tx().profesionalTrayectoria.findMany({
       where: { profesionalId },

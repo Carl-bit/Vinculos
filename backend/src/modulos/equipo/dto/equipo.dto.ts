@@ -157,15 +157,6 @@ export class EditarPerfilDto {
   citaDestacada?: string;
 }
 
-export class MargenDto {
-  /** null = usa el margen del centro. */
-  @ValidateIf((_o, v) => v !== null)
-  @IsInt()
-  @Min(0)
-  @Max(600)
-  margenTrasladoMin!: number | null;
-}
-
 export class TrayectoriaDto {
   @IsEnum(TipoTrayectoria)
   tipo!: TipoTrayectoria;

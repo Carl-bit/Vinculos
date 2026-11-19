@@ -14,7 +14,7 @@ import { api, datos } from '@/lib/api/cliente';
 import { useHorarioCentro } from '@/lib/centro';
 import { useMiCuenta } from '@/lib/consultas';
 import { ESTADOS_VISUALES, estadoVisual, horaFinCentro, horaInicioCentro, tramosLibres, type EstadoVisual, type HoraElegida } from '@/lib/grillaAgenda';
-import { DURACION_SESION_MIN, bloquesDeSesion, dia } from '@/lib/horarios';
+import { DURACION_SESION_MIN, bloquesDeSesion, dia, finHoraClinica } from '@/lib/horarios';
 import {
   fechaHoyChile,
   inicioDiaChile,
@@ -66,21 +66,23 @@ const mediodia = (d: string) => new Date(`${d}T12:00:00Z`);
 
 /**
  * Fondo de la grilla (sin paciente ni quien): libre del box, disponible (hora sin sesion dentro de lo apartado por el
- * profesional), sesion ajena (ocupado), resto apartado por otro, apartado propio ya pasado o reservando.
+ * profesional), ocupado (sesion ajena o apartado por otro), apartado propio ya pasado, reservando o box cerrado.
  */
 type FiltroModalidad = 'todas' | 'PRESENCIAL' | 'ONLINE';
 
-type ClaseFondo = 'libre' | 'disponible' | 'ocupado' | 'apartado' | 'propio' | 'reservando';
+type ClaseFondo = 'libre' | 'disponible' | 'ocupado' | 'propio' | 'reservando' | 'cerrado' | 'otroBox';
 const TEXTO_FONDO: Record<ClaseFondo, string> = {
   libre: 'Libre',
   disponible: 'Disponible',
   ocupado: 'Ocupado',
-  apartado: 'Apartado por otra persona',
   propio: 'Tu horario apartado',
   reservando: 'Reservando…',
+  cerrado: 'Box cerrado',
+  otroBox: 'Tienes otro box',
 };
 /** ADMIN/GESTION con un profesional elegido: el bloque es de el, no de quien mira. */
-const textoFondo = (clase: ClaseFondo, clinico: boolean) => (clase === 'propio' && !clinico ? 'Horario apartado' : TEXTO_FONDO[clase]);
+const textoFondo = (clase: ClaseFondo, clinico: boolean) =>
+  clase === 'propio' && !clinico ? 'Horario apartado' : clase === 'otroBox' && !clinico ? 'Tiene otro box' : TEXTO_FONDO[clase];
 
 type Evento =
   | { tipo: 'cita'; cita: CitaVista; inicio: string; fin: string }
@@ -104,7 +106,8 @@ type Columna = ColumnaGrilla<Evento>;
  *   bloques). Las horas futuras libres del box o sin sesion en lo apartado se
  *   eligen para agendar presencial.
  * - Hora vacia a futuro (dia o semana): agenda una sesion online, que no ocupa
- *   box; la API verifica disponibilidad, margen y bloqueos al retenerla.
+ *   box. Con profesional en foco solo se ofrecen las horas online libres segun
+ *   la API (horario online, hora clinica de cada sesion, bloqueos); la API verifica igual.
  *
  * Se refresca cada 2 minutos con la pestaña visible (estandar_polling.md).
  */
@@ -203,22 +206,34 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
   const sesiones = visibles.filter((c) => (modalidad === 'todas' || c.modalidad === modalidad) && (!box || clinico || !!filtro || c.espacioId === box));
   const ms = (iso: string) => new Date(iso).getTime();
   const enCartas = new Set(visibles.filter((c) => c.espacioId === box).map((c) => ms(c.inicio)));
-  const sesionesDelBox = (sesionesBox.data ?? []).filter((s) => s.espacio_id === box);
+  // Cada sesion ocupa su hora clinica (el resto de la hora es de su profesional): ese resto no se muestra como libre.
+  const sesionesDelBox = (sesionesBox.data ?? [])
+    .filter((s) => s.espacio_id === box)
+    .map((s) => ({ ...s, fin: finHoraClinica(s.inicio, s.fin) }));
   // Lo apartado por el profesional en foco es suyo: para ADMIN/GESTION sale de los bloques del centro.
   const foco = clinico ? cuenta.data?.id : (filtro ?? undefined);
   const bloquesFoco = (clinico ? propios.data : bloquesCentro.data?.filter((b) => b.profesionalId === filtro)) ?? [];
   // Horas a futuro de un tramo, para agendar con un clic; un tramo ya pasado queda como fondo sin accion.
   const horasOFondo = (tramo: { inicio: string; fin: string }, clase: ClaseFondo, claseHora: ClaseFondo, apartar: boolean, quien?: string): Evento[] => {
     const horas = box ? bloquesDeSesion([{ modalidad: 'PRESENCIAL', ...tramo }], new Date(ahora)) : [];
-    if (horas.length === 0) return [{ tipo: 'fondo', clase, espacioId: box, ...tramo, quien }];
-    return horas.map((h) => ({
+    // Un resto donde no cabe una sesion (p. ej. los 10 min de una hora clinica) no se pinta como libre.
+    const corto = new Date(tramo.fin).getTime() - new Date(tramo.inicio).getTime() < DURACION_SESION_MIN * 60_000;
+    if (horas.length === 0) return clase === 'libre' && corto ? [] : [{ tipo: 'fondo', clase, espacioId: box, ...tramo, quien }];
+    // Libre del box, pero el profesional en foco ya tiene otro box a esa hora (no puede estar en dos): no se ofrece.
+    return horas.map((h): Evento => {
+      const otro = apartar && foco ? bloquesFoco.find((b) => b.espacioId !== box && ms(b.inicio) < h.fin.getTime() && ms(b.fin) > h.inicio.getTime()) : undefined;
+      if (otro) {
+        return { tipo: 'fondo', clase: 'otroBox', espacioId: box, inicio: h.inicio.toISOString(), fin: h.fin.toISOString(), quien: nombreBox.get(otro.espacioId) ?? 'Box' };
+      }
+      return {
       tipo: 'fondo',
       clase: claseHora,
       espacioId: box,
       inicio: h.inicio.toISOString(),
       fin: h.fin.toISOString(),
       hora: { inicio: h.inicio, fin: h.fin, espacioId: box!, nombreBox: nombreBox.get(box!) ?? 'Box', profesionalId: foco, apartar },
-    }));
+      };
+    });
   };
   const fondo: Evento[] = [
     ...(box
@@ -231,13 +246,32 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
               const tramos = tramosLibres(o, sesionesDelBox);
               const quien = quienAparto(o);
               if (suyo) return tramos.flatMap((t) => horasOFondo(t, 'propio', 'disponible', false, quien));
-              return tramos.map((t) => ({ tipo: 'fondo', clase: 'apartado', espacioId: box, ...t, quien }));
+              // Apartado por otro profesional (con o sin sesion): para el resto esta ocupado.
+              return tramos.map((t) => ({ tipo: 'fondo', clase: 'ocupado', espacioId: box, ...t, quien }));
             }),
           // Sesiones de otros: una por una, sin paciente (y sin quien entre profesionales).
           ...sesionesDelBox
             .filter((s) => !enCartas.has(ms(s.inicio)))
             .map((s) => ({ tipo: 'fondo' as const, clase: 'ocupado' as const, espacioId: box, inicio: s.inicio, fin: s.fin, quien: quienAparto(s) })),
         ]
+      : []),
+    // Lo que queda a futuro sin libre ni apartado es fuera del horario del box (o del centro): "Box cerrado".
+    ...(box && vista !== 'mes' && libres.isSuccess && ocupacion.isSuccess
+      ? (vista === 'dia' ? [diaVista] : semana.dias).flatMap((d): Evento[] => {
+          const desde = Math.max(instanteChile(d, desdeHora * 60).getTime(), ahora);
+          const hasta = instanteChile(d, hastaHora * 60).getTime();
+          if (desde >= hasta) return [];
+          const cortes = [
+            ...(libres.data ?? []).filter((l) => l.espacioId === box),
+            ...(ocupacion.data ?? []).filter((o) => o.espacio_id === box),
+          ];
+          return tramosLibres({ inicio: new Date(desde).toISOString(), fin: new Date(hasta).toISOString() }, cortes).map((t) => ({
+            tipo: 'fondo' as const,
+            clase: 'cerrado' as const,
+            espacioId: box,
+            ...t,
+          }));
+        })
       : []),
     ...reservando
       .filter((r) => !box || r.espacioId === box)
@@ -247,15 +281,24 @@ export function CalendarioAgenda({ rol, onElegir, onElegirHora }: { rol: Rol; on
   const delDia = (d: string) => eventos.filter((e) => dia(new Date(e.inicio)) === d);
 
   // Hora vacia a futuro: sesion online (sin box). Solo si el filtro deja ver online y no pisa una sesion dibujada.
+  // Con un profesional en foco, solo las horas que la API ofrece (su horario online, la hora
+  // clinica de cada sesion y bloqueos): asi no se ofrece una hora que despues se rechaza.
   const conOnline = vista !== 'mes' && modalidad !== 'PRESENCIAL';
+  const libresOnline = useQuery({
+    queryKey: ['huecos', foco, rango.desde, rango.hasta],
+    queryFn: () => datos(api.GET('/api/profesionales/{profesionalId}/huecos', { params: { path: { profesionalId: foco! }, query: rango } })),
+    enabled: conOnline && !!foco,
+  });
   const huecosOnline = (d: string): HoraElegida[] => {
-    if (!conOnline) return [];
+    if (!conOnline || (foco && !libresOnline.data)) return [];
+    const online = (libresOnline.data ?? []).filter((x) => x.modalidad === 'ONLINE');
     const salida: HoraElegida[] = [];
     for (let h = desdeHora; h < hastaHora; h++) {
       const inicio = instanteChile(d, h * 60);
       const fin = new Date(inicio.getTime() + DURACION_SESION_MIN * 60_000);
       if (inicio.getTime() <= ahora) continue;
       if (sesiones.some((c) => ms(c.inicio) < fin.getTime() && ms(c.fin) > inicio.getTime())) continue;
+      if (foco && !online.some((x) => ms(x.inicio) <= inicio.getTime() && ms(x.fin) >= fin.getTime())) continue;
       salida.push({ inicio, fin, espacioId: null, nombreBox: 'Online', profesionalId: foco, apartar: false });
     }
     return salida;
@@ -440,9 +483,10 @@ const CLASE_FONDO: Record<ClaseFondo, string> = {
   libre: 'border-2 border-dashed border-accent-2-700 bg-accent-2-200/55 text-accent-2-800',
   disponible: 'border-dashed border-accent-500 bg-accent-100/70 text-accent-800',
   ocupado: 'border-neutral-400 bg-neutral-200 text-neutral-800',
-  apartado: 'border-transparent bg-neutral-200/40 text-neutral-800',
   propio: 'border-accent-500 bg-accent-100/70 text-accent-800',
   reservando: 'border-dashed border-neutral-500 bg-neutral-200/70 text-neutral-800',
+  cerrado: 'border-transparent bg-neutral-100 text-neutral-700',
+  otroBox: 'border-neutral-400 bg-neutral-200 text-neutral-800',
 };
 
 /** Bloque de fondo (sin paciente ni quien). */
@@ -451,7 +495,7 @@ function Fondo({ clase, lugar, clinico }: { clase: ClaseFondo; lugar: string | n
     <span
       className={`flex h-full min-w-0 flex-col overflow-hidden rounded-[10px] border px-1.5 py-1 text-[11px] leading-tight font-bold ${CLASE_FONDO[clase]}`}
     >
-      {clase !== 'apartado' && <span className="truncate font-black">{textoFondo(clase, clinico)}</span>}
+      <span className="truncate font-black">{textoFondo(clase, clinico)}</span>
       {lugar && <span className="truncate">{lugar}</span>}
     </span>
   );

@@ -50,6 +50,9 @@ export class CitaPortal {
   /** Punto 7 (2026-11-11): solicitud que el profesional no acepto; las PROPUESTA con el mismo valor son un grupo. */
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   propuestaDeId!: string | null;
+  /** 2026-11-18: POR_REPROGRAMAR por dia sin atencion (DIA_SIN_ATENCION) o con la hora original libre otra vez (HORA_DISPONIBLE). */
+  @ApiProperty({ type: String, nullable: true })
+  motivoReprogramacion!: string | null;
 }
 
 /** Mensaje al profesional. El paciente ve los de su registro; el adulto responsable, los que el escribio. */
@@ -198,6 +201,13 @@ export class ReservaPortal {
   @ApiProperty({ enum: EstadoCita, enumName: 'EstadoCita' })
   estado!: EstadoCita;
   profesionalId!: string;
+}
+
+/** 2026-11-18: la hora original quedo confirmada otra vez. */
+export class HoraMantenida {
+  citaId!: string;
+  @ApiProperty({ enum: ['CONFIRMADA'] })
+  estado!: 'CONFIRMADA';
 }
 
 /** Punto 9: respuesta del paciente a una hora afectada por la ausencia de su profesional. */

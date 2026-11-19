@@ -154,14 +154,16 @@ describe('CalendarioAgenda (03b-4.2)', () => {
     expect(screen.queryByText('Ocupado')).toBeNull();
   });
 
-  it('Box elegido por ADMIN: lo apartado muestra quien lo aparto', async () => {
+  it('Box elegido por ADMIN: lo apartado por otro es "Ocupado" y muestra quien lo aparto', async () => {
     respuestas['/api/espacios/ocupacion'] = [{ espacio_id: 'b1', inicio: enChile('15:00'), fin: enChile('18:00') }];
     respuestas['/api/espacios/sesiones'] = [{ espacio_id: 'b1', inicio: enChile('16:00'), fin: enChile('16:50') }];
     respuestas['/api/espacios/bloques'] = [{ profesionalId: 'p2', espacioId: 'b1', inicio: enChile('15:00'), fin: enChile('18:00') }];
     conCliente(<Agenda rol="ADMIN" />);
     await semanaAnterior();
     await elegirBox('Box 1');
-    expect((await screen.findByText('Ocupado')).parentElement).toHaveTextContent('Profesional Dos');
+    // 2026-11-18: lo apartado sin sesion tambien es "Ocupado" (con o sin paciente).
+    const ocupadas = await screen.findAllByText('Ocupado');
+    expect(ocupadas.some((o) => o.parentElement?.textContent?.includes('Profesional Dos'))).toBe(true);
   });
 
   it('Box elegido por ADMIN: una sesion del box va como carta, no duplicada como "Ocupado"', async () => {
@@ -194,8 +196,9 @@ describe('CalendarioAgenda (03b-4.2)', () => {
     conCliente(<Agenda rol="ADMIN" />);
     await semanaAnterior();
     await elegirBox('Box 1');
+    // Las 2 sesiones de otro y lo que queda de su bloque (16-17 y 18-19, tras la hora clinica de cada sesion).
     const ocupadas = await screen.findAllByText('Ocupado');
-    expect(ocupadas).toHaveLength(2);
+    expect(ocupadas).toHaveLength(4);
     // Los nombres salen de los bloques del centro, que llegan en su propia consulta.
     await waitFor(() => expect(screen.getAllByText('Ocupado')[0]!.parentElement).toHaveTextContent('Profesional Dos'));
     await waitFor(() => expect(screen.getAllByText('Horario apartado').at(-1)!.parentElement).toHaveTextContent('Profesional Uno'));
@@ -214,7 +217,22 @@ describe('CalendarioAgenda (03b-4.2)', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Agendar sesión a las 14:00, Box 1' }));
     expect(elegirHora).toHaveBeenCalledWith(expect.objectContaining({ espacioId: 'b1', profesionalId: 'p1', apartar: true }));
     expect(screen.queryByRole('button', { name: /^Agendar sesión a las 15:00/ })).toBeNull();
-    expect(screen.getAllByText('Ocupado')).toHaveLength(1);
+    // La sesion de otro y el resto de su bloque apartado (16-19).
+    expect(screen.getAllByText('Ocupado')).toHaveLength(2);
+  });
+
+  it('Box a futuro: hora libre del box pero el profesional ya tiene otro box a esa hora -> no se ofrece y dice en cual', async () => {
+    const dia = semanaChile(1).dias[1]!;
+    const en = (h: string) => new Date(`${dia}T${h}:00-03:00`).toISOString();
+    citas = [];
+    respuestas['/api/espacios/disponibilidad'] = [{ espacioId: 'b1', inicio: en('13:00'), fin: en('15:00') }];
+    respuestas['/api/profesionales/{profesionalId}/bloques'] = [{ id: 'x', profesionalId: 'p1', espacioId: 'b2', inicio: en('14:00'), fin: en('15:00') }];
+    conCliente(<Agenda rol="PROFESIONAL" />);
+    await userEvent.click(screen.getByRole('button', { name: 'Semana siguiente' }));
+    await elegirBox('Box 1');
+    expect(await screen.findByRole('button', { name: 'Agendar sesión a las 13:00, Box 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Agendar sesión a las 14:00, Box 1' })).toBeNull();
+    expect(screen.getByText('Tienes otro box').parentElement).toHaveTextContent('Box 2');
   });
 
   it('hora vacia a futuro agenda online (sin box); el filtro Presencial la oculta junto a las sesiones online', async () => {
@@ -224,11 +242,15 @@ describe('CalendarioAgenda (03b-4.2)', () => {
       cita('c1', '10:00', '10:50', { inicio: en('10:00'), fin: en('10:50') }),
       cita('c2', '12:00', '12:50', { inicio: en('12:00'), fin: en('12:50'), modalidad: 'ONLINE', espacioId: null }),
     ];
+    // Horas online libres segun la API (horario online, pausa, bloqueos): de lunes a jueves; el viernes no se ofrece.
+    respuestas['/api/profesionales/{profesionalId}/huecos'] = [
+      { modalidad: 'ONLINE', inicio: new Date(`${semanaChile(1).dias[0]}T00:00:00-03:00`).toISOString(), fin: new Date(`${semanaChile(1).dias[4]}T00:00:00-03:00`).toISOString() },
+    ];
     conCliente(<Agenda rol="PROFESIONAL" />);
     await userEvent.click(screen.getByRole('button', { name: 'Semana siguiente' }));
     expect(screen.getByRole('button', { name: /12:00 Ana Demo, Online/ }).className).toMatch(/bg-online-100/);
-    // La hora con sesion no se ofrece: 10:00 queda en los otros 4 dias de la semana, no en el miercoles.
-    expect(screen.queryAllByRole('button', { name: 'Agendar sesión online a las 10:00' })).toHaveLength(4);
+    // La hora con sesion no se ofrece: 10:00 queda lunes, martes y jueves (no el miercoles ni el viernes fuera de los huecos).
+    expect(await screen.findAllByRole('button', { name: 'Agendar sesión online a las 10:00' })).toHaveLength(3);
     await userEvent.click(screen.getAllByRole('button', { name: 'Agendar sesión online a las 16:00' })[0]!);
     expect(elegirHora).toHaveBeenLastCalledWith(expect.objectContaining({ espacioId: null, nombreBox: 'Online', profesionalId: 'p1', apartar: false }));
     // El filtro de modalidad esta en la barra, con el conteo del rango.

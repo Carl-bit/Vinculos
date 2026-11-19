@@ -29,12 +29,57 @@ describe('Ausencias del profesional', () => {
 
   afterAll(() => t.cerrar());
 
+  it('reactivar el dia: la hora original vuelve a estar disponible y el paciente la mantiene desde su cuenta', async () => {
+    const inicio = new Date(Date.now() + 40 * 24 * HORA);
+    inicio.setUTCHours(15, 0, 0, 0);
+    const cita = await t
+      .http()
+      .post('/api/citas')
+      .set(await tk(prof))
+      .send({ pacienteId: paciente.pacienteId, profesionalId: prof.id, modalidad: 'ONLINE', inicio, fin: new Date(inicio.getTime() + HORA) });
+    expect(cita.status).toBe(201);
+    const dia =
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(
+        new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/Santiago' }).format(inicio),
+      ) + 1;
+    const cambiar = async (activo: boolean) =>
+      t
+        .http()
+        .patch(`/api/profesionales/${prof.id}/disponibilidad/dias/${dia}`)
+        .set(await tk(prof))
+        .send({ activo });
+    expect((await cambiar(false)).status).toBe(200);
+    expect((await cambiar(true)).status).toBe(200);
+    const mias = (
+      await t
+        .http()
+        .get('/api/portal/citas')
+        .set(await tk(paciente))
+    ).body as { id: string; estado: string; motivoReprogramacion: string | null }[];
+    expect(mias.find((c) => c.id === cita.body.id)).toEqual(expect.objectContaining({ estado: 'POR_REPROGRAMAR', motivoReprogramacion: 'HORA_DISPONIBLE' }));
+    expect(
+      (
+        await t
+          .http()
+          .post(`/api/portal/citas/${cita.body.id}/mantener`)
+          .set(await tk(otro))
+          .send({})
+      ).status,
+    ).toBe(404);
+    const r = await t
+      .http()
+      .post(`/api/portal/citas/${cita.body.id}/mantener`)
+      .set(await tk(paciente))
+      .send({});
+    expect([r.status, r.body.estado]).toEqual([200, 'CONFIRMADA']);
+  });
+
   it('el bloqueo reprograma la cita del rango y el equipo avisa en lote (el practicante no)', async () => {
     const inicio = new Date(Math.ceil((Date.now() + 30 * 24 * HORA) / HORA) * HORA);
     const cita = await t
       .http()
       .post('/api/citas')
-      .set(await tk(admin))
+      .set(await tk(prof))
       .send({ pacienteId: paciente.pacienteId, profesionalId: prof.id, modalidad: 'ONLINE', inicio, fin: new Date(inicio.getTime() + HORA) });
     expect(cita.status).toBe(201);
     citaId = cita.body.id;

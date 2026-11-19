@@ -142,7 +142,17 @@ export function MisHoras({ limite }: { limite?: number }) {
                       <Badge tono={estado.tono}>{estado.texto}</Badge>
                     </div>
                     {!pasada && c.modalidad === 'ONLINE' && c.estado === 'CONFIRMADA' && <EnlaceVideollamada citaId={c.id} />}
-                    {c.estado === 'POR_REPROGRAMAR' && !pasada && !portal.restringida && <HoraAfectada citaId={c.id} profesional={profesional} />}
+                    {c.estado === 'POR_REPROGRAMAR' && !pasada && !portal.restringida && (
+                      <HoraAfectada
+                        citaId={c.id}
+                        profesional={profesional}
+                        disponible={c.motivoReprogramacion === 'HORA_DISPONIBLE'}
+                        // La hora que pidio mientras tanto con el mismo profesional (la mas proxima), para elegir con cual se queda.
+                        otra={todasDelPaciente.find(
+                          (o) => o.id !== c.id && o.profesionalId === c.profesionalId && ['CONFIRMADA', 'SOLICITADA'].includes(o.estado) && new Date(o.inicio).getTime() > ahora,
+                        )}
+                      />
+                    )}
                     {invita && (
                       <div className="mt-3.5 flex flex-wrap items-center gap-[13px] border-t border-divider pt-3.5">
                         <span className="flex-[1_1_150px] text-[12.5px] font-bold text-pretty text-neutral-700">
@@ -186,9 +196,25 @@ export function MisHoras({ limite }: { limite?: number }) {
  * otro profesional mientras tanto (lo deriva la cuenta madre). Nunca se elige
  * por el.
  */
-function HoraAfectada({ citaId, profesional }: { citaId: string; profesional: string }) {
+function HoraAfectada({
+  citaId,
+  profesional,
+  disponible,
+  otra,
+}: {
+  citaId: string;
+  profesional: string;
+  /** 2026-11-18: el profesional volvio a atender ese dia: su hora original esta libre otra vez. */
+  disponible: boolean;
+  otra?: { id: string; inicio: string };
+}) {
   const cliente = useQueryClient();
   const portal = usePortal();
+  const mantener = useMutation({
+    mutationFn: (cancelarCitaId?: string) =>
+      datos(api.POST('/api/portal/citas/{id}/mantener', { params: { path: { id: citaId } }, body: { cancelarCitaId } })),
+    onSuccess: () => void cliente.invalidateQueries({ queryKey: ['portal', 'citas'] }),
+  });
   const responder = useMutation({
     mutationFn: (opcion: 'CANCELAR' | 'ATENCION_TEMPORAL') =>
       datos(api.POST('/api/portal/citas/{id}/ausencia', { params: { path: { id: citaId } }, body: { opcion } })),
@@ -202,6 +228,53 @@ function HoraAfectada({ citaId, profesional }: { citaId: string; profesional: st
         Listo: el centro te contactará para atenderte con otro profesional mientras {profesional} no atiende.
       </p>
     );
+  if (disponible) {
+    const cuando = otra ? `${formatoFechaLarga(otra.inicio)} a las ${formatoHora(otra.inicio)}` : '';
+    return (
+      <div className="mt-3.5 flex flex-col gap-2.5 border-t border-divider pt-3.5">
+        <p className="m-0 text-[13px] font-bold text-pretty">
+          {profesional} vuelve a atender en esta hora.{' '}
+          {otra ? `Ya tienes otra hora con ${profesional} el ${cuando}: ¿con cuál te quedas?` : '¿Quieres mantenerla?'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="team"
+            icon="check"
+            loading={mantener.isPending}
+            disabled={mantener.isPending || responder.isPending}
+            onClick={() => mantener.mutate(otra?.id)}
+            className="!px-4 !py-2 !text-[13px]"
+          >
+            {otra ? 'Quedarme con esta (cancela la otra)' : 'Mantener esta hora'}
+          </Button>
+          {otra ? (
+            <Button
+              variant="secondary"
+              loading={responder.isPending && responder.variables === 'CANCELAR'}
+              disabled={mantener.isPending || responder.isPending}
+              onClick={() => responder.mutate('CANCELAR')}
+              className="!px-4 !py-2 !text-[13px]"
+            >
+              Quedarme con la del {cuando}
+            </Button>
+          ) : (
+            <ButtonLink href="/portal/pedir-hora" variant="secondary" icon="calendar_month" className="!px-4 !py-2 !text-[13px]">
+              Pedir otra hora
+            </ButtonLink>
+          )}
+        </div>
+        {(mantener.error ?? responder.error) && (
+          <p role="alert" className="m-0 text-[12.5px] font-bold text-accent-700">
+            {(() => {
+              const e = mantener.error ?? responder.error;
+              return e instanceof ApiError && e.status === 409 ? 'Esa hora ya la tomó otra persona: pide otra hora.' : e instanceof ApiError ? e.message : 'No pudimos guardar tu respuesta.';
+            })()}
+          </p>
+        )}
+        {portal.responsable && <p className="m-0 text-[12px] font-semibold text-neutral-700">Respondes por tu menor a cargo.</p>}
+      </div>
+    );
+  }
   return (
     <div className="mt-3.5 flex flex-col gap-2.5 border-t border-divider pt-3.5">
       <p className="m-0 text-[13px] font-bold text-pretty">{profesional} no podrá atenderte en esta hora. ¿Qué prefieres?</p>

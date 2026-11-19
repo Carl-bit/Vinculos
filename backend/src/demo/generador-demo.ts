@@ -340,7 +340,7 @@ async function main(): Promise<void> {
               },
               select: { id: true, fin: true },
             })
-            .catch(() => null); // La BD manda (EXCLUDE, disponibilidad, margen de traslado): esa semana no se agenda.
+            .catch(() => null); // La BD manda (EXCLUDE con pausa, disponibilidad): esa semana no se agenda.
           if (!cita) continue;
           horas++;
           // Las pasadas quedan cerradas con una evolucion ficticia, salvo la mas reciente de cada tanto ("por cerrar").

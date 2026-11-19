@@ -55,24 +55,36 @@ describe('03b agenda publica', () => {
 
   afterAll(() => t.cerrar());
 
-  it('disponibilidad publica: solo dentro de los bloques de box del profesional (ambas modalidades)', async () => {
+  it('disponibilidad publica: presencial en los bloques de box; online en el horario online del profesional, sin box', async () => {
     const box = await t.datos.espacio();
-    const inicio = new Date(Math.ceil((Date.now() + 5 * DIA) / HORA) * HORA);
+    // 10:00 de Chile (13:00 UTC) en 5 dias: un bloque de 3 h que nunca cruza la medianoche.
+    const inicio = new Date(Date.now() + 5 * DIA);
+    inicio.setUTCHours(13, 0, 0, 0);
+    const fin = new Date(inicio.getTime() + 3 * HORA);
     const rango = { desde: new Date(inicio.getTime() - DIA).toISOString(), hasta: new Date(inicio.getTime() + DIA).toISOString() };
-    expect((await t.http().get(`/api/publico/profesionales/${prof.id}/disponibilidad`).query(rango)).body).toEqual([]);
+    type Hueco = { modalidad: string; inicio: string; fin: string };
+    const huecos = async () => (await t.http().get(`/api/publico/profesionales/${prof.id}/disponibilidad`).query(rango)).body as Hueco[];
+    expect(await huecos()).toEqual([]);
     const r = await t
       .http()
       .post(`/api/profesionales/${prof.id}/bloques`)
       .set(await tk(prof))
-      .send({ bloques: [{ espacioId: box.id, inicio: inicio.toISOString(), fin: new Date(inicio.getTime() + 3 * HORA).toISOString() }] });
+      .send({ bloques: [{ espacioId: box.id, inicio: inicio.toISOString(), fin: fin.toISOString() }] });
     expect(r.status).toBe(201);
-    const huecos = (await t.http().get(`/api/publico/profesionales/${prof.id}/disponibilidad`).query(rango)).body as {
-      modalidad: string;
-      inicio: string;
-      fin: string;
-    }[];
-    expect(huecos.map((h) => h.modalidad).sort()).toEqual(['ONLINE', 'PRESENCIAL']);
-    expect(huecos.every((h) => h.inicio === inicio.toISOString() && h.fin === new Date(inicio.getTime() + 3 * HORA).toISOString())).toBe(true);
+    // 2026-11-18: el bloque de box solo ofrece presencial (sin horario online, no atiende online).
+    expect(await huecos()).toEqual([{ modalidad: 'PRESENCIAL', inicio: inicio.toISOString(), fin: fin.toISOString() }]);
+    const dia =
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(
+        new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/Santiago' }).format(inicio),
+      ) + 1;
+    const h = await t
+      .http()
+      .post(`/api/profesionales/${prof.id}/disponibilidad`)
+      .set(await tk(prof))
+      .send({ diaSemana: dia, inicioMin: 0, finMin: 1440, modalidad: 'ONLINE' });
+    expect(h.status).toBe(201);
+    const online = (await huecos()).filter((x) => x.modalidad === 'ONLINE');
+    expect(online.some((x) => x.inicio <= inicio.toISOString() && x.fin >= fin.toISOString())).toBe(true);
   });
 
   it('sesion: el refresh vence a los 30 minutos sin actividad y se renueva al rotar', async () => {

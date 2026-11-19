@@ -162,45 +162,6 @@ describe('02e equipo y practicantes', () => {
         ).body,
       ).toEqual([]);
     });
-
-    it('margen de traslado: el propio y ADMIN/GESTION; otro profesional 404', async () => {
-      expect(
-        (
-          await t
-            .http()
-            .patch(`/api/profesionales/${profesional.id}/margen`)
-            .set(await tk(profesional))
-            .send({ margenTrasladoMin: 45 })
-        ).body.margenTrasladoMin,
-      ).toBe(45);
-      expect(
-        (
-          await t
-            .http()
-            .patch(`/api/profesionales/${profesional.id}/margen`)
-            .set(await tk(admin))
-            .send({ margenTrasladoMin: null })
-        ).body.margenTrasladoMin,
-      ).toBeNull();
-      expect(
-        (
-          await t
-            .http()
-            .patch(`/api/profesionales/${profesional.id}/margen`)
-            .set(await tk(otroProfesional))
-            .send({ margenTrasladoMin: 10 })
-        ).status,
-      ).toBe(404);
-      expect(
-        (
-          await t
-            .http()
-            .patch(`/api/profesionales/${profesional.id}/margen`)
-            .set(await tk(admin))
-            .send({ margenTrasladoMin: 601 })
-        ).status,
-      ).toBe(400);
-    });
   });
 
   describe('trayectoria', () => {

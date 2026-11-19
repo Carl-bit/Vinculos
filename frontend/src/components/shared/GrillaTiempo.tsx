@@ -132,10 +132,13 @@ export function GrillaTiempo<E extends EventoGrilla>({
                     tabIndex={-1}
                     onClick={() => onHueco?.(h)}
                     aria-label={`Agendar sesión online a las ${texto}`}
-                    className="absolute inset-x-[2px] cursor-pointer overflow-hidden rounded-[10px] border-2 border-dashed border-transparent px-1.5 py-1 text-left text-[11px] leading-tight font-bold text-online-900 opacity-0 transition-opacity duration-150 hover:border-online-600 hover:bg-online-100/70 hover:opacity-100 motion-reduce:transition-none"
+                    // Con profesional (horas que la API da como libres) se ven siempre; sin el, solo al pasar el mouse.
+                    className={`absolute inset-x-[2px] cursor-pointer overflow-hidden rounded-[10px] border-2 border-dashed px-1.5 py-1 text-left text-[11px] leading-tight font-bold text-online-900 transition-[opacity,background-color] duration-150 hover:border-online-600 hover:bg-online-100/80 hover:opacity-100 motion-reduce:transition-none ${
+                      h.profesionalId ? 'border-online-600/45 bg-online-100/35' : 'border-transparent opacity-0'
+                    }`}
                     style={{ top: `${p.top}%`, height: `${p.alto}%`, minHeight: 22 }}
                   >
-                    <span className="tabular-nums">{texto}</span> Agendar online
+                    <span className="tabular-nums">{texto}</span> {h.profesionalId ? 'Libre online' : 'Agendar online'}
                   </button>
                 );
               })}

@@ -24,7 +24,8 @@ export interface SolicitudSala {
  * guarda cifrado (citas.enlace_online, CLINICO) y nunca va a logs.
  */
 export abstract class ProveedorVideollamada {
-  abstract crearSala(solicitud: SolicitudSala): Promise<SalaVideollamada>;
+  /** null = sin sala todavia: la cita online se agenda igual y el enlace se agrega despues (2026-11-18). */
+  abstract crearSala(solicitud: SolicitudSala): Promise<SalaVideollamada | null>;
 }
 
 /** Simulada (default en tests): URL no adivinable, sin servicios externos. */
@@ -49,19 +50,14 @@ export class ProveedorVideollamadaPorProfesional extends ProveedorVideollamada {
     super();
   }
 
-  async crearSala(s: SolicitudSala): Promise<SalaVideollamada> {
+  async crearSala(s: SolicitudSala): Promise<SalaVideollamada | null> {
     if (s.modo === 'JITSI') {
       if (!this.jitsiHabilitado) {
         throw new UnprocessableEntityException({ message: 'Jitsi no esta habilitado en la plataforma', restriccion: 'videollamada_jitsi_deshabilitado' });
       }
       return { url: `${this.jitsiUrlBase.replace(/\/+$/, '')}/vinculos-${randomBytes(16).toString('hex')}`, expiraEn: s.expiraEn };
     }
-    if (!s.enlacePropio) {
-      throw new UnprocessableEntityException({
-        message: 'El profesional no tiene configurado el enlace de su sala de videollamada',
-        restriccion: 'videollamada_sin_sala',
-      });
-    }
-    return { url: s.enlacePropio, expiraEn: s.expiraEn };
+    // Sin enlace propio configurado: no bloquea agendar (salas que vencen, sin automatizacion).
+    return s.enlacePropio ? { url: s.enlacePropio, expiraEn: s.expiraEn } : null;
   }
 }

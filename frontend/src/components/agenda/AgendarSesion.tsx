@@ -9,9 +9,9 @@ import { Field, Select } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
 import { api, datos } from '@/lib/api/cliente';
 import { ApiError } from '@/lib/api/errores';
-import { useProfesionales } from '@/lib/consultas';
+import { useMiCuenta, useProfesionales, useSesion } from '@/lib/consultas';
 import { formatoFechaLarga, formatoHora } from '@/lib/formato';
-import type { Bloque } from '@/lib/horarios';
+import { finHoraClinica, type Bloque } from '@/lib/horarios';
 import { useEquipoAgenda, usePacientes, type CitaVista } from '@/lib/panel';
 
 import { CuentaRegresiva } from './CuentaRegresiva';
@@ -68,8 +68,14 @@ export function AgendarSesion({
   const paciente = pacientes.data?.find((p) => p.id === pacienteId);
   const profesionalId = reprogramar?.profesionalId ?? paciente?.profesionalId ?? undefined;
   const nombreProfesional = profesionales.data?.find((p) => p.id === profesionalId)?.nombre ?? 'el profesional';
-  // Con un profesional en foco solo se ofrecen sus pacientes: la hora es de el.
-  const opcionesPaciente = pacientes.data?.filter((p) => !horaElegida?.profesionalId || p.profesionalId === horaElegida.profesionalId);
+  // Con un profesional en foco solo se ofrecen sus pacientes: la hora es de el. 2026-11-18: la cuenta madre (ADMIN)
+  // agenda solo a sus pacientes (la API lo exige); las horas de otros las reprograma o cubre.
+  const sesion = useSesion();
+  const cuenta = useMiCuenta();
+  const soloMios = sesion.tipo === 'activa' && sesion.sesion.rol === 'ADMIN';
+  const opcionesPaciente = pacientes.data
+    ?.filter((p) => !horaElegida?.profesionalId || p.profesionalId === horaElegida.profesionalId)
+    .filter((p) => !soloMios || p.profesionalId === cuenta.data?.id);
   const [usarHora, setUsarHora] = useState(!!horaElegida);
   // Bloque apartado aca para la hora elegida: si la cita no se confirma, se libera.
   const apartado = useRef<{ id: string; profesionalId: string } | null>(null);
@@ -118,8 +124,8 @@ export function AgendarSesion({
   const tomar = useMutation({
     mutationFn: async (b: Bloque) => {
       const cuerpo = { profesionalId: profesionalId!, modalidad: b.modalidad, inicio: b.inicio.toISOString(), fin: b.fin.toISOString() };
-      // Verificacion previa (opcion C), ANTES de retener: la propia retencion contaria como choque. Margen de
-      // traslado, box y bloqueos. Al reprogramar la propia cita ocupa el horario: se omite y decide el EXCLUDE.
+      // Verificacion previa (opcion C), ANTES de retener: la propia retencion contaria como choque. Horario,
+      // hora clinica, box y bloqueos. Al reprogramar la propia cita ocupa el horario: se omite y decide el EXCLUDE.
       const v = reprogramar ? null : await datos(api.POST('/api/citas/verificacion', { body: cuerpo }));
       if (v && !v.disponible) return { r: null, v };
       return { r: await datos(api.POST('/api/agenda/horarios-tomados', { body: cuerpo })), v };
@@ -130,7 +136,7 @@ export function AgendarSesion({
         setRetencion({ id: r.id, bloque: b, desde: new Date(), hasta: new Date(r.expiraEn) });
         return;
       }
-      setAviso(`${nombreProfesional} no puede atender a esa hora (otra cita, un bloqueo o el margen de traslado). Te mostramos las horas libres más cercanas.`);
+      setAviso(`${nombreProfesional} no puede atender a esa hora (fuera de su horario, otra sesión en esa hora o un bloqueo). Te mostramos las horas libres más cercanas.`);
       setAlternativas(v?.alternativas ?? []);
       setUsarHora(false);
       void liberarApartado();
@@ -155,7 +161,8 @@ export function AgendarSesion({
       const [b] = await datos(
         api.POST('/api/profesionales/{profesionalId}/bloques', {
           params: { path: { profesionalId: profesionalId! } },
-          body: { bloques: [{ espacioId: h.espacioId, inicio: h.inicio.toISOString(), fin: h.fin.toISOString() }] },
+          // La hora clinica completa: apartar solo los 50 min dejaria 10 min del box "libres" que nadie puede usar.
+          body: { bloques: [{ espacioId: h.espacioId, inicio: h.inicio.toISOString(), fin: finHoraClinica(h.inicio.toISOString(), h.fin.toISOString()) }] },
         }),
       );
       if (b) apartado.current = { id: b.id, profesionalId: profesionalId! };
@@ -167,8 +174,10 @@ export function AgendarSesion({
     onError: (e) => {
       void cliente.invalidateQueries({ queryKey: ['panel', 'espacios'] });
       setAviso(
-        e instanceof ApiError && e.status === 409
-          ? 'Alguien apartó esa hora recién. Elige otra.'
+        e instanceof ApiError && e.cuerpo.restriccion === 'bloques_atencion_sin_choque_profesional'
+          ? `${nombreProfesional} ya tiene otro box apartado a esa hora y no puede estar en dos. Agéndala en el box que ya tiene (míralo con «Ver box») o elige otra hora.`
+          : e instanceof ApiError && e.status === 409
+          ? 'Otro profesional apartó ese box recién. Elige otra hora.'
           : e instanceof ApiError
             ? e.message
             : 'No pudimos apartar la hora.',
@@ -237,6 +246,7 @@ export function AgendarSesion({
               {(p) => (
                 <Select
                   {...p}
+                  buscable
                   value={pacienteId}
                   onChange={(e) => {
                     void soltar();
@@ -245,7 +255,9 @@ export function AgendarSesion({
                   }}
                   disabled={!!retencion}
                 >
-                  <option value="">{pacientes.isPending ? 'Cargando pacientes…' : 'Elige un paciente'}</option>
+                  <option value="">
+                    {pacientes.isPending ? 'Cargando pacientes…' : soloMios && opcionesPaciente?.length === 0 ? 'No tienes pacientes como tratante' : 'Elige un paciente'}
+                  </option>
                   {opcionesPaciente?.map((p2) => (
                     <option key={p2.id} value={p2.id}>
                       {p2.apellido}, {p2.nombre}

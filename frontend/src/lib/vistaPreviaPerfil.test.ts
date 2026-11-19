@@ -46,7 +46,6 @@ const base: DatosVistaPrevia = {
     convenios: [],
     perfilPublico: false,
     boletaReembolsable: false,
-    margenTrasladoMin: null,
     perfilPublicoConsentidoEn: null,
     createdAt: '',
     updatedAt: '',

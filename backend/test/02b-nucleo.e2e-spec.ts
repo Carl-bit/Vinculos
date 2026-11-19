@@ -307,7 +307,7 @@ describe('02b nucleo', () => {
         .http()
         .patch('/api/configuracion')
         .set(await tk(admin))
-        .send({ plazoOposicionHoras: 72, margenTrasladoMin: 30 });
+        .send({ plazoOposicionHoras: 72 });
       expect(r.status).toBe(200);
       expect(r.body.plazoOposicionHoras).toBe(72);
       expect(
@@ -316,7 +316,7 @@ describe('02b nucleo', () => {
             .http()
             .patch('/api/configuracion')
             .set(await tk(admin))
-            .send({ margenTrasladoMin: 9999 })
+            .send({ diasGraciaCierre: 9999 })
         ).status,
       ).toBe(400);
       await t

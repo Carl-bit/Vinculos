@@ -139,7 +139,7 @@ export class AgendaService {
       SELECT espacio_id, inicio, fin FROM sesiones_espacios(${desde}, ${hasta})`;
   }
 
-  /** Huecos libres (descuenta citas, bloqueos, soft-locks y margen de traslado). Max. 62 dias. */
+  /** Huecos libres (descuenta citas en su hora clinica, bloqueos y soft-locks). Max. 62 dias. */
   huecos(profesionalId: string, desde: Date, hasta: Date): Promise<Hueco[]> {
     return this.bd.tx().$queryRaw<Hueco[]>`
       SELECT modalidad, inicio, fin FROM disponibilidad_publica(${profesionalId}::uuid, ${desde}, ${hasta})`;
@@ -159,6 +159,15 @@ export class AgendaService {
       throw new BadRequestException('inicioMin debe ser menor que finMin');
     }
     return vistaDisponibilidad(await this.bd.tx().disponibilidadProfesional.create({ data: { profesionalId, ...dto } }));
+  }
+
+  /** Todas las filas del dia (el propio y ADMIN/GESTION: RLS); la BD reprograma al desactivar. */
+  async activarDia(profesionalId: string, dia: number, activo: boolean) {
+    if (dia < 1 || dia > 7) {
+      throw new BadRequestException('dia debe ir de 1 (lunes) a 7 (domingo)');
+    }
+    await this.bd.tx().disponibilidadProfesional.updateMany({ where: { profesionalId, diaSemana: dia }, data: { activo } });
+    return this.disponibilidad(profesionalId);
   }
 
   async eliminarDisponibilidad(profesionalId: string, id: string) {
@@ -215,10 +224,5 @@ export class AgendaService {
   async soltarHorario(id: string) {
     const { count } = await this.bd.tx().bloqueoTemporal.deleteMany({ where: { id } });
     return { eliminados: count };
-  }
-
-  citasEnConflictoMargen(profesionalId: string) {
-    return this.bd.tx().$queryRaw<{ cita_id: string; cita_conflicto_id: string; inicio: Date; separacion_min: number; margen_min: number }[]>`
-      SELECT * FROM citas_en_conflicto_margen(${profesionalId}::uuid)`;
   }
 }
