@@ -427,6 +427,89 @@ Formato de CLAUDE.md, capturas lado a lado de lo corregido, lista de textos camb
 
 -----------------------------------------------------------------------------------------
 
+--------------------------------------------------------------------------------------------------------------------
+# 03b-4.2 - Correctivo: optimización para 1920x1080, agenda, inicio, vista de paciente y registro SIS
+
+## Contexto
+Correcciones de interfaz tras pruebas manuales. Leer CLAUDE.md, inventario_ui.md, brechas.md y matriz.
+Resolución de referencia: 1920x1080 (sin perder responsive). Objetivo: aprovechar el espacio útil y priorizar lo que el profesional usa cada día.
+Corregir solo lo indicado. Respetar todas las reglas de privacidad existentes.
+
+## 1. Agenda
+### 1.1 Encabezado compacto
+- Rol PROFESIONAL: título "Mi agenda" y una línea de subtítulo ("Tus sesiones y los boxes del centro"). Quitar el bloque de título grande, la etiqueta superior y el texto de "vista de coordinación".
+- ADMIN/GESTION: mantener "Coordinación del centro" con el mismo encabezado compacto.
+- Una sola barra de herramientas en una fila: vista (Día | Semana | Mes), Anterior, Hoy, Siguiente, rango de fechas, filtro de profesional (solo ADMIN/GESTION) y botón principal "Agendar sesión".
+
+### 1.2 Vistas
+- Quitar la pestaña "Horarios del equipo".
+- "Por profesional" pasa a llamarse "Mi horario" (PROFESIONAL). ADMIN/GESTION mantienen "Por profesional".
+- "Por box" se mantiene: muestra las citas de todos en los espacios compartidos. Para un PROFESIONAL, las citas de otros colegas se muestran como "Ocupado · nombre del profesional", sin nombre del paciente ni detalles (misma regla que ocupacion_espacios).
+- Agregar la vista Día.
+
+### 1.3 Grilla
+- Grilla de tiempo real: líneas por hora; cada cita ubicada y con alto según su hora de inicio y duración. Sin tarjetas de "Libre" en celdas vacías (lo vacío ya es libre).
+- La agenda ocupa todo el alto disponible de la ventana, con scroll interno de la grilla y encabezado de días fijo. Sin scroll de la página completa.
+- Al abrir, posicionar en el horario laboral y mostrar una línea de la hora actual.
+- Tarjeta de cita compacta: paciente (si el rol puede verlo), hora, profesional (en vistas multi-profesional), ícono de presencial/online y box.
+- Color por profesional en vistas de varios profesionales, con leyenda; estado de la cita con símbolo, no solo color (confirmada, pendiente de pago, atendida, sin evolución, no asistió, por reprogramar), con leyenda.
+- Contador de citas por día en el encabezado de cada columna.
+
+## 2. Inicio del profesional
+Reemplazar el inicio actual. Quitar las tarjetas "Módulos del centro" (repiten el menú lateral). Prioridad, de arriba hacia abajo:
+1. Sesión en curso o próxima sesión: hora, paciente, modalidad y box o enlace, y acciones "Abrir ficha" y "Registrar evolución". Si el paciente escribió un mensaje desde el portal antes de la sesión, mostrar un aviso con acceso al mensaje.
+2. Línea del día: las sesiones de hoy en una fila, con la actual destacada.
+3. Indicadores pequeños y clicables: pacientes activos, sesiones esta semana, pacientes sin sesión hace más de un mes.
+4. Dos columnas:
+   - "Esta semana": lista de próximas sesiones con estado (confirmó, pendiente de pago, etc.).
+   - "Pendientes": sesiones sin evolución, borradores sin confirmar, pagos pendientes, mensajes sin leer, consentimientos pendientes; y "Mis recordatorios": lista de tareas personales del profesional (crear, marcar hecha, fecha opcional).
+- Recordatorios personales: tabla nueva (A), cifrada, visible solo para su autor, sin vínculo obligatorio con pacientes. Advertencia de no escribir datos clínicos.
+- La calificación pasa a "Mi perfil"; no ocupa espacio en el inicio.
+- ADMIN/GESTION: mismo criterio de prioridad con sus propios datos (citas del centro hoy, pendientes administrativos, alertas), sin datos clínicos.
+- Sin IA (fuera de alcance).
+
+## 3. Vista de paciente
+Unificar la página del paciente y la ficha para reducir clics, según el rol activo.
+- Encabezado de identidad fijo al hacer scroll (prevención de errores, CENS): nombre, edad, RUT, cantidad de sesiones, estado (activo, alta) y tratante.
+- Fila de datos rápidos: correo y teléfono con botón copiar (solo roles autorizados), modalidad habitual, tarifa vigente, adulto responsable (si es menor), contacto de emergencia.
+- Avisos de acción en chips destacados: consentimiento pendiente, sesiones sin evolución, pago pendiente, borrador sin confirmar. Cada uno lleva a su acción.
+- Acciones principales siempre visibles: "Registrar evolución" o "Nueva sesión", "Agendar", "Derivar" y "Editar datos".
+- Pestañas:
+  - Tratante y acceso clínico: Sesiones (historial con estado), Evoluciones, Documentos y adjuntos, Cobros, Consentimientos.
+  - ADMIN/GESTION: Sesiones (solo estado administrativo), Cobros, Consentimientos, Datos. Nunca contenido clínico.
+- Panel lateral (tratante): motivo de consulta (de la ficha de ingreso) y la última evolución resumida con enlace.
+- Eliminar el paso intermedio "Abrir ficha clínica": el contenido clínico vive en las pestañas para quien tiene acceso.
+- Toda lectura clínica sigue auditada igual que hoy.
+
+## 4. Registro en la Superintendencia de Salud (RNPI)
+### 4.1 Visualización
+- En la tarjeta del equipo público y en el perfil completo, junto a la formación: insignia destacada "Registro SIS N.º XXXXX" con estado ("Verificado el dd/mm/aaaa" o "Verificado por el centro") y enlace al buscador público del RNPI (https://rnpi.superdesalud.gob.cl/).
+- Sin registro informado: no mostrar insignia.
+- Practicantes (no aparecen en el equipo público): en vistas internas, "Practicante supervisado por X" en lugar del registro.
+
+### 4.2 Verificación
+- Interfaz VerificadorPrestadores con dos implementaciones:
+  - SIMULADO (default en desarrollo, demo y tests).
+  - SUPERSALUD: usa la API de prestadores (/api/v2/prestadores/registro/{registro} o /api/v2/prestadores/rut/{rut}, RUT sin dígito verificador) con apikey desde configuración. Se activa solo si la apikey existe; si no, la API arranca igual y usa SIMULADO, dejando aviso en el log.
+- La consulta se hace solo desde el servidor (nunca desde el navegador), con timeout, reintentos limitados y manejo de 404 (no encontrado), 401/403 (apikey) y 429 (límite).
+- Verificación: el registro corresponde al RUT y al nombre del profesional, y el título habilitante coincide con su profesión. Estados: NO_INFORMADO, PENDIENTE, VERIFICADO_AUTOMATICO, VERIFICADO_MANUAL, NO_COINCIDE.
+- Minimización: guardar solo número de registro, título habilitante, institución, fecha de verificación, estado y método. No guardar fecha de nacimiento, sexo ni nacionalidad de la respuesta.
+- ADMIN puede verificar manualmente (respaldo actual de trayectoria) cuando no haya apikey o la API falle.
+- Job mensual opcional de reverificación (desactivado sin apikey).
+- Documentar en integraciones.md: la apikey se obtiene con solicitud formal a la Intendencia de Prestadores; mientras tanto se usa verificación manual.
+
+## Tests
+- Agenda: sin scroll de página a 1920x1080; vista por box para PROFESIONAL sin nombres de pacientes ajenos; vistas Día, Semana y Mes; posición por hora y duración.
+- Inicio: prioridades correctas por rol; recordatorios personales cifrados y visibles solo para su autor; ADMIN sin datos clínicos.
+- Paciente: pestañas según rol; encabezado de identidad presente en todas las vistas clínicas; lectura clínica auditada.
+- RNPI: adaptador simulado por defecto; adaptador real probado con HTTP simulado (éxito, 404, 401, 429, no coincide); no se guardan campos excluidos; la API arranca sin apikey.
+- Todas las suites existentes siguen pasando; regenerar openapi.json y el cliente del front.
+
+## Entrega
+Formato de CLAUDE.md, capturas a 1920x1080 de agenda (profesional y admin), inicio (profesional y admin), vista de paciente (tratante y admin) y perfil con registro SIS. Actualizar matriz, brechas.md e integraciones.md. Commits propuestos; no ejecutarlos hasta mi confirmación.
+--------------------------------------------------------------------------------------------------------------------
+
+
 
 ## 03b-5 Pantallas nuevas
 No están en el diseño: diseñarlas con el sistema Organic y el inventario de 03b-1.
@@ -449,11 +532,27 @@ No están en el diseño: diseñarlas con el sistema Organic y el inventario de 0
 - Configuración completa del centro: GESTION, plazos, márgenes, porcentajes, modelo de cobro, recordatorio, días de gracia, retención de mensajes, contenido público, horarios.
 Pasar cada vista nueva por impeccable y adjuntar captura.
 
+
+
+
 ## 03b-6 Pulido
 - Animaciones y transiciones coherentes con el sistema; estados vacíos ilustrados; skeletons de carga.
 - Responsive: público y portal primero para móvil; backoffice usable en tablet.
 - Accesibilidad completa (teclado, lectores de pantalla, foco visible, contraste).
-- Rendimiento: bundle, imágenes optimizadas, SSR del público.
+- Rendimiento del front:
+  - SSR o generación en build para el público; backoffice en cliente.
+  - Imágenes en WebP o AVIF con el componente de imagen de Next; lazy loading fuera de pantalla.
+  - Fuentes alojadas en el propio servidor (next/font), máximo 2 familias y solo los grosores usados.
+  - JavaScript dividido por página; componentes pesados (calendario, editor de evoluciones) con carga dinámica.
+  - Scripts de terceros después de la carga; ninguno en vistas clínicas.
+  - Debounce en búsquedas y autocompletado (pacientes, profesionales, match).
+  - Sin llamadas duplicadas: caché de peticiones en el cliente y deduplicación de la misma consulta.
+  - Peticiones independientes en paralelo, no en cadena.
+  - Listas largas virtualizadas (pacientes, historial de sesiones, auditoría).
+  - Sin re-renders innecesarios: revisar con el profiler de React las vistas de agenda y ficha.
+  - Actualización optimista solo en acciones reversibles (marcar leído, filtros, preferencias). Nunca en reservas, pagos, confirmaciones ni expediente.
+  - Estáticos con hash cacheados en el navegador; verificar que Traefik no quite esos encabezados.
+  - Quitar dependencias sin usar del front y revisar el tamaño del bundle.
 - Playwright con los flujos del guion manual de 02j y los nuevos:
   - reserva sin cuenta con retención, verificación y vencimiento;
   - "ya soy paciente" sin revelar información;
@@ -466,6 +565,7 @@ Pasar cada vista nueva por impeccable y adjuntar captura.
   - lista de espera;
   - hilo CASO que desaparece al perder acceso.
   - Los flujos que dependen de un correo (verificación, enlace de acceso, consentimientos por token, recordatorio, lista de espera) leen el enlace desde la API de Mailpit; nada se copia a mano.
+- Pruebas en móvil y red lenta: Playwright con emulación de celular y red 3G lenta en los flujos públicos y del portal.
 
 ## Entrega por fase
 Formato de CLAUDE.md, capturas de cada vista nueva o modificada, lista de lo reportado como contradicción o fuera de alcance, y commits propuestos en español (no ejecutarlos hasta mi confirmación).
