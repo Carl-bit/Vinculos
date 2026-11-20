@@ -36,10 +36,22 @@ fi
 USUARIO=""
 if [ "$(uname -s)" = Linux ]; then USUARIO="--user $(id -u):$(id -g)"; fi
 
+# compose del silo. Con digest en el .env (silo real, R1): la imagen publicada.
+# Sin digest (silo de prueba de servidor.sh o stress, desarrollo): la imagen
+# local del override de construccion; sin el, la imagen quedaria
+# "/vinculos-api@" (invalid reference format, hallado 2026-11-20).
+compose_silo() {
+  env_silo=${ENV_SILO:-$RAIZ/infra/.env}
+  if grep -Eq '^API_DIGEST=.+' "$env_silo"; then
+    docker compose -f "$RAIZ/infra/docker-compose.yml" --env-file "$env_silo" "$@"
+  else
+    docker compose -f "$RAIZ/infra/docker-compose.yml" -f "$RAIZ/infra/docker-compose.build.yml" --env-file "$env_silo" "$@"
+  fi
+}
+
 cli() {
   if [ "${MODO:-local}" = docker ]; then
-    docker compose -f "$RAIZ/infra/docker-compose.yml" --env-file "${ENV_SILO:-$RAIZ/infra/.env}" \
-      run --rm --no-deps $USUARIO -v "$SECRETOS:/llaves" migrate node dist/common/crypto/cli-llaves.js "$@"
+    compose_silo run --rm --no-deps $USUARIO -v "$SECRETOS:/llaves" migrate node dist/common/crypto/cli-llaves.js "$@"
   else
     (cd "$RAIZ/backend" && node $([ -f .env ] && echo --env-file=.env) -r ts-node/register       src/common/crypto/cli-llaves.ts "$@")
   fi
