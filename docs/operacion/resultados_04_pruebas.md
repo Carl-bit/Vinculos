@@ -30,7 +30,7 @@ concurrente, menor sin adulto, practicante vencido) ya existian.
 Conclusion: el EXCLUDE sostiene la colision y el silo cabe con holgura en el
 presupuesto de 1 GB con esta carga. Agenda y Espacios queda lista para el
 tenant de prueba segun el criterio de 04 (cero duplicados y sin reinicios).
-Falta repetirlo en Linux (fase 5 del plan) para la medicion definitiva.
+Repetido en Linux el 2026-11-20 (seccion "VPS Linux" al final).
 
 ## Hallazgos y lo que se cambio
 
@@ -44,7 +44,8 @@ Falta repetirlo en Linux (fase 5 del plan) para la medicion definitiva.
 
 ## No probado
 
-- Linux y Lightsail reales (memoria del SO, Traefik, Cloudflare): fase 5.
+- Lightsail real; Linux real ya medido (2026-11-20, seccion "VPS Linux"), pero
+  con k6 en la misma maquina (sin pasar por Cloudflare).
 - El front bajo carga (fuera del alcance de 04).
 - Varias IPs contra el rate limit real.
 
@@ -65,3 +66,43 @@ solapes. Lectura publica en el extremo: p95 22 ms. Si en produccion aparecen
 503 sostenidos, el siguiente paso no es mas conexiones (la memoria de Postgres
 ya subio de 100 a 155 MiB) sino acortar lo que espera cada insercion que choca
 (`lock_timeout` en la insercion de citas) o subir de plan.
+
+## VPS Linux (2026-11-20)
+
+Servidor de pruebas real (`servidor_pruebas.md`): i7-4790 (8 hilos), 15 GiB,
+Docker 29.9.2. El silo `estres` (mismos limites: 256 MiB y 1 vCPU por
+servicio, `connection_limit=12`) compartia el host con otros 5 silos, el plano
+de control y un modelo de lenguaje; k6 0.54.0 en la misma maquina. Datos
+crudos y analisis completo en el repo del plano de control:
+`docs/mediciones/2026-11-20-vps/`.
+
+Antes de correr hubo que poner al dia `pruebas/stress-agenda.js` (llamaba a
+`/cobros/deudas`, que salio con el MVP sin cobros) y `infra/stress/verificar.sh`
+(usaba el estado `PENDIENTE_PAGO`; ahora `CONFIRMADA`, `RETENIDA`,
+`SOLICITADA`, `PROPUESTA`, y falla si la consulta falla en vez de informar 0).
+
+Se corrio dos veces: con 6 silos en el host y con `estres` como unico silo
+(demos detenidos, modelo de lenguaje apagado).
+
+| Medida | VPS, 6 silos | VPS, silo solo | Windows | Umbral |
+|---|---|---|---|---|
+| Colision: 201 / 409 / 503 / otro | 3 / 75 / 12 / 0 | 3 / 87 / 0 / 0 | 3 / 87 / 0 / 0 | una 201 por ronda |
+| Citas activas solapadas | **0** | **0** | 0 | 0 |
+| `lectura_publica` | p95 103 ms, 0 % errores | p95 113 ms, 0 % errores | p95 6,6 ms | p95 < 300 ms |
+| `carga_normal` | 99,6 % (10 de 2.528 `ocupacion` fallaron) | 100 % | 100 % | 100 % |
+| Total | 21.089 peticiones, 69,9/s, p95 157 ms, max 17,5 s | 21.398, 71,1/s, p95 161 ms, max 683 ms | 23.789, 79/s, p95 8,2 ms | - |
+| Memoria pico | backend 97 MiB, Postgres 117 MiB | 99 / 118 MiB | 98 / 100 MiB | sin OOM |
+| CPU pico (1 vCPU) | backend 87 %, Postgres 45 % | 87 % / 43 % | 32 % / 10 % | - |
+| Reinicios / OOM | 0 / no | 0 / no | 0 / no | 0 |
+
+Conclusion: la integridad (cero solapes) y la memoria se sostienen en Linux.
+El limite del silo es la CPU del backend: en la rafaga de reservas llega al
+87 % de su vCPU, el pool se llena (12 respuestas 503 con `Retry-After`) y 10
+lecturas de `ocupacion` fallan en la misma ventana (probablemente 503 del
+pool; k6 no guardo el codigo). Compartir el host no explica la latencia
+mayor que en Windows: con el silo solo el p95 es el mismo (161 ms) y solo
+desaparecen los picos (0 respuestas 503, max 683 ms, 100 % de checks). La
+diferencia con Windows queda en la CPU (i7-4790) y en los datos que
+`estres` acumula de corridas anteriores (en Windows era un silo recien
+sembrado). Pendiente: k6 desde otra maquina por el dominio publico y un
+`estres` recien sembrado en el VPS para separar ambas causas.

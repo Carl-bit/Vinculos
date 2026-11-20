@@ -45,6 +45,14 @@ Flujo (desde la raiz del repo, Git Bash; en PowerShell anteponer `sh`):
    reiniciado ni muerto por memoria. Solo con ambas, Agenda queda lista.
 5. `sh infra/stress/bajar.sh` borra el silo, sus volumenes y sus llaves.
 
+Estres creciente (`stress-rampa.js`, 2026-11-20): etapas de 10, 25, 50, 100 y
+200 VUs (2 min cada una), solo lecturas (7 de cada 10 VUs leen el sitio
+publico, 3 del equipo leen agenda y ocupacion), asi que se puede repetir sin
+hacer crecer la BD. Resumen propio por etapa (peticiones, p95, maximo, 5xx) y
+punto de quiebre: la primera etapa con p95 > 300 ms o mas de 1 % de 5xx. Con
+`-e SALIDA=/out/rampa.json` deja el resumen en JSON. En el servidor de pruebas
+lo orquesta `scripts/mediciones/medir.sh rampa` del repo del plano de control.
+
 Consulta de solapes (la corre `verificar.sh`; con `app_user` la RLS oculta
 citas ajenas):
 
