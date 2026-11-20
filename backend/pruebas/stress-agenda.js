@@ -93,16 +93,18 @@ export function setup() {
     token = v.json('accessToken');
   }
 
-  // Profesional publicado con al menos RONDAS huecos libres en 14 dias y pacientes adultos sin deuda.
+  // Profesional publicado con al menos RONDAS huecos libres en 14 dias y pacientes adultos.
+  // (2026-11-20: sin /cobros/deudas; el MVP no tiene cobros desde 2026-11-16.)
   const ahora = Date.now();
   const perfiles = http.get(`${API}/publico/profesionales`).json();
-  const deudas = new Set((http.get(`${API}/cobros/deudas`, conToken(token)).json() || []).map((x) => x.paciente_id));
+  if (!Array.isArray(perfiles)) throw new Error(`/publico/profesionales no devolvio una lista: ${JSON.stringify(perfiles).slice(0, 200)}`);
   const adultoHasta = ahora - 18 * 365.25 * 86400000;
   for (const p of perfiles) {
     const id = p.id;
     const huecos = http.get(`${API}/publico/profesionales/${id}/disponibilidad?desde=${iso(ahora + 2 * 86400000)}&hasta=${iso(ahora + 14 * 86400000)}`).json() || [];
-    const pacientes = (http.get(`${API}/pacientes/resumen?profesionalId=${id}`, conToken(token)).json() || [])
-      .filter((x) => Date.parse(x.fechaNacimiento) < adultoHasta && !deudas.has(x.id))
+    const lista = http.get(`${API}/pacientes/resumen?profesionalId=${id}`, conToken(token)).json();
+    const pacientes = (Array.isArray(lista) ? lista : [])
+      .filter((x) => Date.parse(x.fechaNacimiento) < adultoHasta)
       .map((x) => x.id);
     // Huecos de una hora completa, separados entre si (cada ronda en uno distinto).
     const slots = [];
@@ -117,7 +119,7 @@ export function setup() {
       return { token, profesionalId: id, pacientes, slots, perfil: id };
     }
   }
-  throw new Error('ningun profesional publicado con huecos y pacientes adultos sin deuda');
+  throw new Error('ningun profesional publicado con huecos y pacientes adultos');
 }
 
 export function cargaNormal(d) {

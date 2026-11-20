@@ -8,17 +8,19 @@ SQL_SOLAPES="
 SELECT 'profesional' AS por, a.id, b.id FROM citas a JOIN citas b
   ON a.id < b.id AND a.profesional_id = b.profesional_id
  AND tstzrange(a.inicio, a.fin, '[)') && tstzrange(b.inicio, b.fin, '[)')
-WHERE a.estado IN ('CONFIRMADA', 'PENDIENTE_PAGO', 'RETENIDA') AND b.estado IN ('CONFIRMADA', 'PENDIENTE_PAGO', 'RETENIDA')
+WHERE a.estado IN ('CONFIRMADA', 'RETENIDA', 'SOLICITADA', 'PROPUESTA') AND b.estado IN ('CONFIRMADA', 'RETENIDA', 'SOLICITADA', 'PROPUESTA')
 UNION ALL
 SELECT 'box', a.id, b.id FROM citas a JOIN citas b
   ON a.id < b.id AND a.espacio_id = b.espacio_id AND a.modalidad = 'PRESENCIAL' AND b.modalidad = 'PRESENCIAL'
  AND tstzrange(a.inicio, a.fin, '[)') && tstzrange(b.inicio, b.fin, '[)')
-WHERE a.estado IN ('CONFIRMADA', 'PENDIENTE_PAGO', 'RETENIDA') AND b.estado IN ('CONFIRMADA', 'PENDIENTE_PAGO', 'RETENIDA');"
+WHERE a.estado IN ('CONFIRMADA', 'RETENIDA', 'SOLICITADA', 'PROPUESTA') AND b.estado IN ('CONFIRMADA', 'RETENIDA', 'SOLICITADA', 'PROPUESTA');"
 
 # Como vinculos_owner: con app_user la RLS de citas oculta filas ajenas.
-solapes=$(docker exec erp-${CLIENTE_SLUG:-stress}-db-1 psql -U vinculos_owner -d app -tAc "$SQL_SOLAPES")
 fallo=0
-if [ -n "$solapes" ]; then
+# Si la consulta falla (enum o columna cambiada), no se informa "0 solapes": falla la verificacion.
+if ! solapes=$(docker exec erp-${CLIENTE_SLUG:-stress}-db-1 psql -v ON_ERROR_STOP=1 -U vinculos_owner -d app -tAc "$SQL_SOLAPES"); then
+  echo "ERROR: la consulta de solapes fallo (revisar los estados de citas)"; fallo=1
+elif [ -n "$solapes" ]; then
   echo "SOLAPES (no avanzar a produccion):"; echo "$solapes"; fallo=1
 else
   echo "Solapes de citas activas: 0"
