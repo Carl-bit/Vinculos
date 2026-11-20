@@ -5,8 +5,49 @@ cliente es una instancia desplegada del mismo codigo (silo: 1 contenedor + 1 DB
 Postgres), nunca una rama ni un fork.
 
 Las reglas no negociables de arquitectura, diseño y convenciones estan en
-[`CLAUDE.md`](CLAUDE.md). Este README solo describe la estructura y como
+[`CLAUDE.md`](CLAUDE.md). Este README describe el alcance, la estructura y como
 levantar el proyecto.
+
+Los silos se aprovisionan, actualizan, monitorean y dan de baja desde
+**Vinculos Control** (repositorio aparte:
+https://github.com/Carl-bit/VinculosControl), que se comunica con cada silo
+solo por `/api/internal/*` y nunca ve datos de pacientes.
+
+## Alcance del MVP
+
+Modulos: nucleo de seguridad y roles, Fichas y Pacientes, Agenda y Espacios,
+Equipo, Match Terapeutico y Sitio Publico. **Sin cobros ni finanzas**: el
+modulo de cobros se retiro completo (BD, API y front, migracion
+`20261116000000_mvp_sin_cobros`); las tarifas quedan solo como dato
+informativo. Lo posterior al MVP esta en
+[`docs/backlog_post_mvp.md`](docs/backlog_post_mvp.md).
+
+## Inicio rapido para evaluar
+
+Camino mas corto para ver el sistema funcionando en un equipo Windows con
+Docker Desktop, Node 22 y Git for Windows (detalle en "Levantar en local"):
+
+```powershell
+cp infra/.env.example infra/.env
+cp backend/.env.example backend/.env          # SMTP_URL="smtp://localhost:1025"
+cp frontend/.env.example frontend/.env.local
+npm install; npm --prefix backend install; npm --prefix frontend install
+sh infra/scripts/reset_dev.sh --si            # BD en Docker, migraciones, seed base y llaves de desarrollo
+npm --prefix backend run seed:demo            # centro demo con datos ficticios
+powershell -ExecutionPolicy Bypass -File infra\scripts\dev\instalar_mailpit.ps1
+npm run dev                                   # Mailpit + API + front
+```
+
+- Sitio y panel: http://localhost:3000 (la API queda en http://localhost:3001/api).
+- Cuentas demo: `admin@centro-prueba.cl` y las demas de
+  [`docs/pruebas/usuarios_demo.md`](docs/pruebas/usuarios_demo.md); contrasena
+  de todas: `dev-password`.
+- El segundo paso del ingreso envia un codigo por correo: se lee en Mailpit,
+  http://localhost:8025.
+- Todos los datos son ficticios. Especificacion de la API: [`docs/api/openapi.json`](docs/api/openapi.json).
+- Pruebas: `npm --prefix backend run test:bd` (seguridad de la BD),
+  `npm --prefix backend test` (unitarias), `npm --prefix backend run test:e2e`
+  (integracion) y `npm --prefix frontend test` (front).
 
 ## Estructura
 
@@ -16,7 +57,7 @@ backend/                  NestJS + Prisma (monolito modular, single-tenant)
   src/core/                 transversal: config, bd (RLS + cifrado), auth, errores, logs, jobs, notificaciones, eventos
   src/modulos/              un bounded context por carpeta (ver su README)
   test/                     integracion (Jest + Supertest) contra Postgres efimero
-  pruebas/                  estres de agenda (k6, pendiente de Docker)
+  pruebas/                  k6: carga de agenda y rampa de estres (resultados en docs/operacion/ y en Vinculos Control)
 frontend/                 Next.js App Router (portal publico SSR/SSG + backoffice CSR)
   src/app/(publico)/        landing del centro, perfiles, match, busqueda, contacto
   src/app/(admin)/          backoffice auth-gated
@@ -81,7 +122,7 @@ Si el Postgres de Windows está corriendo, hay que detenerlo para liberar el 543
 
 ```powershell
 # Una vez: Mailpit (SMTP falso con bandeja web). Versión fija y SHA-256
-# verificado; queda en tools\mailpit\ (ignorado por git).
+# verificado; queda en tools\mailpit\.
 powershell -ExecutionPolicy Bypass -File infra\scripts\dev\instalar_mailpit.ps1
 npm install                # raíz: solo concurrently
 
@@ -143,9 +184,13 @@ configurado, esas rutas responden 401.
 
 ## Estado
 
-Orden y detalle en [`prompts/00_index.md`](prompts/00_index.md).
+MVP cerrado (2026-11-19). Orden y detalle en [`prompts/00_index.md`](prompts/00_index.md)
+y [`docs/roadmap_mvp.md`](docs/roadmap_mvp.md).
 
-- [x] Fase de BD (01 a 01g) — ver [`docs/bd/estado_fase_bd.md`](docs/bd/estado_fase_bd.md)
-- [ ] API (02a a 02h)
-- [ ] Pruebas de integracion y estres (04)
-- [ ] Front (03)
+- [x] Base de datos (01 a 01g): RLS forzado, restricciones de exclusion, cifrado envolvente y llaves con recuperacion 2 de 3 — [`docs/bd/estado_fase_bd.md`](docs/bd/estado_fase_bd.md)
+- [x] API (02a a 02j) — [`docs/api/estado_fase_api.md`](docs/api/estado_fase_api.md)
+- [x] Front (03a, 03b y rediseño visual)
+- [x] Pruebas de integracion y estres (04) — [`docs/operacion/resultados_04_pruebas.md`](docs/operacion/resultados_04_pruebas.md)
+- [x] Auditorias internas AUD-01 (cumplimiento) y AUD-02 (rendimiento) — `docs/cumplimiento/brechas_saas.md`, `docs/operacion/auditoria_rendimiento.md`
+- [x] Integracion con Vinculos Control: `/api/internal/*`, imagenes por digest, solo lectura en la salida, notas de version y centros demo
+- [ ] Piloto con usuarios del centro y despliegue en la infraestructura definitiva (AWS)
